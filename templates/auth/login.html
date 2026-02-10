@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Connexion - Shine Congo{% endblock %}
+
+{% block content %}
+<div style="max-width: 450px; margin: 4rem auto;">
+    <div class="card">
+        <h1 class="text-center mb-3" style="color: var(--primary-color)">Connexion</h1>
+        <p class="text-center mb-4" style="color: var(--text-secondary)">Portail Opérations Employés</p>
+
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label for="username">Identifiant</label>
+                <input type="text" class="form-control" id="username" name="username" required autofocus>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Mot de passe</label>
+                <input type="password" class="form-control" id="password" name="password" required>
+            </div>
+
+            {% if form.errors %}
+            <div class="alert alert-error mb-3">
+                {% for field, errors in form.errors.items %}
+                    {% for error in errors %}
+                        {{ error }}
+                    {% endfor %}
+                {% endfor %}
+                {% if form.non_field_errors %}
+                    {% for error in form.non_field_errors %}
+                        {{ error }}
+                    {% endfor %}
+                {% else %}
+                    Identifiant ou mot de passe incorrect.
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} mb-3">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <button type="submit" class="btn btn-primary btn-block">Se connecter</button>
+        </form>
+        
+        <div class="text-center mt-3">
+            <p style="color: var(--text-secondary);">
+                Pas encore de compte ? 
+                <a href="{% url 'register' %}" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Créer un compte</a>
+            </p>
+        </div>
+    </div>
+    
+    <!-- Footer avec lien admin -->
+    <div class="text-center mt-4" style="margin-top: 3rem;">
+        <p style="color: var(--text-secondary); font-size: 0.875rem;">
+            <a href="{% url 'admin:index' %}" style="color: var(--primary-color); text-decoration: none; opacity: 0.8;">
+                ⚙️ Accès Administrateur
+            </a>
+        </p>
+    </div>
+</div>
+{% endblock %}

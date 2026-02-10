@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Manager{% endblock %}
+
+{% block content %}
+<h1 class="mt-2 mb-4">Dashboard Manager - {{ today|date:"d/m/Y" }}</h1>
+
+{% for site_nom, stats in sites_stats.items %}
+<div class="card mb-4">
+    <h2 class="mb-3">{{ site_nom }}</h2>
+    
+    <div class="card-grid">
+        <div class="card stat-card">
+            <div class="stat-value">{{ stats.presents }}</div>
+            <div class="stat-label">Présents</div>
+        </div>
+        
+        <div class="card stat-card">
+            <div class="stat-value" style="color: var(--warning-color);">{{ stats.absents }}</div>
+            <div class="stat-label">Absents</div>
+        </div>
+        
+        <div class="card stat-card">
+            <div class="stat-value" style="color: var(--error-color);">{{ stats.missed_punch }}</div>
+            <div class="stat-label">Sortie manquante</div>
+        </div>
+        
+        <div class="card stat-card">
+            <div class="stat-value">{{ stats.total_lavages }}</div>
+            <div class="stat-label">Lavages du jour</div>
+        </div>
+        
+        <div class="card stat-card">
+            <div class="stat-value" style="font-size: 2rem;">{{ stats.chiffre_jour|floatformat:0 }} FC</div>
+            <div class="stat-label">Chiffre du jour</div>
+        </div>
+        
+        <div class="card stat-card">
+            <div class="stat-value" style="color: var(--warning-color);">{{ stats.problemes_ouverts }}</div>
+            <div class="stat-label">Problèmes ouverts</div>
+        </div>
+    </div>
+    
+    <div class="mt-3">
+        <a href="{% url 'manager_qr_du_jour' stats.site_id %}" class="btn btn-primary">QR du jour</a>
+        <a href="{% url 'manager_pointages' %}?site={{ stats.site_id }}" class="btn btn-primary">Pointages</a>
+        <a href="{% url 'manager_lavages' %}?site={{ stats.site_id }}" class="btn btn-primary">Lavages</a>
+        <a href="{% url 'manager_problemes' %}?site={{ stats.site_id }}" class="btn btn-warning">Problèmes</a>
+    </div>
+</div>
+{% endfor %}
+
+{% if not sites_stats %}
+<div class="card text-center">
+    <p style="color: var(--text-secondary); font-size: 1.2rem;">Aucun site assigné.</p>
+</div>
+{% endif %}
+{% endblock %}

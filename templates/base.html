@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Shine Congo - Portail Opérations{% endblock %}</title>
+    
+    <style>
+        /* Import Google Fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        /* Reset & Variables */
+        :root {
+            --primary-color: #0066FF;
+            --primary-dark: #0052CC;
+            --primary-light: #E6F0FF;
+            --secondary-color: #00D9FF;
+            --success-color: #00C853;
+            --warning-color: #FFB300;
+            --error-color: #FF3D00;
+            --dark-bg: #0A1929;
+            --card-bg: #132F4C;
+            --text-primary: #FFFFFF;
+            --text-secondary: #B2BAC2;
+            --border-color: #1E3A5F;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            --shadow-hover: 0 8px 30px rgba(0, 102, 255, 0.4);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, var(--dark-bg) 0%, #001E3C 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(19, 47, 76, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 1rem;
+            list-style: none;
+            flex-wrap: wrap;
+        }
+
+        .nav-menu a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .nav-menu a:hover {
+            background: rgba(0, 102, 255, 0.1);
+            color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            margin-bottom: 1.5rem;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-hover);
+            border-color: var(--primary-color);
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .btn {
+            padding: 0.875rem 2rem;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), #0052CC);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 102, 255, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success-color), #00A843);
+            color: white;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, var(--warning-color), #FF8F00);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--error-color), #DD2C00);
+            color: white;
+        }
+
+        .btn-block {
+            width: 100%;
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.875rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--dark-bg);
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border-radius: 12px;
+            background: var(--card-bg);
+            box-shadow: var(--shadow);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table thead {
+            background: var(--dark-bg);
+        }
+
+        table th, table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        table th {
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-size: 0.875rem;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .stat-value {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .messages {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 1000;
+            max-width: 400px;
+        }
+
+        .alert {
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            box-shadow: var(--shadow);
+        }
+
+        .alert-success {
+            background: rgba(0, 200, 83, 0.1);
+            border-left: 4px solid var(--success-color);
+            color: var(--success-color);
+        }
+
+        .alert-error {
+            background: rgba(255, 61, 0, 0.1);
+            border-left: 4px solid var(--error-color);
+            color: var(--error-color);
+        }
+
+        .alert-info {
+            background: rgba(0, 102, 255, 0.1);
+            border-left: 4px solid var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .mt-2 { margin-top: 1rem; }
+        .mt-3 { margin-top: 1.5rem; }
+        .mt-4 { margin-top: 2rem; }
+        .mb-2 { margin-bottom: 1rem; }
+        .mb-3 { margin-bottom: 1.5rem; }
+
+        @media (max-width: 768px) {
+            .card-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stat-value {
+                font-size: 2rem;
+            }
+
+            .nav-menu {
+                justify-content: center;
+            }
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">⚡ Shine Congo</div>
+            
+            {% if user.is_authenticated %}
+            <nav class="nav-menu">
+                {% if user.userprofile.is_employe %}
+                    <a href="{% url 'employe_dashboard' %}">Tableau de bord</a>
+                    <a href="{% url 'ajouter_lavage' %}">Ajouter lavage</a>
+                    <a href="{% url 'signaler_probleme' %}">Signaler problème</a>
+                    <a href="{% url 'employe_historique' %}">Historique</a>
+                {% elif user.userprofile.is_manager %}
+                    <a href="{% url 'manager_dashboard' %}">Dashboard</a>
+                    <a href="{% url 'manager_pointages' %}">Pointages</a>
+                    <a href="{% url 'manager_lavages' %}">Lavages</a>
+                    <a href="{% url 'manager_problemes' %}">Problèmes</a>
+                {% elif user.userprofile.is_admin %}
+                    <a href="{% url 'admin:index' %}">Admin</a>
+                    <a href="{% url 'manager_dashboard' %}">Dashboard</a>
+                {% endif %}
+                <a href="{% url 'logout' %}">Déconnexion</a>
+            </nav>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- Messages -->
+    {% if messages %}
+    <div class="messages">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Main Content -->
+    <main class="container">
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    {% block extra_js %}{% endblock %}
+    
+    <script>
+        // Protection stricte contre l'accès non autorisé après déconnexion
+        // Cette vérification s'exécute immédiatement pour bloquer tout accès sans authentification
+        
+        {% if not user.is_authenticated %}
+        // UTILISATEUR NON CONNECTÉ - Bloquer l'accès immédiatement
+        // Vérifier si on est sur une page protégée (pas login/logout/register)
+        const currentPath = window.location.pathname;
+        const loginPath = '{% url "login" %}';
+        const registerPath = '{% url "register" %}';
+        const logoutPath = '/logout/';
+        const publicPaths = [loginPath, registerPath, logoutPath, '/static/', '/media/'];
+        
+        const isPublicPath = publicPaths.some(path => currentPath.startsWith(path));
+        
+        if (!isPublicPath) {
+            // Rediriger immédiatement vers la page de connexion
+            // Utiliser replace() pour empêcher le bouton retour
+            window.location.replace(loginPath);
+        }
+        {% endif %}
+        
+        // Détecter l'utilisation du bouton retour du navigateur
+        window.addEventListener('pageshow', function(event) {
+            // Si la page a été chargée depuis le cache (bouton retour)
+            if (event.persisted) {
+                {% if not user.is_authenticated %}
+                // L'utilisateur n'est pas connecté - rediriger immédiatement vers login
+                // Utiliser replace() pour empêcher le bouton retour de fonctionner
+                window.location.replace('{% url "login" %}');
+                {% else %}
+                // Même si connecté, forcer un rechargement pour vérifier la session côté serveur
+                // Cela garantit que la session est toujours valide
+                window.location.reload(true);
+                {% endif %}
+            }
+        });
+        
+        // Intercepter les tentatives de navigation arrière (bouton retour)
+        if (window.history && window.history.pushState) {
+            // Sauvegarder l'état actuel
+            window.history.pushState(null, null, window.location.href);
+            
+            window.addEventListener('popstate', function(event) {
+                {% if not user.is_authenticated %}
+                // Si l'utilisateur n'est pas connecté, rediriger vers login
+                window.location.replace('{% url "login" %}');
+                {% else %}
+                // Même si connecté, vérifier avec le serveur
+                window.location.reload(true);
+                {% endif %}
+            });
+        }
+        
+        // Empêcher la mise en cache via les meta tags
+        (function() {
+            const head = document.getElementsByTagName('head')[0];
+            const existingMeta = document.querySelector('meta[http-equiv="Cache-Control"]');
+            
+            if (!existingMeta) {
+                const metaCache = document.createElement('meta');
+                metaCache.httpEquiv = 'Cache-Control';
+                metaCache.content = 'no-cache, no-store, must-revalidate';
+                head.appendChild(metaCache);
+                
+                const metaPragma = document.createElement('meta');
+                metaPragma.httpEquiv = 'Pragma';
+                metaPragma.content = 'no-cache';
+                head.appendChild(metaPragma);
+                
+                const metaExpires = document.createElement('meta');
+                metaExpires.httpEquiv = 'Expires';
+                metaExpires.content = '0';
+                head.appendChild(metaExpires);
+            }
+        })();
+    </script>
+</body>
+</html>

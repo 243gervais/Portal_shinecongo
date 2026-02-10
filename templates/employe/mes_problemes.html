@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Mes problèmes signalés{% endblock %}
+
+{% block content %}
+<h1 class="mt-2 mb-4">Mes problèmes signalés</h1>
+
+{% if problemes %}
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Catégorie</th>
+                <th>Description</th>
+                <th>Statut</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for probleme in problemes %}
+            <tr>
+                <td>{{ probleme.created_at|date:"d/m/Y H:i" }}</td>
+                <td>{{ probleme.get_categorie_display }}</td>
+                <td>{{ probleme.description|truncatewords:15 }}</td>
+                <td>
+                    {% if probleme.statut == "OUVERT" %}
+                    <span style="color: var(--warning-color);">● Ouvert</span>
+                    {% elif probleme.statut == "EN_COURS" %}
+                    <span style="color: var(--primary-color);">● En cours</span>
+                    {% elif probleme.statut == "RESOLU" %}
+                    <span style="color: var(--success-color);">✓ Résolu</span>
+                    {% endif %}
+                </td>
+                <td><a href="{% url 'detail_probleme' probleme.id %}" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Voir détails</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card text-center">
+    <p style="color: var(--text-secondary); font-size: 1.2rem;">Aucun problème signalé pour le moment.</p>
+    <a href="{% url 'signaler_probleme' %}" class="btn btn-warning mt-3">Signaler un problème</a>
+</div>
+{% endif %}
+{% endblock %}

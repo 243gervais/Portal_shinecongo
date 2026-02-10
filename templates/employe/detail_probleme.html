@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Détail du problème{% endblock %}
+
+{% block content %}
+<h1 class="mt-2 mb-4">Détail du problème</h1>
+
+<div class="card">
+    <div class="mb-3">
+        <h2>{{ probleme.get_categorie_display }}</h2>
+        <p style="color: var(--text-secondary);">Signalé le {{ probleme.created_at|date:"d/m/Y à H:i" }}</p>
+    </div>
+
+    <div class="form-group">
+        <label>Statut</label>
+        <div>
+            {% if probleme.statut == "OUVERT" %}
+            <span style="color: var(--warning-color); font-size: 1.1rem; font-weight: 600;">● Ouvert</span>
+            {% elif probleme.statut == "EN_COURS" %}
+            <span style="color: var(--primary-color); font-size: 1.1rem; font-weight: 600;">● En cours</span>
+            {% elif probleme.statut == "RESOLU" %}
+            <span style="color: var(--success-color); font-size: 1.1rem; font-weight: 600;">✓ Résolu</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>Description</label>
+        <div style="color: var(--text-primary); white-space: pre-wrap;">{{ probleme.description }}</div>
+    </div>
+
+    {% if probleme.photo %}
+    <div class="form-group">
+        <label>Photo</label>
+        <div>
+            <img src="{{ probleme.photo.url }}" alt="Photo du problème" style="max-width: 100%; border-radius: 8px; border: 1px solid var(--border-color);">
+        </div>
+    </div>
+    {% endif %}
+
+    {% if probleme.resolu_le %}
+    <div class="form-group">
+        <label>Résolu le</label>
+        <div style="color: var(--text-primary);">{{ probleme.resolu_le|date:"d/m/Y à H:i" }}</div>
+    </div>
+    {% endif %}
+
+    {% if probleme.notes_resolution %}
+    <div class="form-group">
+        <label>Notes de résolution</label>
+        <div style="color: var(--text-primary); white-space: pre-wrap;">{{ probleme.notes_resolution }}</div>
+    </div>
+    {% endif %}
+
+    <div class="mt-3">
+        <a href="{% url 'mes_problemes' %}" class="btn btn-primary">Retour à la liste</a>
+        <a href="{% url 'employe_dashboard' %}" class="btn btn-danger">Tableau de bord</a>
+    </div>
+</div>
+{% endblock %}

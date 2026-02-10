@@ -1,0 +1,839 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    /* Modern Admin Design - Shine Congo */
+    :root {
+        --primary-color: #0066FF;
+        --primary-dark: #0052CC;
+        --primary-light: #E6F0FF;
+        --secondary-color: #00D9FF;
+        --success-color: #00C853;
+        --warning-color: #FFB300;
+        --error-color: #FF3D00;
+        --dark-bg: #0A1929;
+        --card-bg: #132F4C;
+        --text-primary: #FFFFFF;
+        --text-secondary: #B2BAC2;
+        --border-color: #1E3A5F;
+        --shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        --shadow-hover: 0 8px 30px rgba(0, 102, 255, 0.4);
+    }
+
+    /* Import Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    /* Body and main background */
+    body {
+        background: linear-gradient(135deg, var(--dark-bg) 0%, #001E3C 100%) !important;
+        color: var(--text-primary) !important;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+        min-height: 100vh !important;
+    }
+
+    /* Header - Modern Design */
+    #header {
+        background: rgba(19, 47, 76, 0.95) !important;
+        backdrop-filter: blur(10px) !important;
+        border-bottom: 2px solid var(--primary-color) !important;
+        box-shadow: var(--shadow) !important;
+        padding: 1rem 0 !important;
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 1000 !important;
+    }
+
+    #header #site-name {
+        padding: 0 !important;
+    }
+
+    #header #site-name a {
+        color: var(--text-primary) !important;
+        font-size: 1.75rem !important;
+        font-weight: 700 !important;
+        text-decoration: none !important;
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)) !important;
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+        background-clip: text !important;
+        transition: all 0.3s ease !important;
+        display: inline-block !important;
+    }
+
+    #header #site-name a:hover {
+        transform: scale(1.05) !important;
+        filter: brightness(1.1) !important;
+    }
+
+    /* User tools - Modern styling */
+    #user-tools {
+        color: var(--text-secondary) !important;
+        font-weight: 500 !important;
+        font-size: 0.9rem !important;
+    }
+
+    #user-tools a {
+        color: var(--primary-color) !important;
+        text-decoration: none !important;
+        padding: 0.5rem 1rem !important;
+        border-radius: 8px !important;
+        transition: all 0.3s ease !important;
+    }
+
+    #user-tools a:hover {
+        color: var(--secondary-color) !important;
+        background: rgba(0, 102, 255, 0.1) !important;
+    }
+
+    /* Main content area */
+    #content {
+        background: transparent !important;
+        padding: 2rem !important;
+        min-height: calc(100vh - 80px) !important;
+    }
+
+    /* Dashboard modules - Card design */
+    .dashboard .module {
+        background: var(--card-bg) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 16px !important;
+        padding: 2rem !important;
+        margin-bottom: 1.5rem !important;
+        box-shadow: var(--shadow) !important;
+        transition: all 0.3s ease !important;
+        position: relative !important;
+        overflow: hidden !important;
+    }
+
+    .dashboard .module::before {
+        content: '' !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        height: 4px !important;
+        background: linear-gradient(90deg, var(--primary-color), var(--secondary-color)) !important;
+        opacity: 0 !important;
+        transition: opacity 0.3s ease !important;
+    }
+
+    .dashboard .module:hover {
+        transform: translateY(-4px) !important;
+        box-shadow: var(--shadow-hover) !important;
+        border-color: var(--primary-color) !important;
+    }
+
+    .dashboard .module:hover::before {
+        opacity: 1 !important;
+    }
+
+    .dashboard .module h2 {
+        color: var(--primary-color) !important;
+        font-size: 1.3rem !important;
+        font-weight: 700 !important;
+        margin-bottom: 1.5rem !important;
+        border-bottom: 2px solid var(--border-color) !important;
+        padding-bottom: 0.75rem !important;
+        background: transparent !important;
+        text-transform: none !important;
+    }
+
+    .dashboard .module table {
+        width: 100% !important;
+        color: var(--text-primary) !important;
+        border-collapse: separate !important;
+        border-spacing: 0 !important;
+    }
+
+    .dashboard .module table th {
+        color: var(--text-secondary) !important;
+        font-weight: 600 !important;
+        text-transform: uppercase !important;
+        font-size: 0.75rem !important;
+        letter-spacing: 1px !important;
+        background: transparent !important;
+        padding: 1rem !important;
+        border-bottom: 2px solid var(--border-color) !important;
+    }
+
+    .dashboard .module table td {
+        color: var(--text-primary) !important;
+        padding: 1rem !important;
+        border-bottom: 1px solid var(--border-color) !important;
+    }
+
+    .dashboard .module table tbody tr {
+        transition: all 0.2s ease !important;
+    }
+
+    .dashboard .module table tbody tr:hover {
+        background: rgba(0, 102, 255, 0.1) !important;
+    }
+
+    .dashboard .module table a {
+        color: var(--primary-color) !important;
+        text-decoration: none !important;
+        font-weight: 500 !important;
+        transition: all 0.2s ease !important;
+    }
+
+    .dashboard .module table a:hover {
+        color: var(--secondary-color) !important;
+        text-decoration: underline !important;
+    }
+
+    /* Forms - Modern input design */
+    .form-row {
+        margin-bottom: 1.5rem !important;
+    }
+
+    .form-row label {
+        color: var(--text-secondary) !important;
+        font-weight: 600 !important;
+        margin-bottom: 0.5rem !important;
+        display: block !important;
+        font-size: 0.9rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+    }
+
+    .form-row input[type="text"],
+    .form-row input[type="email"],
+    .form-row input[type="password"],
+    .form-row input[type="number"],
+    .form-row input[type="date"],
+    .form-row input[type="datetime-local"],
+    .form-row select,
+    .form-row textarea {
+        width: 100% !important;
+        background: var(--dark-bg) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 8px !important;
+        color: var(--text-primary) !important;
+        padding: 0.875rem 1rem !important;
+        font-size: 1rem !important;
+        transition: all 0.3s ease !important;
+        font-family: inherit !important;
+    }
+
+    .form-row input:focus,
+    .form-row select:focus,
+    .form-row textarea:focus {
+        outline: none !important;
+        border-color: var(--primary-color) !important;
+        box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1) !important;
+        background: rgba(0, 102, 255, 0.05) !important;
+    }
+
+    .form-row .help {
+        color: var(--text-secondary) !important;
+        font-size: 0.875rem !important;
+        margin-top: 0.5rem !important;
+    }
+
+    /* Buttons - Modern gradient design */
+    .submit-row {
+        background: var(--card-bg) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 12px !important;
+        padding: 1.5rem !important;
+        margin-top: 2rem !important;
+        display: flex !important;
+        gap: 1rem !important;
+        flex-wrap: wrap !important;
+    }
+
+    .submit-row input[type="submit"],
+    .submit-row input[type="button"],
+    .submit-row a.button,
+    .submit-row button {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 0.875rem 2rem !important;
+        font-weight: 600 !important;
+        cursor: pointer !important;
+        text-decoration: none !important;
+        display: inline-block !important;
+        transition: all 0.3s ease !important;
+        font-size: 1rem !important;
+        box-shadow: 0 2px 8px rgba(0, 102, 255, 0.3) !important;
+    }
+
+    .submit-row input[type="submit"]:hover,
+    .submit-row input[type="button"]:hover,
+    .submit-row a.button:hover,
+    .submit-row button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 8px 20px rgba(0, 102, 255, 0.4) !important;
+    }
+
+    .submit-row .deletelink {
+        background: linear-gradient(135deg, var(--error-color), #DD2C00) !important;
+        box-shadow: 0 2px 8px rgba(255, 61, 0, 0.3) !important;
+    }
+
+    .submit-row .deletelink:hover {
+        box-shadow: 0 8px 20px rgba(255, 61, 0, 0.4) !important;
+    }
+
+    /* Tables - Modern table design */
+    #result_list {
+        background: var(--card-bg) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 16px !important;
+        overflow: hidden !important;
+        box-shadow: var(--shadow) !important;
+    }
+
+    #result_list thead th {
+        background: var(--dark-bg) !important;
+        color: var(--text-secondary) !important;
+        font-weight: 600 !important;
+        text-transform: uppercase !important;
+        font-size: 0.75rem !important;
+        letter-spacing: 1px !important;
+        padding: 1.25rem 1rem !important;
+        border-bottom: 2px solid var(--border-color) !important;
+    }
+
+    #result_list tbody td {
+        color: var(--text-primary) !important;
+        padding: 1.25rem 1rem !important;
+        border-bottom: 1px solid var(--border-color) !important;
+    }
+
+    #result_list tbody tr {
+        transition: all 0.2s ease !important;
+    }
+
+    #result_list tbody tr:hover {
+        background: rgba(0, 102, 255, 0.1) !important;
+    }
+
+    #result_list tbody tr:last-child td {
+        border-bottom: none !important;
+    }
+
+    #result_list tbody a {
+        color: var(--primary-color) !important;
+        text-decoration: none !important;
+        font-weight: 500 !important;
+        transition: all 0.2s ease !important;
+    }
+
+    #result_list tbody a:hover {
+        color: var(--secondary-color) !important;
+        text-decoration: underline !important;
+    }
+
+    /* Messages - Modern alert design */
+    .messagelist {
+        list-style: none !important;
+        padding: 0 !important;
+        margin: 0 0 1.5rem 0 !important;
+    }
+
+    .messagelist li {
+        background: var(--card-bg) !important;
+        border-left: 4px solid var(--primary-color) !important;
+        border-radius: 8px !important;
+        padding: 1rem 1.5rem !important;
+        margin-bottom: 0.75rem !important;
+        color: var(--text-primary) !important;
+        box-shadow: var(--shadow) !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.75rem !important;
+    }
+
+    .messagelist li::before {
+        content: '✓' !important;
+        font-weight: bold !important;
+        font-size: 1.2rem !important;
+    }
+
+    .messagelist .success {
+        border-left-color: var(--success-color) !important;
+        background: rgba(0, 200, 83, 0.1) !important;
+    }
+
+    .messagelist .success::before {
+        content: '✓' !important;
+        color: var(--success-color) !important;
+    }
+
+    .messagelist .error {
+        border-left-color: var(--error-color) !important;
+        background: rgba(255, 61, 0, 0.1) !important;
+    }
+
+    .messagelist .error::before {
+        content: '✗' !important;
+        color: var(--error-color) !important;
+    }
+
+    .messagelist .warning {
+        border-left-color: var(--warning-color) !important;
+        background: rgba(255, 179, 0, 0.1) !important;
+    }
+
+    .messagelist .warning::before {
+        content: '⚠' !important;
+        color: var(--warning-color) !important;
+    }
+
+    /* Filters sidebar - Modern design */
+    #changelist-filter {
+        background: var(--card-bg) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 16px !important;
+        padding: 1.5rem !important;
+        box-shadow: var(--shadow) !important;
+    }
+
+    #changelist-filter h2 {
+        color: var(--primary-color) !important;
+        font-size: 1.1rem !important;
+        font-weight: 700 !important;
+        margin-bottom: 1rem !important;
+        background: transparent !important;
+        border-bottom: 2px solid var(--border-color) !important;
+        padding-bottom: 0.75rem !important;
+    }
+
+    #changelist-filter h3 {
+        color: var(--text-secondary) !important;
+        font-size: 0.875rem !important;
+        font-weight: 600 !important;
+        margin-top: 1.5rem !important;
+        margin-bottom: 0.75rem !important;
+        background: transparent !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
+    }
+
+    #changelist-filter li {
+        margin-bottom: 0.5rem !important;
+    }
+
+    #changelist-filter a {
+        color: var(--text-primary) !important;
+        text-decoration: none !important;
+        padding: 0.5rem 0.75rem !important;
+        border-radius: 6px !important;
+        display: block !important;
+        transition: all 0.2s ease !important;
+    }
+
+    #changelist-filter a:hover {
+        color: var(--primary-color) !important;
+        background: rgba(0, 102, 255, 0.1) !important;
+    }
+
+    #changelist-filter .selected a {
+        color: var(--primary-color) !important;
+        font-weight: 600 !important;
+        background: rgba(0, 102, 255, 0.15) !important;
+    }
+
+    /* Breadcrumbs - Modern design */
+    .breadcrumbs {
+        background: transparent !important;
+        padding: 0.75rem 0 !important;
+        margin-bottom: 1.5rem !important;
+        color: var(--text-secondary) !important;
+        font-size: 0.9rem !important;
+    }
+
+    .breadcrumbs a {
+        color: var(--primary-color) !important;
+        text-decoration: none !important;
+        transition: all 0.2s ease !important;
+    }
+
+    .breadcrumbs a:hover {
+        color: var(--secondary-color) !important;
+    }
+
+    /* Object tools - Modern button design */
+    .object-tools {
+        margin-bottom: 1.5rem !important;
+        display: flex !important;
+        gap: 0.75rem !important;
+        flex-wrap: wrap !important;
+    }
+
+    .object-tools a,
+    .object-tools li a {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)) !important;
+        color: white !important;
+        border-radius: 8px !important;
+        padding: 0.75rem 1.5rem !important;
+        text-decoration: none !important;
+        font-weight: 600 !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 2px 8px rgba(0, 102, 255, 0.3) !important;
+        display: inline-block !important;
+    }
+
+    .object-tools a:hover,
+    .object-tools li a:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 8px 20px rgba(0, 102, 255, 0.4) !important;
+    }
+
+    .object-tools .addlink {
+        background: linear-gradient(135deg, var(--success-color), #00A843) !important;
+        box-shadow: 0 2px 8px rgba(0, 200, 83, 0.3) !important;
+    }
+
+    .object-tools .addlink:hover {
+        box-shadow: 0 8px 20px rgba(0, 200, 83, 0.4) !important;
+    }
+
+    /* Change list - Modern design */
+    #changelist {
+        background: transparent !important;
+    }
+
+    /* Pagination - Modern design */
+    .paginator {
+        background: var(--card-bg) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 12px !important;
+        padding: 1rem !important;
+        margin-top: 1.5rem !important;
+        color: var(--text-primary) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 0.5rem !important;
+        flex-wrap: wrap !important;
+    }
+
+    .paginator a {
+        color: var(--primary-color) !important;
+        text-decoration: none !important;
+        padding: 0.5rem 0.75rem !important;
+        border-radius: 6px !important;
+        transition: all 0.2s ease !important;
+        font-weight: 500 !important;
+    }
+
+    .paginator a:hover {
+        background: rgba(0, 102, 255, 0.1) !important;
+        color: var(--secondary-color) !important;
+    }
+
+    .paginator .this-page {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)) !important;
+        color: white !important;
+        padding: 0.5rem 0.75rem !important;
+        border-radius: 6px !important;
+        font-weight: 600 !important;
+    }
+
+    /* General text styling */
+    h1, h2, h3, h4, h5, h6 {
+        color: var(--text-primary) !important;
+        font-weight: 600 !important;
+    }
+
+    h1 {
+        font-size: 2rem !important;
+        margin-bottom: 1.5rem !important;
+    }
+
+    h2 {
+        font-size: 1.5rem !important;
+        margin-bottom: 1rem !important;
+    }
+
+    a {
+        color: var(--primary-color) !important;
+        transition: all 0.2s ease !important;
+    }
+
+    a:hover {
+        color: var(--secondary-color) !important;
+    }
+
+    /* Fieldset styling */
+    fieldset {
+        background: var(--card-bg) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 12px !important;
+        padding: 1.5rem !important;
+        margin-bottom: 1.5rem !important;
+    }
+
+    fieldset legend {
+        color: var(--primary-color) !important;
+        font-weight: 700 !important;
+        font-size: 1.1rem !important;
+        padding: 0 1rem !important;
+    }
+
+    /* Inline forms */
+    .inline-group {
+        background: var(--card-bg) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 12px !important;
+        padding: 1.5rem !important;
+        margin-bottom: 1.5rem !important;
+    }
+
+    /* Checkboxes and radio buttons */
+    input[type="checkbox"],
+    input[type="radio"] {
+        accent-color: var(--primary-color) !important;
+        width: 18px !important;
+        height: 18px !important;
+        cursor: pointer !important;
+    }
+
+    /* Select multiple */
+    select[multiple] {
+        background: var(--dark-bg) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 8px !important;
+        color: var(--text-primary) !important;
+    }
+
+    /* Help text */
+    .help,
+    .help-block {
+        color: var(--text-secondary) !important;
+        font-size: 0.875rem !important;
+    }
+
+    /* Required field indicator */
+    .required {
+        color: var(--error-color) !important;
+    }
+
+    /* Error messages */
+    .errorlist {
+        list-style: none !important;
+        padding: 0 !important;
+        margin: 0.5rem 0 0 0 !important;
+    }
+
+    .errorlist li {
+        color: var(--error-color) !important;
+        font-size: 0.875rem !important;
+        padding: 0.5rem 0.75rem !important;
+        background: rgba(255, 61, 0, 0.1) !important;
+        border-left: 3px solid var(--error-color) !important;
+        border-radius: 4px !important;
+        margin-bottom: 0.5rem !important;
+    }
+
+    /* Readonly fields */
+    .readonly {
+        background: rgba(178, 186, 194, 0.1) !important;
+        color: var(--text-secondary) !important;
+    }
+
+    /* Actions dropdown */
+    .actions {
+        background: var(--card-bg) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 8px !important;
+        padding: 1rem !important;
+        margin-bottom: 1rem !important;
+    }
+
+    .actions select {
+        background: var(--dark-bg) !important;
+        border: 1px solid var(--border-color) !important;
+        color: var(--text-primary) !important;
+        border-radius: 6px !important;
+        padding: 0.5rem !important;
+    }
+
+    .actions button {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 6px !important;
+        padding: 0.5rem 1rem !important;
+        font-weight: 600 !important;
+        cursor: pointer !important;
+        margin-left: 0.5rem !important;
+    }
+
+    /* Search bar */
+    #changelist-search {
+        background: var(--card-bg) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 8px !important;
+        padding: 1rem !important;
+        margin-bottom: 1rem !important;
+    }
+
+    #changelist-search input[type="text"] {
+        background: var(--dark-bg) !important;
+        border: 1px solid var(--border-color) !important;
+        color: var(--text-primary) !important;
+        border-radius: 6px !important;
+        padding: 0.75rem !important;
+    }
+
+    /* Login page - Beautiful design */
+    body.login {
+        background: linear-gradient(135deg, var(--dark-bg) 0%, #001E3C 100%) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-height: 100vh !important;
+    }
+
+    body.login #header {
+        background: transparent !important;
+        border: none !important;
+        padding: 2rem 0 !important;
+        position: static !important;
+    }
+
+    body.login #header #site-name {
+        text-align: center !important;
+    }
+
+    body.login #header #site-name a {
+        font-size: 2.5rem !important;
+    }
+
+    body.login #content {
+        background: transparent !important;
+        padding: 2rem !important;
+        max-width: 450px !important;
+        margin: 0 auto !important;
+    }
+
+    body.login #content-main {
+        background: var(--card-bg) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 16px !important;
+        padding: 2.5rem !important;
+        box-shadow: var(--shadow-hover) !important;
+    }
+
+    body.login .form-row {
+        margin-bottom: 1.5rem !important;
+    }
+
+    body.login .form-row label {
+        color: var(--text-secondary) !important;
+        font-weight: 600 !important;
+        margin-bottom: 0.5rem !important;
+        display: block !important;
+        font-size: 0.9rem !important;
+    }
+
+    body.login .form-row input[type="text"],
+    body.login .form-row input[type="password"] {
+        width: 100% !important;
+        padding: 1rem !important;
+        background: var(--dark-bg) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 8px !important;
+        color: var(--text-primary) !important;
+        font-size: 1rem !important;
+        transition: all 0.3s ease !important;
+    }
+
+    body.login .form-row input:focus {
+        outline: none !important;
+        border-color: var(--primary-color) !important;
+        box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1) !important;
+    }
+
+    body.login .submit-row {
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        margin-top: 2rem !important;
+    }
+
+    body.login .submit-row input[type="submit"] {
+        width: 100% !important;
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 1rem 2rem !important;
+        font-size: 1.1rem !important;
+        font-weight: 600 !important;
+        cursor: pointer !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 12px rgba(0, 102, 255, 0.3) !important;
+    }
+
+    body.login .submit-row input[type="submit"]:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 8px 24px rgba(0, 102, 255, 0.4) !important;
+    }
+
+    body.login .errornote {
+        background: rgba(255, 61, 0, 0.1) !important;
+        border-left: 4px solid var(--error-color) !important;
+        color: var(--error-color) !important;
+        padding: 1rem 1.5rem !important;
+        border-radius: 8px !important;
+        margin-bottom: 1.5rem !important;
+        font-weight: 500 !important;
+    }
+
+    body.login .form-row .help {
+        color: var(--text-secondary) !important;
+        font-size: 0.875rem !important;
+        margin-top: 0.5rem !important;
+    }
+
+    /* Responsive design */
+    @media (max-width: 768px) {
+        #content {
+            padding: 1rem !important;
+        }
+
+        .dashboard .module {
+            padding: 1.5rem !important;
+        }
+
+        .submit-row {
+            flex-direction: column !important;
+        }
+
+        .submit-row input[type="submit"],
+        .submit-row a.button {
+            width: 100% !important;
+        }
+
+        body.login #header #site-name a {
+            font-size: 2rem !important;
+        }
+
+        body.login #content-main {
+            padding: 1.5rem !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block branding %}
+<h1 id="site-name">
+    <a href="{% url 'admin:index' %}">
+        <span style="background: linear-gradient(135deg, #0066FF, #00D9FF); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+            ⚡ Shine Congo - Administration
+        </span>
+    </a>
+</h1>
+{% endblock %}

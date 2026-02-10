@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block title %}Tableau de bord - Employé{% endblock %}
+
+{% block content %}
+<h1 class="mt-2 mb-4">Tableau de bord - Employé</h1>
+
+<!-- Statistiques du jour -->
+<div class="card-grid">
+    <div class="card stat-card">
+        <div class="stat-value">{{ lavages_today }}</div>
+        <div class="stat-label">Lavages aujourd'hui</div>
+    </div>
+
+    <div class="card stat-card">
+        <div class="stat-value">{{ problemes_ouverts }}</div>
+        <div class="stat-label">Problèmes ouverts</div>
+    </div>
+</div>
+
+<!-- Statut pointage -->
+<div class="card">
+    <h2 class="mb-3">Pointage du jour</h2>
+
+    {% if has_clocked_in %}
+    <div class="alert alert-success">
+        ✓ Entrée pointée à {{ shift_today.clock_in_time|time:"H:i" }}
+    </div>
+
+    {% if has_clocked_out %}
+    <div class="alert alert-success">
+        ✓ Sortie pointée à {{ shift_today.clock_out_time|time:"H:i" }}
+    </div>
+    {% else %}
+    <p class="text-center mt-3">
+        <a href="#" onclick="startClockOutScan(); return false;" class="btn btn-warning">
+            📸 Rapport de la journée / Fin de service (Scanner QR)
+        </a>
+    </p>
+    {% endif %}
+    {% else %}
+    <p class="text-center">
+        <a href="#" onclick="startClockInScan(); return false;" class="btn btn-primary btn-lg">
+            📸 Début de service (Scanner QR)
+        </a>
+    </p>
+    {% endif %}
+</div>
+
+<!-- Actions rapides -->
+<div class="card-grid">
+    <div class="card">
+        <h3>Ajouter un lavage</h3>
+        <p style="color: var(--text-secondary)">Enregistrer un nouveau lavage avec photos</p>
+        <a href="{% url 'ajouter_lavage' %}" class="btn btn-primary btn-block mt-3">Ajouter</a>
+    </div>
+
+    <div class="card">
+        <h3>Signaler un problème</h3>
+        <p style="color: var(--text-secondary)">Matériel, eau, sécurité, etc.</p>
+        <a href="{% url 'signaler_probleme' %}" class="btn btn-warning btn-block mt-3">Signaler</a>
+    </div>
+
+    <div class="card">
+        <h3>Historique</h3>
+        <p style="color: var(--text-secondary)">Mes pointages et activités</p>
+        <a href="{% url 'employe_historique' %}" class="btn btn-primary btn-block mt-3">Voir</a>
+    </div>
+</div>
+
+<!-- Scanner QR Modal (style simple) -->
+<div id="qr-scanner-modal"
+    style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 2000; padding: 20px;">
+    <div style="max-width: 500px; margin: 2rem auto; background: var(--card-bg); padding: 2rem; border-radius: 16px;">
+        <h2 class="text-center mb-3" id="scanner-title">Scanner le QR</h2>
+        <div id="qr-reader" style="width: 100%;"></div>
+        <button onclick="closeScanner()" class="btn btn-danger btn-block mt-3">Annuler</button>
+        <div id="scan-result" class="mt-3"></div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script>
+    let html5QrCode = null;
+    let scanType = null;
+
+    function startClockInScan() {
+        scanType = 'clock-in';
+        document.getElementById('scanner-title').innerText = 'Scanner QR - Début de service';
+        document.getElementById('qr-scanner-modal').style.display = 'block';
+        startScanner();
+    }
+
+    function startClockOutScan() {
+        scanType = 'clock-out';
+        document.getElementById('scanner-title').innerText = 'Scanner QR - Fin de service';
+        document.getElementById('qr-scanner-modal').style.display = 'block';
+        startScanner();
+    }
+
+    function startScanner() {
+        html5QrCode = new Html5Qrcode("qr-reader");
+        html5QrCode.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: 250 },
+            onScanSuccess
+        ).catch(err => {
+            console.error('Erreur scanner:', err);
+            document.getElementById('scan-result').innerHTML = '<div class="alert alert-error">Impossible d\'accéder à la caméra</div>';
+        });
+    }
+
+    function onScanSuccess(decodedText, decodedResult) {
+        // Arrêter le scanner
+        html5QrCode.stop();
+
+        // Extraire le site_token de l'URL scannée
+        // Format attendu: http://domain/scan/<uuid>/
+        let siteToken = null;
+        try {
+            const url = new URL(decodedText);
+            const pathParts = url.pathname.split('/');
+            const scanIndex = pathParts.indexOf('scan');
+            if (scanIndex !== -1 && pathParts[scanIndex + 1]) {
+                siteToken = pathParts[scanIndex + 1];
+            }
+        } catch (e) {
+            // Si ce n'est pas une URL complète, essayer de parser directement
+            const match = decodedText.match(/scan\/([a-f0-9-]{36})/i);
+            if (match) {
+                siteToken = match[1];
+            }
+        }
+
+        if (!siteToken) {
+            document.getElementById('scan-result').innerHTML = '<div class="alert alert-error">QR code invalide ou non reconnu.</div>';
+            setTimeout(() => closeScanner(), 2000);
+            return;
+        }
+
+        // Traiter selon le type avec GPS
+        if (scanType === 'clock-in') {
+            submitClockIn(siteToken);
+        } else if (scanType === 'clock-out') {
+            submitClockOut(siteToken);
+        }
+    }
+
+    function getGPSPosition() {
+        return new Promise((resolve) => {
+            if (!navigator.geolocation) {
+                resolve({ lat: null, lon: null });
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    resolve({
+                        lat: position.coords.latitude,
+                        lon: position.coords.longitude
+                    });
+                },
+                () => {
+                    // GPS refusé ou indisponible - on continue quand même
+                    resolve({ lat: null, lon: null });
+                },
+                { timeout: 5000, maximumAge: 60000 }
+            );
+        });
+    }
+
+    async function submitClockIn(siteToken) {
+        // Obtenir la position GPS (optionnel, non bloquant)
+        const gps = await getGPSPosition();
+        
+        const formData = new URLSearchParams();
+        formData.append('site_token', siteToken);
+        if (gps.lat && gps.lon) {
+            formData.append('gps_latitude', gps.lat);
+            formData.append('gps_longitude', gps.lon);
+        }
+
+        fetch('{% url "scan_qr_clock_in" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: formData.toString()
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('scan-result').innerHTML = '<div class="alert alert-success">' + data.message + '</div>';
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    document.getElementById('scan-result').innerHTML = '<div class="alert alert-error">' + data.message + '</div>';
+                    setTimeout(() => {
+                        closeScanner();
+                        location.reload();
+                    }, 2000);
+                }
+            });
+    }
+
+    async function submitClockOut(siteToken) {
+        const totalLavages = {{ lavages_today }};
+        const confirm = window.confirm('Confirmez-vous ' + totalLavages + ' lavage(s) aujourd\'hui ?');
+
+        if (!confirm) {
+            closeScanner();
+            return;
+        }
+
+        // Obtenir la position GPS (optionnel, non bloquant)
+        const gps = await getGPSPosition();
+        
+        const formData = new URLSearchParams();
+        formData.append('site_token', siteToken);
+        formData.append('total_lavages', totalLavages);
+        if (gps.lat && gps.lon) {
+            formData.append('gps_latitude', gps.lat);
+            formData.append('gps_longitude', gps.lon);
+        }
+
+        fetch('{% url "scan_qr_clock_out" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: formData.toString()
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('scan-result').innerHTML = '<div class="alert alert-success">' + data.message + '</div>';
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    document.getElementById('scan-result').innerHTML = '<div class="alert alert-error">' + data.message + '</div>';
+                    setTimeout(() => {
+                        closeScanner();
+                        location.reload();
+                    }, 2000);
+                }
+            });
+    }
+
+    function closeScanner() {
+        if (html5QrCode) {
+            html5QrCode.stop();
+        }
+        document.getElementById('qr-scanner-modal').style.display = 'none';
+    }
+</script>
+{% endblock %}
