@@ -1,152 +1,152 @@
-# Shine Congo – Portail Opérations Employés
+# Shine Congo – Employee Operations Portal
 
-Application web interne pour la gestion des opérations des employés de Shine Congo, avec système de pointage par QR code, gestion des lavages de véhicules et signalement de problèmes.
+Internal web application for managing Shine Congo employee operations, featuring QR code time tracking, vehicle wash management, and issue reporting.
 
-## 🚀 Fonctionnalités
+## 🚀 Features
 
-### Pour les Employés
-- ✅ Pointage entrée/sortie via QR code du jour
-- ✅ Ajout de lavages avec photos (avant/après)
-- ✅ Signalement de problèmes (matériel, eau, sécurité, etc.)
-- ✅ Consultation de l'historique (pointages, lavages, problèmes)
-- ✅ Interface mobile-first optimisée pour smartphones
+### For Employees
+- ✅ Clock in/out via daily QR code
+- ✅ Add washes with photos (before/after)
+- ✅ Report issues (equipment, water, security, etc.)
+- ✅ View history (time entries, washes, issues)
+- ✅ Mobile-first interface optimized for smartphones
 
-### Pour les Managers
-- ✅ Dashboard avec statistiques du jour par site
-- ✅ Génération et impression des QR codes du jour
-- ✅ Visualisation des pointages avec filtres
-- ✅ Correction des pointages avec motif obligatoire + audit
-- ✅ Consultation des lavages avec totaux financiers
-- ✅ Gestion des problèmes signalés (statuts: Ouvert/En cours/Résolu)
+### For Managers
+- ✅ Dashboard with daily statistics per site
+- ✅ Generate and print daily QR codes
+- ✅ View time entries with filters
+- ✅ Correct time entries with mandatory reason + audit
+- ✅ View washes with financial totals
+- ✅ Manage reported issues (statuses: Open/In Progress/Resolved)
 
-### Pour les Administrateurs
-- ✅ Accès complet à tous les sites
-- ✅ Gestion des utilisateurs et profils
-- ✅ Interface Django Admin complète
-- ✅ Journal d'audit de toutes les actions
+### For Administrators
+- ✅ Full access to all sites
+- ✅ User and profile management
+- ✅ Complete Django Admin interface
+- ✅ Audit log of all actions
 
-## 📋 Prérequis
+## 📋 Prerequisites
 
-- Python 3.8 ou supérieur
-- pip (gestionnaire de paquets Python)
-- Accès à une base de données (SQLite par défaut, PostgreSQL recommandé en production)
+- Python 3.8 or higher
+- pip (Python package manager)
+- Access to a database (SQLite by default, PostgreSQL recommended in production)
 
-## 🛠️ Installation Locale
+## 🛠️ Local Installation
 
-### 1. Cloner le dépôt
+### 1. Clone the repository
 
 ```bash
-git clone <url-du-repo>
+git clone <repo-url>
 cd portal_shinecongo
 ```
 
-### 2. Créer un environnement virtuel
+### 2. Create a virtual environment
 
 ```bash
 python3 -m venv venv
-source venv/bin/activate  # Sur Windows: venv\Scripts\activate
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-### 3. Installer les dépendances
+### 3. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configurer les variables d'environnement
+### 4. Configure environment variables
 
-Créer un fichier `.env` à la racine du projet :
+Create a `.env` file at the project root:
 
 ```env
-DJANGO_SECRET_KEY=votre-secret-key-tres-securise
-DJANGO_SECRET_QR=votre-secret-qr-tres-securise
+DJANGO_SECRET_KEY=your-very-secure-secret-key
+DJANGO_SECRET_QR=your-very-secure-qr-secret
 DEBUG=True
 ```
 
-**⚠️ Important:** En production, utilisez des secrets forts et ne commitez jamais le fichier `.env` !
+**⚠️ Important:** In production, use strong secrets and never commit the `.env` file!
 
-### 5. Appliquer les migrations
+### 5. Apply migrations
 
 ```bash
 python manage.py migrate
 ```
 
-### 6. Créer un superutilisateur
+### 6. Create a superuser
 
 ```bash
 python manage.py createsuperuser
 ```
 
-Suivez les instructions pour créer votre compte administrateur.
+Follow the instructions to create your administrator account.
 
-### 7. Lancer le serveur de développement
+### 7. Start the development server
 
-**⚠️ Important:** Assurez-vous d'avoir activé l'environnement virtuel avant de lancer le serveur !
+**⚠️ Important:** Make sure you have activated the virtual environment before starting the server!
 
 ```bash
-# Activer l'environnement virtuel (si ce n'est pas déjà fait)
-source venv/bin/activate  # Sur Windows: venv\Scripts\activate
+# Activate the virtual environment (if not already done)
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Lancer le serveur
+# Start the server
 python manage.py runserver
 ```
 
-**Alternative:** Utilisez le script fourni qui active automatiquement l'environnement virtuel :
+**Alternative:** Use the provided script that automatically activates the virtual environment:
 
 ```bash
 ./runserver.sh
 ```
 
-L'application sera accessible à l'adresse : `http://127.0.0.1:8000`
+The application will be accessible at: `http://127.0.0.1:8000`
 
-## 📱 Utilisation
+## 📱 Usage
 
-### Connexion
+### Login
 
-1. Accédez à `http://127.0.0.1:8000/login/`
-2. Connectez-vous avec vos identifiants
+1. Go to `http://127.0.0.1:8000/login/`
+2. Log in with your credentials
 
-### Configuration initiale (Admin)
+### Initial setup (Admin)
 
-1. Connectez-vous en tant qu'administrateur
-2. Créez des **Sites** (ex: Station Texaco Gombe, Station Total Lemba)
-3. Créez des **Utilisateurs** et assignez-les :
-   - Un **Rôle** (Employé, Manager, Admin)
-   - Un **Site** (sauf pour Admin qui voit tous les sites)
+1. Log in as administrator
+2. Create **Sites** (e.g., Texaco Gombe Station, Total Lemba Station)
+3. Create **Users** and assign them:
+   - A **Role** (Employee, Manager, Admin)
+   - A **Site** (except for Admin who sees all sites)
 
-### Pour les Managers
+### For Managers
 
-1. Accédez au dashboard manager
-2. Pour chaque site, cliquez sur "QR du jour" pour générer/afficher le QR code
-3. Imprimez le QR code et placez-le à l'entrée du site
-4. Le QR code change automatiquement chaque jour
+1. Access the manager dashboard
+2. For each site, click on "Today's QR" to generate/display the QR code
+3. Print the QR code and place it at the site entrance
+4. The QR code automatically changes each day
 
-### Pour les Employés
+### For Employees
 
-1. Scannez le QR code du jour avec votre téléphone pour pointer l'entrée
-2. Ajoutez les lavages effectués avec photos
-3. En fin de journée, scannez à nouveau le QR pour pointer la sortie et confirmer le nombre de lavages
+1. Scan the daily QR code with your phone to clock in
+2. Add completed washes with photos
+3. At the end of the day, scan the QR code again to clock out and confirm the number of washes
 
-## 🌐 Déploiement sur Serveur (IP sans domaine)
+## 🌐 Server Deployment (IP without domain)
 
-### Option 1: Déploiement avec Gunicorn + Nginx
+### Option 1: Deployment with Gunicorn + Nginx
 
-#### 1. Sur le serveur, installer les dépendances système
+#### 1. On the server, install system dependencies
 
 ```bash
 sudo apt update
 sudo apt install python3-pip python3-venv nginx
 ```
 
-#### 2. Cloner le projet sur le serveur
+#### 2. Clone the project on the server
 
 ```bash
-cd /opt  # ou un autre répertoire approprié
-git clone <url-du-repo> portal_shinecongo
+cd /opt  # or another appropriate directory
+git clone <repo-url> portal_shinecongo
 cd portal_shinecongo
 ```
 
-#### 3. Créer l'environnement virtuel et installer les dépendances
+#### 3. Create the virtual environment and install dependencies
 
 ```bash
 python3 -m venv venv
@@ -154,23 +154,23 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-#### 4. Configurer les variables d'environnement
+#### 4. Configure environment variables
 
 ```bash
 nano .env
 ```
 
-Ajoutez :
+Add:
 ```env
-DJANGO_SECRET_KEY=<secret-key-production>
-DJANGO_SECRET_QR=<secret-qr-production>
+DJANGO_SECRET_KEY=<production-secret-key>
+DJANGO_SECRET_QR=<production-qr-secret>
 DEBUG=False
-ALLOWED_HOSTS=votre-ip-serveur,127.0.0.1
+ALLOWED_HOSTS=your-server-ip,127.0.0.1
 ```
 
-#### 5. Modifier `settings.py` pour la production
+#### 5. Modify `settings.py` for production
 
-Ajoutez dans `shinecongo/settings.py` :
+Add in `shinecongo/settings.py`:
 
 ```python
 import os
@@ -183,20 +183,20 @@ DEBUG = os.getenv("DEBUG", "False") == "True"
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",") if os.getenv("ALLOWED_HOSTS") else []
 ```
 
-#### 6. Appliquer les migrations et collecter les fichiers statiques
+#### 6. Apply migrations and collect static files
 
 ```bash
 python manage.py migrate
 python manage.py collectstatic --noinput
 ```
 
-#### 7. Créer un fichier de service systemd pour Gunicorn
+#### 7. Create a systemd service file for Gunicorn
 
 ```bash
 sudo nano /etc/systemd/system/shinecongo.service
 ```
 
-Contenu :
+Content:
 ```ini
 [Unit]
 Description=Shine Congo Gunicorn daemon
@@ -213,17 +213,17 @@ ExecStart=/opt/portal_shinecongo/venv/bin/gunicorn --workers 3 --bind unix:/opt/
 WantedBy=multi-user.target
 ```
 
-#### 8. Configurer Nginx
+#### 8. Configure Nginx
 
 ```bash
 sudo nano /etc/nginx/sites-available/shinecongo
 ```
 
-Contenu :
+Content:
 ```nginx
 server {
     listen 80;
-    server_name votre-ip-serveur;
+    server_name your-server-ip;
 
     location /static/ {
         alias /opt/portal_shinecongo/staticfiles/;
@@ -240,101 +240,101 @@ server {
 }
 ```
 
-Activer le site :
+Enable the site:
 ```bash
 sudo ln -s /etc/nginx/sites-available/shinecongo /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
 ```
 
-#### 9. Démarrer le service Gunicorn
+#### 9. Start the Gunicorn service
 
 ```bash
 sudo systemctl start shinecongo
 sudo systemctl enable shinecongo
 ```
 
-### Option 2: Déploiement simple avec Gunicorn (sans Nginx)
+### Option 2: Simple deployment with Gunicorn (without Nginx)
 
-Pour un déploiement rapide sans Nginx :
+For a quick deployment without Nginx:
 
 ```bash
-# Dans le répertoire du projet
+# In the project directory
 source venv/bin/activate
 gunicorn --bind 0.0.0.0:8000 shinecongo.wsgi:application
 ```
 
-⚠️ **Note:** Cette méthode n'est pas recommandée pour la production car elle ne sert pas les fichiers statiques efficacement.
+⚠️ **Note:** This method is not recommended for production as it does not serve static files efficiently.
 
-## 🔐 Sécurité
+## 🔐 Security
 
-### Variables d'environnement importantes
+### Important environment variables
 
-- `DJANGO_SECRET_KEY`: Clé secrète Django (générer avec `python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'`)
-- `DJANGO_SECRET_QR`: Clé secrète pour la génération des tokens QR (utiliser une chaîne aléatoire forte)
-- `DEBUG`: Toujours `False` en production
-- `ALLOWED_HOSTS`: Liste des domaines/IP autorisés (séparés par des virgules)
+- `DJANGO_SECRET_KEY`: Django secret key (generate with `python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'`)
+- `DJANGO_SECRET_QR`: Secret key for QR token generation (use a strong random string)
+- `DEBUG`: Always `False` in production
+- `ALLOWED_HOSTS`: List of authorized domains/IPs (comma-separated)
 
-### Recommandations de sécurité
+### Security recommendations
 
-1. ✅ Utiliser HTTPS en production (certificat Let's Encrypt gratuit)
-2. ✅ Changer les secrets par défaut
-3. ✅ Configurer un pare-feu (UFW)
-4. ✅ Sauvegarder régulièrement la base de données
-5. ✅ Limiter l'accès SSH au serveur
+1. ✅ Use HTTPS in production (free Let's Encrypt certificate)
+2. ✅ Change default secrets
+3. ✅ Configure a firewall (UFW)
+4. ✅ Regularly backup the database
+5. ✅ Limit SSH access to the server
 
-## 📁 Structure du Projet
+## 📁 Project Structure
 
 ```
 portal_shinecongo/
-├── comptes/          # Gestion des utilisateurs et profils
-├── sites/            # Modèle des sites/locations
-├── pointage/         # Système de pointage QR + ShiftDay
-├── lavages/          # Gestion des lavages de véhicules
-├── problemes/        # Signalement de problèmes
-├── audit/            # Journal d'audit
-├── templates/        # Templates HTML
-├── static/           # Fichiers statiques (CSS, JS, images)
-├── media/            # Fichiers uploadés (photos)
-└── shinecongo/       # Configuration Django
+├── comptes/          # Accounts - User and profile management
+├── sites/            # Sites - Site/location model
+├── pointage/         # Time tracking - QR code time tracking system + ShiftDay
+├── lavages/          # Washes - Vehicle wash management
+├── problemes/        # Issues - Issue reporting
+├── audit/            # Audit log
+├── templates/        # HTML templates
+├── static/           # Static files (CSS, JS, images)
+├── media/            # Uploaded files (photos)
+└── shinecongo/       # Django configuration
 ```
 
-## 🔧 Commandes Utiles
+## 🔧 Useful Commands
 
-### Créer un superutilisateur
+### Create a superuser
 ```bash
 python manage.py createsuperuser
 ```
 
-### Appliquer les migrations
+### Apply migrations
 ```bash
 python manage.py migrate
 ```
 
-### Créer de nouvelles migrations
+### Create new migrations
 ```bash
 python manage.py makemigrations
 ```
 
-### Collecter les fichiers statiques
+### Collect static files
 ```bash
 python manage.py collectstatic
 ```
 
-### Accéder au shell Django
+### Access Django shell
 ```bash
 python manage.py shell
 ```
 
 ## 📞 Support
 
-Pour toute question ou problème, contactez l'équipe technique.
+For any questions or issues, contact the technical team.
 
-## 📄 Licence
+## 📄 License
 
-Propriétaire - Shine Congo
+Proprietary - Shine Congo
 
 ---
 
 **Version:** 1.0.0  
-**Dernière mise à jour:** 2025
+**Last updated:** 2025
