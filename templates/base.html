@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Shine Congo - Portail Opérations{% endblock %}</title>
     
+    <!-- Favicon -->
+    {% load static %}
+    <link rel="icon" type="image/png" href="{% static 'favicon.png' %}">
+    <link rel="shortcut icon" type="image/png" href="{% static 'favicon.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'favicon.png' %}">
+    
     <style>
         /* Import Google Fonts */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -18,13 +24,14 @@
             --success-color: #00C853;
             --warning-color: #FFB300;
             --error-color: #FF3D00;
-            --dark-bg: #0A1929;
-            --card-bg: #132F4C;
-            --text-primary: #FFFFFF;
-            --text-secondary: #B2BAC2;
-            --border-color: #1E3A5F;
-            --shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            --shadow-hover: 0 8px 30px rgba(0, 102, 255, 0.4);
+            --bg-primary: #FFFFFF;
+            --bg-secondary: #F8F9FA;
+            --card-bg: #FFFFFF;
+            --text-primary: #212529;
+            --text-secondary: #6C757D;
+            --border-color: #DEE2E6;
+            --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            --shadow-hover: 0 4px 16px rgba(0, 102, 255, 0.15);
         }
 
         * {
@@ -35,10 +42,46 @@
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: linear-gradient(135deg, var(--dark-bg) 0%, #001E3C 100%);
+            background: var(--bg-secondary);
             color: var(--text-primary);
             min-height: 100vh;
             line-height: 1.6;
+        }
+        
+        /* Hide header and messages on login/register pages */
+        body:has(.login-container) .header,
+        body:has(.login-container) .messages {
+            display: none !important;
+        }
+        
+        /* Full height for login container */
+        body:has(.login-container) {
+            padding: 0;
+            margin: 0;
+            overflow: hidden;
+        }
+        
+        /* Show login container even if parent is hidden */
+        body:has(.login-container) main.container {
+            display: block !important;
+            padding: 0 !important;
+            max-width: none !important;
+            margin: 0 !important;
+            width: 100%;
+            height: 100vh;
+        }
+        
+        /* Make login container full screen and always visible */
+        .login-container {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            z-index: 9999 !important;
+            width: 100% !important;
+            height: 100vh !important;
+            display: flex !important;
         }
 
         .container {
@@ -48,8 +91,7 @@
         }
 
         .header {
-            background: rgba(19, 47, 76, 0.95);
-            backdrop-filter: blur(10px);
+            background: var(--card-bg);
             border-bottom: 1px solid var(--border-color);
             padding: 1rem 0;
             position: sticky;
@@ -70,10 +112,7 @@
         .logo {
             font-size: 1.5rem;
             font-weight: 700;
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: var(--primary-color);
         }
 
         .nav-menu {
@@ -93,7 +132,7 @@
         }
 
         .nav-menu a:hover {
-            background: rgba(0, 102, 255, 0.1);
+            background: var(--primary-light);
             color: var(--primary-color);
             transform: translateY(-2px);
         }
@@ -181,7 +220,7 @@
             padding: 0.875rem;
             border: 1px solid var(--border-color);
             border-radius: 8px;
-            background: var(--dark-bg);
+            background: var(--bg-primary);
             color: var(--text-primary);
             font-size: 1rem;
             transition: all 0.3s ease;
@@ -190,7 +229,7 @@
         .form-control:focus {
             outline: none;
             border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+            box-shadow: 0 0 0 3px var(--primary-light);
         }
 
         .table-container {
@@ -206,7 +245,7 @@
         }
 
         table thead {
-            background: var(--dark-bg);
+            background: var(--bg-secondary);
         }
 
         table th, table td {
@@ -230,10 +269,7 @@
         .stat-value {
             font-size: 3rem;
             font-weight: 700;
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: var(--primary-color);
             margin-bottom: 0.5rem;
         }
 
@@ -260,21 +296,24 @@
         }
 
         .alert-success {
-            background: rgba(0, 200, 83, 0.1);
+            background: rgba(0, 200, 83, 0.08);
             border-left: 4px solid var(--success-color);
             color: var(--success-color);
+            border: 1px solid rgba(0, 200, 83, 0.2);
         }
 
         .alert-error {
-            background: rgba(255, 61, 0, 0.1);
+            background: rgba(255, 61, 0, 0.08);
             border-left: 4px solid var(--error-color);
             color: var(--error-color);
+            border: 1px solid rgba(255, 61, 0, 0.2);
         }
 
         .alert-info {
-            background: rgba(0, 102, 255, 0.1);
+            background: rgba(0, 102, 255, 0.08);
             border-left: 4px solid var(--primary-color);
             color: var(--primary-color);
+            border: 1px solid rgba(0, 102, 255, 0.2);
         }
 
         .text-center {
@@ -306,6 +345,7 @@
 </head>
 <body>
     <!-- Header -->
+    {% if not request.resolver_match.url_name == 'login' and not request.resolver_match.url_name == 'register' %}
     <header class="header">
         <div class="header-content">
             <div class="logo">⚡ Shine Congo</div>
@@ -331,6 +371,7 @@
             {% endif %}
         </div>
     </header>
+    {% endif %}
 
     <!-- Messages -->
     {% if messages %}

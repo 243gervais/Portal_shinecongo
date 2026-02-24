@@ -1,28 +1,314 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Connexion - Shine Congo{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Override base styles for login page */
+    body {
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden;
+    }
+    
+    .header,
+    .messages {
+        display: none !important;
+    }
+    
+    main.container {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: none !important;
+        width: 100% !important;
+        height: 100vh !important;
+    }
+    
+    .login-container {
+        min-height: 100vh;
+        height: 100vh;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        background: linear-gradient(135deg, #0A1929 0%, #001E3C 100%);
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        overflow: auto;
+        z-index: 9999;
+    }
+    
+    .login-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse"><path d="M 100 0 L 0 0 0 100" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(%23grid)"/></svg>');
+        opacity: 0.3;
+    }
+    
+    .login-card {
+        background: #132F4C;
+        border-radius: 24px;
+        padding: 3rem;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        border: 1px solid #1E3A5F;
+        max-width: 450px;
+        width: 100%;
+        position: relative;
+        z-index: 1;
+        animation: slideUp 0.5s ease-out;
+    }
+    
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .logo-container {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    
+    .logo-container img {
+        max-width: 200px;
+        height: auto;
+        margin-bottom: 1rem;
+        filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+        animation: fadeIn 0.6s ease-out;
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: scale(0.9);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+    
+    .login-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #FFFFFF;
+        margin-bottom: 0.5rem;
+        background: linear-gradient(135deg, #0066FF, #00D9FF);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .login-subtitle {
+        color: #B2BAC2;
+        font-size: 0.95rem;
+        margin-bottom: 2rem;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #B2BAC2;
+        font-size: 0.9rem;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 0.875rem 1rem;
+        border: 2px solid #1E3A5F;
+        border-radius: 12px;
+        background: #0A1929;
+        color: #FFFFFF;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        font-family: inherit;
+    }
+    
+    .form-control::placeholder {
+        color: #6C757D;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: #0066FF;
+        box-shadow: 0 0 0 4px rgba(0, 102, 255, 0.1);
+        background: rgba(0, 102, 255, 0.05);
+        transform: translateY(-2px);
+    }
+    
+    .btn-login {
+        width: 100%;
+        padding: 1rem;
+        background: linear-gradient(135deg, #0066FF, #0052CC);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 102, 255, 0.3);
+        margin-top: 1rem;
+    }
+    
+    .btn-login:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 102, 255, 0.4);
+        background: linear-gradient(135deg, #0052CC, #0066FF);
+    }
+    
+    .btn-login:active {
+        transform: translateY(0);
+    }
+    
+    .login-footer {
+        text-align: center;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid var(--border-color);
+    }
+    
+    .login-footer {
+        border-top: 1px solid #1E3A5F;
+    }
+    
+    .login-footer p {
+        color: #B2BAC2;
+    }
+    
+    .login-footer a {
+        color: #0066FF;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+    
+    .login-footer a:hover {
+        color: #00D9FF;
+        text-decoration: underline;
+    }
+    
+    .admin-link {
+        text-align: center;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #1E3A5F;
+    }
+    
+    .admin-link a {
+        color: #B2BAC2;
+        text-decoration: none;
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .admin-link a:hover {
+        color: #0066FF;
+    }
+    
+    .alert {
+        padding: 1rem 1.25rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+        border-left: 4px solid;
+        animation: slideDown 0.3s ease-out;
+    }
+    
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .alert-error {
+        background: rgba(255, 61, 0, 0.1);
+        border-left-color: #FF3D00;
+        color: #FF3D00;
+        border: 1px solid rgba(255, 61, 0, 0.2);
+    }
+    
+    .alert-success {
+        background: rgba(0, 200, 83, 0.1);
+        border-left-color: #00C853;
+        color: #00C853;
+        border: 1px solid rgba(0, 200, 83, 0.2);
+    }
+    
+    .alert-info {
+        background: rgba(0, 102, 255, 0.1);
+        border-left-color: #0066FF;
+        color: #0066FF;
+        border: 1px solid rgba(0, 102, 255, 0.2);
+    }
+    
+    @media (max-width: 768px) {
+        .login-card {
+            padding: 2rem 1.5rem;
+        }
+        
+        .login-title {
+            font-size: 1.75rem;
+        }
+        
+        .logo-container img {
+            max-width: 150px;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div style="max-width: 450px; margin: 4rem auto;">
-    <div class="card">
-        <h1 class="text-center mb-3" style="color: var(--primary-color)">Connexion</h1>
-        <p class="text-center mb-4" style="color: var(--text-secondary)">Portail Opérations Employés</p>
+<div class="login-container">
+    <div class="login-card">
+        <!-- Logo -->
+        <div class="logo-container">
+            <img src="{% static 'favicon.png' %}" alt="Shine Congo Logo">
+            <h1 class="login-title">Connexion</h1>
+            <p class="login-subtitle">Portail Opérations Employés</p>
+        </div>
 
         <form method="post">
             {% csrf_token %}
 
             <div class="form-group">
                 <label for="username">Identifiant</label>
-                <input type="text" class="form-control" id="username" name="username" required autofocus>
+                <input type="text" class="form-control" id="username" name="username" required autofocus placeholder="Entrez votre identifiant">
             </div>
 
             <div class="form-group">
                 <label for="password">Mot de passe</label>
-                <input type="password" class="form-control" id="password" name="password" required>
+                <input type="password" class="form-control" id="password" name="password" required placeholder="Entrez votre mot de passe">
             </div>
 
             {% if form.errors %}
-            <div class="alert alert-error mb-3">
+            <div class="alert alert-error">
                 {% for field, errors in form.errors.items %}
                     {% for error in errors %}
                         {{ error }}
@@ -40,30 +326,28 @@
             
             {% if messages %}
                 {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }} mb-3">
+                    <div class="alert alert-{{ message.tags }}">
                         {{ message }}
                     </div>
                 {% endfor %}
             {% endif %}
 
-            <button type="submit" class="btn btn-primary btn-block">Se connecter</button>
+            <button type="submit" class="btn-login">Se connecter</button>
         </form>
         
-        <div class="text-center mt-3">
-            <p style="color: var(--text-secondary);">
+        <div class="login-footer">
+            <p style="margin-bottom: 0;">
                 Pas encore de compte ? 
-                <a href="{% url 'register' %}" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Créer un compte</a>
+                <a href="{% url 'register' %}">Créer un compte</a>
             </p>
         </div>
-    </div>
-    
-    <!-- Footer avec lien admin -->
-    <div class="text-center mt-4" style="margin-top: 3rem;">
-        <p style="color: var(--text-secondary); font-size: 0.875rem;">
-            <a href="{% url 'admin:index' %}" style="color: var(--primary-color); text-decoration: none; opacity: 0.8;">
+        
+        <!-- Footer avec lien admin -->
+        <div class="admin-link">
+            <a href="{% url 'admin:index' %}">
                 ⚙️ Accès Administrateur
             </a>
-        </p>
+        </div>
     </div>
 </div>
 {% endblock %}

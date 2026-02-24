@@ -8,22 +8,37 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import AdminPasswordChangeForm
 from django.utils.html import format_html
 from django.urls import reverse
+from django import forms
 from .models import UserProfile
+from sites.models import Location
 
 
 class UserProfileInline(admin.StackedInline):
     model = UserProfile
     can_delete = False
-    verbose_name_plural = "Profil"
+    verbose_name_plural = "Profil Utilisateur"
     fk_name = "user"
     fields = ("role", "site", "telephone", "actif")
+    extra = 0
+    min_num = 1
+    max_num = 1
+
+
+class AssignSiteForm(forms.Form):
+    """Formulaire pour assigner un site à plusieurs utilisateurs"""
+    site = forms.ModelChoiceField(
+        queryset=Location.objects.filter(actif=True),
+        label="Site à assigner",
+        required=True,
+        help_text="Sélectionnez le site à assigner aux utilisateurs sélectionnés"
+    )
 
 
 class UserAdmin(BaseUserAdmin):
     inlines = (UserProfileInline,)
     list_display = ("username", "email", "first_name", "last_name", "is_staff", "get_role", "get_site", "password_reset_link")
     list_filter = ("is_staff", "is_superuser", "is_active", "userprofile__role", "userprofile__site")
-    actions = ["reset_passwords"]
+    actions = ["reset_passwords", "assign_site"]
     
     # Les fieldsets par défaut de BaseUserAdmin incluent déjà le champ password
     # qui affiche un lien pour changer le mot de passe sans ancien mot de passe
@@ -120,6 +135,46 @@ class UserAdmin(BaseUserAdmin):
             print("-" * 60)
     
     reset_passwords.short_description = "Réinitialiser les mots de passe (afficher les nouveaux)"
+    
+    def assign_site(self, request, queryset):
+        """Action pour assigner un site à plusieurs utilisateurs"""
+        # Récupérer les IDs des utilisateurs sélectionnés
+        selected = request.POST.getlist(admin.ACTION_CHECKBOX_NAME)
+        
+        if 'apply' in request.POST:
+            form = AssignSiteForm(request.POST)
+            if form.is_valid():
+                site = form.cleaned_data['site']
+                count = 0
+                updated_users = []
+                
+                # Récupérer les utilisateurs sélectionnés depuis les IDs
+                users = User.objects.filter(pk__in=selected)
+                
+                for user in users:
+                    # Créer ou mettre à jour le profil
+                    profile, created = UserProfile.objects.get_or_create(user=user)
+                    profile.site = site
+                    profile.save()
+                    updated_users.append(user.username)
+                    count += 1
+                
+                messages.success(request, f'{count} utilisateur(s) ont été assigné(s) au site "{site.nom}".')
+                return redirect('admin:auth_user_changelist')
+        else:
+            form = AssignSiteForm()
+        
+        context = {
+            'title': 'Assigner un site aux utilisateurs sélectionnés',
+            'form': form,
+            'users': queryset,
+            'opts': self.model._meta,
+            'action_checkbox_name': admin.ACTION_CHECKBOX_NAME,
+        }
+        
+        return render(request, 'admin/comptes/assign_site.html', context)
+    
+    assign_site.short_description = "Assigner un site aux utilisateurs sélectionnés"
 
 
 # Unregister the default User admin and register the custom one
@@ -131,5 +186,19 @@ admin.site.register(User, UserAdmin)
 class UserProfileAdmin(admin.ModelAdmin):
     list_display = ("user", "role", "site", "telephone", "actif", "created_at")
     list_filter = ("role", "site", "actif")
-    search_fields = ("user__username", "user__first_name", "user__last_name", "telephone")
+    search_fields = ("user__username", "user__first_name", "user__last_name", "telephone", "site__nom")
     ordering = ("-created_at",)
+    list_editable = ("site", "role", "actif")  # Permet d'éditer directement depuis la liste
+    fieldsets = (
+        ("Utilisateur", {
+            "fields": ("user",)
+        }),
+        ("Informations", {
+            "fields": ("role", "site", "telephone", "actif")
+        }),
+        ("Métadonnées", {
+            "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",)
+        }),
+    )
+    readonly_fields = ("created_at", "updated_at")

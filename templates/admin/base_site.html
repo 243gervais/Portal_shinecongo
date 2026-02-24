@@ -2,6 +2,10 @@
 {% load static %}
 
 {% block extrastyle %}
+<!-- Favicon -->
+<link rel="icon" type="image/png" href="{% static 'favicon.png' %}">
+<link rel="shortcut icon" type="image/png" href="{% static 'favicon.png' %}">
+<link rel="apple-touch-icon" href="{% static 'favicon.png' %}">
 {{ block.super }}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

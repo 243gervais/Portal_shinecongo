@@ -1,0 +1,85 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label='auth' %}">{% trans 'Authentication and Authorization' %}</a>
+    &rsaquo; <a href="{% url 'admin:auth_user_changelist' %}">{% trans 'Users' %}</a>
+    &rsaquo; {% trans 'Assign site' %}
+</div>
+{% endblock %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <form method="post">
+        {% csrf_token %}
+        
+        {% for user in users %}
+            <input type="hidden" name="_selected_action" value="{{ user.pk }}" />
+        {% endfor %}
+        
+        <div style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 16px; padding: 2rem; box-shadow: var(--shadow);">
+            <h1 style="color: var(--primary-color); margin-bottom: 1.5rem; font-size: 1.5rem;">
+                Assigner un site aux utilisateurs sélectionnés
+            </h1>
+            
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+                Vous avez sélectionné <strong>{{ users|length }}</strong> utilisateur(s) :
+            </p>
+            
+            <ul style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; margin-bottom: 2rem; list-style: none;">
+                {% for user in users %}
+                <li style="padding: 0.5rem 0; color: var(--text-primary);">
+                    • {{ user.username }} {% if user.get_full_name %}({{ user.get_full_name }}){% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            
+            {% if form.errors %}
+                <div class="errornote" style="background: rgba(255, 61, 0, 0.1); border-left: 4px solid var(--error-color); color: var(--error-color); padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                    {% if form.errors.items|length == 1 %}
+                        {% trans "Please correct the error below." %}
+                    {% else %}
+                        {% trans "Please correct the errors below." %}
+                    {% endif %}
+                </div>
+            {% endif %}
+            
+            <fieldset class="module aligned" style="background: transparent; border: none; padding: 0;">
+                <div class="form-row" style="margin-bottom: 1.5rem;">
+                    <div>
+                        <label for="{{ form.site.id_for_label }}" style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-secondary);">
+                            {{ form.site.label }}
+                        </label>
+                        {{ form.site }}
+                        {% if form.site.help_text %}
+                            <p class="help" style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.5rem;">
+                                {{ form.site.help_text }}
+                            </p>
+                        {% endif %}
+                        {% if form.site.errors %}
+                            <ul class="errorlist" style="list-style: none; padding: 0; margin: 0.5rem 0 0 0;">
+                                {% for error in form.site.errors %}
+                                <li style="color: var(--error-color); font-size: 0.875rem; padding: 0.5rem 0.75rem; background: rgba(255, 61, 0, 0.1); border-left: 3px solid var(--error-color); border-radius: 4px; margin-bottom: 0.5rem;">
+                                    {{ error }}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </div>
+                </div>
+            </fieldset>
+            
+            <div class="submit-row" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.5rem; margin-top: 2rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+                <input type="submit" value="Assigner le site" class="default" style="background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color: white; border: none; border-radius: 8px; padding: 0.875rem 2rem; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; transition: all 0.3s ease; font-size: 1rem; box-shadow: 0 2px 8px rgba(0, 102, 255, 0.3);" />
+                <a href="{% url 'admin:auth_user_changelist' %}" class="button" style="background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.875rem 2rem; text-decoration: none; display: inline-block; transition: all 0.3s ease;">
+                    Annuler
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

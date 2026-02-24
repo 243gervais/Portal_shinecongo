@@ -15,13 +15,47 @@ def ajouter_lavage(request):
     if request.method == 'POST':
         try:
             user = request.user
+            
+            # Vérifier que l'utilisateur a un profil et un site assigné
+            if not hasattr(user, 'userprofile'):
+                messages.error(request, 'Erreur: Votre profil utilisateur n\'existe pas. Veuillez contacter l\'administrateur.')
+                return render(request, 'employe/ajouter_lavage.html', {
+                    'types_service': CarWash.TYPE_SERVICE_CHOICES
+                })
+            
             site = user.userprofile.site
+            if not site:
+                messages.error(request, 'Erreur: Aucun site n\'est assigné à votre compte. Veuillez contacter votre manager ou l\'administrateur pour assigner un site.')
+                return render(request, 'employe/ajouter_lavage.html', {
+                    'types_service': CarWash.TYPE_SERVICE_CHOICES
+                })
             
             # Récupérer les données du formulaire
             type_service = request.POST.get('type_service')
             plaque = request.POST.get('plaque', '')
             montant = request.POST.get('montant')
             notes = request.POST.get('notes', '')
+            
+            # Validation des champs requis
+            if not type_service:
+                messages.error(request, 'Le type de service est requis.')
+                return render(request, 'employe/ajouter_lavage.html', {
+                    'types_service': CarWash.TYPE_SERVICE_CHOICES
+                })
+            
+            if not montant:
+                messages.error(request, 'Le montant est requis.')
+                return render(request, 'employe/ajouter_lavage.html', {
+                    'types_service': CarWash.TYPE_SERVICE_CHOICES
+                })
+            
+            # Vérifier qu'il y a au moins une photo
+            photos = request.FILES.getlist('photos')
+            if not photos:
+                messages.error(request, 'Au moins une photo est requise.')
+                return render(request, 'employe/ajouter_lavage.html', {
+                    'types_service': CarWash.TYPE_SERVICE_CHOICES
+                })
             
             # Créer le lavage
             lavage = CarWash.objects.create(
@@ -34,16 +68,12 @@ def ajouter_lavage(request):
                 notes=notes
             )
             
-            # Traiter les photos
-            photos = request.FILES.getlist('photos')
-            for idx, photo in enumerate(photos):
-                # Déterminer le type (avant/après/autre)
-                type_photo = 'AVANT' if idx == 0 else 'APRES' if idx == 1 else 'AUTRE'
-                
+            # Traiter les photos (toutes marquées comme "après lavage")
+            for photo in photos:
                 CarWashPhoto.objects.create(
                     lavage=lavage,
                     photo=photo,
-                    type_photo=type_photo
+                    type_photo='APRES'  # Toutes les photos sont après lavage
                 )
             
             # Log d'audit
