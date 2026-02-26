@@ -44,8 +44,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     
     # Third party apps
-    "rest_framework",
-    "corsheaders",
+    # "rest_framework",  # Commented out - not installed
+    # "corsheaders",  # Commented out - not installed
     
     # Custom apps
     "comptes",
@@ -57,7 +57,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",
+    # "corsheaders.middleware.CorsMiddleware",  # Commented out - not installed
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",

@@ -1,12 +1,22 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout, login
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from functools import wraps
 from django.http import HttpResponse
 from django.contrib import messages
+from django.db.models import Sum, Count, Q
+from django.contrib.auth.models import User
+from datetime import datetime
 from .forms import UserRegistrationForm
+from sites.models import Location, DailyBankDeposit
+from lavages.models import CarWash, CarWashPhoto
+from problemes.models import IssueReport
+from pointage.models import ShiftDay
+from comptes.models import UserProfile
+from audit.models import AuditLog
+from pointage.utils import get_client_ip, get_user_agent
 
 
 def no_cache_view(view_func):
@@ -34,22 +44,29 @@ def dashboard(request):
     """
     user = request.user
     
-    # Vérifier si l'utilisateur a un profil
-    if not hasattr(user, 'userprofile'):
-        from django.contrib import messages
-        messages.error(request, 'Profil utilisateur non trouvé. Contactez un administrateur.')
-        return redirect('admin:index')
-    
-    profile = user.userprofile
+    # Vérifier si l'utilisateur a un profil (sauf pour les superutilisateurs)
+    if not user.is_superuser:
+        if not hasattr(user, 'userprofile'):
+            from django.contrib import messages
+            messages.error(request, 'Profil utilisateur non trouvé. Contactez un administrateur.')
+            return redirect('admin:index')
+        profile = user.userprofile
+    else:
+        # Pour les superutilisateurs, créer un profil virtuel ou utiliser les valeurs par défaut
+        profile = None
     
     # Rediriger selon le rôle
-    if profile.is_admin():
-        # Pour les admins, rediriger vers l'interface Django Admin
-        return redirect('admin:index')
-    elif profile.is_manager():
+    # Les superutilisateurs Django sont considérés comme admins
+    if user.is_superuser or (profile and profile.is_admin()):
+        # Pour les admins, rediriger vers le dashboard admin personnalisé
+        return redirect('admin_dashboard')
+    elif profile and profile.is_manager():
         return redirect('manager_dashboard')
-    else:  # Employé
+    elif profile and profile.is_employe():
         return redirect('employe_dashboard')
+    else:
+        # Par défaut pour les superutilisateurs sans profil, rediriger vers admin dashboard
+        return redirect('admin_dashboard')
 
 
 @require_http_methods(["GET", "POST"])
@@ -89,4 +106,629 @@ def register_view(request):
     
     return render(request, 'auth/register.html', {
         'form': form
+    })
+
+
+def is_admin_user(user):
+    """Vérifier que l'utilisateur est admin"""
+    # Les superutilisateurs Django ont automatiquement accès admin
+    if user.is_superuser:
+        return True
+    # Vérifier le profil utilisateur
+    if not hasattr(user, 'userprofile'):
+        return False
+    return user.userprofile.is_admin()
+
+
+@login_required
+@no_cache_view
+def admin_dashboard(request):
+    """
+    Dashboard admin - Liste tous les sites avec leurs statistiques
+    """
+    user = request.user
+    
+    # Pour les superutilisateurs, s'assurer qu'ils ont un profil avec le rôle ADMIN
+    if user.is_superuser:
+        if not hasattr(user, 'userprofile'):
+            # Créer un profil admin pour le superutilisateur
+            UserProfile.objects.create(user=user, role='ADMIN')
+        elif not user.userprofile.is_admin():
+            # Mettre à jour le rôle si ce n'est pas déjà ADMIN
+            user.userprofile.role = 'ADMIN'
+            user.userprofile.save()
+    
+    # Vérifier que l'utilisateur est admin
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs. Veuillez vérifier que votre compte a le rôle 'Administrateur' dans votre profil.")
+        return redirect('dashboard')
+    
+    today = timezone.localdate()
+    
+    # Récupérer tous les sites actifs
+    sites = Location.objects.filter(actif=True).order_by('nom')
+    
+    # Statistiques pour chaque site
+    sites_stats = []
+    for site in sites:
+        # Employés du site
+        employes_site = UserProfile.objects.filter(
+            site=site,
+            role='EMPLOYE',
+            actif=True
+        )
+        total_employes = employes_site.count()
+        
+        # Pointages du jour
+        pointages_today = ShiftDay.objects.filter(site=site, date=today)
+        presents = pointages_today.filter(clock_in_time__isnull=False).count()
+        absents = total_employes - presents
+        
+        # Lavages du jour
+        lavages_today = CarWash.objects.filter(site=site, date=today)
+        total_lavages = lavages_today.count()
+        chiffre_jour = lavages_today.aggregate(total=Sum('montant'))['total'] or 0
+        
+        # Problèmes du jour
+        problemes_today = IssueReport.objects.filter(site=site, created_at__date=today)
+        problemes_ouverts = IssueReport.objects.filter(
+            site=site,
+            statut__in=['OUVERT', 'EN_COURS']
+        ).count()
+        
+        sites_stats.append({
+            'site': site,
+            'total_employes': total_employes,
+            'presents': presents,
+            'absents': absents,
+            'total_lavages': total_lavages,
+            'chiffre_jour': chiffre_jour,
+            'problemes_today': problemes_today.count(),
+            'problemes_ouverts': problemes_ouverts,
+        })
+    
+    context = {
+        'sites_stats': sites_stats,
+        'today': today,
+    }
+    
+    return render(request, 'admin/dashboard.html', context)
+
+
+@login_required
+@no_cache_view
+def admin_site_detail(request, site_id):
+    """
+    Vue détaillée d'un site pour l'admin - Affiche l'argent, problèmes, photos, etc.
+    Supporte le filtrage par date pour voir l'historique complet.
+    """
+    user = request.user
+    
+    # Pour les superutilisateurs, s'assurer qu'ils ont un profil avec le rôle ADMIN
+    if user.is_superuser:
+        if not hasattr(user, 'userprofile'):
+            # Créer un profil admin pour le superutilisateur
+            UserProfile.objects.create(user=user, role='ADMIN')
+        elif not user.userprofile.is_admin():
+            # Mettre à jour le rôle si ce n'est pas déjà ADMIN
+            user.userprofile.role = 'ADMIN'
+            user.userprofile.save()
+    
+    # Vérifier que l'utilisateur est admin
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+    
+    site = get_object_or_404(Location, id=site_id)
+    today = timezone.localdate()
+    
+    # Récupérer les paramètres de filtre de date
+    date_debut = request.GET.get('date_debut')
+    date_fin = request.GET.get('date_fin')
+    filter_today = request.GET.get('filter_today', 'false') == 'true'
+    
+    # Par défaut, afficher tous les lavages (pas seulement aujourd'hui)
+    # Sauf si l'utilisateur demande explicitement de filtrer sur aujourd'hui
+    if filter_today:
+        # Filtrer uniquement sur aujourd'hui
+        lavages_query = CarWash.objects.filter(site=site, date=today)
+        selected_date_start = today
+        selected_date_end = today
+    elif date_debut or date_fin:
+        # Filtrer sur une plage de dates
+        lavages_query = CarWash.objects.filter(site=site)
+        if date_debut:
+            lavages_query = lavages_query.filter(date__gte=date_debut)
+            selected_date_start = date_debut
+        else:
+            selected_date_start = None
+        if date_fin:
+            lavages_query = lavages_query.filter(date__lte=date_fin)
+            selected_date_end = date_fin
+        else:
+            selected_date_end = None
+    else:
+        # Afficher tous les lavages (pas de filtre)
+        lavages_query = CarWash.objects.filter(site=site)
+        selected_date_start = None
+        selected_date_end = None
+    
+    # Récupérer les lavages avec photos, triés par date décroissante
+    lavages_all = lavages_query.prefetch_related('photos').order_by('-date', '-created_at')
+    total_lavages = lavages_all.count()
+    chiffre_periode = lavages_all.aggregate(total=Sum('montant'))['total'] or 0
+    
+    # Toutes les photos des lavages filtrés
+    photos_lavages = []
+    for lavage in lavages_all:
+        for photo in lavage.photos.all():
+            photos_lavages.append({
+                'photo': photo,
+                'lavage': lavage,
+                'employe': lavage.employe,
+                'montant': lavage.montant,
+                'type_service': lavage.get_type_service_display(),
+                'created_at': lavage.created_at,
+                'date': lavage.date,
+            })
+    
+    # Problèmes du jour (pour la section spécifique "aujourd'hui")
+    problemes_today = IssueReport.objects.filter(site=site, created_at__date=today).order_by('-created_at')
+    
+    # Problèmes ouverts (tous statuts, toutes dates)
+    problemes_ouverts = IssueReport.objects.filter(
+        site=site,
+        statut__in=['OUVERT', 'EN_COURS']
+    ).order_by('-created_at')
+    
+    # Pointages du jour avec calcul de durée
+    pointages_today = ShiftDay.objects.filter(site=site, date=today).select_related('employe').order_by('-clock_in_time')
+    presents = pointages_today.filter(clock_in_time__isnull=False).count()
+    
+    # Ajouter la durée formatée pour chaque pointage
+    pointages_with_duration = []
+    for pointage in pointages_today:
+        duration_str = None
+        if pointage.clock_in_time and pointage.clock_out_time:
+            duration = pointage.clock_out_time - pointage.clock_in_time
+            total_seconds = int(duration.total_seconds())
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            duration_str = f"{hours}h{minutes:02d}min"
+        
+        pointages_with_duration.append({
+            'pointage': pointage,
+            'duration': duration_str
+        })
+    
+    # Employés du site
+    employes_site = UserProfile.objects.filter(
+        site=site,
+        role='EMPLOYE',
+        actif=True
+    ).select_related('user')
+    
+    # Déterminer le label de période pour l'affichage
+    if filter_today:
+        period_label = "Aujourd'hui"
+    elif date_debut and date_fin:
+        period_label = f"Du {date_debut} au {date_fin}"
+    elif date_debut:
+        period_label = f"Depuis le {date_debut}"
+    elif date_fin:
+        period_label = f"Jusqu'au {date_fin}"
+    else:
+        period_label = "Tous les lavages"
+    
+    # Récupérer le dépôt bancaire pour aujourd'hui
+    bank_deposit_today = DailyBankDeposit.objects.filter(site=site, date=today).first()
+    bank_deposit_amount_today = bank_deposit_today.amount if bank_deposit_today else 0
+    
+    # Calculer la différence entre cash flow et dépôt bancaire pour aujourd'hui
+    chiffre_jour = CarWash.objects.filter(site=site, date=today).aggregate(total=Sum('montant'))['total'] or 0
+    difference_today = chiffre_jour - bank_deposit_amount_today
+    
+    context = {
+        'site': site,
+        'today': today,
+        'lavages_all': lavages_all,
+        'total_lavages': total_lavages,
+        'chiffre_periode': chiffre_periode,
+        'chiffre_jour': chiffre_jour,
+        'bank_deposit_today': bank_deposit_today,
+        'bank_deposit_amount_today': bank_deposit_amount_today,
+        'difference_today': difference_today,
+        'photos_lavages': photos_lavages,
+        'problemes_today': problemes_today,
+        'problemes_ouverts': problemes_ouverts,
+        'pointages_today': pointages_with_duration,
+        'presents': presents,
+        'employes_site': employes_site,
+        'date_debut': date_debut,
+        'date_fin': date_fin,
+        'filter_today': filter_today,
+        'period_label': period_label,
+    }
+    
+    return render(request, 'admin/site_detail.html', context)
+
+
+@login_required
+@no_cache_view
+def admin_add_daily_total(request, site_id):
+    """
+    Vue pour permettre à l'admin d'ajouter simplement le montant total d'une date
+    sans créer un lavage complet avec photos
+    """
+    user = request.user
+    
+    # Pour les superutilisateurs, s'assurer qu'ils ont un profil avec le rôle ADMIN
+    if user.is_superuser:
+        if not hasattr(user, 'userprofile'):
+            UserProfile.objects.create(user=user, role='ADMIN')
+        elif not user.userprofile.is_admin():
+            user.userprofile.role = 'ADMIN'
+            user.userprofile.save()
+    
+    # Vérifier que l'utilisateur est admin
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+    
+    site = get_object_or_404(Location, id=site_id)
+    
+    if request.method == 'POST':
+        try:
+            # Récupérer les données du formulaire
+            date_total = request.POST.get('date')
+            montant_total = request.POST.get('montant_total')
+            notes = request.POST.get('notes', '')
+            
+            # Validation des champs requis
+            if not date_total:
+                messages.error(request, 'La date est requise.')
+                return render(request, 'admin/add_daily_total.html', {
+                    'site': site,
+                })
+            
+            if not montant_total:
+                messages.error(request, 'Le montant total est requis.')
+                return render(request, 'admin/add_daily_total.html', {
+                    'site': site,
+                })
+            
+            # Convertir la date
+            try:
+                date_obj = datetime.strptime(date_total, '%Y-%m-%d').date()
+            except ValueError:
+                messages.error(request, 'Format de date invalide.')
+                return render(request, 'admin/add_daily_total.html', {
+                    'site': site,
+                })
+            
+            # Vérifier le montant
+            try:
+                montant_decimal = float(montant_total)
+                if montant_decimal < 0:
+                    messages.error(request, 'Le montant ne peut pas être négatif.')
+                    return render(request, 'admin/add_daily_total.html', {
+                        'site': site,
+                    })
+            except ValueError:
+                messages.error(request, 'Montant invalide.')
+                return render(request, 'admin/add_daily_total.html', {
+                    'site': site,
+                })
+            
+            # Créer un lavage "résumé" avec l'admin comme employé
+            # Ce lavage représente le total de la journée sans détails spécifiques
+            lavage = CarWash.objects.create(
+                employe=user,  # L'admin qui ajoute le total
+                site=site,
+                date=date_obj,
+                type_service='COMPLET',  # Type par défaut
+                plaque='',  # Pas de plaque pour un total
+                montant=montant_decimal,
+                notes=f"Total quotidien ajouté manuellement par l'admin. {notes}".strip()
+            )
+            
+            # Log d'audit
+            AuditLog.log(
+                user=user,
+                action="CREER",
+                description=f"Montant total quotidien ajouté manuellement: {montant_decimal} FC pour le {date_obj.strftime('%d/%m/%Y')}",
+                content_object=lavage,
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request)
+            )
+            
+            messages.success(request, f'Montant total de {montant_decimal:,.0f} FC ajouté avec succès pour le {date_obj.strftime("%d/%m/%Y")} !')
+            return redirect('admin_site_detail', site_id=site.id)
+            
+        except Exception as e:
+            messages.error(request, f'Erreur lors de l\'enregistrement: {str(e)}')
+    
+    # GET request - afficher le formulaire
+    today = timezone.localdate()
+    
+    # Calculer le total actuel pour aujourd'hui (si existe)
+    total_actuel = CarWash.objects.filter(site=site, date=today).aggregate(total=Sum('montant'))['total'] or 0
+    
+    return render(request, 'admin/add_daily_total.html', {
+        'site': site,
+        'today': today,
+        'total_actuel': total_actuel,
+    })
+
+
+@login_required
+@no_cache_view
+def admin_add_wash(request, site_id):
+    """
+    Vue pour permettre à l'admin d'ajouter manuellement un lavage pour une date spécifique
+    """
+    user = request.user
+    
+    # Pour les superutilisateurs, s'assurer qu'ils ont un profil avec le rôle ADMIN
+    if user.is_superuser:
+        if not hasattr(user, 'userprofile'):
+            UserProfile.objects.create(user=user, role='ADMIN')
+        elif not user.userprofile.is_admin():
+            user.userprofile.role = 'ADMIN'
+            user.userprofile.save()
+    
+    # Vérifier que l'utilisateur est admin
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+    
+    site = get_object_or_404(Location, id=site_id)
+    
+    # Récupérer les employés du site
+    employes_site = UserProfile.objects.filter(
+        site=site,
+        role='EMPLOYE',
+        actif=True
+    ).select_related('user')
+    
+    if request.method == 'POST':
+        try:
+            # Récupérer les données du formulaire
+            employe_id = request.POST.get('employe')
+            date_wash = request.POST.get('date')
+            type_service = request.POST.get('type_service')
+            plaque = request.POST.get('plaque', '')
+            montant = request.POST.get('montant')
+            notes = request.POST.get('notes', '')
+            
+            # Validation des champs requis
+            if not employe_id:
+                messages.error(request, 'L\'employé est requis.')
+                return render(request, 'admin/add_wash.html', {
+                    'site': site,
+                    'employes_site': employes_site,
+                    'types_service': CarWash.TYPE_SERVICE_CHOICES,
+                })
+            
+            if not date_wash:
+                messages.error(request, 'La date est requise.')
+                return render(request, 'admin/add_wash.html', {
+                    'site': site,
+                    'employes_site': employes_site,
+                    'types_service': CarWash.TYPE_SERVICE_CHOICES,
+                })
+            
+            if not type_service:
+                messages.error(request, 'Le type de service est requis.')
+                return render(request, 'admin/add_wash.html', {
+                    'site': site,
+                    'employes_site': employes_site,
+                    'types_service': CarWash.TYPE_SERVICE_CHOICES,
+                })
+            
+            if not montant:
+                messages.error(request, 'Le montant est requis.')
+                return render(request, 'admin/add_wash.html', {
+                    'site': site,
+                    'employes_site': employes_site,
+                    'types_service': CarWash.TYPE_SERVICE_CHOICES,
+                })
+            
+            # Vérifier qu'il y a au moins une photo
+            photos = request.FILES.getlist('photos')
+            if not photos:
+                messages.error(request, 'Au moins une photo est requise.')
+                return render(request, 'admin/add_wash.html', {
+                    'site': site,
+                    'employes_site': employes_site,
+                    'types_service': CarWash.TYPE_SERVICE_CHOICES,
+                })
+            
+            # Récupérer l'employé
+            employe = get_object_or_404(User, id=employe_id)
+            
+            # Vérifier que l'employé appartient au site
+            if not hasattr(employe, 'userprofile') or employe.userprofile.site != site:
+                messages.error(request, 'L\'employé sélectionné n\'appartient pas à ce site.')
+                return render(request, 'admin/add_wash.html', {
+                    'site': site,
+                    'employes_site': employes_site,
+                    'types_service': CarWash.TYPE_SERVICE_CHOICES,
+                })
+            
+            # Convertir la date
+            try:
+                date_obj = datetime.strptime(date_wash, '%Y-%m-%d').date()
+            except ValueError:
+                messages.error(request, 'Format de date invalide.')
+                return render(request, 'admin/add_wash.html', {
+                    'site': site,
+                    'employes_site': employes_site,
+                    'types_service': CarWash.TYPE_SERVICE_CHOICES,
+                })
+            
+            # Créer le lavage
+            lavage = CarWash.objects.create(
+                employe=employe,
+                site=site,
+                date=date_obj,
+                type_service=type_service,
+                plaque=plaque,
+                montant=montant,
+                notes=notes
+            )
+            
+            # Traiter les photos (toutes marquées comme "après lavage")
+            for photo in photos:
+                CarWashPhoto.objects.create(
+                    lavage=lavage,
+                    photo=photo,
+                    type_photo='APRES'
+                )
+            
+            # Log d'audit
+            AuditLog.log(
+                user=user,
+                action="CREER",
+                description=f"Lavage ajouté manuellement par admin: {lavage} (Date: {date_obj})",
+                content_object=lavage,
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request)
+            )
+            
+            messages.success(request, f'Lavage enregistré avec succès pour le {date_obj.strftime("%d/%m/%Y")} !')
+            return redirect('admin_site_detail', site_id=site.id)
+            
+        except Exception as e:
+            messages.error(request, f'Erreur lors de l\'enregistrement: {str(e)}')
+    
+    # GET request - afficher le formulaire
+    today = timezone.localdate()
+    return render(request, 'admin/add_wash.html', {
+        'site': site,
+        'employes_site': employes_site,
+        'types_service': CarWash.TYPE_SERVICE_CHOICES,
+        'today': today,
+    })
+
+
+@login_required
+@no_cache_view
+def admin_add_bank_deposit(request, site_id):
+    """
+    Vue pour permettre à l'admin d'ajouter ou modifier le dépôt bancaire quotidien
+    """
+    user = request.user
+    
+    # Pour les superutilisateurs, s'assurer qu'ils ont un profil avec le rôle ADMIN
+    if user.is_superuser:
+        if not hasattr(user, 'userprofile'):
+            UserProfile.objects.create(user=user, role='ADMIN')
+        elif not user.userprofile.is_admin():
+            user.userprofile.role = 'ADMIN'
+            user.userprofile.save()
+    
+    # Vérifier que l'utilisateur est admin
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+    
+    site = get_object_or_404(Location, id=site_id)
+    
+    if request.method == 'POST':
+        try:
+            # Récupérer les données du formulaire
+            date_deposit = request.POST.get('date')
+            amount = request.POST.get('amount')
+            notes = request.POST.get('notes', '')
+            
+            # Validation des champs requis
+            if not date_deposit:
+                messages.error(request, 'La date est requise.')
+                return render(request, 'admin/add_bank_deposit.html', {
+                    'site': site,
+                    'deposit': None,
+                })
+            
+            if not amount:
+                messages.error(request, 'Le montant est requis.')
+                return render(request, 'admin/add_bank_deposit.html', {
+                    'site': site,
+                    'deposit': None,
+                })
+            
+            # Convertir la date
+            try:
+                date_obj = datetime.strptime(date_deposit, '%Y-%m-%d').date()
+            except ValueError:
+                messages.error(request, 'Format de date invalide.')
+                return render(request, 'admin/add_bank_deposit.html', {
+                    'site': site,
+                    'deposit': None,
+                })
+            
+            # Vérifier le montant
+            try:
+                amount_decimal = float(amount)
+                if amount_decimal < 0:
+                    messages.error(request, 'Le montant ne peut pas être négatif.')
+                    return render(request, 'admin/add_bank_deposit.html', {
+                        'site': site,
+                        'deposit': None,
+                    })
+            except ValueError:
+                messages.error(request, 'Montant invalide.')
+                return render(request, 'admin/add_bank_deposit.html', {
+                    'site': site,
+                    'deposit': None,
+                })
+            
+            # Créer ou mettre à jour le dépôt bancaire
+            deposit, created = DailyBankDeposit.objects.update_or_create(
+                site=site,
+                date=date_obj,
+                defaults={
+                    'amount': amount_decimal,
+                    'notes': notes,
+                    'created_by': user,
+                }
+            )
+            
+            # Log d'audit
+            action = "CREER" if created else "MODIFIER"
+            AuditLog.log(
+                user=user,
+                action=action,
+                description=f"Dépôt bancaire {'créé' if created else 'modifié'}: {amount_decimal} FC pour le {date_obj.strftime('%d/%m/%Y')}",
+                content_object=deposit,
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request)
+            )
+            
+            messages.success(request, f'Dépôt bancaire de {amount_decimal:,.0f} FC {"ajouté" if created else "modifié"} avec succès pour le {date_obj.strftime("%d/%m/%Y")} !')
+            return redirect('admin_site_detail', site_id=site.id)
+            
+        except Exception as e:
+            messages.error(request, f'Erreur lors de l\'enregistrement: {str(e)}')
+    
+    # GET request - afficher le formulaire
+    today = timezone.localdate()
+    
+    # Récupérer le dépôt existant pour aujourd'hui (si existe)
+    deposit = DailyBankDeposit.objects.filter(site=site, date=today).first()
+    
+    # Si une date est passée en paramètre GET, utiliser cette date
+    date_param = request.GET.get('date')
+    if date_param:
+        try:
+            date_obj = datetime.strptime(date_param, '%Y-%m-%d').date()
+            deposit = DailyBankDeposit.objects.filter(site=site, date=date_obj).first()
+            today = date_obj
+        except ValueError:
+            pass
+    
+    return render(request, 'admin/add_bank_deposit.html', {
+        'site': site,
+        'today': today,
+        'deposit': deposit,
     })

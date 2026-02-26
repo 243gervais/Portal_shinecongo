@@ -343,9 +343,13 @@
         </div>
         
         <!-- Footer avec lien admin -->
-        <div class="admin-link">
+        <div class="admin-link" style="display: flex; justify-content: center; align-items: center; gap: 1rem; flex-wrap: wrap;">
+            <a href="{% url 'admin_dashboard' %}" style="color: var(--primary-color); font-weight: 600;">
+                📊 Dashboard Admin Portal
+            </a>
+            <span style="color: var(--text-secondary);">|</span>
             <a href="{% url 'admin:index' %}">
-                ⚙️ Accès Administrateur
+                ⚙️ Django Admin
             </a>
         </div>
     </div>

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Location
+from .models import Location, DailyBankDeposit
 
 
 @admin.register(Location)
@@ -27,6 +27,28 @@ class LocationAdmin(admin.ModelAdmin):
         }),
         ("Métadonnées", {
             "fields": ("id", "created_at", "updated_at"),
+            "classes": ("collapse",)
+        }),
+    )
+
+
+@admin.register(DailyBankDeposit)
+class DailyBankDepositAdmin(admin.ModelAdmin):
+    list_display = ("site", "date", "amount", "created_by", "created_at")
+    list_filter = ("date", "site")
+    search_fields = ("site__nom", "notes")
+    ordering = ("-date", "-created_at")
+    readonly_fields = ("created_at", "updated_at")
+    
+    fieldsets = (
+        ("Informations", {
+            "fields": ("site", "date", "amount")
+        }),
+        ("Détails", {
+            "fields": ("notes", "created_by")
+        }),
+        ("Métadonnées", {
+            "fields": ("created_at", "updated_at"),
             "classes": ("collapse",)
         }),
     )

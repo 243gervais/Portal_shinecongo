@@ -19,7 +19,7 @@ from django.urls import path, include
 from django.contrib.auth import views as auth_views
 from django.conf import settings
 from django.conf.urls.static import static
-from comptes.views import dashboard, logout_view, register_view
+from comptes.views import dashboard, logout_view, register_view, admin_dashboard, admin_site_detail, admin_add_wash, admin_add_daily_total, admin_add_bank_deposit
 
 # Personnalisation de l'admin Django en français
 admin.site.site_header = "Shine Congo - Administration"
@@ -77,8 +77,12 @@ urlpatterns = [
     path("manager/lavages/", manager_lavages, name="manager_lavages"),
     path("manager/problemes/", manager_problemes, name="manager_problemes"),
     
-    # PORTAIL ADMIN (utilise l'interface Django Admin pour l'instant)
-    # path("admin-dashboard/", admin_dashboard, name="admin_dashboard"),
+    # PORTAIL ADMIN
+    path("admin-dashboard/", admin_dashboard, name="admin_dashboard"),
+    path("admin-dashboard/site/<uuid:site_id>/", admin_site_detail, name="admin_site_detail"),
+    path("admin-dashboard/site/<uuid:site_id>/add-wash/", admin_add_wash, name="admin_add_wash"),
+    path("admin-dashboard/site/<uuid:site_id>/add-daily-total/", admin_add_daily_total, name="admin_add_daily_total"),
+    path("admin-dashboard/site/<uuid:site_id>/add-bank-deposit/", admin_add_bank_deposit, name="admin_add_bank_deposit"),
 ]
 
 # Servir les fichiers media en développement

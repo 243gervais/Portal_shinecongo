@@ -352,7 +352,10 @@
             
             {% if user.is_authenticated %}
             <nav class="nav-menu">
-                {% if user.userprofile.is_employe %}
+                {% if user.is_superuser %}
+                    <a href="{% url 'admin_dashboard' %}">Dashboard Admin</a>
+                    <a href="{% url 'admin:index' %}">Django Admin</a>
+                {% elif user.userprofile.is_employe %}
                     <a href="{% url 'employe_dashboard' %}">Tableau de bord</a>
                     <a href="{% url 'ajouter_lavage' %}">Ajouter lavage</a>
                     <a href="{% url 'signaler_probleme' %}">Signaler problème</a>
@@ -363,8 +366,8 @@
                     <a href="{% url 'manager_lavages' %}">Lavages</a>
                     <a href="{% url 'manager_problemes' %}">Problèmes</a>
                 {% elif user.userprofile.is_admin %}
-                    <a href="{% url 'admin:index' %}">Admin</a>
-                    <a href="{% url 'manager_dashboard' %}">Dashboard</a>
+                    <a href="{% url 'admin_dashboard' %}">Dashboard Admin</a>
+                    <a href="{% url 'admin:index' %}">Django Admin</a>
                 {% endif %}
                 <a href="{% url 'logout' %}">Déconnexion</a>
             </nav>

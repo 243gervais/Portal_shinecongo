@@ -1,6 +1,8 @@
 from django.db import models
 import uuid
 from decimal import Decimal
+from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator
 
 
 class Location(models.Model):
@@ -87,3 +89,42 @@ class Location(models.Model):
         r = 6371000
         
         return c * r
+
+
+class DailyBankDeposit(models.Model):
+    """
+    Dépôt bancaire quotidien par site
+    Enregistre le montant déposé à la banque à la fin de chaque journée
+    """
+    site = models.ForeignKey(Location, on_delete=models.CASCADE, related_name="bank_deposits", verbose_name="Site")
+    date = models.DateField(verbose_name="Date du dépôt")
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        verbose_name="Montant déposé (FC)"
+    )
+    notes = models.TextField(blank=True, verbose_name="Notes")
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="bank_deposits_created",
+        verbose_name="Enregistré par"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")
+    
+    class Meta:
+        verbose_name = "Dépôt Bancaire Quotidien"
+        verbose_name_plural = "Dépôts Bancaires Quotidiens"
+        unique_together = [["site", "date"]]
+        ordering = ["-date", "-created_at"]
+        indexes = [
+            models.Index(fields=["site", "date"]),
+            models.Index(fields=["-date"]),
+        ]
+    
+    def __str__(self):
+        return f"{self.site.nom} - {self.date} - {self.amount} FC"

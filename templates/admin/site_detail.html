@@ -1,0 +1,418 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Détails - {{ site.nom }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+        <h1 class="mt-2 mb-2">{{ site.nom }}</h1>
+        <p style="color: var(--text-secondary); margin: 0;">
+            {{ site.adresse }} - {{ site.ville }} | {{ today|date:"d/m/Y" }}
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <a href="{% url 'admin_add_bank_deposit' site.id %}" class="btn btn-success" style="background: linear-gradient(135deg, #9C27B0, #BA68C8);">
+            🏦 {% if bank_deposit_today %}Modifier{% else %}Ajouter{% endif %} dépôt bancaire
+        </a>
+        <a href="{% url 'admin_add_daily_total' site.id %}" class="btn btn-success" style="background: linear-gradient(135deg, #00A843, #00C853);">
+            💰 Ajouter le total quotidien
+        </a>
+        <a href="{% url 'admin_add_wash' site.id %}" class="btn btn-info" style="background: linear-gradient(135deg, #0066FF, #0080FF);">
+            ➕ Ajouter un lavage complet
+        </a>
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-primary">← Retour aux sites</a>
+    </div>
+</div>
+
+<!-- Filtres de date -->
+<div class="card mb-4">
+    <h2 style="margin-bottom: 1rem; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
+        🔍 Filtrer l'historique des lavages
+    </h2>
+    <form method="get" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; align-items: end;">
+        <div class="form-group" style="margin-bottom: 0;">
+            <label for="date_debut">Date début</label>
+            <input type="date" class="form-control" id="date_debut" name="date_debut" value="{{ date_debut }}">
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 0;">
+            <label for="date_fin">Date fin</label>
+            <input type="date" class="form-control" id="date_fin" name="date_fin" value="{{ date_fin }}">
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 0; display: flex; gap: 0.5rem; align-items: end;">
+            <button type="submit" class="btn btn-primary">Filtrer</button>
+            <a href="{% url 'admin_site_detail' site.id %}" class="btn btn-secondary">Tout afficher</a>
+            <button type="submit" name="filter_today" value="true" class="btn btn-info">Aujourd'hui</button>
+        </div>
+    </form>
+    {% if period_label %}
+    <div style="margin-top: 1rem; padding: 0.75rem; background: var(--bg-secondary); border-radius: 8px; color: var(--text-secondary);">
+        <strong>Période sélectionnée:</strong> {{ period_label }} ({{ total_lavages }} lavage{{ total_lavages|pluralize }})
+    </div>
+    {% endif %}
+</div>
+
+<!-- Statistiques principales -->
+<div class="card-grid mb-4">
+    <div class="card stat-card" style="background: linear-gradient(135deg, var(--success-color), #00A843); color: white;">
+        <div class="stat-value" style="color: white; font-size: 2.5rem;">{{ chiffre_periode|floatformat:0 }}</div>
+        <div class="stat-label" style="color: rgba(255,255,255,0.9);">Cash Flow ({{ period_label }})</div>
+    </div>
+    
+    <div class="card stat-card">
+        <div class="stat-value" style="color: var(--success-color);">{{ total_lavages }}</div>
+        <div class="stat-label">Lavages ({{ period_label }})</div>
+    </div>
+    
+    <div class="card stat-card" style="background: linear-gradient(135deg, var(--primary-color), #0066FF); color: white;">
+        <div class="stat-value" style="color: white; font-size: 2rem;">{{ chiffre_jour|floatformat:0 }}</div>
+        <div class="stat-label" style="color: rgba(255,255,255,0.9);">Cash Flow (Aujourd'hui)</div>
+    </div>
+    
+    <div class="card stat-card" style="background: linear-gradient(135deg, #9C27B0, #BA68C8); color: white;">
+        <div class="stat-value" style="color: white; font-size: 2rem;">{{ bank_deposit_amount_today|floatformat:0 }}</div>
+        <div class="stat-label" style="color: rgba(255,255,255,0.9);">
+            🏦 Dépôt bancaire (Aujourd'hui)
+            {% if bank_deposit_today %}
+                <a href="{% url 'admin_add_bank_deposit' site.id %}?date={{ today|date:'Y-m-d' }}" 
+                   style="color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.8rem; margin-left: 0.5rem;">✏️</a>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="card stat-card" style="background: {% if difference_today >= 0 %}linear-gradient(135deg, #FF9800, #FFB74D){% else %}linear-gradient(135deg, #F44336, #E57373){% endif %}; color: white;">
+        <div class="stat-value" style="color: white; font-size: 2rem;">{{ difference_today|floatformat:0 }}</div>
+        <div class="stat-label" style="color: rgba(255,255,255,0.9);">
+            {% if difference_today >= 0 %}💰 Différence{% else %}⚠️ Manquant{% endif %}
+        </div>
+    </div>
+    
+    <div class="card stat-card">
+        <div class="stat-value" style="color: var(--success-color);">{{ presents }}</div>
+        <div class="stat-label">Employés présents</div>
+    </div>
+    
+    <div class="card stat-card">
+        <div class="stat-value" style="color: var(--warning-color);">{{ problemes_ouverts.count }}</div>
+        <div class="stat-label">Problèmes ouverts</div>
+    </div>
+</div>
+
+<!-- Section Dépôt Bancaire -->
+<div class="card mb-4">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2 style="margin: 0; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem; flex: 1;">
+            🏦 Dépôt Bancaire Quotidien
+        </h2>
+        <a href="{% url 'admin_add_bank_deposit' site.id %}" class="btn btn-success" style="margin-left: 1rem;">
+            {% if bank_deposit_today %}✏️ Modifier{% else %}➕ Ajouter{% endif %}
+        </a>
+    </div>
+    
+    {% if bank_deposit_today %}
+    <div style="padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+            <div>
+                <strong style="color: var(--text-secondary);">Montant déposé:</strong>
+                <div style="font-size: 1.5rem; font-weight: 600; color: var(--success-color);">
+                    {{ bank_deposit_amount_today|floatformat:0 }} FC
+                </div>
+            </div>
+            <div>
+                <strong style="color: var(--text-secondary);">Cash Flow:</strong>
+                <div style="font-size: 1.5rem; font-weight: 600; color: var(--primary-color);">
+                    {{ chiffre_jour|floatformat:0 }} FC
+                </div>
+            </div>
+            <div>
+                <strong style="color: var(--text-secondary);">Différence:</strong>
+                <div style="font-size: 1.5rem; font-weight: 600; color: {% if difference_today >= 0 %}var(--warning-color){% else %}var(--error-color){% endif %};">
+                    {{ difference_today|floatformat:0 }} FC
+                    {% if difference_today > 0 %}
+                        <span style="font-size: 0.875rem;">(reste en caisse)</span>
+                    {% elif difference_today < 0 %}
+                        <span style="font-size: 0.875rem;">(manquant)</span>
+                    {% else %}
+                        <span style="font-size: 0.875rem;">(égal)</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% if bank_deposit_today.notes %}
+        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+            <strong style="color: var(--text-secondary);">Notes:</strong>
+            <p style="color: var(--text-primary); margin-top: 0.5rem;">{{ bank_deposit_today.notes }}</p>
+        </div>
+        {% endif %}
+        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color); font-size: 0.875rem; color: var(--text-secondary);">
+            Enregistré le {{ bank_deposit_today.created_at|date:"d/m/Y à H:i" }}
+            {% if bank_deposit_today.created_by %}
+                par {{ bank_deposit_today.created_by.get_full_name|default:bank_deposit_today.created_by.username }}
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+        <p style="font-size: 1.1rem; margin-bottom: 1rem;">Aucun dépôt bancaire enregistré pour aujourd'hui.</p>
+        <a href="{% url 'admin_add_bank_deposit' site.id %}" class="btn btn-success">➕ Ajouter le dépôt bancaire</a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Photos des voitures lavées -->
+<div class="card mb-4">
+    <h2 style="margin-bottom: 1.5rem; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
+        📸 Photos des voitures lavées ({{ period_label }}) - {{ photos_lavages|length }} photo{{ photos_lavages|length|pluralize }}
+    </h2>
+    
+    {% if photos_lavages %}
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.5rem;">
+        {% for item in photos_lavages %}
+        <div style="border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; background: var(--card-bg); transition: all 0.3s ease; cursor: pointer;" onclick="window.open('{{ item.photo.photo.url }}', '_blank')">
+            <div style="position: relative; width: 100%; padding-top: 75%; background: var(--bg-secondary); overflow: hidden;">
+                <img src="{{ item.photo.photo.url }}" alt="Photo lavage" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;">
+            </div>
+            <div style="padding: 1rem;">
+                <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem;">
+                    {{ item.employe.get_full_name|default:item.employe.username }}
+                </div>
+                <div style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.25rem;">
+                    {{ item.type_service }}
+                </div>
+                <div style="font-size: 0.875rem; color: var(--success-color); font-weight: 600;">
+                    {{ item.montant|floatformat:0 }} FC
+                </div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                    {{ item.date|date:"d/m/Y" }} - {{ item.created_at|date:"H:i" }}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+        <p style="font-size: 1.1rem;">Aucune photo disponible pour la période sélectionnée.</p>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .card div[onclick]:hover img {
+        transform: scale(1.1);
+    }
+    .card div[onclick]:hover {
+        box-shadow: 0 8px 24px rgba(0, 102, 255, 0.2);
+        transform: translateY(-4px);
+    }
+</style>
+
+<!-- Problèmes signalés -->
+<div class="card mb-4">
+    <h2 style="margin-bottom: 1.5rem; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
+        ⚠️ Problèmes signalés aujourd'hui ({{ problemes_today.count }})
+    </h2>
+    
+    {% if problemes_today %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Catégorie</th>
+                    <th>Signalé par</th>
+                    <th>Description</th>
+                    <th>Statut</th>
+                    <th>Heure</th>
+                    <th>Photo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for probleme in problemes_today %}
+                <tr>
+                    <td>
+                        <span style="background: var(--warning-color); color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
+                            {{ probleme.get_categorie_display }}
+                        </span>
+                    </td>
+                    <td>{{ probleme.employe.get_full_name|default:probleme.employe.username }}</td>
+                    <td style="max-width: 300px;">{{ probleme.description|truncatewords:15 }}</td>
+                    <td>
+                        {% if probleme.statut == "OUVERT" %}
+                            <span style="background: rgba(255, 61, 0, 0.1); color: var(--error-color); padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">Ouvert</span>
+                        {% elif probleme.statut == "EN_COURS" %}
+                            <span style="background: rgba(255, 179, 0, 0.1); color: var(--warning-color); padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">En cours</span>
+                        {% else %}
+                            <span style="background: rgba(0, 200, 83, 0.1); color: var(--success-color); padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">Résolu</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ probleme.created_at|date:"H:i" }}</td>
+                    <td>
+                        {% if probleme.photo %}
+                            <a href="{{ probleme.photo.url }}" target="_blank" style="color: var(--primary-color); text-decoration: none;">📷 Voir</a>
+                        {% else %}
+                            <span style="color: var(--text-secondary);">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+        <p>Aucun problème signalé aujourd'hui.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Problèmes ouverts (tous statuts) -->
+{% if problemes_ouverts %}
+<div class="card mb-4">
+    <h2 style="margin-bottom: 1.5rem; color: var(--warning-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
+        🔴 Problèmes ouverts ({{ problemes_ouverts.count }})
+    </h2>
+    
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Catégorie</th>
+                    <th>Signalé par</th>
+                    <th>Description</th>
+                    <th>Statut</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for probleme in problemes_ouverts %}
+                <tr>
+                    <td>{{ probleme.created_at|date:"d/m/Y H:i" }}</td>
+                    <td>
+                        <span style="background: var(--warning-color); color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
+                            {{ probleme.get_categorie_display }}
+                        </span>
+                    </td>
+                    <td>{{ probleme.employe.get_full_name|default:probleme.employe.username }}</td>
+                    <td style="max-width: 300px;">{{ probleme.description|truncatewords:15 }}</td>
+                    <td>
+                        {% if probleme.statut == "OUVERT" %}
+                            <span style="background: rgba(255, 61, 0, 0.1); color: var(--error-color); padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">Ouvert</span>
+                        {% elif probleme.statut == "EN_COURS" %}
+                            <span style="background: rgba(255, 179, 0, 0.1); color: var(--warning-color); padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">En cours</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Liste des lavages -->
+<div class="card mb-4">
+    <h2 style="margin-bottom: 1.5rem; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
+        🚗 Historique des lavages ({{ period_label }}) - {{ total_lavages }} lavage{{ total_lavages|pluralize }}
+    </h2>
+    
+    {% if lavages_all %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Heure</th>
+                    <th>Employé</th>
+                    <th>Type de service</th>
+                    <th>Plaque</th>
+                    <th>Montant</th>
+                    <th>Photos</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lavage in lavages_all %}
+                <tr>
+                    <td style="font-weight: 600;">{{ lavage.date|date:"d/m/Y" }}</td>
+                    <td>{{ lavage.created_at|date:"H:i" }}</td>
+                    <td>{{ lavage.employe.get_full_name|default:lavage.employe.username }}</td>
+                    <td>{{ lavage.get_type_service_display }}</td>
+                    <td>{{ lavage.plaque|default:"-" }}</td>
+                    <td style="font-weight: 600; color: var(--success-color);">{{ lavage.montant|floatformat:0 }} FC</td>
+                    <td>
+                        {% if lavage.photos.exists %}
+                            <span style="color: var(--primary-color);">{{ lavage.photos.count }} photo(s)</span>
+                        {% else %}
+                            <span style="color: var(--text-secondary);">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+        <p>Aucun lavage enregistré pour la période sélectionnée.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Pointages du jour -->
+<div class="card mb-4">
+    <h2 style="margin-bottom: 1.5rem; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
+        ⏰ Pointages du jour ({{ presents }} présents)
+    </h2>
+    
+    {% if pointages_today %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Employé</th>
+                    <th>Entrée</th>
+                    <th>Sortie</th>
+                    <th>Durée</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in pointages_today %}
+                <tr>
+                    <td>{{ item.pointage.employe.get_full_name|default:item.pointage.employe.username }}</td>
+                    <td>
+                        {% if item.pointage.clock_in_time %}
+                            {{ item.pointage.clock_in_time|date:"H:i" }}
+                        {% else %}
+                            <span style="color: var(--text-secondary);">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.pointage.clock_out_time %}
+                            {{ item.pointage.clock_out_time|date:"H:i" }}
+                        {% else %}
+                            <span style="color: var(--warning-color);">En cours</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.duration %}
+                            <span style="font-weight: 600; color: var(--primary-color);">{{ item.duration }}</span>
+                        {% else %}
+                            <span style="color: var(--text-secondary);">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+        <p>Aucun pointage enregistré aujourd'hui.</p>
+    </div>
+    {% endif %}
+</div>
+
+<div class="mt-4">
+    <a href="{% url 'admin_dashboard' %}" class="btn btn-primary">← Retour aux sites</a>
+</div>
+{% endblock %}

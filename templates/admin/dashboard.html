@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard Administrateur{% endblock %}
+
+{% block content %}
+<h1 class="mt-2 mb-4">Dashboard Administrateur - {{ today|date:"d/m/Y" }}</h1>
+
+{% if sites_stats %}
+<div class="card-grid">
+    {% for stats in sites_stats %}
+    <div class="card" style="cursor: pointer; transition: all 0.3s ease;" onclick="window.location.href='{% url 'admin_site_detail' stats.site.id %}'">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1.5rem;">
+            <h2 style="margin: 0; color: var(--primary-color);">{{ stats.site.nom }}</h2>
+            <span style="background: var(--primary-light); color: var(--primary-color); padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
+                {{ stats.site.ville }}
+            </span>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+            <div class="stat-card" style="text-align: center; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
+                <div class="stat-value" style="font-size: 2rem; margin-bottom: 0.25rem;">{{ stats.chiffre_jour|floatformat:0 }}</div>
+                <div class="stat-label" style="font-size: 0.75rem;">FC (Aujourd'hui)</div>
+            </div>
+            
+            <div class="stat-card" style="text-align: center; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
+                <div class="stat-value" style="font-size: 2rem; margin-bottom: 0.25rem; color: var(--success-color);">{{ stats.total_lavages }}</div>
+                <div class="stat-label" style="font-size: 0.75rem;">Lavages</div>
+            </div>
+            
+            <div class="stat-card" style="text-align: center; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
+                <div class="stat-value" style="font-size: 2rem; margin-bottom: 0.25rem; color: var(--success-color);">{{ stats.presents }}</div>
+                <div class="stat-label" style="font-size: 0.75rem;">Présents</div>
+            </div>
+            
+            <div class="stat-card" style="text-align: center; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
+                <div class="stat-value" style="font-size: 2rem; margin-bottom: 0.25rem; color: var(--warning-color);">{{ stats.problemes_ouverts }}</div>
+                <div class="stat-label" style="font-size: 0.75rem;">Problèmes</div>
+            </div>
+        </div>
+        
+        <div style="text-align: center; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+            <span style="color: var(--primary-color); font-weight: 600; font-size: 0.9rem;">
+                👆 Cliquez pour voir les détails →
+            </span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card text-center">
+    <p style="color: var(--text-secondary); font-size: 1.2rem;">Aucun site disponible.</p>
+    <a href="{% url 'admin:index' %}" class="btn btn-primary mt-3">Créer un site</a>
+</div>
+{% endif %}
+
+<style>
+    .card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0, 102, 255, 0.2);
+    }
+</style>
+{% endblock %}

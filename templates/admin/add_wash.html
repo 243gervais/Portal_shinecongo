@@ -1,0 +1,342 @@
+{% extends "base.html" %}
+
+{% block title %}Ajouter un lavage - {{ site.nom }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+        <h1 class="mt-2 mb-2">Ajouter un lavage manuellement</h1>
+        <p style="color: var(--text-secondary); margin: 0;">
+            Site: {{ site.nom }} - {{ site.adresse }}
+        </p>
+    </div>
+    <a href="{% url 'admin_site_detail' site.id %}" class="btn btn-secondary">← Retour</a>
+</div>
+
+<div class="card">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div class="form-group">
+            <label for="date">Date du lavage *</label>
+            <input type="date" class="form-control" id="date" name="date" required value="{{ today|date:'Y-m-d' }}">
+            <small style="color: var(--text-secondary);">Sélectionnez la date pour laquelle vous souhaitez ajouter ce lavage.</small>
+        </div>
+
+        <div class="form-group">
+            <label for="employe">Employé *</label>
+            <select class="form-control" id="employe" name="employe" required>
+                <option value="">-- Sélectionner un employé --</option>
+                {% for employe_profile in employes_site %}
+                <option value="{{ employe_profile.user.id }}">{{ employe_profile.user.get_full_name|default:employe_profile.user.username }}</option>
+                {% endfor %}
+            </select>
+            <small style="color: var(--text-secondary);">Sélectionnez l'employé qui a effectué ce lavage.</small>
+        </div>
+
+        <div class="form-group">
+            <label for="type_service">Type de service *</label>
+            <select class="form-control" id="type_service" name="type_service" required>
+                {% for value, label in types_service %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="plaque">Numéro de plaque (optionnel)</label>
+            <input type="text" class="form-control" id="plaque" name="plaque" placeholder="Ex: ABC-123-CD">
+        </div>
+
+        <div class="form-group">
+            <label for="montant">Montant payé (FC) *</label>
+            <input type="number" class="form-control" id="montant" name="montant" step="0.01" min="0" required>
+        </div>
+
+        <div class="form-group">
+            <label for="notes">Notes (optionnel)</label>
+            <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Informations supplémentaires..."></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="photos">Photos après lavage * (minimum 1)</label>
+            <input type="file" class="form-control" id="photos" name="photos" multiple accept="image/*" style="display: none;">
+            
+            <div id="camera-container" style="margin-top: 1rem;">
+                <!-- Camera Controls -->
+                <div id="camera-controls" style="margin-bottom: 1rem;">
+                    <button type="button" class="btn btn-primary" id="start-camera-btn" style="width: 100%; margin-bottom: 0.5rem;">
+                        📷 Ouvrir l'appareil photo
+                    </button>
+                </div>
+                
+                <!-- Camera Preview -->
+                <div id="camera-preview-container" style="display: none; margin-bottom: 1rem;">
+                    <video id="camera-preview" autoplay playsinline style="width: 100%; max-width: 100%; border-radius: 8px; background: #000;"></video>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                        <button type="button" class="btn btn-success" id="capture-photo-btn" style="flex: 1;">
+                            📸 Capturer
+                        </button>
+                        <button type="button" class="btn btn-danger" id="stop-camera-btn" style="flex: 1;">
+                            ❌ Fermer
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Captured Photos Preview -->
+                <div id="photo-preview-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; margin-top: 1rem;"></div>
+                
+                <small style="color: var(--text-secondary); display: block; margin-top: 1rem;">
+                    Prenez des photos du véhicule après le lavage. Cliquez sur "Ouvrir l'appareil photo" pour prendre des photos directement, ou utilisez le bouton ci-dessous pour sélectionner des fichiers.
+                </small>
+                
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('photos').click();" style="width: 100%; margin-top: 0.5rem;">
+                    📁 Sélectionner des fichiers
+                </button>
+            </div>
+        </div>
+
+        <div class="mt-3">
+            <button type="submit" class="btn btn-primary btn-block">Enregistrer le lavage</button>
+            <a href="{% url 'admin_site_detail' site.id %}" class="btn btn-danger btn-block mt-2">Annuler</a>
+        </div>
+    </form>
+</div>
+
+<style>
+    .photo-preview-item {
+        position: relative;
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        overflow: hidden;
+        background: var(--bg-secondary);
+    }
+    
+    .photo-preview-item img {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        display: block;
+    }
+    
+    .photo-preview-item .photo-label {
+        padding: 0.5rem;
+        background: var(--card-bg);
+        text-align: center;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        border-top: 1px solid var(--border-color);
+    }
+    
+    .photo-preview-item .remove-photo {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        background: var(--error-color);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        cursor: pointer;
+        font-size: 1.2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        transition: all 0.2s ease;
+    }
+    
+    .photo-preview-item .remove-photo:hover {
+        transform: scale(1.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    
+    #camera-preview {
+        max-height: 400px;
+        object-fit: contain;
+    }
+    
+    #start-camera-btn, #capture-photo-btn {
+        font-size: 1.1rem;
+        padding: 1rem;
+    }
+</style>
+
+<script>
+    (function() {
+        const fileInput = document.getElementById('photos');
+        const startCameraBtn = document.getElementById('start-camera-btn');
+        const stopCameraBtn = document.getElementById('stop-camera-btn');
+        const capturePhotoBtn = document.getElementById('capture-photo-btn');
+        const cameraPreview = document.getElementById('camera-preview');
+        const cameraPreviewContainer = document.getElementById('camera-preview-container');
+        const cameraControls = document.getElementById('camera-controls');
+        const previewContainer = document.getElementById('photo-preview-container');
+        
+        let stream = null;
+        const photos = [];
+        
+        // Handle file selection
+        fileInput.addEventListener('change', function(e) {
+            const files = Array.from(e.target.files);
+            files.forEach(file => {
+                if (file.type.startsWith('image/')) {
+                    photos.push(file);
+                    addPhotoPreview(file, photos.length - 1);
+                }
+            });
+            updateFileInput();
+        });
+        
+        // Start camera
+        startCameraBtn.addEventListener('click', async function() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment'
+                    },
+                    audio: false
+                });
+                
+                cameraPreview.srcObject = stream;
+                cameraPreviewContainer.style.display = 'block';
+                cameraControls.style.display = 'none';
+                capturePhotoBtn.disabled = false;
+                
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                alert('Impossible d\'accéder à l\'appareil photo. Veuillez autoriser l\'accès à la caméra dans les paramètres de votre navigateur.');
+            }
+        });
+        
+        // Stop camera
+        stopCameraBtn.addEventListener('click', function() {
+            stopCamera();
+        });
+        
+        // Capture photo
+        capturePhotoBtn.addEventListener('click', function() {
+            capturePhoto();
+        });
+        
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            cameraPreview.srcObject = null;
+            cameraPreviewContainer.style.display = 'none';
+            cameraControls.style.display = 'block';
+        }
+        
+        function capturePhoto() {
+            if (!stream) return;
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = cameraPreview.videoWidth;
+            canvas.height = cameraPreview.videoHeight;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(cameraPreview, 0, 0, canvas.width, canvas.height);
+            
+            canvas.toBlob(function(blob) {
+                if (blob) {
+                    try {
+                        const timestamp = Date.now();
+                        const file = new File([blob], `photo_${timestamp}.jpg`, { 
+                            type: 'image/jpeg',
+                            lastModified: timestamp
+                        });
+                        
+                        photos.push(file);
+                        addPhotoPreview(file, photos.length - 1);
+                        updateFileInput();
+                        
+                        console.log('Photo captured:', file.name, file.size, 'bytes');
+                    } catch (error) {
+                        console.error('Error processing photo:', error);
+                        alert('Erreur lors du traitement de la photo: ' + error.message);
+                    }
+                }
+            }, 'image/jpeg', 0.9);
+        }
+        
+        function addPhotoPreview(file, index) {
+            const photoLabel = `Photo ${index + 1}`;
+            const previewItem = document.createElement('div');
+            previewItem.className = 'photo-preview-item';
+            previewItem.dataset.index = index;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewItem.innerHTML = `
+                    <button type="button" class="remove-photo" onclick="removePhoto(${index})">×</button>
+                    <img src="${e.target.result}" alt="Preview">
+                    <div class="photo-label">${photoLabel}</div>
+                `;
+                previewContainer.appendChild(previewItem);
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        // Remove photo function
+        window.removePhoto = function(index) {
+            photos.splice(index, 1);
+            updateFileInput();
+            refreshPreviews();
+        };
+        
+        function refreshPreviews() {
+            previewContainer.innerHTML = '';
+            photos.forEach((photo, index) => {
+                addPhotoPreview(photo, index);
+            });
+        }
+        
+        // Update the file input with current photos
+        function updateFileInput() {
+            try {
+                if (photos.length === 0) {
+                    fileInput.setCustomValidity('Veuillez prendre au moins une photo');
+                    return;
+                }
+                
+                const dataTransfer = new DataTransfer();
+                
+                photos.forEach(photo => {
+                    if (photo instanceof File) {
+                        dataTransfer.items.add(photo);
+                    }
+                });
+                
+                fileInput.files = dataTransfer.files;
+                fileInput.setCustomValidity('');
+                
+                console.log('File input updated with', fileInput.files.length, 'files');
+            } catch (error) {
+                console.error('Error updating file input:', error);
+                alert('Erreur lors de la mise à jour des photos. Veuillez réessayer.');
+            }
+        }
+        
+        // Form submission validation
+        document.querySelector('form').addEventListener('submit', function(e) {
+            if (photos.length === 0) {
+                e.preventDefault();
+                alert('Veuillez ajouter au moins une photo avant de soumettre le formulaire.');
+                return false;
+            }
+            
+            updateFileInput();
+            
+            if (fileInput.files.length === 0) {
+                e.preventDefault();
+                alert('Erreur: Les photos n\'ont pas pu être attachées au formulaire. Veuillez réessayer.');
+                return false;
+            }
+        });
+    })();
+</script>
+{% endblock %}
