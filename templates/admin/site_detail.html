@@ -39,6 +39,7 @@
         <div class="form-group" style="margin-bottom: 0;">
             <label for="date_fin">Date fin</label>
             <input type="date" class="form-control" id="date_fin" name="date_fin" value="{{ date_fin }}">
+            <small style="color: var(--text-secondary); font-size: 0.75rem;">Mettre la même date pour voir les détails d'un jour spécifique</small>
         </div>
         
         <div class="form-group" style="margin-bottom: 0; display: flex; gap: 0.5rem; align-items: end;">
@@ -54,6 +55,119 @@
     {% endif %}
 </div>
 
+<!-- Résumé détaillé pour une date spécifique -->
+{% if selected_single_date %}
+<div class="card mb-4" style="border: 2px solid var(--primary-color); background: linear-gradient(135deg, rgba(0, 102, 255, 0.05), rgba(0, 168, 67, 0.05));">
+    <h2 style="margin-bottom: 1.5rem; color: var(--primary-color); border-bottom: 2px solid var(--primary-color); padding-bottom: 0.75rem;">
+        📅 Résumé détaillé du {{ selected_single_date|date:"d/m/Y" }}
+    </h2>
+    
+    <!-- Statistiques principales de la date -->
+    <div class="card-grid mb-4">
+        <div class="card stat-card" style="background: linear-gradient(135deg, var(--success-color), #00A843); color: white;">
+            <div class="stat-value" style="color: white; font-size: 2.5rem;">{{ chiffre_date|floatformat:0 }}</div>
+            <div class="stat-label" style="color: rgba(255,255,255,0.9);">Cash Flow</div>
+        </div>
+        
+        <div class="card stat-card" style="background: linear-gradient(135deg, #9C27B0, #BA68C8); color: white;">
+            <div class="stat-value" style="color: white; font-size: 2.5rem;">{{ bank_deposit_amount_date|floatformat:0 }}</div>
+            <div class="stat-label" style="color: rgba(255,255,255,0.9);">
+                🏦 Dépôt bancaire
+                {% if bank_deposit_date %}
+                    <a href="{% url 'admin_add_bank_deposit' site.id %}?date={{ selected_single_date|date:'Y-m-d' }}" 
+                       style="color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.8rem; margin-left: 0.5rem;">✏️</a>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card stat-card" style="background: {% if difference_date >= 0 %}linear-gradient(135deg, #FF9800, #FFB74D){% else %}linear-gradient(135deg, #F44336, #E57373){% endif %}; color: white;">
+            <div class="stat-value" style="color: white; font-size: 2.5rem;">{{ difference_date|floatformat:0 }}</div>
+            <div class="stat-label" style="color: rgba(255,255,255,0.9);">
+                {% if difference_date > 0 %}💰 Reste en caisse{% elif difference_date < 0 %}⚠️ Manquant{% else %}✅ Égal{% endif %}
+            </div>
+        </div>
+        
+        <div class="card stat-card">
+            <div class="stat-value" style="color: var(--success-color);">{{ total_lavages }}</div>
+            <div class="stat-label">Lavages</div>
+        </div>
+        
+        <div class="card stat-card">
+            <div class="stat-value" style="color: var(--success-color);">{{ presents }}</div>
+            <div class="stat-label">Employés présents</div>
+        </div>
+        
+        <div class="card stat-card">
+            <div class="stat-value" style="color: var(--warning-color);">{{ problemes_date.count }}</div>
+            <div class="stat-label">Problèmes signalés</div>
+        </div>
+    </div>
+    
+    <!-- Détails du dépôt bancaire -->
+    {% if bank_deposit_date %}
+    <div style="padding: 1rem; background: var(--bg-secondary); border-radius: 8px; margin-bottom: 1rem;">
+        <h3 style="color: var(--primary-color); margin-bottom: 0.75rem;">🏦 Détails du dépôt bancaire</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+            <div>
+                <strong style="color: var(--text-secondary);">Montant déposé:</strong>
+                <div style="font-size: 1.25rem; font-weight: 600; color: var(--success-color);">
+                    {{ bank_deposit_amount_date|floatformat:0 }} FC
+                </div>
+            </div>
+            {% if bank_deposit_date.notes %}
+            <div style="grid-column: span 2;">
+                <strong style="color: var(--text-secondary);">Notes:</strong>
+                <p style="color: var(--text-primary); margin-top: 0.25rem;">{{ bank_deposit_date.notes }}</p>
+            </div>
+            {% endif %}
+        </div>
+        <div style="margin-top: 0.75rem; font-size: 0.875rem; color: var(--text-secondary);">
+            Enregistré le {{ bank_deposit_date.created_at|date:"d/m/Y à H:i" }}
+            {% if bank_deposit_date.created_by %}
+                par {{ bank_deposit_date.created_by.get_full_name|default:bank_deposit_date.created_by.username }}
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div style="padding: 1rem; background: rgba(255, 179, 0, 0.1); border-left: 3px solid var(--warning-color); border-radius: 4px; margin-bottom: 1rem;">
+        <p style="margin: 0; color: var(--text-secondary);">
+            <strong>⚠️ Aucun dépôt bancaire enregistré pour cette date.</strong>
+            <a href="{% url 'admin_add_bank_deposit' site.id %}?date={{ selected_single_date|date:'Y-m-d' }}" class="btn btn-success" style="margin-left: 1rem; padding: 0.25rem 0.75rem;">Ajouter</a>
+        </p>
+    </div>
+    {% endif %}
+    
+    <!-- Statistiques par employé -->
+    {% if lavages_by_employee %}
+    <div style="margin-top: 1.5rem;">
+        <h3 style="color: var(--primary-color); margin-bottom: 1rem;">👥 Performance par employé</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Employé</th>
+                        <th>Nombre de lavages</th>
+                        <th>Total (FC)</th>
+                        <th>Moyenne (FC)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for emp_data in lavages_by_employee.values %}
+                    <tr>
+                        <td>{{ emp_data.employe.get_full_name|default:emp_data.employe.username }}</td>
+                        <td style="text-align: center;">{{ emp_data.count }}</td>
+                        <td style="font-weight: 600; color: var(--success-color); text-align: right;">{{ emp_data.total|floatformat:0 }} FC</td>
+                        <td style="text-align: right;">{{ emp_data.average|floatformat:0 }} FC</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
 <!-- Statistiques principales -->
 <div class="card-grid mb-4">
     <div class="card stat-card" style="background: linear-gradient(135deg, var(--success-color), #00A843); color: white;">
@@ -66,6 +180,7 @@
         <div class="stat-label">Lavages ({{ period_label }})</div>
     </div>
     
+    {% if not selected_single_date %}
     <div class="card stat-card" style="background: linear-gradient(135deg, var(--primary-color), #0066FF); color: white;">
         <div class="stat-value" style="color: white; font-size: 2rem;">{{ chiffre_jour|floatformat:0 }}</div>
         <div class="stat-label" style="color: rgba(255,255,255,0.9);">Cash Flow (Aujourd'hui)</div>
@@ -88,6 +203,7 @@
             {% if difference_today >= 0 %}💰 Différence{% else %}⚠️ Manquant{% endif %}
         </div>
     </div>
+    {% endif %}
     
     <div class="card stat-card">
         <div class="stat-value" style="color: var(--success-color);">{{ presents }}</div>
@@ -100,11 +216,12 @@
     </div>
 </div>
 
-<!-- Section Dépôt Bancaire -->
+<!-- Section Dépôt Bancaire (seulement si pas de date spécifique sélectionnée) -->
+{% if not selected_single_date %}
 <div class="card mb-4">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
         <h2 style="margin: 0; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem; flex: 1;">
-            🏦 Dépôt Bancaire Quotidien
+            🏦 Dépôt Bancaire Quotidien (Aujourd'hui)
         </h2>
         <a href="{% url 'admin_add_bank_deposit' site.id %}" class="btn btn-success" style="margin-left: 1rem;">
             {% if bank_deposit_today %}✏️ Modifier{% else %}➕ Ajouter{% endif %}
@@ -160,6 +277,7 @@
     </div>
     {% endif %}
 </div>
+{% endif %}
 
 <!-- Photos des voitures lavées -->
 <div class="card mb-4">
@@ -211,10 +329,10 @@
 <!-- Problèmes signalés -->
 <div class="card mb-4">
     <h2 style="margin-bottom: 1.5rem; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
-        ⚠️ Problèmes signalés aujourd'hui ({{ problemes_today.count }})
+        ⚠️ Problèmes signalés {% if selected_single_date %}le {{ selected_single_date|date:"d/m/Y" }}{% else %}aujourd'hui{% endif %} ({{ problemes_date.count }})
     </h2>
     
-    {% if problemes_today %}
+    {% if problemes_date %}
     <div class="table-container">
         <table>
             <thead>
@@ -228,7 +346,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for probleme in problemes_today %}
+                {% for probleme in problemes_date %}
                 <tr>
                     <td>
                         <span style="background: var(--warning-color); color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
@@ -261,7 +379,7 @@
     </div>
     {% else %}
     <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-        <p>Aucun problème signalé aujourd'hui.</p>
+        <p>Aucun problème signalé {% if selected_single_date %}cette date{% else %}aujourd'hui{% endif %}.</p>
     </div>
     {% endif %}
 </div>
@@ -361,10 +479,10 @@
 <!-- Pointages du jour -->
 <div class="card mb-4">
     <h2 style="margin-bottom: 1.5rem; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
-        ⏰ Pointages du jour ({{ presents }} présents)
+        ⏰ Pointages {% if selected_single_date %}du {{ selected_single_date|date:"d/m/Y" }}{% else %}du jour{% endif %} ({{ presents }} présent{{ presents|pluralize }})
     </h2>
     
-    {% if pointages_today %}
+    {% if pointages_date %}
     <div class="table-container">
         <table>
             <thead>
@@ -376,7 +494,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for item in pointages_today %}
+                {% for item in pointages_date %}
                 <tr>
                     <td>{{ item.pointage.employe.get_full_name|default:item.pointage.employe.username }}</td>
                     <td>
@@ -407,7 +525,7 @@
     </div>
     {% else %}
     <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-        <p>Aucun pointage enregistré aujourd'hui.</p>
+        <p>Aucun pointage enregistré {% if selected_single_date %}cette date{% else %}aujourd'hui{% endif %}.</p>
     </div>
     {% endif %}
 </div>

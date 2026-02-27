@@ -226,6 +226,7 @@ def admin_site_detail(request, site_id):
     date_debut = request.GET.get('date_debut')
     date_fin = request.GET.get('date_fin')
     filter_today = request.GET.get('filter_today', 'false') == 'true'
+    selected_single_date = None  # Date unique sélectionnée pour affichage détaillé
     
     # Par défaut, afficher tous les lavages (pas seulement aujourd'hui)
     # Sauf si l'utilisateur demande explicitement de filtrer sur aujourd'hui
@@ -234,6 +235,18 @@ def admin_site_detail(request, site_id):
         lavages_query = CarWash.objects.filter(site=site, date=today)
         selected_date_start = today
         selected_date_end = today
+        selected_single_date = today
+    elif date_debut and date_fin and date_debut == date_fin:
+        # Une seule date sélectionnée - affichage détaillé
+        try:
+            selected_single_date = datetime.strptime(date_debut, '%Y-%m-%d').date()
+            lavages_query = CarWash.objects.filter(site=site, date=selected_single_date)
+            selected_date_start = selected_single_date
+            selected_date_end = selected_single_date
+        except ValueError:
+            lavages_query = CarWash.objects.filter(site=site)
+            selected_date_start = None
+            selected_date_end = None
     elif date_debut or date_fin:
         # Filtrer sur une plage de dates
         lavages_query = CarWash.objects.filter(site=site)
@@ -272,8 +285,11 @@ def admin_site_detail(request, site_id):
                 'date': lavage.date,
             })
     
-    # Problèmes du jour (pour la section spécifique "aujourd'hui")
-    problemes_today = IssueReport.objects.filter(site=site, created_at__date=today).order_by('-created_at')
+    # Déterminer la date pour les détails quotidiens (aujourd'hui ou date sélectionnée)
+    detail_date = selected_single_date if selected_single_date else today
+    
+    # Problèmes du jour sélectionné
+    problemes_date = IssueReport.objects.filter(site=site, created_at__date=detail_date).order_by('-created_at')
     
     # Problèmes ouverts (tous statuts, toutes dates)
     problemes_ouverts = IssueReport.objects.filter(
@@ -281,13 +297,13 @@ def admin_site_detail(request, site_id):
         statut__in=['OUVERT', 'EN_COURS']
     ).order_by('-created_at')
     
-    # Pointages du jour avec calcul de durée
-    pointages_today = ShiftDay.objects.filter(site=site, date=today).select_related('employe').order_by('-clock_in_time')
-    presents = pointages_today.filter(clock_in_time__isnull=False).count()
+    # Pointages de la date sélectionnée avec calcul de durée
+    pointages_date = ShiftDay.objects.filter(site=site, date=detail_date).select_related('employe').order_by('-clock_in_time')
+    presents = pointages_date.filter(clock_in_time__isnull=False).count()
     
     # Ajouter la durée formatée pour chaque pointage
     pointages_with_duration = []
-    for pointage in pointages_today:
+    for pointage in pointages_date:
         duration_str = None
         if pointage.clock_in_time and pointage.clock_out_time:
             duration = pointage.clock_out_time - pointage.clock_in_time
@@ -301,6 +317,29 @@ def admin_site_detail(request, site_id):
             'duration': duration_str
         })
     
+    # Statistiques par employé pour la date sélectionnée
+    lavages_by_employee = {}
+    if selected_single_date:
+        lavages_date = CarWash.objects.filter(site=site, date=selected_single_date).select_related('employe')
+        for lavage in lavages_date:
+            emp_id = lavage.employe.id
+            if emp_id not in lavages_by_employee:
+                lavages_by_employee[emp_id] = {
+                    'employe': lavage.employe,
+                    'count': 0,
+                    'total': 0,
+                    'average': 0,
+                    'lavages': []
+                }
+            lavages_by_employee[emp_id]['count'] += 1
+            lavages_by_employee[emp_id]['total'] += float(lavage.montant)
+            lavages_by_employee[emp_id]['lavages'].append(lavage)
+        
+        # Calculer les moyennes
+        for emp_data in lavages_by_employee.values():
+            if emp_data['count'] > 0:
+                emp_data['average'] = emp_data['total'] / emp_data['count']
+    
     # Employés du site
     employes_site = UserProfile.objects.filter(
         site=site,
@@ -311,6 +350,8 @@ def admin_site_detail(request, site_id):
     # Déterminer le label de période pour l'affichage
     if filter_today:
         period_label = "Aujourd'hui"
+    elif selected_single_date:
+        period_label = selected_single_date.strftime("%d/%m/%Y")
     elif date_debut and date_fin:
         period_label = f"Du {date_debut} au {date_fin}"
     elif date_debut:
@@ -320,30 +361,43 @@ def admin_site_detail(request, site_id):
     else:
         period_label = "Tous les lavages"
     
-    # Récupérer le dépôt bancaire pour aujourd'hui
+    # Récupérer le dépôt bancaire pour la date sélectionnée
+    bank_deposit_date = DailyBankDeposit.objects.filter(site=site, date=detail_date).first()
+    bank_deposit_amount_date = bank_deposit_date.amount if bank_deposit_date else 0
+    
+    # Calculer le cash flow pour la date sélectionnée
+    chiffre_date = CarWash.objects.filter(site=site, date=detail_date).aggregate(total=Sum('montant'))['total'] or 0
+    difference_date = chiffre_date - bank_deposit_amount_date
+    
+    # Cash flow d'aujourd'hui (pour comparaison)
+    chiffre_jour = CarWash.objects.filter(site=site, date=today).aggregate(total=Sum('montant'))['total'] or 0
     bank_deposit_today = DailyBankDeposit.objects.filter(site=site, date=today).first()
     bank_deposit_amount_today = bank_deposit_today.amount if bank_deposit_today else 0
-    
-    # Calculer la différence entre cash flow et dépôt bancaire pour aujourd'hui
-    chiffre_jour = CarWash.objects.filter(site=site, date=today).aggregate(total=Sum('montant'))['total'] or 0
     difference_today = chiffre_jour - bank_deposit_amount_today
     
     context = {
         'site': site,
         'today': today,
+        'detail_date': detail_date,
+        'selected_single_date': selected_single_date,
         'lavages_all': lavages_all,
         'total_lavages': total_lavages,
         'chiffre_periode': chiffre_periode,
+        'chiffre_date': chiffre_date,
         'chiffre_jour': chiffre_jour,
+        'bank_deposit_date': bank_deposit_date,
+        'bank_deposit_amount_date': bank_deposit_amount_date,
         'bank_deposit_today': bank_deposit_today,
         'bank_deposit_amount_today': bank_deposit_amount_today,
+        'difference_date': difference_date,
         'difference_today': difference_today,
         'photos_lavages': photos_lavages,
-        'problemes_today': problemes_today,
+        'problemes_date': problemes_date,
         'problemes_ouverts': problemes_ouverts,
-        'pointages_today': pointages_with_duration,
+        'pointages_date': pointages_with_duration,
         'presents': presents,
         'employes_site': employes_site,
+        'lavages_by_employee': lavages_by_employee,
         'date_debut': date_debut,
         'date_fin': date_fin,
         'filter_today': filter_today,
