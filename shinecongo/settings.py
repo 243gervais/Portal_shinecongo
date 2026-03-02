@@ -25,12 +25,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-q+obmrtt7uw1k!r2(y^+5iz#-&zc)2__lh(+w=r*9!(%s*$tqg"
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-q+obmrtt7uw1k!r2(y^+5iz#-&zc)2__lh(+w=r*9!(%s*$tqg')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 
 # Application definition
@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     # Third party apps
     # "rest_framework",  # Commented out - not installed
     # "corsheaders",  # Commented out - not installed
+    # "storages",  # For AWS S3 storage - only add if USE_S3=True and module installed
     
     # Custom apps
     "comptes",
@@ -55,6 +56,20 @@ INSTALLED_APPS = [
     "problemes",
     "audit",
 ]
+
+# Check if S3 should be used and if storages module is available
+USE_S3_ENV = os.getenv('USE_S3', 'False') == 'True'
+USE_S3 = False
+
+if USE_S3_ENV:
+    try:
+        import storages
+        INSTALLED_APPS.append('storages')
+        USE_S3 = True
+    except (ImportError, ModuleNotFoundError):
+        USE_S3 = False
+        import warnings
+        warnings.warn("⚠️  django-storages not installed. S3 storage disabled. Install with: pip install django-storages boto3")
 
 MIDDLEWARE = [
     # "corsheaders.middleware.CorsMiddleware",  # Commented out - not installed
@@ -129,13 +144,55 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
-STATIC_URL = "static/"
-STATICFILES_DIRS = [BASE_DIR / "static"]
-STATIC_ROOT = BASE_DIR / "staticfiles"
-
-# Media files (user uploads)
-MEDIA_URL = "media/"
-MEDIA_ROOT = BASE_DIR / "media"
+# AWS S3 Configuration (USE_S3 is set above, check if storages is available)
+if USE_S3:
+    try:
+        # First check if storages module is available
+        import storages
+        # Then try to import our custom storage backends
+        from storages_backends import StaticStorage, MediaStorage
+        
+        # AWS settings
+        AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+        AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+        AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
+        AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'us-east-1')
+        AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+        AWS_DEFAULT_ACL = 'public-read'
+        
+        # Static files
+        STATICFILES_STORAGE = 'storages_backends.StaticStorage'
+        STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/static/'
+        
+        # Media files
+        DEFAULT_FILE_STORAGE = 'storages_backends.MediaStorage'
+        MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
+        
+        # S3 settings
+        AWS_S3_OBJECT_PARAMETERS = {
+            'CacheControl': 'max-age=86400',
+        }
+        AWS_LOCATION = ''
+        AWS_QUERYSTRING_AUTH = False
+    except (ImportError, ModuleNotFoundError) as e:
+        # Fallback to local storage if storages_backends not available
+        USE_S3 = False
+        STATIC_URL = "static/"
+        STATICFILES_DIRS = [BASE_DIR / "static"]
+        STATIC_ROOT = BASE_DIR / "staticfiles"
+        MEDIA_URL = "media/"
+        MEDIA_ROOT = BASE_DIR / "media"
+        import warnings
+        warnings.warn(f"S3 storage disabled: {e}. Install with: pip install django-storages boto3")
+else:
+    # Local development
+    STATIC_URL = "static/"
+    STATICFILES_DIRS = [BASE_DIR / "static"]
+    STATIC_ROOT = BASE_DIR / "staticfiles"
+    
+    # Media files (user uploads)
+    MEDIA_URL = "media/"
+    MEDIA_ROOT = BASE_DIR / "media"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
