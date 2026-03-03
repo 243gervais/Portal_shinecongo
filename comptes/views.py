@@ -9,12 +9,12 @@ from django.contrib import messages
 from django.db.models import Sum, Count, Q
 from django.contrib.auth.models import User
 from datetime import datetime
-from .forms import UserRegistrationForm, SiteCreationForm
+from .forms import UserRegistrationForm, SiteCreationForm, SiteEmployeeForm, EmployeePaymentForm
 from sites.models import Location, DailyBankDeposit, SiteDocument
 from lavages.models import CarWash, CarWashPhoto
 from problemes.models import IssueReport
 from pointage.models import ShiftDay
-from comptes.models import UserProfile
+from comptes.models import UserProfile, EmployeePayment
 from audit.models import AuditLog
 from pointage.utils import get_client_ip, get_user_agent
 
@@ -895,7 +895,7 @@ def admin_add_bank_deposit(request, site_id):
 @no_cache_view
 def admin_site_documents(request, site_id):
     """
-    Vue pour gérer tous les documents d'un site (contrats, paiements, photos, vidéos, etc.)
+    Vue pour gérer les documents et les employés d'un site.
     """
     user = request.user
     
@@ -914,10 +914,9 @@ def admin_site_documents(request, site_id):
     
     site = get_object_or_404(Location, id=site_id)
     
-    # Récupérer tous les documents du site, groupés par type
+    # Documents du site
     all_documents = SiteDocument.objects.filter(site=site).select_related('uploaded_by').order_by('-uploaded_at')
-    
-    # Grouper par type de fichier
+    documents_total_count = all_documents.count()
     documents_by_type = {}
     for doc in all_documents:
         file_type = doc.file_type
@@ -925,10 +924,26 @@ def admin_site_documents(request, site_id):
             documents_by_type[file_type] = []
         documents_by_type[file_type].append(doc)
     
-    # Filtrer par type si demandé
     filter_type = request.GET.get('type')
     if filter_type:
         all_documents = all_documents.filter(file_type=filter_type)
+
+    # Employés du site (actifs + inactifs pour gestion complète)
+    site_employees = UserProfile.objects.filter(
+        site=site,
+        role='EMPLOYE'
+    ).select_related('user').order_by('-actif', 'user__first_name', 'user__last_name', 'user__username')
+
+    # Historique des paiements
+    selected_employee = request.GET.get('employee')
+    payment_records = EmployeePayment.objects.filter(site=site).select_related(
+        'employee_profile',
+        'employee_profile__user',
+        'created_by',
+    )
+    if selected_employee:
+        payment_records = payment_records.filter(employee_profile_id=selected_employee)
+    payment_records = payment_records.order_by('-payment_date', '-created_at')
     
     context = {
         'site': site,
@@ -936,9 +951,245 @@ def admin_site_documents(request, site_id):
         'documents_by_type': documents_by_type,
         'file_types': SiteDocument.FILE_TYPE_CHOICES,
         'filter_type': filter_type,
+        'documents_total_count': documents_total_count,
+        'site_employees': site_employees,
+        'payment_records': payment_records,
+        'selected_employee': str(selected_employee) if selected_employee else '',
     }
     
     return render(request, 'admin/site_documents.html', context)
+
+
+@login_required
+@no_cache_view
+def admin_add_site_employee(request, site_id):
+    """
+    Ajouter un employé pour un site.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    site = get_object_or_404(Location, id=site_id)
+
+    if request.method == 'POST':
+        form = SiteEmployeeForm(request.POST)
+        if form.is_valid():
+            profile = form.save(site=site)
+            employee_name = profile.user.get_full_name() or profile.user.username
+            AuditLog.log(
+                user=user,
+                action="CREER",
+                description=f"Employé ajouté sur {site.nom}: {employee_name}",
+                content_object=profile,
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request),
+            )
+            messages.success(request, f'Employé "{employee_name}" ajouté avec succès.')
+            return redirect('admin_site_documents', site_id=site.id)
+    else:
+        form = SiteEmployeeForm()
+
+    return render(request, 'admin/site_employee_form.html', {
+        'site': site,
+        'form': form,
+        'mode': 'create',
+    })
+
+
+@login_required
+@no_cache_view
+def admin_edit_site_employee(request, site_id, profile_id):
+    """
+    Modifier les informations d'un employé rattaché à un site.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    site = get_object_or_404(Location, id=site_id)
+    profile = get_object_or_404(
+        UserProfile.objects.select_related('user'),
+        id=profile_id,
+        site=site,
+        role='EMPLOYE',
+    )
+
+    if request.method == 'POST':
+        form = SiteEmployeeForm(
+            request.POST,
+            user_instance=profile.user,
+            profile_instance=profile,
+        )
+        if form.is_valid():
+            updated_profile = form.save(site=site)
+            employee_name = updated_profile.user.get_full_name() or updated_profile.user.username
+            AuditLog.log(
+                user=user,
+                action="MODIFIER",
+                description=f"Employé modifié sur {site.nom}: {employee_name}",
+                content_object=updated_profile,
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request),
+            )
+            messages.success(request, f'Informations de "{employee_name}" mises à jour.')
+            return redirect('admin_site_documents', site_id=site.id)
+    else:
+        form = SiteEmployeeForm(user_instance=profile.user, profile_instance=profile)
+
+    return render(request, 'admin/site_employee_form.html', {
+        'site': site,
+        'employee_profile': profile,
+        'form': form,
+        'mode': 'edit',
+    })
+
+
+@login_required
+@no_cache_view
+def admin_remove_site_employee(request, site_id, profile_id):
+    """
+    Retirer un employé d'un site (désactivation du compte).
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    site = get_object_or_404(Location, id=site_id)
+    profile = get_object_or_404(
+        UserProfile.objects.select_related('user'),
+        id=profile_id,
+        site=site,
+        role='EMPLOYE',
+    )
+    employee_name = profile.user.get_full_name() or profile.user.username
+
+    if request.method == 'POST':
+        profile.site = None
+        profile.actif = False
+        profile.save(update_fields=['site', 'actif', 'updated_at'])
+
+        profile.user.is_active = False
+        profile.user.save(update_fields=['is_active'])
+
+        AuditLog.log(
+            user=user,
+            action="MODIFIER",
+            description=f"Employé retiré du site {site.nom}: {employee_name}",
+            content_object=profile,
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request),
+        )
+        messages.success(request, f'"{employee_name}" a été retiré du site et désactivé.')
+        return redirect('admin_site_documents', site_id=site.id)
+
+    return render(request, 'admin/site_employee_delete.html', {
+        'site': site,
+        'employee_profile': profile,
+    })
+
+
+@login_required
+@no_cache_view
+def admin_create_employee_payment(request, site_id, profile_id):
+    """
+    Enregistrer un paiement employé puis générer une fiche de paiement.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    site = get_object_or_404(Location, id=site_id)
+    employee_profile = get_object_or_404(
+        UserProfile.objects.select_related('user'),
+        id=profile_id,
+        site=site,
+        role='EMPLOYE',
+    )
+
+    if request.method == 'POST':
+        form = EmployeePaymentForm(request.POST, employee_profile=employee_profile)
+        if form.is_valid():
+            salary_base = employee_profile.salaire_mensuel_fc
+            if salary_base is None:
+                salary_base = form.cleaned_data['amount_paid_fc']
+
+            admin_signature = user.get_full_name() or user.username
+
+            payment = EmployeePayment.objects.create(
+                employee_profile=employee_profile,
+                site=site,
+                payment_date=form.cleaned_data['payment_date'],
+                period_start=form.cleaned_data['period_start'],
+                period_end=form.cleaned_data['period_end'],
+                salary_base_fc=salary_base,
+                amount_paid_fc=form.cleaned_data['amount_paid_fc'],
+                payment_method=form.cleaned_data['payment_method'],
+                mpesa_reference=form.cleaned_data['mpesa_reference'],
+                employee_signature_name=form.cleaned_data['employee_signature_name'],
+                admin_signature_name=admin_signature,
+                notes=form.cleaned_data['notes'],
+                created_by=user,
+            )
+
+            AuditLog.log(
+                user=user,
+                action="CREER",
+                description=(
+                    f"Paiement employé créé sur {site.nom}: "
+                    f"{employee_profile.user.get_full_name() or employee_profile.user.username} "
+                    f"({payment.amount_paid_fc} FC)"
+                ),
+                content_object=payment,
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request),
+            )
+
+            messages.success(request, "Paiement enregistré. La fiche de paiement a été générée.")
+            return redirect('admin_employee_payment_receipt', site_id=site.id, payment_id=payment.id)
+    else:
+        form = EmployeePaymentForm(employee_profile=employee_profile)
+
+    return render(request, 'admin/payment_record_form.html', {
+        'site': site,
+        'employee_profile': employee_profile,
+        'form': form,
+    })
+
+
+@login_required
+@no_cache_view
+def admin_employee_payment_receipt(request, site_id, payment_id):
+    """
+    Afficher la fiche de paiement (version imprimable).
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    site = get_object_or_404(Location, id=site_id)
+    payment = get_object_or_404(
+        EmployeePayment.objects.select_related('employee_profile', 'employee_profile__user', 'created_by'),
+        id=payment_id,
+        site=site,
+    )
+
+    context = {
+        'site': site,
+        'payment': payment,
+        'company_name': "Shine Congo",
+    }
+    return render(request, 'admin/payment_receipt.html', context)
 
 
 @login_required

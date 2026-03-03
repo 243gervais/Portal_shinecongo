@@ -19,7 +19,27 @@ from django.urls import path, include
 from django.contrib.auth import views as auth_views
 from django.conf import settings
 from django.conf.urls.static import static
-from comptes.views import dashboard, logout_view, register_view, admin_dashboard, admin_approve_account_request, admin_reject_account_request, admin_site_detail, admin_create_site, admin_add_wash, admin_add_daily_total, admin_add_bank_deposit, admin_site_documents, admin_upload_site_document, admin_delete_site_document
+from comptes.views import (
+    dashboard,
+    logout_view,
+    register_view,
+    admin_dashboard,
+    admin_approve_account_request,
+    admin_reject_account_request,
+    admin_site_detail,
+    admin_create_site,
+    admin_add_wash,
+    admin_add_daily_total,
+    admin_add_bank_deposit,
+    admin_site_documents,
+    admin_add_site_employee,
+    admin_edit_site_employee,
+    admin_remove_site_employee,
+    admin_create_employee_payment,
+    admin_employee_payment_receipt,
+    admin_upload_site_document,
+    admin_delete_site_document,
+)
 from comptes.forms import ApprovalAuthenticationForm
 
 # Personnalisation de l'admin Django en français
@@ -95,6 +115,11 @@ urlpatterns = [
     path("admin-dashboard/site/<uuid:site_id>/add-daily-total/", admin_add_daily_total, name="admin_add_daily_total"),
     path("admin-dashboard/site/<uuid:site_id>/add-bank-deposit/", admin_add_bank_deposit, name="admin_add_bank_deposit"),
     path("admin-dashboard/site/<uuid:site_id>/documents/", admin_site_documents, name="admin_site_documents"),
+    path("admin-dashboard/site/<uuid:site_id>/employees/add/", admin_add_site_employee, name="admin_add_site_employee"),
+    path("admin-dashboard/site/<uuid:site_id>/employees/<int:profile_id>/edit/", admin_edit_site_employee, name="admin_edit_site_employee"),
+    path("admin-dashboard/site/<uuid:site_id>/employees/<int:profile_id>/remove/", admin_remove_site_employee, name="admin_remove_site_employee"),
+    path("admin-dashboard/site/<uuid:site_id>/employees/<int:profile_id>/payment/", admin_create_employee_payment, name="admin_create_employee_payment"),
+    path("admin-dashboard/site/<uuid:site_id>/payments/<int:payment_id>/fiche/", admin_employee_payment_receipt, name="admin_employee_payment_receipt"),
     path("admin-dashboard/site/<uuid:site_id>/documents/upload/", admin_upload_site_document, name="admin_upload_site_document"),
     path("admin-dashboard/site/<uuid:site_id>/documents/<int:document_id>/delete/", admin_delete_site_document, name="admin_delete_site_document"),
 ]

@@ -1,0 +1,306 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fiche de paiement - {{ payment.employee_profile.user.get_full_name|default:payment.employee_profile.user.username }}</title>
+    <style>
+        :root {
+            --primary: #0A436B;
+            --text: #1f2933;
+            --muted: #5b6875;
+            --border: #d6dee6;
+            --bg: #f7f8fa;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 20px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-block;
+            border: 0;
+            padding: 10px 14px;
+            border-radius: 8px;
+            text-decoration: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .btn-secondary {
+            background: #fff;
+            color: var(--primary);
+            border: 1px solid var(--border);
+        }
+
+        .sheet {
+            max-width: 820px;
+            margin: 0 auto;
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 26px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 14px;
+            margin-bottom: 16px;
+            gap: 16px;
+        }
+
+        .company {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .company img {
+            width: 46px;
+            height: 46px;
+            border-radius: 8px;
+        }
+
+        .company h1 {
+            margin: 0;
+            font-size: 1.4rem;
+            color: var(--primary);
+        }
+
+        .company p {
+            margin: 2px 0 0 0;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .doc-title {
+            text-align: right;
+        }
+
+        .doc-title h2 {
+            margin: 0;
+            color: var(--primary);
+            font-size: 1.25rem;
+        }
+
+        .doc-title p {
+            margin: 5px 0 0 0;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .item {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .item .label {
+            color: var(--muted);
+            font-size: 0.84rem;
+            margin-bottom: 4px;
+        }
+
+        .item .value {
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .amount-box {
+            margin-top: 16px;
+            border: 2px solid var(--primary);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            background: rgba(10, 67, 107, 0.05);
+        }
+
+        .amount-box .label {
+            color: var(--muted);
+            margin-bottom: 5px;
+        }
+
+        .amount-box .value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .notes {
+            margin-top: 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            min-height: 70px;
+        }
+
+        .signatures {
+            margin-top: 28px;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .sig-box {
+            border-top: 1px solid #999;
+            padding-top: 8px;
+            min-height: 66px;
+        }
+
+        .sig-title {
+            color: var(--muted);
+            font-size: 0.82rem;
+            margin-bottom: 6px;
+        }
+
+        .sig-name {
+            font-weight: 700;
+        }
+
+        .footer-note {
+            margin-top: 14px;
+            color: var(--muted);
+            font-size: 0.82rem;
+            text-align: center;
+        }
+
+        @media (max-width: 700px) {
+            .grid,
+            .signatures {
+                grid-template-columns: 1fr;
+            }
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .doc-title {
+                text-align: left;
+            }
+        }
+
+        @media print {
+            body {
+                background: #fff;
+                padding: 0;
+            }
+            .toolbar {
+                display: none;
+            }
+            .sheet {
+                border: none;
+                border-radius: 0;
+                max-width: 100%;
+                margin: 0;
+                padding: 0.8cm;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <button class="btn btn-primary" onclick="window.print()">🖨️ Imprimer la fiche</button>
+        <a class="btn btn-secondary" href="{% url 'admin_site_documents' site.id %}">← Retour aux documents</a>
+    </div>
+
+    <div class="sheet">
+        <div class="header">
+            <div class="company">
+                <img src="{% static 'favicon.png' %}" alt="Logo Shine Congo">
+                <div>
+                    <h1>{{ company_name }}</h1>
+                    <p>Portail de gestion des opérations</p>
+                </div>
+            </div>
+            <div class="doc-title">
+                <h2>FICHE DE PAIEMENT</h2>
+                <p>N° {{ payment.id }} • {{ payment.payment_date|date:"d/m/Y" }}</p>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="item">
+                <div class="label">Employé</div>
+                <div class="value">{{ payment.employee_profile.user.get_full_name|default:payment.employee_profile.user.username }}</div>
+            </div>
+            <div class="item">
+                <div class="label">Site</div>
+                <div class="value">{{ site.nom }}</div>
+            </div>
+            <div class="item">
+                <div class="label">Période</div>
+                <div class="value">{{ payment.period_start|date:"d/m/Y" }} au {{ payment.period_end|date:"d/m/Y" }}</div>
+            </div>
+            <div class="item">
+                <div class="label">Mode de paiement</div>
+                <div class="value">{{ payment.get_payment_method_display }}</div>
+            </div>
+            <div class="item">
+                <div class="label">Salaire de base</div>
+                <div class="value">{{ payment.salary_base_fc|floatformat:0 }} FC</div>
+            </div>
+            <div class="item">
+                <div class="label">Référence M-Pesa</div>
+                <div class="value">{{ payment.mpesa_reference|default:"-" }}</div>
+            </div>
+        </div>
+
+        <div class="amount-box">
+            <div class="label">Montant payé</div>
+            <div class="value">{{ payment.amount_paid_fc|floatformat:0 }} FC</div>
+        </div>
+
+        <div class="notes">
+            <strong>Notes:</strong><br>
+            {{ payment.notes|default:"Aucune note." }}
+        </div>
+
+        <div class="signatures">
+            <div class="sig-box">
+                <div class="sig-title">Signature de l'employé</div>
+                <div class="sig-name">{{ payment.employee_signature_name }}</div>
+                <div style="font-size: 0.8rem; color: var(--muted); margin-top: 4px;">Signé le {{ payment.signed_at|date:"d/m/Y à H:i" }}</div>
+            </div>
+            <div class="sig-box">
+                <div class="sig-title">Signature de l'administrateur</div>
+                <div class="sig-name">{{ payment.admin_signature_name }}</div>
+                <div style="font-size: 0.8rem; color: var(--muted); margin-top: 4px;">Validé le {{ payment.created_at|date:"d/m/Y à H:i" }}</div>
+            </div>
+        </div>
+
+        <div class="footer-note">
+            Document généré automatiquement par {{ company_name }}.
+        </div>
+    </div>
+</body>
+</html>

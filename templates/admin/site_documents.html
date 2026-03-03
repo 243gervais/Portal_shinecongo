@@ -4,33 +4,161 @@
 {% block title %}Documents du site - {{ site.nom }}{% endblock %}
 
 {% block content %}
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; gap: 1rem; flex-wrap: wrap;">
     <div>
         <h1 class="mt-2 mb-2">📁 Documents du site</h1>
         <p style="color: var(--text-secondary); margin: 0;">
             {{ site.nom }} - {{ site.adresse }}
         </p>
     </div>
-    <div style="display: flex; gap: 0.5rem;">
-        <a href="{% url 'admin_upload_site_document' site.id %}" class="btn btn-success">
-            ➕ Uploader un document
-        </a>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <a href="{% url 'admin_add_site_employee' site.id %}" class="btn btn-info">👤 Ajouter un employé</a>
+        <a href="{% url 'admin_upload_site_document' site.id %}" class="btn btn-success">➕ Uploader un document</a>
         <a href="{% url 'admin_site_detail' site.id %}" class="btn btn-primary">← Retour</a>
     </div>
 </div>
 
-<!-- Filtres par type -->
+<div class="card mb-4">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap;">
+        <h2 style="margin: 0; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.5rem;">👥 Employés du site</h2>
+        <a href="{% url 'admin_add_site_employee' site.id %}" class="btn btn-primary">+ Nouvel employé</a>
+    </div>
+
+    {% if site_employees %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nom</th>
+                    <th>Identifiant</th>
+                    <th>Téléphone</th>
+                    <th>M-Pesa</th>
+                    <th>Salaire (FC)</th>
+                    <th>Ancienneté</th>
+                    <th>Statut</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for profile in site_employees %}
+                <tr>
+                    <td>{{ profile.user.get_full_name|default:profile.user.username }}</td>
+                    <td>{{ profile.user.username }}</td>
+                    <td>{{ profile.telephone|default:"-" }}</td>
+                    <td>{{ profile.mpesa_numero|default:"-" }}</td>
+                    <td>
+                        {% if profile.salaire_mensuel_fc %}
+                            {{ profile.salaire_mensuel_fc|floatformat:0 }} FC
+                        {% else %}
+                            Non défini
+                        {% endif %}
+                    </td>
+                    <td>{{ profile.anciennete_texte }}</td>
+                    <td>
+                        {% if profile.actif and profile.user.is_active %}
+                            <span style="color: var(--success-color); font-weight: 600;">Actif</span>
+                        {% else %}
+                            <span style="color: var(--error-color); font-weight: 600;">Inactif</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                            <a href="{% url 'admin_edit_site_employee' site.id profile.id %}" class="btn btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.82rem;">Modifier</a>
+                            <a href="{% url 'admin_create_employee_payment' site.id profile.id %}" class="btn btn-success" style="padding: 0.35rem 0.65rem; font-size: 0.82rem;">Payer</a>
+                            <a href="{% url 'admin_remove_site_employee' site.id profile.id %}" class="btn btn-danger" style="padding: 0.35rem 0.65rem; font-size: 0.82rem;">Retirer</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color: var(--text-secondary); margin: 0;">Aucun employé n'est encore rattaché à ce site.</p>
+    {% endif %}
+</div>
+
+<div class="card mb-4">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap;">
+        <h2 style="margin: 0; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.5rem;">💳 Historique des paiements</h2>
+    </div>
+
+    <form method="get" style="display: flex; gap: 0.75rem; align-items: end; flex-wrap: wrap; margin-bottom: 1rem;">
+        <input type="hidden" name="type" value="{{ filter_type|default:'' }}">
+        <div class="form-group" style="margin-bottom: 0; min-width: 280px;">
+            <label for="employee">Filtrer par employé</label>
+            <select id="employee" name="employee" class="form-control">
+                <option value="">Tous les employés</option>
+                {% for profile in site_employees %}
+                <option value="{{ profile.id }}" {% if selected_employee == profile.id|stringformat:"s" %}selected{% endif %}>
+                    {{ profile.user.get_full_name|default:profile.user.username }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Filtrer</button>
+        <a href="{% url 'admin_site_documents' site.id %}" class="btn btn-secondary">Réinitialiser</a>
+    </form>
+
+    {% if payment_records %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Employé</th>
+                    <th>Période</th>
+                    <th>Salaire base</th>
+                    <th>Montant payé</th>
+                    <th>Mode</th>
+                    <th>Signature employé</th>
+                    <th>Fiche</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for payment in payment_records %}
+                <tr>
+                    <td>{{ payment.payment_date|date:"d/m/Y" }}</td>
+                    <td>{{ payment.employee_profile.user.get_full_name|default:payment.employee_profile.user.username }}</td>
+                    <td>{{ payment.period_start|date:"d/m/Y" }} → {{ payment.period_end|date:"d/m/Y" }}</td>
+                    <td>{{ payment.salary_base_fc|floatformat:0 }} FC</td>
+                    <td style="font-weight: 600; color: var(--success-color);">{{ payment.amount_paid_fc|floatformat:0 }} FC</td>
+                    <td>
+                        {{ payment.get_payment_method_display }}
+                        {% if payment.mpesa_reference %}
+                        <br><small style="color: var(--text-secondary);">Ref: {{ payment.mpesa_reference }}</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {{ payment.employee_signature_name }}
+                        <br><small style="color: var(--text-secondary);">{{ payment.signed_at|date:"d/m/Y H:i" }}</small>
+                    </td>
+                    <td>
+                        <a href="{% url 'admin_employee_payment_receipt' site.id payment.id %}" class="btn btn-info" style="padding: 0.35rem 0.7rem; font-size: 0.82rem;">
+                            Fiche
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color: var(--text-secondary); margin: 0;">Aucun paiement enregistré pour ce site.</p>
+    {% endif %}
+</div>
+
 <div class="card mb-4">
     <h2 style="margin-bottom: 1rem; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
-        🔍 Filtrer par type
+        🔍 Filtrer les documents par type
     </h2>
     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-        <a href="{% url 'admin_site_documents' site.id %}" 
+        <a href="{% url 'admin_site_documents' site.id %}?employee={{ selected_employee }}"
            class="btn {% if not filter_type %}btn-primary{% else %}btn-secondary{% endif %}">
-            Tous ({{ all_documents.count }})
+            Tous ({{ documents_total_count }})
         </a>
         {% for value, label in file_types %}
-        <a href="{% url 'admin_site_documents' site.id %}?type={{ value }}" 
+        <a href="{% url 'admin_site_documents' site.id %}?type={{ value }}{% if selected_employee %}&employee={{ selected_employee }}{% endif %}"
            class="btn {% if filter_type == value %}btn-primary{% else %}btn-secondary{% endif %}">
             {{ label }}
             {% for type, docs in documents_by_type.items %}
@@ -41,80 +169,75 @@
     </div>
 </div>
 
-<!-- Documents groupés par type -->
 {% if documents_by_type %}
     {% for file_type, documents in documents_by_type.items %}
-    <div class="card mb-4">
-        <h2 style="margin-bottom: 1.5rem; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
-            {% for value, label in file_types %}
-                {% if value == file_type %}{{ label }}{% endif %}
-            {% endfor %}
-            ({{ documents|length }})
-        </h2>
-        
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;">
-            {% for doc in documents %}
-            <div style="border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem; background: var(--card-bg);">
-                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
-                    <h3 style="margin: 0; color: var(--text-primary); font-size: 1rem;">{{ doc.title }}</h3>
-                    <form method="post" action="{% url 'admin_delete_site_document' site.id doc.id %}" style="display: inline;" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce document ?');">
-                        {% csrf_token %}
-                        <button type="submit" style="background: var(--error-color); color: white; border: none; border-radius: 4px; padding: 0.25rem 0.5rem; cursor: pointer;">🗑️</button>
-                    </form>
-                </div>
-                
-                {% if doc.description %}
-                <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.75rem;">{{ doc.description|truncatewords:20 }}</p>
-                {% endif %}
-                
-                <div style="margin-bottom: 0.75rem;">
-                    {% if doc.is_image %}
-                        <div style="width: 100%; padding-top: 56.25%; position: relative; background: var(--bg-secondary); border-radius: 8px; overflow: hidden; margin-bottom: 0.5rem;">
-                            <img src="{{ doc.file.url }}" alt="{{ doc.title }}" 
-                                 style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; cursor: pointer;"
-                                 onclick="window.open('{{ doc.file.url }}', '_blank')">
-                        </div>
-                    {% elif doc.is_video %}
-                        <div style="width: 100%; padding-top: 56.25%; position: relative; background: var(--bg-secondary); border-radius: 8px; overflow: hidden; margin-bottom: 0.5rem;">
-                            <video controls style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
-                                <source src="{{ doc.file.url }}" type="video/mp4">
-                                Votre navigateur ne supporte pas la lecture de vidéos.
-                            </video>
-                        </div>
-                    {% elif doc.is_pdf %}
-                        <div style="padding: 1rem; background: var(--bg-secondary); border-radius: 8px; text-align: center; margin-bottom: 0.5rem;">
-                            <div style="font-size: 3rem; margin-bottom: 0.5rem;">📄</div>
-                            <div style="font-size: 0.875rem; color: var(--text-secondary);">{{ doc.filename }}</div>
-                        </div>
-                    {% else %}
-                        <div style="padding: 1rem; background: var(--bg-secondary); border-radius: 8px; text-align: center; margin-bottom: 0.5rem;">
-                            <div style="font-size: 3rem; margin-bottom: 0.5rem;">📎</div>
-                            <div style="font-size: 0.875rem; color: var(--text-secondary);">{{ doc.filename }}</div>
-                        </div>
-                    {% endif %}
-                </div>
-                
-                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-secondary);">
-                    <div>
-                        <a href="{{ doc.file.url }}" target="_blank" class="btn btn-primary" style="padding: 0.25rem 0.75rem; font-size: 0.875rem;">
-                            📥 Télécharger
-                        </a>
+        {% if not filter_type or filter_type == file_type %}
+        <div class="card mb-4">
+            <h2 style="margin-bottom: 1.5rem; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
+                {% for value, label in file_types %}
+                    {% if value == file_type %}{{ label }}{% endif %}
+                {% endfor %}
+                ({{ documents|length }})
+            </h2>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;">
+                {% for doc in documents %}
+                <div style="border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem; background: var(--card-bg);">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem; gap: 0.5rem;">
+                        <h3 style="margin: 0; color: var(--text-primary); font-size: 1rem;">{{ doc.title }}</h3>
+                        <form method="post" action="{% url 'admin_delete_site_document' site.id doc.id %}" style="display: inline;" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce document ?');">
+                            {% csrf_token %}
+                            <button type="submit" style="background: var(--error-color); color: white; border: none; border-radius: 4px; padding: 0.25rem 0.5rem; cursor: pointer;">🗑️</button>
+                        </form>
                     </div>
-                    <div>
-                        {{ doc.file_size_mb }} MB
+
+                    {% if doc.description %}
+                    <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.75rem;">{{ doc.description|truncatewords:20 }}</p>
+                    {% endif %}
+
+                    <div style="margin-bottom: 0.75rem;">
+                        {% if doc.is_image %}
+                            <div style="width: 100%; padding-top: 56.25%; position: relative; background: var(--bg-secondary); border-radius: 8px; overflow: hidden; margin-bottom: 0.5rem;">
+                                <img src="{{ doc.file.url }}" alt="{{ doc.title }}"
+                                     style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; cursor: pointer;"
+                                     onclick="window.open('{{ doc.file.url }}', '_blank')">
+                            </div>
+                        {% elif doc.is_video %}
+                            <div style="width: 100%; padding-top: 56.25%; position: relative; background: var(--bg-secondary); border-radius: 8px; overflow: hidden; margin-bottom: 0.5rem;">
+                                <video controls style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
+                                    <source src="{{ doc.file.url }}" type="video/mp4">
+                                    Votre navigateur ne supporte pas la lecture de vidéos.
+                                </video>
+                            </div>
+                        {% elif doc.is_pdf %}
+                            <div style="padding: 1rem; background: var(--bg-secondary); border-radius: 8px; text-align: center; margin-bottom: 0.5rem;">
+                                <div style="font-size: 3rem; margin-bottom: 0.5rem;">📄</div>
+                                <div style="font-size: 0.875rem; color: var(--text-secondary);">{{ doc.filename }}</div>
+                            </div>
+                        {% else %}
+                            <div style="padding: 1rem; background: var(--bg-secondary); border-radius: 8px; text-align: center; margin-bottom: 0.5rem;">
+                                <div style="font-size: 3rem; margin-bottom: 0.5rem;">📎</div>
+                                <div style="font-size: 0.875rem; color: var(--text-secondary);">{{ doc.filename }}</div>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-secondary);">
+                        <a href="{{ doc.file.url }}" target="_blank" class="btn btn-primary" style="padding: 0.25rem 0.75rem; font-size: 0.875rem;">📥 Télécharger</a>
+                        <div>{{ doc.file_size_mb }} MB</div>
+                    </div>
+
+                    <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color); font-size: 0.75rem; color: var(--text-secondary);">
+                        Uploadé le {{ doc.uploaded_at|date:"d/m/Y à H:i" }}
+                        {% if doc.uploaded_by %}
+                            par {{ doc.uploaded_by.get_full_name|default:doc.uploaded_by.username }}
+                        {% endif %}
                     </div>
                 </div>
-                
-                <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color); font-size: 0.75rem; color: var(--text-secondary);">
-                    Uploadé le {{ doc.uploaded_at|date:"d/m/Y à H:i" }}
-                    {% if doc.uploaded_by %}
-                        par {{ doc.uploaded_by.get_full_name|default:doc.uploaded_by.username }}
-                    {% endif %}
-                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
         </div>
-    </div>
+        {% endif %}
     {% endfor %}
 {% else %}
 <div class="card mb-4">
@@ -125,11 +248,4 @@
     </div>
 </div>
 {% endif %}
-
-<style>
-    .card div[onclick]:hover {
-        transform: scale(1.02);
-        transition: transform 0.2s ease;
-    }
-</style>
 {% endblock %}

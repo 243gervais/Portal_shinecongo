@@ -9,7 +9,7 @@ from django.contrib.auth.forms import AdminPasswordChangeForm
 from django.utils.html import format_html
 from django.urls import reverse
 from django import forms
-from .models import UserProfile
+from .models import UserProfile, EmployeePayment
 from sites.models import Location
 
 
@@ -18,7 +18,7 @@ class UserProfileInline(admin.StackedInline):
     can_delete = False
     verbose_name_plural = "Profil Utilisateur"
     fk_name = "user"
-    fields = ("role", "site", "telephone", "actif")
+    fields = ("role", "site", "telephone", "mpesa_numero", "date_embauche", "salaire_mensuel_fc", "actif")
     extra = 0
     min_num = 1
     max_num = 1
@@ -204,9 +204,9 @@ admin.site.register(User, UserAdmin)
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ("user", "role", "site", "telephone", "actif", "created_at")
+    list_display = ("user", "role", "site", "telephone", "mpesa_numero", "salaire_mensuel_fc", "date_embauche", "actif", "created_at")
     list_filter = ("role", "site", "actif")
-    search_fields = ("user__username", "user__first_name", "user__last_name", "telephone", "site__nom")
+    search_fields = ("user__username", "user__first_name", "user__last_name", "telephone", "mpesa_numero", "site__nom")
     ordering = ("-created_at",)
     list_editable = ("site", "role", "actif")  # Permet d'éditer directement depuis la liste
     fieldsets = (
@@ -214,7 +214,7 @@ class UserProfileAdmin(admin.ModelAdmin):
             "fields": ("user",)
         }),
         ("Informations", {
-            "fields": ("role", "site", "telephone", "actif")
+            "fields": ("role", "site", "telephone", "mpesa_numero", "date_embauche", "salaire_mensuel_fc", "actif")
         }),
         ("Métadonnées", {
             "fields": ("created_at", "updated_at"),
@@ -222,3 +222,26 @@ class UserProfileAdmin(admin.ModelAdmin):
         }),
     )
     readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(EmployeePayment)
+class EmployeePaymentAdmin(admin.ModelAdmin):
+    list_display = (
+        "employee_profile",
+        "site",
+        "payment_date",
+        "amount_paid_fc",
+        "payment_method",
+        "employee_signature_name",
+        "admin_signature_name",
+    )
+    list_filter = ("site", "payment_method", "payment_date")
+    search_fields = (
+        "employee_profile__user__username",
+        "employee_profile__user__first_name",
+        "employee_profile__user__last_name",
+        "employee_signature_name",
+        "admin_signature_name",
+        "mpesa_reference",
+    )
+    ordering = ("-payment_date", "-created_at")

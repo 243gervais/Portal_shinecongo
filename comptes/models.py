@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator
+from django.utils import timezone
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
@@ -18,6 +20,16 @@ class UserProfile(models.Model):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="EMPLOYE", verbose_name="Rôle")
     site = models.ForeignKey("sites.Location", on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Site")
     telephone = models.CharField(max_length=20, blank=True, verbose_name="Téléphone")
+    mpesa_numero = models.CharField(max_length=30, blank=True, verbose_name="Numéro M-Pesa")
+    date_embauche = models.DateField(null=True, blank=True, verbose_name="Date d'embauche")
+    salaire_mensuel_fc = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+        verbose_name="Salaire mensuel (FC)",
+    )
     actif = models.BooleanField(default=True, verbose_name="Actif")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")
@@ -38,6 +50,91 @@ class UserProfile(models.Model):
     
     def is_admin(self):
         return self.role == "ADMIN"
+
+    def anciennete_jours(self):
+        if not self.date_embauche:
+            return None
+        return max((timezone.localdate() - self.date_embauche).days, 0)
+
+    def anciennete_texte(self):
+        days = self.anciennete_jours()
+        if days is None:
+            return "Non renseignée"
+        years = days // 365
+        months = (days % 365) // 30
+        if years > 0:
+            return f"{years} an(s) et {months} mois"
+        if months > 0:
+            return f"{months} mois"
+        return f"{days} jour(s)"
+
+
+class EmployeePayment(models.Model):
+    """
+    Historique des paiements de salaire des employés.
+    """
+
+    PAYMENT_METHOD_CHOICES = [
+        ("MPESA", "M-Pesa"),
+        ("ESPECES", "Espèces"),
+        ("BANQUE", "Virement bancaire"),
+    ]
+
+    employee_profile = models.ForeignKey(
+        UserProfile,
+        on_delete=models.CASCADE,
+        related_name="salary_payments",
+        verbose_name="Employé",
+    )
+    site = models.ForeignKey("sites.Location", on_delete=models.CASCADE, related_name="employee_payments", verbose_name="Site")
+    payment_date = models.DateField(default=timezone.localdate, verbose_name="Date de paiement")
+    period_start = models.DateField(verbose_name="Période du")
+    period_end = models.DateField(verbose_name="Période au")
+    salary_base_fc = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        verbose_name="Salaire de base (FC)",
+    )
+    amount_paid_fc = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        verbose_name="Montant payé (FC)",
+    )
+    payment_method = models.CharField(
+        max_length=15,
+        choices=PAYMENT_METHOD_CHOICES,
+        default="MPESA",
+        verbose_name="Mode de paiement",
+    )
+    mpesa_reference = models.CharField(max_length=100, blank=True, verbose_name="Référence M-Pesa")
+    employee_signature_name = models.CharField(max_length=150, verbose_name="Signature employé (nom)")
+    signed_at = models.DateTimeField(default=timezone.now, verbose_name="Signé le")
+    admin_signature_name = models.CharField(max_length=150, verbose_name="Signature admin")
+    notes = models.TextField(blank=True, verbose_name="Notes")
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="employee_payments_created",
+        verbose_name="Créé par",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
+
+    class Meta:
+        verbose_name = "Paiement Employé"
+        verbose_name_plural = "Paiements Employés"
+        ordering = ["-payment_date", "-created_at"]
+        indexes = [
+            models.Index(fields=["site", "payment_date"]),
+            models.Index(fields=["employee_profile", "payment_date"]),
+        ]
+
+    def __str__(self):
+        employee_name = self.employee_profile.user.get_full_name() or self.employee_profile.user.username
+        return f"{employee_name} - {self.amount_paid_fc} FC ({self.payment_date})"
 
 
 @receiver(post_save, sender=User)
