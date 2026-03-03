@@ -10,7 +10,7 @@ from django.db.models import Sum, Count, Q
 from django.contrib.auth.models import User
 from datetime import datetime
 from .forms import UserRegistrationForm
-from sites.models import Location, DailyBankDeposit
+from sites.models import Location, DailyBankDeposit, SiteDocument
 from lavages.models import CarWash, CarWashPhoto
 from problemes.models import IssueReport
 from pointage.models import ShiftDay
@@ -407,6 +407,10 @@ def admin_site_detail(request, site_id):
         'period_label': period_label,
     }
     
+    # Ajouter les statistiques des documents
+    documents_count = SiteDocument.objects.filter(site=site).count()
+    context['documents_count'] = documents_count
+    
     return render(request, 'admin/site_detail.html', context)
 
 
@@ -788,4 +792,176 @@ def admin_add_bank_deposit(request, site_id):
         'site': site,
         'today': today,
         'deposit': deposit,
+    })
+
+
+@login_required
+@no_cache_view
+def admin_site_documents(request, site_id):
+    """
+    Vue pour gérer tous les documents d'un site (contrats, paiements, photos, vidéos, etc.)
+    """
+    user = request.user
+    
+    # Pour les superutilisateurs, s'assurer qu'ils ont un profil avec le rôle ADMIN
+    if user.is_superuser:
+        if not hasattr(user, 'userprofile'):
+            UserProfile.objects.create(user=user, role='ADMIN')
+        elif not user.userprofile.is_admin():
+            user.userprofile.role = 'ADMIN'
+            user.userprofile.save()
+    
+    # Vérifier que l'utilisateur est admin
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+    
+    site = get_object_or_404(Location, id=site_id)
+    
+    # Récupérer tous les documents du site, groupés par type
+    all_documents = SiteDocument.objects.filter(site=site).select_related('uploaded_by').order_by('-uploaded_at')
+    
+    # Grouper par type de fichier
+    documents_by_type = {}
+    for doc in all_documents:
+        file_type = doc.file_type
+        if file_type not in documents_by_type:
+            documents_by_type[file_type] = []
+        documents_by_type[file_type].append(doc)
+    
+    # Filtrer par type si demandé
+    filter_type = request.GET.get('type')
+    if filter_type:
+        all_documents = all_documents.filter(file_type=filter_type)
+    
+    context = {
+        'site': site,
+        'all_documents': all_documents,
+        'documents_by_type': documents_by_type,
+        'file_types': SiteDocument.FILE_TYPE_CHOICES,
+        'filter_type': filter_type,
+    }
+    
+    return render(request, 'admin/site_documents.html', context)
+
+
+@login_required
+@no_cache_view
+def admin_upload_site_document(request, site_id):
+    """
+    Vue pour uploader un nouveau document pour un site
+    """
+    user = request.user
+    
+    # Pour les superutilisateurs, s'assurer qu'ils ont un profil avec le rôle ADMIN
+    if user.is_superuser:
+        if not hasattr(user, 'userprofile'):
+            UserProfile.objects.create(user=user, role='ADMIN')
+        elif not user.userprofile.is_admin():
+            user.userprofile.role = 'ADMIN'
+            user.userprofile.save()
+    
+    # Vérifier que l'utilisateur est admin
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+    
+    site = get_object_or_404(Location, id=site_id)
+    
+    if request.method == 'POST':
+        try:
+            file_type = request.POST.get('file_type')
+            title = request.POST.get('title')
+            description = request.POST.get('description', '')
+            file = request.FILES.get('file')
+            
+            # Validation
+            if not file_type:
+                messages.error(request, 'Le type de fichier est requis.')
+                return render(request, 'admin/upload_site_document.html', {
+                    'site': site,
+                    'file_types': SiteDocument.FILE_TYPE_CHOICES,
+                })
+            
+            if not title:
+                messages.error(request, 'Le titre est requis.')
+                return render(request, 'admin/upload_site_document.html', {
+                    'site': site,
+                    'file_types': SiteDocument.FILE_TYPE_CHOICES,
+                })
+            
+            if not file:
+                messages.error(request, 'Le fichier est requis.')
+                return render(request, 'admin/upload_site_document.html', {
+                    'site': site,
+                    'file_types': SiteDocument.FILE_TYPE_CHOICES,
+                })
+            
+            # Créer le document
+            document = SiteDocument.objects.create(
+                site=site,
+                file_type=file_type,
+                title=title,
+                description=description,
+                file=file,
+                uploaded_by=user
+            )
+            
+            # Log d'audit
+            AuditLog.log(
+                user=user,
+                action="CREER",
+                description=f"Document uploadé pour le site {site.nom}: {title} ({document.get_file_type_display()})",
+                content_object=document,
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request)
+            )
+            
+            messages.success(request, f'Document "{title}" uploadé avec succès !')
+            return redirect('admin_site_documents', site_id=site.id)
+            
+        except Exception as e:
+            messages.error(request, f'Erreur lors de l\'upload: {str(e)}')
+    
+    return render(request, 'admin/upload_site_document.html', {
+        'site': site,
+        'file_types': SiteDocument.FILE_TYPE_CHOICES,
+    })
+
+
+@login_required
+@no_cache_view
+def admin_delete_site_document(request, site_id, document_id):
+    """
+    Vue pour supprimer un document d'un site
+    """
+    user = request.user
+    
+    # Vérifier que l'utilisateur est admin
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+    
+    site = get_object_or_404(Location, id=site_id)
+    document = get_object_or_404(SiteDocument, id=document_id, site=site)
+    
+    if request.method == 'POST':
+        title = document.title
+        document.delete()
+        
+        # Log d'audit
+        AuditLog.log(
+            user=user,
+            action="SUPPRIMER",
+            description=f"Document supprimé pour le site {site.nom}: {title}",
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request)
+        )
+        
+        messages.success(request, f'Document "{title}" supprimé avec succès.')
+        return redirect('admin_site_documents', site_id=site.id)
+    
+    return render(request, 'admin/delete_site_document.html', {
+        'site': site,
+        'document': document,
     })

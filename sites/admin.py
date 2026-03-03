@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Location, DailyBankDeposit
+from .models import Location, DailyBankDeposit, SiteDocument
 
 
 @admin.register(Location)
@@ -52,3 +52,33 @@ class DailyBankDepositAdmin(admin.ModelAdmin):
             "classes": ("collapse",)
         }),
     )
+
+
+@admin.register(SiteDocument)
+class SiteDocumentAdmin(admin.ModelAdmin):
+    list_display = ("site", "file_type", "title", "get_filename", "get_file_size", "uploaded_by", "uploaded_at")
+    list_filter = ("file_type", "site", "uploaded_at")
+    search_fields = ("title", "description", "site__nom")
+    ordering = ("-uploaded_at",)
+    readonly_fields = ("uploaded_at", "updated_at", "get_filename", "get_file_size")
+    
+    fieldsets = (
+        ("Informations", {
+            "fields": ("site", "file_type", "title", "description")
+        }),
+        ("Fichier", {
+            "fields": ("file", "get_filename", "get_file_size")
+        }),
+        ("Métadonnées", {
+            "fields": ("uploaded_by", "uploaded_at", "updated_at"),
+            "classes": ("collapse",)
+        }),
+    )
+    
+    def get_filename(self, obj):
+        return obj.filename()
+    get_filename.short_description = "Nom du fichier"
+    
+    def get_file_size(self, obj):
+        return f"{obj.file_size_mb()} MB"
+    get_file_size.short_description = "Taille"

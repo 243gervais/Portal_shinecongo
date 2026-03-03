@@ -3,6 +3,7 @@ import uuid
 from decimal import Decimal
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
+import os
 
 
 class Location(models.Model):
@@ -128,3 +129,86 @@ class DailyBankDeposit(models.Model):
     
     def __str__(self):
         return f"{self.site.nom} - {self.date} - {self.amount} FC"
+
+
+def site_document_path(instance, filename):
+    """Chemin de sauvegarde des documents du site"""
+    site_id = str(instance.site.id)
+    file_type = instance.file_type.lower()
+    return f"sites/{site_id}/{file_type}/{filename}"
+
+
+class SiteDocument(models.Model):
+    """
+    Documents et fichiers liés à un site
+    Contrats, paiements, photos de construction, vidéos, etc.
+    """
+    FILE_TYPE_CHOICES = [
+        ("CONTRAT", "Contrat avec le prêteur"),
+        ("PAIEMENT", "Paiement de location"),
+        ("COMPTE_BANCAIRE", "Photo compte bancaire du prêteur"),
+        ("PHOTO_CONSTRUCTION", "Photo de construction"),
+        ("VIDEO_CONSTRUCTION", "Vidéo de construction"),
+        ("AUTRE_DOCUMENT", "Autre document"),
+        ("AUTRE_PHOTO", "Autre photo"),
+        ("AUTRE_VIDEO", "Autre vidéo"),
+    ]
+    
+    site = models.ForeignKey(Location, on_delete=models.CASCADE, related_name="documents", verbose_name="Site")
+    file_type = models.CharField(
+        max_length=30,
+        choices=FILE_TYPE_CHOICES,
+        default="AUTRE_DOCUMENT",
+        verbose_name="Type de fichier"
+    )
+    title = models.CharField(max_length=200, verbose_name="Titre")
+    description = models.TextField(blank=True, verbose_name="Description")
+    file = models.FileField(upload_to=site_document_path, verbose_name="Fichier")
+    uploaded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="site_documents_uploaded",
+        verbose_name="Uploadé par"
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True, verbose_name="Uploadé le")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")
+    
+    class Meta:
+        verbose_name = "Document du Site"
+        verbose_name_plural = "Documents du Site"
+        ordering = ["-uploaded_at"]
+        indexes = [
+            models.Index(fields=["site", "file_type"]),
+            models.Index(fields=["-uploaded_at"]),
+        ]
+    
+    def __str__(self):
+        return f"{self.site.nom} - {self.get_file_type_display()} - {self.title}"
+    
+    def filename(self):
+        """Retourne le nom du fichier"""
+        return os.path.basename(self.file.name)
+    
+    def is_image(self):
+        """Vérifie si le fichier est une image"""
+        ext = os.path.splitext(self.file.name)[1].lower()
+        return ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']
+    
+    def is_video(self):
+        """Vérifie si le fichier est une vidéo"""
+        ext = os.path.splitext(self.file.name)[1].lower()
+        return ext in ['.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mkv']
+    
+    def is_pdf(self):
+        """Vérifie si le fichier est un PDF"""
+        return os.path.splitext(self.file.name)[1].lower() == '.pdf'
+    
+    def file_size_mb(self):
+        """Retourne la taille du fichier en MB"""
+        try:
+            size = self.file.size
+            return round(size / (1024 * 1024), 2)
+        except:
+            return 0

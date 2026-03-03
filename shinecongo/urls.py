@@ -19,7 +19,7 @@ from django.urls import path, include
 from django.contrib.auth import views as auth_views
 from django.conf import settings
 from django.conf.urls.static import static
-from comptes.views import dashboard, logout_view, register_view, admin_dashboard, admin_site_detail, admin_add_wash, admin_add_daily_total, admin_add_bank_deposit
+from comptes.views import dashboard, logout_view, register_view, admin_dashboard, admin_site_detail, admin_add_wash, admin_add_daily_total, admin_add_bank_deposit, admin_site_documents, admin_upload_site_document, admin_delete_site_document
 from comptes.forms import ApprovalAuthenticationForm
 
 # Personnalisation de l'admin Django en français
@@ -91,6 +91,9 @@ urlpatterns = [
     path("admin-dashboard/site/<uuid:site_id>/add-wash/", admin_add_wash, name="admin_add_wash"),
     path("admin-dashboard/site/<uuid:site_id>/add-daily-total/", admin_add_daily_total, name="admin_add_daily_total"),
     path("admin-dashboard/site/<uuid:site_id>/add-bank-deposit/", admin_add_bank_deposit, name="admin_add_bank_deposit"),
+    path("admin-dashboard/site/<uuid:site_id>/documents/", admin_site_documents, name="admin_site_documents"),
+    path("admin-dashboard/site/<uuid:site_id>/documents/upload/", admin_upload_site_document, name="admin_upload_site_document"),
+    path("admin-dashboard/site/<uuid:site_id>/documents/<int:document_id>/delete/", admin_delete_site_document, name="admin_delete_site_document"),
 ]
 
 # Servir les fichiers media en développement

@@ -12,13 +12,16 @@
         </p>
     </div>
     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-        <a href="{% url 'admin_add_bank_deposit' site.id %}" class="btn btn-success" style="background: linear-gradient(135deg, #9C27B0, #BA68C8);">
+        <a href="{% url 'admin_site_documents' site.id %}" class="btn btn-success">
+            📁 Documents du site {% if documents_count %}({{ documents_count }}){% endif %}
+        </a>
+        <a href="{% url 'admin_add_bank_deposit' site.id %}" class="btn btn-info">
             🏦 {% if bank_deposit_today %}Modifier{% else %}Ajouter{% endif %} dépôt bancaire
         </a>
-        <a href="{% url 'admin_add_daily_total' site.id %}" class="btn btn-success" style="background: linear-gradient(135deg, #00A843, #00C853);">
+        <a href="{% url 'admin_add_daily_total' site.id %}" class="btn btn-primary">
             💰 Ajouter le total quotidien
         </a>
-        <a href="{% url 'admin_add_wash' site.id %}" class="btn btn-info" style="background: linear-gradient(135deg, #0066FF, #0080FF);">
+        <a href="{% url 'admin_add_wash' site.id %}" class="btn btn-primary">
             ➕ Ajouter un lavage complet
         </a>
         <a href="{% url 'admin_dashboard' %}" class="btn btn-primary">← Retour aux sites</a>
@@ -57,19 +60,19 @@
 
 <!-- Résumé détaillé pour une date spécifique -->
 {% if selected_single_date %}
-<div class="card mb-4" style="border: 2px solid var(--primary-color); background: linear-gradient(135deg, rgba(0, 102, 255, 0.05), rgba(0, 168, 67, 0.05));">
+<div class="card mb-4" style="border: 2px solid var(--primary-color); background: var(--primary-light);">
     <h2 style="margin-bottom: 1.5rem; color: var(--primary-color); border-bottom: 2px solid var(--primary-color); padding-bottom: 0.75rem;">
         📅 Résumé détaillé du {{ selected_single_date|date:"d/m/Y" }}
     </h2>
     
     <!-- Statistiques principales de la date -->
     <div class="card-grid mb-4">
-        <div class="card stat-card" style="background: linear-gradient(135deg, var(--success-color), #00A843); color: white;">
+        <div class="card stat-card" style="background: var(--primary-color); color: white;">
             <div class="stat-value" style="color: white; font-size: 2.5rem;">{{ chiffre_date|floatformat:0 }}</div>
             <div class="stat-label" style="color: rgba(255,255,255,0.9);">Cash Flow</div>
         </div>
         
-        <div class="card stat-card" style="background: linear-gradient(135deg, #9C27B0, #BA68C8); color: white;">
+        <div class="card stat-card" style="background: var(--secondary-color); color: white;">
             <div class="stat-value" style="color: white; font-size: 2.5rem;">{{ bank_deposit_amount_date|floatformat:0 }}</div>
             <div class="stat-label" style="color: rgba(255,255,255,0.9);">
                 🏦 Dépôt bancaire
@@ -80,7 +83,7 @@
             </div>
         </div>
         
-        <div class="card stat-card" style="background: {% if difference_date >= 0 %}linear-gradient(135deg, #FF9800, #FFB74D){% else %}linear-gradient(135deg, #F44336, #E57373){% endif %}; color: white;">
+        <div class="card stat-card" style="background: {% if difference_date >= 0 %}var(--warning-color){% else %}var(--error-color){% endif %}; color: white;">
             <div class="stat-value" style="color: white; font-size: 2.5rem;">{{ difference_date|floatformat:0 }}</div>
             <div class="stat-label" style="color: rgba(255,255,255,0.9);">
                 {% if difference_date > 0 %}💰 Reste en caisse{% elif difference_date < 0 %}⚠️ Manquant{% else %}✅ Égal{% endif %}
@@ -170,7 +173,7 @@
 
 <!-- Statistiques principales -->
 <div class="card-grid mb-4">
-    <div class="card stat-card" style="background: linear-gradient(135deg, var(--success-color), #00A843); color: white;">
+    <div class="card stat-card" style="background: var(--primary-color); color: white;">
         <div class="stat-value" style="color: white; font-size: 2.5rem;">{{ chiffre_periode|floatformat:0 }}</div>
         <div class="stat-label" style="color: rgba(255,255,255,0.9);">Cash Flow ({{ period_label }})</div>
     </div>
@@ -181,12 +184,12 @@
     </div>
     
     {% if not selected_single_date %}
-    <div class="card stat-card" style="background: linear-gradient(135deg, var(--primary-color), #0066FF); color: white;">
+    <div class="card stat-card" style="background: var(--secondary-color); color: white;">
         <div class="stat-value" style="color: white; font-size: 2rem;">{{ chiffre_jour|floatformat:0 }}</div>
         <div class="stat-label" style="color: rgba(255,255,255,0.9);">Cash Flow (Aujourd'hui)</div>
     </div>
     
-    <div class="card stat-card" style="background: linear-gradient(135deg, #9C27B0, #BA68C8); color: white;">
+    <div class="card stat-card" style="background: var(--primary-color); color: white;">
         <div class="stat-value" style="color: white; font-size: 2rem;">{{ bank_deposit_amount_today|floatformat:0 }}</div>
         <div class="stat-label" style="color: rgba(255,255,255,0.9);">
             🏦 Dépôt bancaire (Aujourd'hui)
@@ -197,7 +200,7 @@
         </div>
     </div>
     
-    <div class="card stat-card" style="background: {% if difference_today >= 0 %}linear-gradient(135deg, #FF9800, #FFB74D){% else %}linear-gradient(135deg, #F44336, #E57373){% endif %}; color: white;">
+    <div class="card stat-card" style="background: {% if difference_today >= 0 %}var(--warning-color){% else %}var(--error-color){% endif %}; color: white;">
         <div class="stat-value" style="color: white; font-size: 2rem;">{{ difference_today|floatformat:0 }}</div>
         <div class="stat-label" style="color: rgba(255,255,255,0.9);">
             {% if difference_today >= 0 %}💰 Différence{% else %}⚠️ Manquant{% endif %}
@@ -321,7 +324,7 @@
         transform: scale(1.1);
     }
     .card div[onclick]:hover {
-        box-shadow: 0 8px 24px rgba(0, 102, 255, 0.2);
+        box-shadow: 0 8px 24px rgba(10, 67, 107, 0.2);
         transform: translateY(-4px);
     }
 </style>

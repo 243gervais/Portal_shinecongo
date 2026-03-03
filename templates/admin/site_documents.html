@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Documents du site - {{ site.nom }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+        <h1 class="mt-2 mb-2">📁 Documents du site</h1>
+        <p style="color: var(--text-secondary); margin: 0;">
+            {{ site.nom }} - {{ site.adresse }}
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+        <a href="{% url 'admin_upload_site_document' site.id %}" class="btn btn-success">
+            ➕ Uploader un document
+        </a>
+        <a href="{% url 'admin_site_detail' site.id %}" class="btn btn-primary">← Retour</a>
+    </div>
+</div>
+
+<!-- Filtres par type -->
+<div class="card mb-4">
+    <h2 style="margin-bottom: 1rem; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
+        🔍 Filtrer par type
+    </h2>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <a href="{% url 'admin_site_documents' site.id %}" 
+           class="btn {% if not filter_type %}btn-primary{% else %}btn-secondary{% endif %}">
+            Tous ({{ all_documents.count }})
+        </a>
+        {% for value, label in file_types %}
+        <a href="{% url 'admin_site_documents' site.id %}?type={{ value }}" 
+           class="btn {% if filter_type == value %}btn-primary{% else %}btn-secondary{% endif %}">
+            {{ label }}
+            {% for type, docs in documents_by_type.items %}
+                {% if type == value %}({{ docs|length }}){% endif %}
+            {% endfor %}
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Documents groupés par type -->
+{% if documents_by_type %}
+    {% for file_type, documents in documents_by_type.items %}
+    <div class="card mb-4">
+        <h2 style="margin-bottom: 1.5rem; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
+            {% for value, label in file_types %}
+                {% if value == file_type %}{{ label }}{% endif %}
+            {% endfor %}
+            ({{ documents|length }})
+        </h2>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;">
+            {% for doc in documents %}
+            <div style="border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem; background: var(--card-bg);">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
+                    <h3 style="margin: 0; color: var(--text-primary); font-size: 1rem;">{{ doc.title }}</h3>
+                    <form method="post" action="{% url 'admin_delete_site_document' site.id doc.id %}" style="display: inline;" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce document ?');">
+                        {% csrf_token %}
+                        <button type="submit" style="background: var(--error-color); color: white; border: none; border-radius: 4px; padding: 0.25rem 0.5rem; cursor: pointer;">🗑️</button>
+                    </form>
+                </div>
+                
+                {% if doc.description %}
+                <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.75rem;">{{ doc.description|truncatewords:20 }}</p>
+                {% endif %}
+                
+                <div style="margin-bottom: 0.75rem;">
+                    {% if doc.is_image %}
+                        <div style="width: 100%; padding-top: 56.25%; position: relative; background: var(--bg-secondary); border-radius: 8px; overflow: hidden; margin-bottom: 0.5rem;">
+                            <img src="{{ doc.file.url }}" alt="{{ doc.title }}" 
+                                 style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; cursor: pointer;"
+                                 onclick="window.open('{{ doc.file.url }}', '_blank')">
+                        </div>
+                    {% elif doc.is_video %}
+                        <div style="width: 100%; padding-top: 56.25%; position: relative; background: var(--bg-secondary); border-radius: 8px; overflow: hidden; margin-bottom: 0.5rem;">
+                            <video controls style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
+                                <source src="{{ doc.file.url }}" type="video/mp4">
+                                Votre navigateur ne supporte pas la lecture de vidéos.
+                            </video>
+                        </div>
+                    {% elif doc.is_pdf %}
+                        <div style="padding: 1rem; background: var(--bg-secondary); border-radius: 8px; text-align: center; margin-bottom: 0.5rem;">
+                            <div style="font-size: 3rem; margin-bottom: 0.5rem;">📄</div>
+                            <div style="font-size: 0.875rem; color: var(--text-secondary);">{{ doc.filename }}</div>
+                        </div>
+                    {% else %}
+                        <div style="padding: 1rem; background: var(--bg-secondary); border-radius: 8px; text-align: center; margin-bottom: 0.5rem;">
+                            <div style="font-size: 3rem; margin-bottom: 0.5rem;">📎</div>
+                            <div style="font-size: 0.875rem; color: var(--text-secondary);">{{ doc.filename }}</div>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-secondary);">
+                    <div>
+                        <a href="{{ doc.file.url }}" target="_blank" class="btn btn-primary" style="padding: 0.25rem 0.75rem; font-size: 0.875rem;">
+                            📥 Télécharger
+                        </a>
+                    </div>
+                    <div>
+                        {{ doc.file_size_mb }} MB
+                    </div>
+                </div>
+                
+                <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color); font-size: 0.75rem; color: var(--text-secondary);">
+                    Uploadé le {{ doc.uploaded_at|date:"d/m/Y à H:i" }}
+                    {% if doc.uploaded_by %}
+                        par {{ doc.uploaded_by.get_full_name|default:doc.uploaded_by.username }}
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+<div class="card mb-4">
+    <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">📁</div>
+        <p style="font-size: 1.1rem; margin-bottom: 1rem;">Aucun document uploadé pour ce site.</p>
+        <a href="{% url 'admin_upload_site_document' site.id %}" class="btn btn-success">➕ Uploader le premier document</a>
+    </div>
+</div>
+{% endif %}
+
+<style>
+    .card div[onclick]:hover {
+        transform: scale(1.02);
+        transition: transform 0.2s ease;
+    }
+</style>
+{% endblock %}
