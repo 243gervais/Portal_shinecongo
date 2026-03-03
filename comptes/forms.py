@@ -32,6 +32,14 @@ class ApprovalAuthenticationForm(AuthenticationForm):
         super().confirm_login_allowed(user)
 
 
+class SiteChoiceField(forms.ModelChoiceField):
+    """Display site name and address in registration dropdown choices."""
+
+    def label_from_instance(self, obj):
+        adresse = obj.adresse.strip() if obj.adresse else "Adresse non renseignée"
+        return f"{obj.nom} — {adresse}"
+
+
 class UserRegistrationForm(UserCreationForm):
     """
     Formulaire d'inscription pour créer un nouveau compte utilisateur
@@ -63,24 +71,14 @@ class UserRegistrationForm(UserCreationForm):
             'minlength': '4'
         })
     )
-    site_nom = forms.CharField(
-        label="Nom du site",
-        max_length=200,
+    site = SiteChoiceField(
+        label="Site",
+        queryset=Location.objects.none(),
         required=True,
-        widget=forms.TextInput(attrs={
+        widget=forms.Select(attrs={
             'class': 'form-control',
-            'placeholder': 'Ex: Station Texaco Gombe'
         }),
-        help_text="Nom du site/location où vous travaillez"
-    )
-    site_adresse = forms.CharField(
-        label="Adresse du site",
-        required=False,
-        widget=forms.Textarea(attrs={
-            'class': 'form-control',
-            'rows': 2,
-            'placeholder': 'Adresse complète du site (optionnel)'
-        })
+        help_text="Sélectionnez votre site dans la liste existante."
     )
     telephone = forms.CharField(
         label="Téléphone",
@@ -95,6 +93,14 @@ class UserRegistrationForm(UserCreationForm):
     class Meta:
         model = User
         fields = ("username", "password1", "password2")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        sites = Location.objects.filter(actif=True).order_by("nom")
+        self.fields["site"].queryset = sites
+        self.fields["site"].empty_label = "Sélectionnez votre site"
+        if not sites.exists():
+            self.fields["site"].help_text = "Aucun site actif disponible. Contactez un administrateur."
     
     def clean_username(self):
         username = self.cleaned_data.get("username")
@@ -120,21 +126,7 @@ class UserRegistrationForm(UserCreationForm):
             profile = user.userprofile
             profile.telephone = self.cleaned_data.get('telephone', '')
             profile.actif = False
-            
-            # Créer ou récupérer le site
-            site_nom = self.cleaned_data.get('site_nom')
-            site_adresse = self.cleaned_data.get('site_adresse', '')
-            
-            # Vérifier si un site avec ce nom existe déjà
-            site, created = Location.objects.get_or_create(
-                nom=site_nom,
-                defaults={
-                    'adresse': site_adresse,
-                    'actif': True
-                }
-            )
-            
-            profile.site = site
+            profile.site = self.cleaned_data.get('site')
             profile.role = "EMPLOYE"  # Par défaut, nouveau utilisateur = Employé
             profile.save()
         

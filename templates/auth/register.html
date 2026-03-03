@@ -52,24 +52,14 @@
             <h3 style="color: var(--primary-color); font-size: 1.1rem; margin-bottom: 1rem;">Informations du site</h3>
 
             <div class="form-group">
-                <label for="{{ form.site_nom.id_for_label }}">{{ form.site_nom.label }}</label>
-                {{ form.site_nom }}
-                {% if form.site_nom.help_text %}
-                    <small style="color: var(--text-secondary); font-size: 0.875rem;">{{ form.site_nom.help_text }}</small>
+                <label for="{{ form.site.id_for_label }}">{{ form.site.label }}</label>
+                {{ form.site }}
+                {% if form.site.help_text %}
+                    <small style="color: var(--text-secondary); font-size: 0.875rem;">{{ form.site.help_text }}</small>
                 {% endif %}
-                {% if form.site_nom.errors %}
+                {% if form.site.errors %}
                     <div class="alert alert-error" style="margin-top: 0.5rem; padding: 0.5rem;">
-                        {{ form.site_nom.errors }}
-                    </div>
-                {% endif %}
-            </div>
-
-            <div class="form-group">
-                <label for="{{ form.site_adresse.id_for_label }}">{{ form.site_adresse.label }}</label>
-                {{ form.site_adresse }}
-                {% if form.site_adresse.errors %}
-                    <div class="alert alert-error" style="margin-top: 0.5rem; padding: 0.5rem;">
-                        {{ form.site_adresse.errors }}
+                        {{ form.site.errors }}
                     </div>
                 {% endif %}
             </div>

@@ -8,14 +8,20 @@ from sites.models import Location
 
 class AccountApprovalFlowTests(TestCase):
     def test_registration_creates_inactive_account(self):
+        site = Location.objects.create(
+            nom="Site Test",
+            adresse="Adresse Test",
+            ville="Kinshasa",
+            actif=True,
+        )
+
         response = self.client.post(
             reverse("register"),
             data={
                 "username": "pending_user",
                 "password1": "testpass1234",
                 "password2": "testpass1234",
-                "site_nom": "Site Test",
-                "site_adresse": "Adresse Test",
+                "site": str(site.id),
                 "telephone": "123456789",
             },
         )
@@ -24,6 +30,7 @@ class AccountApprovalFlowTests(TestCase):
         user = User.objects.get(username="pending_user")
         self.assertFalse(user.is_active)
         self.assertFalse(user.userprofile.actif)
+        self.assertEqual(user.userprofile.site, site)
 
     def test_inactive_user_gets_pending_approval_message(self):
         user = User.objects.create_user(
