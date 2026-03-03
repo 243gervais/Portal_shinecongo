@@ -163,6 +163,7 @@ if USE_S3:
         # Static files
         STATICFILES_STORAGE = 'storages_backends.StaticStorage'
         STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/static/'
+        STATICFILES_DIRS = [BASE_DIR / "static"]
         
         # Media files
         DEFAULT_FILE_STORAGE = 'storages_backends.MediaStorage'
