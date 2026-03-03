@@ -103,7 +103,7 @@ The application will be accessible at: `http://127.0.0.1:8000`
 
 ### Login
 
-1. Go to `http://127.0.0.1:8000/login/`
+1. Go to `https://shinecongo-portal.8.229.62.95.sslip.io/login/`
 2. Log in with your credentials
 
 ### Initial setup (Admin)
