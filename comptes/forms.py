@@ -1,7 +1,35 @@
 from django import forms
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.models import User
 from sites.models import Location
+
+
+class ApprovalAuthenticationForm(AuthenticationForm):
+    """
+    Authentication form that shows a clear message when an account is pending approval.
+    """
+
+    def clean(self):
+        username = self.cleaned_data.get("username")
+        password = self.cleaned_data.get("password")
+
+        if username and password:
+            inactive_user = User.objects.filter(username=username, is_active=False).first()
+            if inactive_user and inactive_user.check_password(password):
+                raise forms.ValidationError(
+                    "Votre compte est en attente d'approbation par l'administrateur.",
+                    code="inactive",
+                )
+
+        return super().clean()
+
+    def confirm_login_allowed(self, user):
+        if not user.is_active:
+            raise forms.ValidationError(
+                "Votre compte est en attente d'approbation par l'administrateur.",
+                code="inactive",
+            )
+        super().confirm_login_allowed(user)
 
 
 class UserRegistrationForm(UserCreationForm):
@@ -83,12 +111,15 @@ class UserRegistrationForm(UserCreationForm):
     
     def save(self, commit=True):
         user = super().save(commit=False)
+        # New accounts must be explicitly approved by an administrator.
+        user.is_active = False
         if commit:
             user.save()
             # Le profil sera créé automatiquement via le signal post_save
             # Mettre à jour le profil avec le téléphone et le site
             profile = user.userprofile
             profile.telephone = self.cleaned_data.get('telephone', '')
+            profile.actif = False
             
             # Créer ou récupérer le site
             site_nom = self.cleaned_data.get('site_nom')

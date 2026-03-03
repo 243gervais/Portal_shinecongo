@@ -96,7 +96,10 @@ def register_view(request):
         form = UserRegistrationForm(request.POST)
         if form.is_valid():
             user = form.save()
-            messages.success(request, f'Compte créé avec succès ! Bienvenue {user.username}. Vous pouvez maintenant vous connecter.')
+            messages.success(
+                request,
+                f'Compte créé pour {user.username}. Votre accès est en attente de validation par un administrateur.'
+            )
             # Optionnel : connecter automatiquement l'utilisateur après inscription
             # login(request, user)
             # return redirect('dashboard')

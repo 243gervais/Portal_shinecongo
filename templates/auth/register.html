@@ -7,6 +7,9 @@
     <div class="card">
         <h1 class="text-center mb-3" style="color: var(--primary-color)">Créer un compte</h1>
         <p class="text-center mb-4" style="color: var(--text-secondary)">Portail Opérations Employés</p>
+        <div class="alert alert-info mb-3">
+            Après inscription, votre compte doit être validé par l'administrateur avant de pouvoir vous connecter.
+        </div>
 
         <form method="post">
             {% csrf_token %}

@@ -38,7 +38,7 @@ class UserAdmin(BaseUserAdmin):
     inlines = (UserProfileInline,)
     list_display = ("username", "email", "first_name", "last_name", "is_staff", "get_role", "get_site", "password_reset_link")
     list_filter = ("is_staff", "is_superuser", "is_active", "userprofile__role", "userprofile__site")
-    actions = ["reset_passwords", "assign_site"]
+    actions = ["approve_accounts", "revoke_accounts", "reset_passwords", "assign_site"]
     
     # Les fieldsets par défaut de BaseUserAdmin incluent déjà le champ password
     # qui affiche un lien pour changer le mot de passe sans ancien mot de passe
@@ -175,6 +175,26 @@ class UserAdmin(BaseUserAdmin):
         return render(request, 'admin/comptes/assign_site.html', context)
     
     assign_site.short_description = "Assigner un site aux utilisateurs sélectionnés"
+
+    def approve_accounts(self, request, queryset):
+        """Activer les comptes en attente de validation."""
+        count = queryset.update(is_active=True)
+        UserProfile.objects.filter(user__in=queryset).update(actif=True)
+        messages.success(request, f"{count} compte(s) approuvé(s) et activé(s).")
+
+    approve_accounts.short_description = "Approuver les comptes sélectionnés"
+
+    def revoke_accounts(self, request, queryset):
+        """Désactiver les comptes sélectionnés (hors superutilisateurs)."""
+        safe_queryset = queryset.filter(is_superuser=False)
+        count = safe_queryset.update(is_active=False)
+        UserProfile.objects.filter(user__in=safe_queryset).update(actif=False)
+        skipped = queryset.count() - count
+        if skipped:
+            messages.warning(request, f"{skipped} superutilisateur(s) ignoré(s).")
+        messages.success(request, f"{count} compte(s) désactivé(s).")
+
+    revoke_accounts.short_description = "Retirer l'accès aux comptes sélectionnés"
 
 
 # Unregister the default User admin and register the custom one

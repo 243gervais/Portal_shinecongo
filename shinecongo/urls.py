@@ -20,6 +20,7 @@ from django.contrib.auth import views as auth_views
 from django.conf import settings
 from django.conf.urls.static import static
 from comptes.views import dashboard, logout_view, register_view, admin_dashboard, admin_site_detail, admin_add_wash, admin_add_daily_total, admin_add_bank_deposit
+from comptes.forms import ApprovalAuthenticationForm
 
 # Personnalisation de l'admin Django en français
 admin.site.site_header = "Shine Congo - Administration"
@@ -42,7 +43,14 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     
     # Authentication
-    path("login/", auth_views.LoginView.as_view(template_name="auth/login.html"), name="login"),
+    path(
+        "login/",
+        auth_views.LoginView.as_view(
+            template_name="auth/login.html",
+            authentication_form=ApprovalAuthenticationForm
+        ),
+        name="login",
+    ),
     path("register/", register_view, name="register"),
     path("logout/", logout_view, name="logout"),
     
@@ -89,4 +97,3 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-
