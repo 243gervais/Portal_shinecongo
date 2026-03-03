@@ -23,7 +23,7 @@ class CarWashAdmin(admin.ModelAdmin):
             "fields": ("employe", "site", "date")
         }),
         ("Service", {
-            "fields": ("type_service", "plaque", "montant", "notes")
+            "fields": ("type_service", "plaque", "plaque_photo", "montant", "notes")
         }),
         ("Métadonnées", {
             "fields": ("created_at", "updated_at"),

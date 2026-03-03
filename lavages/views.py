@@ -32,7 +32,11 @@ def ajouter_lavage(request):
             
             # Récupérer les données du formulaire
             type_service = request.POST.get('type_service')
-            plaque = request.POST.get('plaque', '')
+            plaque_mode = request.POST.get('plaque_mode', 'photo')
+            if plaque_mode not in {'manual', 'photo'}:
+                plaque_mode = 'photo'
+            plaque = request.POST.get('plaque', '').strip().upper()
+            plaque_photo = request.FILES.get('plaque_photo')
             montant = request.POST.get('montant')
             notes = request.POST.get('notes', '')
             
@@ -64,6 +68,7 @@ def ajouter_lavage(request):
                 date=timezone.localdate(),
                 type_service=type_service,
                 plaque=plaque,
+                plaque_photo=plaque_photo,
                 montant=montant,
                 notes=notes
             )

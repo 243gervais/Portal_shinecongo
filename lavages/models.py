@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
+from django.utils import timezone
 import os
 
 
@@ -8,6 +9,12 @@ def carwash_photo_path(instance, filename):
     """Chemin de sauvegarde des photos de lavage"""
     date_str = instance.lavage.created_at.strftime("%Y/%m/%d")
     return f"lavages/{date_str}/{instance.lavage.id}/{filename}"
+
+
+def plaque_photo_path(instance, filename):
+    """Chemin de sauvegarde des photos de plaque"""
+    date_str = timezone.now().strftime("%Y/%m/%d")
+    return f"lavages/plaques/{date_str}/{filename}"
 
 
 class CarWash(models.Model):
@@ -34,6 +41,12 @@ class CarWash(models.Model):
         verbose_name="Type de service"
     )
     plaque = models.CharField(max_length=50, blank=True, verbose_name="Numéro de plaque")
+    plaque_photo = models.ImageField(
+        upload_to=plaque_photo_path,
+        blank=True,
+        null=True,
+        verbose_name="Photo de la plaque",
+    )
     montant = models.DecimalField(
         max_digits=10, 
         decimal_places=2,

@@ -23,7 +23,15 @@
             <tr>
                 <td>{{ lavage.date|date:"d/m/Y" }}<br><small style="color: var(--text-secondary);">{{ lavage.created_at|time:"H:i" }}</small></td>
                 <td>{{ lavage.get_type_service_display }}</td>
-                <td>{{ lavage.plaque|default:"—" }}</td>
+                <td>
+                    {% if lavage.plaque %}
+                        {{ lavage.plaque }}
+                    {% elif lavage.plaque_photo %}
+                        📷 Photo enregistrée
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
                 <td><span style="color: var(--success-color);">✓ Enregistré</span></td>
                 <td>{{ lavage.photo_count }} photo(s)</td>
                 <td><a href="{% url 'detail_lavage' lavage.id %}" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Voir détails</a></td>

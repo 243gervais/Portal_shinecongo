@@ -72,7 +72,15 @@
                 <td>{{ lavage.employe.get_full_name|default:lavage.employe.username }}</td>
                 <td>{{ lavage.site.nom }}</td>
                 <td>{{ lavage.get_type_service_display }}</td>
-                <td>{{ lavage.plaque|default:"—" }}</td>
+                <td>
+                    {% if lavage.plaque %}
+                        {{ lavage.plaque }}
+                    {% elif lavage.plaque_photo %}
+                        📷 Photo enregistrée
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
                 <td><strong>{{ lavage.montant|floatformat:0 }} FC</strong></td>
                 <td>{{ lavage.photo_count }} photo(s)</td>
             </tr>

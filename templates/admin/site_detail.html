@@ -473,7 +473,15 @@
                     <td>{{ lavage.created_at|date:"H:i" }}</td>
                     <td>{{ lavage.employe.get_full_name|default:lavage.employe.username }}</td>
                     <td>{{ lavage.get_type_service_display }}</td>
-                    <td>{{ lavage.plaque|default:"-" }}</td>
+                    <td>
+                        {% if lavage.plaque %}
+                            {{ lavage.plaque }}
+                        {% elif lavage.plaque_photo %}
+                            📷 Photo enregistrée
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
                     <td style="font-weight: 600; color: var(--success-color);">{{ lavage.montant|floatformat:0 }} FC</td>
                     <td>
                         {% if lavage.photos.exists %}

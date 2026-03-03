@@ -19,14 +19,52 @@
         </div>
 
         <div class="form-group">
-            <label for="plaque">Numéro de plaque (optionnel)</label>
-            <input type="text" class="form-control" id="plaque" name="plaque" placeholder="Ex: ABC-123-CD">
+            <label>Numéro de plaque (optionnel)</label>
+
+            <div class="plaque-mode-toggle">
+                <label class="mode-option">
+                    <input type="radio" name="plaque_mode" value="photo" checked>
+                    <span>Photo de la plaque (recommandé)</span>
+                </label>
+                <label class="mode-option">
+                    <input type="radio" name="plaque_mode" value="manual">
+                    <span>Taper le numéro</span>
+                </label>
+            </div>
+
+            <div id="plaque-photo-panel" class="plaque-panel">
+                <input type="file" id="plaque_photo" name="plaque_photo" accept="image/*" capture="environment" style="display: none;">
+
+                <div class="capture-actions">
+                    <button type="button" class="btn btn-primary" id="choose-plaque-photo-btn">
+                        📷 Prendre la photo de la plaque
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="clear-plaque-photo-btn" style="display: none;">
+                        Supprimer la photo
+                    </button>
+                </div>
+
+                <div id="plaque-photo-preview" class="plaque-photo-preview">
+                    <span>Aucune photo de plaque sélectionnée.</span>
+                </div>
+
+                <small class="hint-text">
+                    Sur téléphone, ce bouton ouvre directement l'appareil photo.
+                </small>
+            </div>
+
+            <div id="plaque-manual-panel" class="plaque-panel" style="display: none;">
+                <input type="text" class="form-control" id="plaque" name="plaque" placeholder="Ex: ABC-123-CD" maxlength="50">
+                <small class="hint-text">
+                    Entrez la plaque si vous ne pouvez pas prendre une photo.
+                </small>
+            </div>
         </div>
 
         <div class="form-group">
             <label for="montant">Montant payé (FC) *</label>
             <input type="number" class="form-control" id="montant" name="montant" step="0.01" min="0" required>
-            <small style="color: var(--text-secondary);">Note: Vous ne verrez pas les totaux d'argent dans votre historique.</small>
+            <small class="hint-text">Note: Vous ne verrez pas les totaux d'argent dans votre historique.</small>
         </div>
 
         <div class="form-group">
@@ -37,38 +75,38 @@
         <div class="form-group">
             <label for="photos">Photos après lavage * (minimum 1)</label>
             <input type="file" class="form-control" id="photos" name="photos" multiple accept="image/*" style="display: none;">
-            
+
             <div id="camera-container" style="margin-top: 1rem;">
-                <!-- Camera Controls -->
-                <div id="camera-controls" style="margin-bottom: 1rem;">
-                    <button type="button" class="btn btn-primary" id="start-camera-btn" style="width: 100%; margin-bottom: 0.5rem;">
+                <div id="camera-controls" class="capture-actions" style="margin-bottom: 1rem;">
+                    <button type="button" class="btn btn-primary" id="start-camera-btn">
                         📷 Ouvrir l'appareil photo
                     </button>
+                    <button type="button" class="btn btn-secondary" id="select-photos-btn">
+                        🖼️ Choisir des photos
+                    </button>
                 </div>
-                
-                <!-- Camera Preview -->
+
                 <div id="camera-preview-container" style="display: none; margin-bottom: 1rem;">
                     <video id="camera-preview" autoplay playsinline style="width: 100%; max-width: 100%; border-radius: 8px; background: #000;"></video>
-                    <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
-                        <button type="button" class="btn btn-success" id="capture-photo-btn" style="flex: 1;">
+                    <div class="capture-actions" style="margin-top: 1rem;">
+                        <button type="button" class="btn btn-success" id="capture-photo-btn">
                             📸 Capturer
                         </button>
-                        <button type="button" class="btn btn-danger" id="stop-camera-btn" style="flex: 1;">
+                        <button type="button" class="btn btn-danger" id="stop-camera-btn">
                             ❌ Fermer
                         </button>
                     </div>
                 </div>
-                
-                <!-- Captured Photos Preview -->
-                <div id="photo-preview-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; margin-top: 1rem;"></div>
-                
-                <small style="color: var(--text-secondary); display: block; margin-top: 1rem;">
-                    Prenez des photos du véhicule après le lavage. Cliquez sur "Ouvrir l'appareil photo" pour prendre des photos directement.
+
+                <div id="photo-preview-container" class="wash-photo-grid"></div>
+
+                <small class="hint-text" style="display: block; margin-top: 1rem;">
+                    Prenez des photos du véhicule après le lavage. Vous pouvez aussi choisir des photos déjà présentes sur le téléphone.
                 </small>
             </div>
         </div>
 
-        <div class="mt-3">
+        <div class="mt-3 action-stack">
             <button type="submit" class="btn btn-primary btn-block">Enregistrer le lavage</button>
             <a href="{% url 'employe_dashboard' %}" class="btn btn-danger btn-block mt-2">Annuler</a>
         </div>
@@ -76,6 +114,86 @@
 </div>
 
 <style>
+    .hint-text {
+        color: var(--text-secondary);
+    }
+
+    .plaque-mode-toggle {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .mode-option {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        background: var(--bg-primary);
+        cursor: pointer;
+    }
+
+    .mode-option input {
+        accent-color: var(--primary-color);
+    }
+
+    .mode-option span {
+        font-size: 0.95rem;
+        color: var(--text-primary);
+    }
+
+    .plaque-panel {
+        padding: 0.75rem;
+        border: 1px dashed var(--border-color);
+        border-radius: 10px;
+        background: var(--bg-secondary);
+    }
+
+    .capture-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .plaque-photo-preview {
+        margin-top: 0.75rem;
+        min-height: 140px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg-primary);
+        color: var(--text-secondary);
+        text-align: center;
+        overflow: hidden;
+    }
+
+    .plaque-photo-preview img {
+        width: 100%;
+        max-height: 240px;
+        object-fit: cover;
+        display: block;
+    }
+
+    .plaque-photo-preview .file-name {
+        padding: 0.5rem 0.75rem;
+        border-top: 1px solid var(--border-color);
+        font-size: 0.8rem;
+        background: var(--bg-primary);
+        color: var(--text-secondary);
+    }
+
+    .wash-photo-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
     .photo-preview-item {
         position: relative;
         border: 2px solid var(--border-color);
@@ -83,14 +201,14 @@
         overflow: hidden;
         background: var(--bg-secondary);
     }
-    
+
     .photo-preview-item img {
         width: 100%;
         height: 150px;
         object-fit: cover;
         display: block;
     }
-    
+
     .photo-preview-item .photo-label {
         padding: 0.5rem;
         background: var(--card-bg);
@@ -100,7 +218,7 @@
         color: var(--text-secondary);
         border-top: 1px solid var(--border-color);
     }
-    
+
     .photo-preview-item .remove-photo {
         position: absolute;
         top: 5px;
@@ -119,26 +237,75 @@
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         transition: all 0.2s ease;
     }
-    
+
     .photo-preview-item .remove-photo:hover {
         transform: scale(1.1);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     }
-    
+
     #camera-preview {
-        max-height: 400px;
+        max-height: 420px;
         object-fit: contain;
     }
-    
-    #start-camera-btn, #capture-photo-btn {
-        font-size: 1.1rem;
-        padding: 1rem;
+
+    #start-camera-btn,
+    #capture-photo-btn,
+    #select-photos-btn,
+    #choose-plaque-photo-btn {
+        font-size: 1rem;
+        padding: 0.9rem;
+    }
+
+    @media (max-width: 768px) {
+        .plaque-mode-toggle,
+        .capture-actions {
+            grid-template-columns: 1fr;
+        }
+
+        .wash-photo-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.75rem;
+        }
+
+        .photo-preview-item img {
+            height: 130px;
+        }
+
+        .action-stack .btn {
+            width: 100%;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .wash-photo-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .plaque-photo-preview {
+            min-height: 120px;
+        }
+
+        #camera-preview {
+            max-height: 300px;
+        }
     }
 </style>
 
 <script>
     (function() {
+        const form = document.querySelector('form');
+
+        const plaqueModeInputs = document.querySelectorAll('input[name="plaque_mode"]');
+        const plaquePhotoPanel = document.getElementById('plaque-photo-panel');
+        const plaqueManualPanel = document.getElementById('plaque-manual-panel');
+        const plaqueInput = document.getElementById('plaque');
+        const plaquePhotoInput = document.getElementById('plaque_photo');
+        const choosePlaquePhotoBtn = document.getElementById('choose-plaque-photo-btn');
+        const clearPlaquePhotoBtn = document.getElementById('clear-plaque-photo-btn');
+        const plaquePhotoPreview = document.getElementById('plaque-photo-preview');
+
         const fileInput = document.getElementById('photos');
+        const selectPhotosBtn = document.getElementById('select-photos-btn');
         const startCameraBtn = document.getElementById('start-camera-btn');
         const stopCameraBtn = document.getElementById('stop-camera-btn');
         const capturePhotoBtn = document.getElementById('capture-photo-btn');
@@ -146,45 +313,108 @@
         const cameraPreviewContainer = document.getElementById('camera-preview-container');
         const cameraControls = document.getElementById('camera-controls');
         const previewContainer = document.getElementById('photo-preview-container');
-        
+
+        let plaquePreviewUrl = null;
         let stream = null;
         const photos = [];
-        
-        // Start camera
+
+        function getPlaqueMode() {
+            const checked = document.querySelector('input[name="plaque_mode"]:checked');
+            return checked ? checked.value : 'photo';
+        }
+
+        function renderPlaquePreview() {
+            const file = plaquePhotoInput.files && plaquePhotoInput.files[0];
+
+            if (plaquePreviewUrl) {
+                URL.revokeObjectURL(plaquePreviewUrl);
+                plaquePreviewUrl = null;
+            }
+
+            if (!file) {
+                plaquePhotoPreview.innerHTML = '<span>Aucune photo de plaque sélectionnée.</span>';
+                clearPlaquePhotoBtn.style.display = 'none';
+                return;
+            }
+
+            plaquePreviewUrl = URL.createObjectURL(file);
+            plaquePhotoPreview.innerHTML = `
+                <div style="width: 100%;">
+                    <img src="${plaquePreviewUrl}" alt="Photo de plaque">
+                    <div class="file-name">${file.name}</div>
+                </div>
+            `;
+            clearPlaquePhotoBtn.style.display = 'inline-block';
+        }
+
+        function updatePlaqueMode() {
+            const isManual = getPlaqueMode() === 'manual';
+            plaqueManualPanel.style.display = isManual ? 'block' : 'none';
+            plaquePhotoPanel.style.display = isManual ? 'none' : 'block';
+
+            if (isManual) {
+                plaquePhotoInput.value = '';
+                renderPlaquePreview();
+            }
+        }
+
+        plaqueModeInputs.forEach((input) => {
+            input.addEventListener('change', updatePlaqueMode);
+        });
+
+        choosePlaquePhotoBtn.addEventListener('click', function() {
+            plaquePhotoInput.click();
+        });
+
+        clearPlaquePhotoBtn.addEventListener('click', function() {
+            plaquePhotoInput.value = '';
+            renderPlaquePreview();
+        });
+
+        plaquePhotoInput.addEventListener('change', renderPlaquePreview);
+
+        selectPhotosBtn.addEventListener('click', function() {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', function() {
+            const selectedFiles = Array.from(fileInput.files || []);
+            selectedFiles.forEach((file) => {
+                if (file && file.type && file.type.startsWith('image/')) {
+                    photos.push(file);
+                }
+            });
+            refreshPreviews();
+            updateFileInput();
+        });
+
         startCameraBtn.addEventListener('click', async function() {
             try {
-                // Request camera access
                 stream = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        facingMode: 'environment' // Use back camera on mobile
+                        facingMode: 'environment'
                     },
                     audio: false
                 });
-                
-                // Show camera preview
+
                 cameraPreview.srcObject = stream;
                 cameraPreviewContainer.style.display = 'block';
                 cameraControls.style.display = 'none';
-                
-                // Enable capture button
                 capturePhotoBtn.disabled = false;
-                
             } catch (error) {
                 console.error('Error accessing camera:', error);
                 alert('Impossible d\'accéder à l\'appareil photo. Veuillez autoriser l\'accès à la caméra dans les paramètres de votre navigateur.');
             }
         });
-        
-        // Stop camera
+
         stopCameraBtn.addEventListener('click', function() {
             stopCamera();
         });
-        
-        // Capture photo
+
         capturePhotoBtn.addEventListener('click', function() {
             capturePhoto();
         });
-        
+
         function stopCamera() {
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
@@ -192,121 +422,76 @@
             }
             cameraPreview.srcObject = null;
             cameraPreviewContainer.style.display = 'none';
-            cameraControls.style.display = 'block';
+            cameraControls.style.display = 'grid';
         }
-        
+
         function capturePhoto() {
-            if (!stream) return;
-            
-            // Create canvas to capture the current frame
+            if (!stream) {
+                return;
+            }
+
             const canvas = document.createElement('canvas');
             canvas.width = cameraPreview.videoWidth;
             canvas.height = cameraPreview.videoHeight;
-            
+
             const ctx = canvas.getContext('2d');
             ctx.drawImage(cameraPreview, 0, 0, canvas.width, canvas.height);
-            
-            // Convert canvas to blob
+
             canvas.toBlob(function(blob) {
-                if (blob) {
-                    try {
-                        // Create a File object from the blob with a unique name
-                        const timestamp = Date.now();
-                        const file = new File([blob], `photo_${timestamp}.jpg`, { 
-                            type: 'image/jpeg',
-                            lastModified: timestamp
-                        });
-                        
-                        // Verify file was created
-                        if (!(file instanceof File)) {
-                            console.error('Failed to create File object');
-                            alert('Erreur lors de la création de la photo');
-                            return;
-                        }
-                        
-                        photos.push(file);
-                        
-                        // Create preview
-                        const photoIndex = photos.length - 1;
-                        const photoLabel = `Photo ${photoIndex + 1}`;
-                        
-                        const previewItem = document.createElement('div');
-                        previewItem.className = 'photo-preview-item';
-                        previewItem.dataset.index = photoIndex;
-                        previewItem.innerHTML = `
-                            <button type="button" class="remove-photo" onclick="removePhoto(${photoIndex})">×</button>
-                            <img src="${canvas.toDataURL('image/jpeg')}" alt="Preview">
-                            <div class="photo-label">${photoLabel}</div>
-                        `;
-                        
-                        previewContainer.appendChild(previewItem);
-                        
-                        // Update file input immediately
-                        updateFileInput();
-                        
-                        console.log('Photo captured:', file.name, file.size, 'bytes');
-                    } catch (error) {
-                        console.error('Error processing photo:', error);
-                        alert('Erreur lors du traitement de la photo: ' + error.message);
-                    }
-                } else {
-                    console.error('Failed to create blob from canvas');
+                if (!blob) {
                     alert('Erreur lors de la capture de la photo');
-                }
-            }, 'image/jpeg', 0.9);
-        }
-        
-        // Remove photo function
-        window.removePhoto = function(index) {
-            photos.splice(index, 1);
-            updateFileInput();
-            refreshPreviews();
-        };
-        
-        // Update the file input with current photos
-        function updateFileInput() {
-            try {
-                if (photos.length === 0) {
-                    fileInput.setCustomValidity('Veuillez prendre au moins une photo');
                     return;
                 }
-                
-                // Use DataTransfer API to set files
+
+                const timestamp = Date.now();
+                const file = new File([blob], `photo_${timestamp}.jpg`, {
+                    type: 'image/jpeg',
+                    lastModified: timestamp
+                });
+
+                photos.push(file);
+                refreshPreviews();
+                updateFileInput();
+            }, 'image/jpeg', 0.9);
+        }
+
+        window.removePhoto = function(index) {
+            photos.splice(index, 1);
+            refreshPreviews();
+            updateFileInput();
+        };
+
+        function updateFileInput() {
+            try {
                 const dataTransfer = new DataTransfer();
-                
+
                 photos.forEach(photo => {
                     if (photo instanceof File) {
                         dataTransfer.items.add(photo);
                     }
                 });
-                
-                // Update the file input with the new FileList
+
                 fileInput.files = dataTransfer.files;
-                
-                // Clear any validation errors
-                fileInput.setCustomValidity('');
-                
-                // Log for debugging
-                console.log('File input updated with', fileInput.files.length, 'files');
-                for (let i = 0; i < fileInput.files.length; i++) {
-                    console.log('  File', i + 1, ':', fileInput.files[i].name, fileInput.files[i].size, 'bytes');
+
+                if (photos.length === 0) {
+                    fileInput.setCustomValidity('Veuillez prendre au moins une photo');
+                } else {
+                    fileInput.setCustomValidity('');
                 }
-                
             } catch (error) {
                 console.error('Error updating file input:', error);
                 alert('Erreur lors de la mise à jour des photos. Veuillez réessayer.');
             }
         }
-        
-        // Refresh previews after removal
+
         function refreshPreviews() {
             previewContainer.innerHTML = '';
-            
+
             photos.forEach((photo, index) => {
                 const reader = new FileReader();
                 reader.onload = function(event) {
                     const photoLabel = `Photo ${index + 1}`;
-                    
+
                     const previewItem = document.createElement('div');
                     previewItem.className = 'photo-preview-item';
                     previewItem.dataset.index = index;
@@ -315,42 +500,39 @@
                         <img src="${event.target.result}" alt="Preview">
                         <div class="photo-label">${photoLabel}</div>
                     `;
-                    
+
                     previewContainer.appendChild(previewItem);
                 };
                 reader.readAsDataURL(photo);
             });
         }
-        
-        // Form validation and submission
-        const form = document.querySelector('form');
+
         form.addEventListener('submit', function(e) {
-            // Stop camera before submitting
             stopCamera();
-            
+
+            if (getPlaqueMode() === 'photo') {
+                plaqueInput.value = '';
+            } else {
+                plaquePhotoInput.value = '';
+                plaqueInput.value = (plaqueInput.value || '').trim().toUpperCase();
+            }
+
             if (photos.length === 0) {
                 e.preventDefault();
                 alert('Veuillez prendre au moins une photo');
                 startCameraBtn.focus();
                 return false;
             }
-            
-            // Ensure file input is updated before submission
+
             updateFileInput();
-            
-            // Verify files are attached
+
             if (!fileInput.files || fileInput.files.length === 0) {
                 e.preventDefault();
                 alert('Erreur: Les photos n\'ont pas pu être attachées au formulaire. Veuillez réessayer.');
-                console.error('No files in input. Photos array:', photos);
-                console.error('File input:', fileInput);
                 return false;
             }
-            
-            // Verify file count matches
+
             if (fileInput.files.length !== photos.length) {
-                console.warn('File count mismatch. Expected:', photos.length, 'Got:', fileInput.files.length);
-                // Try updating one more time
                 updateFileInput();
                 if (fileInput.files.length !== photos.length) {
                     e.preventDefault();
@@ -358,16 +540,19 @@
                     return false;
                 }
             }
-            
-            // Log for debugging
-            console.log('Submitting form with', photos.length, 'photos');
-            console.log('File input contains', fileInput.files.length, 'files');
+
+            return true;
         });
-        
-        // Stop camera when page is unloaded
+
         window.addEventListener('beforeunload', function() {
             stopCamera();
+            if (plaquePreviewUrl) {
+                URL.revokeObjectURL(plaquePreviewUrl);
+            }
         });
+
+        updatePlaqueMode();
+        renderPlaquePreview();
     })();
 </script>
 {% endblock %}
