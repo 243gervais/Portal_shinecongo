@@ -139,3 +139,45 @@ class UserRegistrationForm(UserCreationForm):
             profile.save()
         
         return user
+
+
+class SiteCreationForm(forms.ModelForm):
+    """
+    Form for creating a site from the custom admin dashboard.
+    """
+
+    class Meta:
+        model = Location
+        fields = [
+            "nom",
+            "adresse",
+            "ville",
+            "telephone",
+            "gps_actif",
+            "latitude",
+            "longitude",
+            "rayon_autorisé_mètres",
+            "actif",
+        ]
+        widgets = {
+            "nom": forms.TextInput(attrs={"class": "form-control", "placeholder": "Nom du site"}),
+            "adresse": forms.Textarea(attrs={"class": "form-control", "rows": 2, "placeholder": "Adresse (optionnel)"}),
+            "ville": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ville"}),
+            "telephone": forms.TextInput(attrs={"class": "form-control", "placeholder": "Téléphone (optionnel)"}),
+            "gps_actif": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "latitude": forms.NumberInput(attrs={"class": "form-control", "step": "0.000001", "placeholder": "Latitude"}),
+            "longitude": forms.NumberInput(attrs={"class": "form-control", "step": "0.000001", "placeholder": "Longitude"}),
+            "rayon_autorisé_mètres": forms.NumberInput(attrs={"class": "form-control", "min": "1"}),
+            "actif": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        gps_actif = cleaned_data.get("gps_actif")
+        latitude = cleaned_data.get("latitude")
+        longitude = cleaned_data.get("longitude")
+
+        if gps_actif and (latitude is None or longitude is None):
+            raise forms.ValidationError("Si le GPS est actif, la latitude et la longitude sont obligatoires.")
+
+        return cleaned_data

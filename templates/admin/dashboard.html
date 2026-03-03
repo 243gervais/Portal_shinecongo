@@ -4,7 +4,10 @@
 {% block title %}Dashboard Administrateur{% endblock %}
 
 {% block content %}
-<h1 class="mt-2 mb-4">Dashboard Administrateur - {{ today|date:"d/m/Y" }}</h1>
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+    <h1 class="mt-2 mb-0">Dashboard Administrateur - {{ today|date:"d/m/Y" }}</h1>
+    <a href="{% url 'admin_create_site' %}" class="btn btn-primary">+ Créer un site</a>
+</div>
 
 {% if sites_stats %}
 <div class="card-grid">
@@ -50,7 +53,7 @@
 {% else %}
 <div class="card text-center">
     <p style="color: var(--text-secondary); font-size: 1.2rem;">Aucun site disponible.</p>
-    <a href="{% url 'admin:index' %}" class="btn btn-primary mt-3">Créer un site</a>
+    <a href="{% url 'admin_create_site' %}" class="btn btn-primary mt-3">Créer un site</a>
 </div>
 {% endif %}
 

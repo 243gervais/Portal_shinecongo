@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.db.models import Sum, Count, Q
 from django.contrib.auth.models import User
 from datetime import datetime
-from .forms import UserRegistrationForm
+from .forms import UserRegistrationForm, SiteCreationForm
 from sites.models import Location, DailyBankDeposit, SiteDocument
 from lavages.models import CarWash, CarWashPhoto
 from problemes.models import IssueReport
@@ -123,6 +123,19 @@ def is_admin_user(user):
     return user.userprofile.is_admin()
 
 
+def ensure_superuser_admin_profile(user):
+    """
+    Ensure Django superusers have an ADMIN profile for custom portal permissions.
+    """
+    if not user.is_superuser:
+        return
+    if not hasattr(user, 'userprofile'):
+        UserProfile.objects.create(user=user, role='ADMIN')
+    elif not user.userprofile.is_admin():
+        user.userprofile.role = 'ADMIN'
+        user.userprofile.save()
+
+
 @login_required
 @no_cache_view
 def admin_dashboard(request):
@@ -132,14 +145,7 @@ def admin_dashboard(request):
     user = request.user
     
     # Pour les superutilisateurs, s'assurer qu'ils ont un profil avec le rôle ADMIN
-    if user.is_superuser:
-        if not hasattr(user, 'userprofile'):
-            # Créer un profil admin pour le superutilisateur
-            UserProfile.objects.create(user=user, role='ADMIN')
-        elif not user.userprofile.is_admin():
-            # Mettre à jour le rôle si ce n'est pas déjà ADMIN
-            user.userprofile.role = 'ADMIN'
-            user.userprofile.save()
+    ensure_superuser_admin_profile(user)
     
     # Vérifier que l'utilisateur est admin
     if not is_admin_user(user):
@@ -208,14 +214,7 @@ def admin_site_detail(request, site_id):
     user = request.user
     
     # Pour les superutilisateurs, s'assurer qu'ils ont un profil avec le rôle ADMIN
-    if user.is_superuser:
-        if not hasattr(user, 'userprofile'):
-            # Créer un profil admin pour le superutilisateur
-            UserProfile.objects.create(user=user, role='ADMIN')
-        elif not user.userprofile.is_admin():
-            # Mettre à jour le rôle si ce n'est pas déjà ADMIN
-            user.userprofile.role = 'ADMIN'
-            user.userprofile.save()
+    ensure_superuser_admin_profile(user)
     
     # Vérifier que l'utilisateur est admin
     if not is_admin_user(user):
@@ -412,6 +411,31 @@ def admin_site_detail(request, site_id):
     context['documents_count'] = documents_count
     
     return render(request, 'admin/site_detail.html', context)
+
+
+@login_required
+@no_cache_view
+def admin_create_site(request):
+    """
+    Create a new site from the custom admin dashboard.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        form = SiteCreationForm(request.POST)
+        if form.is_valid():
+            site = form.save()
+            messages.success(request, f'Site "{site.nom}" créé avec succès.')
+            return redirect('admin_site_detail', site_id=site.id)
+    else:
+        form = SiteCreationForm(initial={"ville": "Kinshasa", "actif": True, "rayon_autorisé_mètres": 50})
+
+    return render(request, 'admin/create_site.html', {"form": form})
 
 
 @login_required
