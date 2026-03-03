@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static currency_tags %}
 
 {% block title %}Détails - {{ site.nom }}{% endblock %}
 
@@ -27,6 +27,7 @@
         <a href="{% url 'admin_dashboard' %}" class="btn btn-primary">← Retour aux sites</a>
     </div>
 </div>
+<p style="margin: -1rem 0 1.25rem 0; color: var(--text-secondary); font-size: 0.82rem;">{% fx_rate_label %}</p>
 
 <!-- Filtres de date -->
 <div class="card mb-4">
@@ -68,12 +69,14 @@
     <!-- Statistiques principales de la date -->
     <div class="card-grid mb-4">
         <div class="card stat-card" style="background: var(--primary-color); color: white;">
-            <div class="stat-value" style="color: white; font-size: 2.5rem;">{{ chiffre_date|floatformat:0 }}</div>
+            <div class="stat-value" style="color: white; font-size: 2.5rem;">{{ chiffre_date|fc_amount }} FC</div>
+            <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ chiffre_date|usd_equivalent }} USD</div>
             <div class="stat-label" style="color: rgba(255,255,255,0.9);">Cash Flow</div>
         </div>
         
         <div class="card stat-card" style="background: var(--secondary-color); color: white;">
-            <div class="stat-value" style="color: white; font-size: 2.5rem;">{{ bank_deposit_amount_date|floatformat:0 }}</div>
+            <div class="stat-value" style="color: white; font-size: 2.5rem;">{{ bank_deposit_amount_date|fc_amount }} FC</div>
+            <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ bank_deposit_amount_date|usd_equivalent }} USD</div>
             <div class="stat-label" style="color: rgba(255,255,255,0.9);">
                 🏦 Dépôt bancaire
                 {% if bank_deposit_date %}
@@ -84,7 +87,8 @@
         </div>
         
         <div class="card stat-card" style="background: {% if difference_date >= 0 %}var(--warning-color){% else %}var(--error-color){% endif %}; color: white;">
-            <div class="stat-value" style="color: white; font-size: 2.5rem;">{{ difference_date|floatformat:0 }}</div>
+            <div class="stat-value" style="color: white; font-size: 2.5rem;">{{ difference_date|fc_amount }} FC</div>
+            <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ difference_date|usd_equivalent }} USD</div>
             <div class="stat-label" style="color: rgba(255,255,255,0.9);">
                 {% if difference_date > 0 %}📉 Pertes{% elif difference_date < 0 %}⚠️ Manquant{% else %}✅ Égal{% endif %}
             </div>
@@ -117,8 +121,9 @@
             <div>
                 <strong style="color: var(--text-secondary);">Montant déposé:</strong>
                 <div style="font-size: 1.25rem; font-weight: 600; color: var(--success-color);">
-                    {{ bank_deposit_amount_date|floatformat:0 }} FC
+                    {{ bank_deposit_amount_date|fc_amount }} FC
                 </div>
+                <div style="font-size: 0.72rem; color: var(--text-secondary);">~ ${{ bank_deposit_amount_date|usd_equivalent }} USD</div>
             </div>
             {% if bank_deposit_date.notes %}
             <div style="grid-column: span 2;">
@@ -162,8 +167,8 @@
                     <tr>
                         <td>{{ emp_data.employe.get_full_name|default:emp_data.employe.username }}</td>
                         <td style="text-align: center;">{{ emp_data.count }}</td>
-                        <td style="font-weight: 600; color: var(--success-color); text-align: right;">{{ emp_data.total|floatformat:0 }} FC</td>
-                        <td style="text-align: right;">{{ emp_data.average|floatformat:0 }} FC</td>
+                        <td style="font-weight: 600; color: var(--success-color); text-align: right;">{{ emp_data.total|fc_amount }} FC<br><small style="color: var(--text-secondary);">~ ${{ emp_data.total|usd_equivalent }}</small></td>
+                        <td style="text-align: right;">{{ emp_data.average|fc_amount }} FC<br><small style="color: var(--text-secondary);">~ ${{ emp_data.average|usd_equivalent }}</small></td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -177,7 +182,8 @@
 <!-- Statistiques principales -->
 <div class="card-grid mb-4">
     <div class="card stat-card" style="background: var(--primary-color); color: white;">
-        <div class="stat-value" style="color: white; font-size: 2.5rem;">{{ chiffre_periode|floatformat:0 }}</div>
+        <div class="stat-value" style="color: white; font-size: 2.5rem;">{{ chiffre_periode|fc_amount }} FC</div>
+        <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ chiffre_periode|usd_equivalent }} USD</div>
         <div class="stat-label" style="color: rgba(255,255,255,0.9);">Cash Flow ({{ period_label }})</div>
     </div>
     
@@ -188,12 +194,14 @@
     
     {% if not selected_single_date %}
     <div class="card stat-card" style="background: var(--secondary-color); color: white;">
-        <div class="stat-value" style="color: white; font-size: 2rem;">{{ chiffre_jour|floatformat:0 }}</div>
+        <div class="stat-value" style="color: white; font-size: 2rem;">{{ chiffre_jour|fc_amount }} FC</div>
+        <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ chiffre_jour|usd_equivalent }} USD</div>
         <div class="stat-label" style="color: rgba(255,255,255,0.9);">Cash Flow (Aujourd'hui)</div>
     </div>
     
     <div class="card stat-card" style="background: var(--primary-color); color: white;">
-        <div class="stat-value" style="color: white; font-size: 2rem;">{{ bank_deposit_amount_today|floatformat:0 }}</div>
+        <div class="stat-value" style="color: white; font-size: 2rem;">{{ bank_deposit_amount_today|fc_amount }} FC</div>
+        <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ bank_deposit_amount_today|usd_equivalent }} USD</div>
         <div class="stat-label" style="color: rgba(255,255,255,0.9);">
             🏦 Dépôt bancaire (Aujourd'hui)
             {% if bank_deposit_today %}
@@ -204,7 +212,8 @@
     </div>
     
     <div class="card stat-card" style="background: {% if difference_today >= 0 %}var(--warning-color){% else %}var(--error-color){% endif %}; color: white;">
-        <div class="stat-value" style="color: white; font-size: 2rem;">{{ difference_today|floatformat:0 }}</div>
+        <div class="stat-value" style="color: white; font-size: 2rem;">{{ difference_today|fc_amount }} FC</div>
+        <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ difference_today|usd_equivalent }} USD</div>
         <div class="stat-label" style="color: rgba(255,255,255,0.9);">
             {% if difference_today >= 0 %}📉 Pertes{% else %}⚠️ Manquant{% endif %}
         </div>
@@ -240,19 +249,21 @@
             <div>
                 <strong style="color: var(--text-secondary);">Montant déposé:</strong>
                 <div style="font-size: 1.5rem; font-weight: 600; color: var(--success-color);">
-                    {{ bank_deposit_amount_today|floatformat:0 }} FC
+                    {{ bank_deposit_amount_today|fc_amount }} FC
                 </div>
+                <div style="font-size: 0.72rem; color: var(--text-secondary);">~ ${{ bank_deposit_amount_today|usd_equivalent }} USD</div>
             </div>
             <div>
                 <strong style="color: var(--text-secondary);">Cash Flow:</strong>
                 <div style="font-size: 1.5rem; font-weight: 600; color: var(--primary-color);">
-                    {{ chiffre_jour|floatformat:0 }} FC
+                    {{ chiffre_jour|fc_amount }} FC
                 </div>
+                <div style="font-size: 0.72rem; color: var(--text-secondary);">~ ${{ chiffre_jour|usd_equivalent }} USD</div>
             </div>
             <div>
                 <strong style="color: var(--text-secondary);">Pertes:</strong>
                 <div style="font-size: 1.5rem; font-weight: 600; color: {% if difference_today >= 0 %}var(--warning-color){% else %}var(--error-color){% endif %};">
-                    {{ difference_today|floatformat:0 }} FC
+                    {{ difference_today|fc_amount }} FC
                     {% if difference_today > 0 %}
                         <span style="font-size: 0.875rem;">(pertes)</span>
                     {% elif difference_today < 0 %}
@@ -261,6 +272,7 @@
                         <span style="font-size: 0.875rem;">(aucune perte)</span>
                     {% endif %}
                 </div>
+                <div style="font-size: 0.72rem; color: var(--text-secondary);">~ ${{ difference_today|usd_equivalent }} USD</div>
             </div>
         </div>
         {% if bank_deposit_today.notes %}

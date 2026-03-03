@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static currency_tags %}
 
 {% block title %}Dashboard Administrateur{% endblock %}
 
@@ -8,6 +8,7 @@
     <h1 class="mt-2 mb-0">Dashboard Administrateur - {{ today|date:"d/m/Y" }}</h1>
     <a href="{% url 'admin_create_site' %}" class="btn btn-primary">+ Créer un site</a>
 </div>
+<p style="margin: -0.75rem 0 1.5rem 0; color: var(--text-secondary); font-size: 0.82rem;">{% fx_rate_label %}</p>
 
 <div class="card" style="margin-bottom: 1.5rem;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap;">
@@ -76,7 +77,8 @@
         
         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
             <div class="stat-card" style="text-align: center; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
-                <div class="stat-value" style="font-size: 2rem; margin-bottom: 0.25rem;">{{ stats.chiffre_jour|floatformat:0 }}</div>
+                <div class="stat-value" style="font-size: 2rem; margin-bottom: 0.1rem;">{{ stats.chiffre_jour|fc_amount }} FC</div>
+                <div style="font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.25rem;">~ ${{ stats.chiffre_jour|usd_equivalent }} USD</div>
                 <div class="stat-label" style="font-size: 0.75rem;">FC (Aujourd'hui)</div>
             </div>
             
