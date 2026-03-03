@@ -196,12 +196,84 @@ def admin_dashboard(request):
             'problemes_ouverts': problemes_ouverts,
         })
     
+    pending_users = User.objects.filter(
+        is_active=False,
+        is_superuser=False
+    ).select_related("userprofile", "userprofile__site").order_by("-date_joined")
+
+    pending_account_requests = []
+    for pending_user in pending_users:
+        profile = getattr(pending_user, "userprofile", None)
+        site = profile.site if profile else None
+        pending_account_requests.append({
+            "id": pending_user.id,
+            "username": pending_user.username,
+            "email": pending_user.email,
+            "telephone": profile.telephone if profile else "",
+            "site_name": site.nom if site else "Non assigné",
+            "site_address": site.adresse if site and site.adresse else "Adresse non renseignée",
+            "requested_at": pending_user.date_joined,
+        })
+
     context = {
         'sites_stats': sites_stats,
         'today': today,
+        'pending_account_requests': pending_account_requests,
+        'pending_account_requests_count': len(pending_account_requests),
     }
     
     return render(request, 'admin/dashboard.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def admin_approve_account_request(request, user_id):
+    """
+    Approve a pending account request directly from the custom admin dashboard.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette action est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    requested_user = get_object_or_404(User, id=user_id, is_superuser=False)
+    requested_user.is_active = True
+    requested_user.save(update_fields=["is_active"])
+
+    if hasattr(requested_user, "userprofile"):
+        profile = requested_user.userprofile
+        profile.actif = True
+        profile.save(update_fields=["actif"])
+
+    messages.success(request, f'Compte "{requested_user.username}" approuvé avec succès.')
+    return redirect("admin_dashboard")
+
+
+@login_required
+@require_http_methods(["POST"])
+def admin_reject_account_request(request, user_id):
+    """
+    Reject a pending account request directly from the custom admin dashboard.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette action est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    requested_user = get_object_or_404(User, id=user_id, is_superuser=False)
+    username = requested_user.username
+
+    if requested_user.is_active:
+        messages.warning(request, f'Le compte "{username}" est déjà actif et ne peut pas être rejeté.')
+        return redirect("admin_dashboard")
+
+    requested_user.delete()
+    messages.success(request, f'Demande de compte "{username}" rejetée et supprimée.')
+    return redirect("admin_dashboard")
 
 
 @login_required

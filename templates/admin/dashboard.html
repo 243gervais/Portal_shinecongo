@@ -9,6 +9,60 @@
     <a href="{% url 'admin_create_site' %}" class="btn btn-primary">+ Créer un site</a>
 </div>
 
+<div class="card" style="margin-bottom: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap;">
+        <h2 style="margin: 0; color: var(--primary-color);">Demandes de comptes en attente</h2>
+        <span style="background: var(--warning-color); color: white; padding: 0.35rem 0.8rem; border-radius: 999px; font-weight: 700; font-size: 0.85rem;">
+            {{ pending_account_requests_count }}
+        </span>
+    </div>
+
+    {% if pending_account_requests %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Utilisateur</th>
+                    <th>Site</th>
+                    <th>Adresse</th>
+                    <th>Téléphone</th>
+                    <th>Demandé le</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in pending_account_requests %}
+                <tr>
+                    <td>
+                        <strong>{{ req.username }}</strong><br>
+                        <small style="color: var(--text-secondary);">{{ req.email|default:"-" }}</small>
+                    </td>
+                    <td>{{ req.site_name }}</td>
+                    <td>{{ req.site_address }}</td>
+                    <td>{{ req.telephone|default:"-" }}</td>
+                    <td>{{ req.requested_at|date:"d/m/Y H:i" }}</td>
+                    <td>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <form method="post" action="{% url 'admin_approve_account_request' req.id %}" style="margin: 0;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-success" style="padding: 0.45rem 0.75rem; font-size: 0.85rem;">Approuver</button>
+                            </form>
+                            <form method="post" action="{% url 'admin_reject_account_request' req.id %}" style="margin: 0;" onsubmit="return confirm('Rejeter et supprimer cette demande ?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger" style="padding: 0.45rem 0.75rem; font-size: 0.85rem;">Rejeter</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="margin: 0; color: var(--text-secondary);">Aucune demande en attente.</p>
+    {% endif %}
+</div>
+
 {% if sites_stats %}
 <div class="card-grid">
     {% for stats in sites_stats %}

@@ -19,7 +19,7 @@ from django.urls import path, include
 from django.contrib.auth import views as auth_views
 from django.conf import settings
 from django.conf.urls.static import static
-from comptes.views import dashboard, logout_view, register_view, admin_dashboard, admin_site_detail, admin_create_site, admin_add_wash, admin_add_daily_total, admin_add_bank_deposit, admin_site_documents, admin_upload_site_document, admin_delete_site_document
+from comptes.views import dashboard, logout_view, register_view, admin_dashboard, admin_approve_account_request, admin_reject_account_request, admin_site_detail, admin_create_site, admin_add_wash, admin_add_daily_total, admin_add_bank_deposit, admin_site_documents, admin_upload_site_document, admin_delete_site_document
 from comptes.forms import ApprovalAuthenticationForm
 
 # Personnalisation de l'admin Django en français
@@ -87,6 +87,8 @@ urlpatterns = [
     
     # PORTAIL ADMIN
     path("admin-dashboard/", admin_dashboard, name="admin_dashboard"),
+    path("admin-dashboard/account-requests/<int:user_id>/approve/", admin_approve_account_request, name="admin_approve_account_request"),
+    path("admin-dashboard/account-requests/<int:user_id>/reject/", admin_reject_account_request, name="admin_reject_account_request"),
     path("admin-dashboard/site/create/", admin_create_site, name="admin_create_site"),
     path("admin-dashboard/site/<uuid:site_id>/", admin_site_detail, name="admin_site_detail"),
     path("admin-dashboard/site/<uuid:site_id>/add-wash/", admin_add_wash, name="admin_add_wash"),
