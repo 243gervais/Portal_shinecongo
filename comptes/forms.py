@@ -219,8 +219,8 @@ class SiteEmployeeForm(forms.Form):
         required=False,
         widget=forms.DateInput(attrs={"class": "form-control", "type": "date"}),
     )
-    salaire_mensuel_fc = forms.DecimalField(
-        label="Salaire mensuel (FC)",
+    salaire_mensuel_usd = forms.DecimalField(
+        label="Salaire mensuel (USD)",
         required=False,
         min_value=0,
         decimal_places=2,
@@ -254,7 +254,7 @@ class SiteEmployeeForm(forms.Form):
             self.fields["telephone"].initial = self.profile_instance.telephone
             self.fields["mpesa_numero"].initial = self.profile_instance.mpesa_numero
             self.fields["date_embauche"].initial = self.profile_instance.date_embauche
-            self.fields["salaire_mensuel_fc"].initial = self.profile_instance.salaire_mensuel_fc
+            self.fields["salaire_mensuel_usd"].initial = self.profile_instance.salaire_mensuel_usd
 
     def clean_username(self):
         username = self.cleaned_data["username"]
@@ -308,7 +308,7 @@ class SiteEmployeeForm(forms.Form):
         profile.telephone = self.cleaned_data.get("telephone", "")
         profile.mpesa_numero = self.cleaned_data.get("mpesa_numero", "")
         profile.date_embauche = self.cleaned_data.get("date_embauche")
-        profile.salaire_mensuel_fc = self.cleaned_data.get("salaire_mensuel_fc")
+        profile.salaire_mensuel_usd = self.cleaned_data.get("salaire_mensuel_usd")
         profile.actif = user.is_active
         profile.save()
         return profile
@@ -331,8 +331,8 @@ class EmployeePaymentForm(forms.Form):
         label="Période au",
         widget=forms.DateInput(attrs={"class": "form-control", "type": "date"}),
     )
-    amount_paid_fc = forms.DecimalField(
-        label="Montant payé (FC)",
+    amount_paid_usd = forms.DecimalField(
+        label="Montant payé (USD)",
         min_value=0,
         max_digits=12,
         decimal_places=2,
@@ -368,9 +368,9 @@ class EmployeePaymentForm(forms.Form):
         self.fields["payment_date"].initial = today
         self.fields["period_start"].initial = month_start
         self.fields["period_end"].initial = today
-        salaire = getattr(employee_profile, "salaire_mensuel_fc", None)
+        salaire = getattr(employee_profile, "salaire_mensuel_usd", None)
         if salaire is not None:
-            self.fields["amount_paid_fc"].initial = salaire
+            self.fields["amount_paid_usd"].initial = salaire
 
     def clean(self):
         cleaned_data = super().clean()

@@ -267,7 +267,7 @@
             </div>
             <div class="item">
                 <div class="label">Salaire de base</div>
-                <div class="value">{{ payment.salary_base_fc|floatformat:0 }} FC</div>
+                <div class="value">${{ payment.salary_base_usd|floatformat:2 }} USD</div>
             </div>
             <div class="item">
                 <div class="label">Référence M-Pesa</div>
@@ -277,7 +277,7 @@
 
         <div class="amount-box">
             <div class="label">Montant payé</div>
-            <div class="value">{{ payment.amount_paid_fc|floatformat:0 }} FC</div>
+            <div class="value">${{ payment.amount_paid_usd|floatformat:2 }} USD</div>
         </div>
 
         <div class="notes">

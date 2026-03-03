@@ -19,7 +19,7 @@
         <div style="margin-top: 0.35rem; color: var(--text-secondary);">
             Téléphone: {{ employee_profile.telephone|default:"-" }} |
             M-Pesa: {{ employee_profile.mpesa_numero|default:"-" }} |
-            Salaire mensuel: {% if employee_profile.salaire_mensuel_fc %}{{ employee_profile.salaire_mensuel_fc|floatformat:0 }} FC{% else %}Non défini{% endif %} |
+            Salaire mensuel: {% if employee_profile.salaire_mensuel_usd %}${{ employee_profile.salaire_mensuel_usd|floatformat:2 }} USD{% else %}Non défini{% endif %} |
             Ancienneté: {{ employee_profile.anciennete_texte }}
         </div>
     </div>
@@ -55,8 +55,8 @@
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
             <div class="form-group">
-                <label for="id_amount_paid_fc">Montant payé (FC) *</label>
-                {{ form.amount_paid_fc }}
+                <label for="id_amount_paid_usd">Montant payé (USD) *</label>
+                {{ form.amount_paid_usd }}
             </div>
             <div class="form-group">
                 <label for="id_mpesa_reference">Référence M-Pesa</label>

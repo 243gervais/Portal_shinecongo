@@ -33,7 +33,7 @@
                     <th>Identifiant</th>
                     <th>Téléphone</th>
                     <th>M-Pesa</th>
-                    <th>Salaire (FC)</th>
+                    <th>Salaire (USD)</th>
                     <th>Ancienneté</th>
                     <th>Statut</th>
                     <th>Actions</th>
@@ -47,8 +47,8 @@
                     <td>{{ profile.telephone|default:"-" }}</td>
                     <td>{{ profile.mpesa_numero|default:"-" }}</td>
                     <td>
-                        {% if profile.salaire_mensuel_fc %}
-                            {{ profile.salaire_mensuel_fc|floatformat:0 }} FC
+                        {% if profile.salaire_mensuel_usd %}
+                            ${{ profile.salaire_mensuel_usd|floatformat:2 }} USD
                         {% else %}
                             Non défini
                         {% endif %}
@@ -108,8 +108,8 @@
                     <th>Date</th>
                     <th>Employé</th>
                     <th>Période</th>
-                    <th>Salaire base</th>
-                    <th>Montant payé</th>
+                    <th>Salaire base (USD)</th>
+                    <th>Montant payé (USD)</th>
                     <th>Mode</th>
                     <th>Signature employé</th>
                     <th>Fiche</th>
@@ -121,8 +121,8 @@
                     <td>{{ payment.payment_date|date:"d/m/Y" }}</td>
                     <td>{{ payment.employee_profile.user.get_full_name|default:payment.employee_profile.user.username }}</td>
                     <td>{{ payment.period_start|date:"d/m/Y" }} → {{ payment.period_end|date:"d/m/Y" }}</td>
-                    <td>{{ payment.salary_base_fc|floatformat:0 }} FC</td>
-                    <td style="font-weight: 600; color: var(--success-color);">{{ payment.amount_paid_fc|floatformat:0 }} FC</td>
+                    <td>${{ payment.salary_base_usd|floatformat:2 }} USD</td>
+                    <td style="font-weight: 600; color: var(--success-color);">${{ payment.amount_paid_usd|floatformat:2 }} USD</td>
                     <td>
                         {{ payment.get_payment_method_display }}
                         {% if payment.mpesa_reference %}

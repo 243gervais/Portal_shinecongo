@@ -1118,9 +1118,9 @@ def admin_create_employee_payment(request, site_id, profile_id):
     if request.method == 'POST':
         form = EmployeePaymentForm(request.POST, employee_profile=employee_profile)
         if form.is_valid():
-            salary_base = employee_profile.salaire_mensuel_fc
+            salary_base = employee_profile.salaire_mensuel_usd
             if salary_base is None:
-                salary_base = form.cleaned_data['amount_paid_fc']
+                salary_base = form.cleaned_data['amount_paid_usd']
 
             admin_signature = user.get_full_name() or user.username
 
@@ -1130,8 +1130,8 @@ def admin_create_employee_payment(request, site_id, profile_id):
                 payment_date=form.cleaned_data['payment_date'],
                 period_start=form.cleaned_data['period_start'],
                 period_end=form.cleaned_data['period_end'],
-                salary_base_fc=salary_base,
-                amount_paid_fc=form.cleaned_data['amount_paid_fc'],
+                salary_base_usd=salary_base,
+                amount_paid_usd=form.cleaned_data['amount_paid_usd'],
                 payment_method=form.cleaned_data['payment_method'],
                 mpesa_reference=form.cleaned_data['mpesa_reference'],
                 employee_signature_name=form.cleaned_data['employee_signature_name'],
@@ -1146,7 +1146,7 @@ def admin_create_employee_payment(request, site_id, profile_id):
                 description=(
                     f"Paiement employé créé sur {site.nom}: "
                     f"{employee_profile.user.get_full_name() or employee_profile.user.username} "
-                    f"({payment.amount_paid_fc} FC)"
+                    f"({payment.amount_paid_usd} USD)"
                 ),
                 content_object=payment,
                 ip_address=get_client_ip(request),

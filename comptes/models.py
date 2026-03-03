@@ -22,13 +22,13 @@ class UserProfile(models.Model):
     telephone = models.CharField(max_length=20, blank=True, verbose_name="Téléphone")
     mpesa_numero = models.CharField(max_length=30, blank=True, verbose_name="Numéro M-Pesa")
     date_embauche = models.DateField(null=True, blank=True, verbose_name="Date d'embauche")
-    salaire_mensuel_fc = models.DecimalField(
+    salaire_mensuel_usd = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         null=True,
         blank=True,
         validators=[MinValueValidator(0)],
-        verbose_name="Salaire mensuel (FC)",
+        verbose_name="Salaire mensuel (USD)",
     )
     actif = models.BooleanField(default=True, verbose_name="Actif")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
@@ -90,17 +90,17 @@ class EmployeePayment(models.Model):
     payment_date = models.DateField(default=timezone.localdate, verbose_name="Date de paiement")
     period_start = models.DateField(verbose_name="Période du")
     period_end = models.DateField(verbose_name="Période au")
-    salary_base_fc = models.DecimalField(
+    salary_base_usd = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         validators=[MinValueValidator(0)],
-        verbose_name="Salaire de base (FC)",
+        verbose_name="Salaire de base (USD)",
     )
-    amount_paid_fc = models.DecimalField(
+    amount_paid_usd = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         validators=[MinValueValidator(0)],
-        verbose_name="Montant payé (FC)",
+        verbose_name="Montant payé (USD)",
     )
     payment_method = models.CharField(
         max_length=15,
@@ -134,7 +134,7 @@ class EmployeePayment(models.Model):
 
     def __str__(self):
         employee_name = self.employee_profile.user.get_full_name() or self.employee_profile.user.username
-        return f"{employee_name} - {self.amount_paid_fc} FC ({self.payment_date})"
+        return f"{employee_name} - {self.amount_paid_usd} USD ({self.payment_date})"
 
 
 @receiver(post_save, sender=User)

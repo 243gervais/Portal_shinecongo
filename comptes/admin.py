@@ -18,7 +18,7 @@ class UserProfileInline(admin.StackedInline):
     can_delete = False
     verbose_name_plural = "Profil Utilisateur"
     fk_name = "user"
-    fields = ("role", "site", "telephone", "mpesa_numero", "date_embauche", "salaire_mensuel_fc", "actif")
+    fields = ("role", "site", "telephone", "mpesa_numero", "date_embauche", "salaire_mensuel_usd", "actif")
     extra = 0
     min_num = 1
     max_num = 1
@@ -204,7 +204,7 @@ admin.site.register(User, UserAdmin)
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ("user", "role", "site", "telephone", "mpesa_numero", "salaire_mensuel_fc", "date_embauche", "actif", "created_at")
+    list_display = ("user", "role", "site", "telephone", "mpesa_numero", "salaire_mensuel_usd", "date_embauche", "actif", "created_at")
     list_filter = ("role", "site", "actif")
     search_fields = ("user__username", "user__first_name", "user__last_name", "telephone", "mpesa_numero", "site__nom")
     ordering = ("-created_at",)
@@ -214,7 +214,7 @@ class UserProfileAdmin(admin.ModelAdmin):
             "fields": ("user",)
         }),
         ("Informations", {
-            "fields": ("role", "site", "telephone", "mpesa_numero", "date_embauche", "salaire_mensuel_fc", "actif")
+            "fields": ("role", "site", "telephone", "mpesa_numero", "date_embauche", "salaire_mensuel_usd", "actif")
         }),
         ("Métadonnées", {
             "fields": ("created_at", "updated_at"),
@@ -230,7 +230,7 @@ class EmployeePaymentAdmin(admin.ModelAdmin):
         "employee_profile",
         "site",
         "payment_date",
-        "amount_paid_fc",
+        "amount_paid_usd",
         "payment_method",
         "employee_signature_name",
         "admin_signature_name",
