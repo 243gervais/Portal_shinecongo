@@ -86,7 +86,7 @@
         <div class="card stat-card" style="background: {% if difference_date >= 0 %}var(--warning-color){% else %}var(--error-color){% endif %}; color: white;">
             <div class="stat-value" style="color: white; font-size: 2.5rem;">{{ difference_date|floatformat:0 }}</div>
             <div class="stat-label" style="color: rgba(255,255,255,0.9);">
-                {% if difference_date > 0 %}💰 Reste en caisse{% elif difference_date < 0 %}⚠️ Manquant{% else %}✅ Égal{% endif %}
+                {% if difference_date > 0 %}📉 Pertes{% elif difference_date < 0 %}⚠️ Manquant{% else %}✅ Égal{% endif %}
             </div>
         </div>
         
@@ -105,6 +105,9 @@
             <div class="stat-label">Problèmes signalés</div>
         </div>
     </div>
+    <p style="margin: 0 0 1rem 0; color: var(--text-secondary); font-size: 0.9rem;">
+        Note: les pertes incluent les 14&nbsp;000 FC de transport journalier.
+    </p>
     
     <!-- Détails du dépôt bancaire -->
     {% if bank_deposit_date %}
@@ -203,7 +206,7 @@
     <div class="card stat-card" style="background: {% if difference_today >= 0 %}var(--warning-color){% else %}var(--error-color){% endif %}; color: white;">
         <div class="stat-value" style="color: white; font-size: 2rem;">{{ difference_today|floatformat:0 }}</div>
         <div class="stat-label" style="color: rgba(255,255,255,0.9);">
-            {% if difference_today >= 0 %}💰 Différence{% else %}⚠️ Manquant{% endif %}
+            {% if difference_today >= 0 %}📉 Pertes{% else %}⚠️ Manquant{% endif %}
         </div>
     </div>
     {% endif %}
@@ -247,15 +250,15 @@
                 </div>
             </div>
             <div>
-                <strong style="color: var(--text-secondary);">Différence:</strong>
+                <strong style="color: var(--text-secondary);">Pertes:</strong>
                 <div style="font-size: 1.5rem; font-weight: 600; color: {% if difference_today >= 0 %}var(--warning-color){% else %}var(--error-color){% endif %};">
                     {{ difference_today|floatformat:0 }} FC
                     {% if difference_today > 0 %}
-                        <span style="font-size: 0.875rem;">(reste en caisse)</span>
+                        <span style="font-size: 0.875rem;">(pertes)</span>
                     {% elif difference_today < 0 %}
                         <span style="font-size: 0.875rem;">(manquant)</span>
                     {% else %}
-                        <span style="font-size: 0.875rem;">(égal)</span>
+                        <span style="font-size: 0.875rem;">(aucune perte)</span>
                     {% endif %}
                 </div>
             </div>

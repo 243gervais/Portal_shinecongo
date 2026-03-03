@@ -17,8 +17,8 @@
     <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
         <p style="margin: 0; color: var(--text-secondary);">
             <strong>🏦 Note:</strong> Enregistrez le montant déposé à la banque à la fin de la journée. 
-            Ce montant peut être différent du cash flow (montant réellement gagné) en raison des dépenses, 
-            de l'argent conservé sur place, ou d'autres facteurs.
+            La différence avec le cash flow est suivie comme <strong>pertes</strong> (incluant 14&nbsp;000 FC de transport journalier),
+            ainsi que d'autres dépenses éventuelles.
         </p>
     </div>
 
@@ -41,7 +41,7 @@
         <div class="form-group">
             <label for="notes">Notes (optionnel)</label>
             <textarea class="form-control" id="notes" name="notes" rows="3" 
-                      placeholder="Ex: Dépôt effectué à 18h30, reste 5000 FC en caisse...">{% if deposit %}{{ deposit.notes }}{% endif %}</textarea>
+                      placeholder="Ex: Dépôt effectué à 18h30, pertes 14000 FC (transport)...">{% if deposit %}{{ deposit.notes }}{% endif %}</textarea>
             <small style="color: var(--text-secondary);">Ajoutez des notes pour expliquer les différences avec le cash flow si nécessaire.</small>
         </div>
 
