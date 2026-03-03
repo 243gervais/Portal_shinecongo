@@ -969,7 +969,7 @@ def admin_upload_site_document(request, site_id):
             file_type = request.POST.get('file_type')
             title = request.POST.get('title')
             description = request.POST.get('description', '')
-            file = request.FILES.get('file')
+            files = request.FILES.getlist('file')
             
             # Validation
             if not file_type:
@@ -986,34 +986,44 @@ def admin_upload_site_document(request, site_id):
                     'file_types': SiteDocument.FILE_TYPE_CHOICES,
                 })
             
-            if not file:
-                messages.error(request, 'Le fichier est requis.')
+            if not files:
+                messages.error(request, 'Au moins un fichier est requis.')
                 return render(request, 'admin/upload_site_document.html', {
                     'site': site,
                     'file_types': SiteDocument.FILE_TYPE_CHOICES,
                 })
-            
-            # Créer le document
-            document = SiteDocument.objects.create(
-                site=site,
-                file_type=file_type,
-                title=title,
-                description=description,
-                file=file,
-                uploaded_by=user
-            )
-            
-            # Log d'audit
-            AuditLog.log(
-                user=user,
-                action="CREER",
-                description=f"Document uploadé pour le site {site.nom}: {title} ({document.get_file_type_display()})",
-                content_object=document,
-                ip_address=get_client_ip(request),
-                user_agent=get_user_agent(request)
-            )
-            
-            messages.success(request, f'Document "{title}" uploadé avec succès !')
+
+            created_documents = []
+            total_files = len(files)
+            for index, uploaded_file in enumerate(files, start=1):
+                generated_title = title
+                if total_files > 1:
+                    generated_title = f"{title} ({index})"
+
+                document = SiteDocument.objects.create(
+                    site=site,
+                    file_type=file_type,
+                    title=generated_title,
+                    description=description,
+                    file=uploaded_file,
+                    uploaded_by=user
+                )
+                created_documents.append(document)
+
+                # Log d'audit
+                AuditLog.log(
+                    user=user,
+                    action="CREER",
+                    description=f"Document uploadé pour le site {site.nom}: {generated_title} ({document.get_file_type_display()})",
+                    content_object=document,
+                    ip_address=get_client_ip(request),
+                    user_agent=get_user_agent(request)
+                )
+
+            if total_files == 1:
+                messages.success(request, f'Document "{created_documents[0].title}" uploadé avec succès !')
+            else:
+                messages.success(request, f'{total_files} fichiers uploadés avec succès.')
             return redirect('admin_site_documents', site_id=site.id)
             
         except Exception as e:

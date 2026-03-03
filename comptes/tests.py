@@ -1,9 +1,10 @@
 from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 from comptes.forms import ApprovalAuthenticationForm
-from sites.models import Location
+from sites.models import Location, SiteDocument
 
 
 class AccountApprovalFlowTests(TestCase):
@@ -142,3 +143,43 @@ class AdminAccountRequestsDashboardTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertRedirects(response, reverse("admin_dashboard"), fetch_redirect_response=False)
         self.assertFalse(User.objects.filter(id=self.pending_user.id).exists())
+
+
+class SiteDocumentUploadTests(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            username="docs_admin",
+            email="docs_admin@example.com",
+            password="AdminPass123!",
+        )
+        self.site = Location.objects.create(
+            nom="Site Docs",
+            adresse="Adresse Docs",
+            ville="Kinshasa",
+            actif=True,
+        )
+        self.client.login(username="docs_admin", password="AdminPass123!")
+
+    def test_multi_file_upload_creates_multiple_documents(self):
+        file_1 = SimpleUploadedFile("image1.jpg", b"fake-image-content-1", content_type="image/jpeg")
+        file_2 = SimpleUploadedFile("image2.jpg", b"fake-image-content-2", content_type="image/jpeg")
+
+        response = self.client.post(
+            reverse("admin_upload_site_document", args=[self.site.id]),
+            data={
+                "file_type": "PHOTO_CONSTRUCTION",
+                "title": "Photos chantier",
+                "description": "Serie de photos",
+                "file": [file_1, file_2],
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(
+            response,
+            reverse("admin_site_documents", args=[self.site.id]),
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(SiteDocument.objects.filter(site=self.site).count(), 2)
+        self.assertTrue(SiteDocument.objects.filter(site=self.site, title="Photos chantier (1)").exists())
+        self.assertTrue(SiteDocument.objects.filter(site=self.site, title="Photos chantier (2)").exists())
