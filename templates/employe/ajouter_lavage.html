@@ -75,33 +75,22 @@
         <div class="form-group">
             <label for="photos">Photos après lavage * (minimum 1)</label>
             <input type="file" class="form-control" id="photos" name="photos" multiple accept="image/*" style="display: none;">
+            <input type="file" id="camera-photo-input" accept="image/*" capture="environment" style="display: none;">
 
             <div id="camera-container" style="margin-top: 1rem;">
                 <div id="camera-controls" class="capture-actions" style="margin-bottom: 1rem;">
                     <button type="button" class="btn btn-primary" id="start-camera-btn">
-                        📷 Ouvrir l'appareil photo
+                        📷 Prendre une photo
                     </button>
                     <button type="button" class="btn btn-secondary" id="select-photos-btn">
                         🖼️ Choisir des photos
                     </button>
                 </div>
 
-                <div id="camera-preview-container" style="display: none; margin-bottom: 1rem;">
-                    <video id="camera-preview" autoplay playsinline style="width: 100%; max-width: 100%; border-radius: 8px; background: #000;"></video>
-                    <div class="capture-actions" style="margin-top: 1rem;">
-                        <button type="button" class="btn btn-success" id="capture-photo-btn">
-                            📸 Capturer
-                        </button>
-                        <button type="button" class="btn btn-danger" id="stop-camera-btn">
-                            ❌ Fermer
-                        </button>
-                    </div>
-                </div>
-
                 <div id="photo-preview-container" class="wash-photo-grid"></div>
 
                 <small class="hint-text" style="display: block; margin-top: 1rem;">
-                    Prenez des photos du véhicule après le lavage. Vous pouvez aussi choisir des photos déjà présentes sur le téléphone.
+                    Le bouton "Prendre une photo" ouvre directement l'appareil photo du téléphone. Vous pouvez aussi choisir des photos déjà présentes.
                 </small>
             </div>
         </div>
@@ -243,13 +232,7 @@
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     }
 
-    #camera-preview {
-        max-height: 420px;
-        object-fit: contain;
-    }
-
     #start-camera-btn,
-    #capture-photo-btn,
     #select-photos-btn,
     #choose-plaque-photo-btn {
         font-size: 1rem;
@@ -285,9 +268,6 @@
             min-height: 120px;
         }
 
-        #camera-preview {
-            max-height: 300px;
-        }
     }
 </style>
 
@@ -305,17 +285,12 @@
         const plaquePhotoPreview = document.getElementById('plaque-photo-preview');
 
         const fileInput = document.getElementById('photos');
+        const cameraPhotoInput = document.getElementById('camera-photo-input');
         const selectPhotosBtn = document.getElementById('select-photos-btn');
         const startCameraBtn = document.getElementById('start-camera-btn');
-        const stopCameraBtn = document.getElementById('stop-camera-btn');
-        const capturePhotoBtn = document.getElementById('capture-photo-btn');
-        const cameraPreview = document.getElementById('camera-preview');
-        const cameraPreviewContainer = document.getElementById('camera-preview-container');
-        const cameraControls = document.getElementById('camera-controls');
         const previewContainer = document.getElementById('photo-preview-container');
 
         let plaquePreviewUrl = null;
-        let stream = null;
         const photos = [];
 
         function getPlaqueMode() {
@@ -388,72 +363,19 @@
             updateFileInput();
         });
 
-        startCameraBtn.addEventListener('click', async function() {
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: 'environment'
-                    },
-                    audio: false
-                });
-
-                cameraPreview.srcObject = stream;
-                cameraPreviewContainer.style.display = 'block';
-                cameraControls.style.display = 'none';
-                capturePhotoBtn.disabled = false;
-            } catch (error) {
-                console.error('Error accessing camera:', error);
-                alert('Impossible d\'accéder à l\'appareil photo. Veuillez autoriser l\'accès à la caméra dans les paramètres de votre navigateur.');
-            }
+        startCameraBtn.addEventListener('click', function() {
+            cameraPhotoInput.click();
         });
 
-        stopCameraBtn.addEventListener('click', function() {
-            stopCamera();
-        });
-
-        capturePhotoBtn.addEventListener('click', function() {
-            capturePhoto();
-        });
-
-        function stopCamera() {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-                stream = null;
-            }
-            cameraPreview.srcObject = null;
-            cameraPreviewContainer.style.display = 'none';
-            cameraControls.style.display = 'grid';
-        }
-
-        function capturePhoto() {
-            if (!stream) {
-                return;
-            }
-
-            const canvas = document.createElement('canvas');
-            canvas.width = cameraPreview.videoWidth;
-            canvas.height = cameraPreview.videoHeight;
-
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(cameraPreview, 0, 0, canvas.width, canvas.height);
-
-            canvas.toBlob(function(blob) {
-                if (!blob) {
-                    alert('Erreur lors de la capture de la photo');
-                    return;
-                }
-
-                const timestamp = Date.now();
-                const file = new File([blob], `photo_${timestamp}.jpg`, {
-                    type: 'image/jpeg',
-                    lastModified: timestamp
-                });
-
-                photos.push(file);
+        cameraPhotoInput.addEventListener('change', function() {
+            const selectedFile = cameraPhotoInput.files && cameraPhotoInput.files[0];
+            if (selectedFile && selectedFile.type && selectedFile.type.startsWith('image/')) {
+                photos.push(selectedFile);
                 refreshPreviews();
                 updateFileInput();
-            }, 'image/jpeg', 0.9);
-        }
+            }
+            cameraPhotoInput.value = '';
+        });
 
         window.removePhoto = function(index) {
             photos.splice(index, 1);
@@ -508,8 +430,6 @@
         }
 
         form.addEventListener('submit', function(e) {
-            stopCamera();
-
             if (getPlaqueMode() === 'photo') {
                 plaqueInput.value = '';
             } else {
@@ -545,7 +465,6 @@
         });
 
         window.addEventListener('beforeunload', function() {
-            stopCamera();
             if (plaquePreviewUrl) {
                 URL.revokeObjectURL(plaquePreviewUrl);
             }
