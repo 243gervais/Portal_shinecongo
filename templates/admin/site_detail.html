@@ -18,6 +18,9 @@
         <a href="{% url 'admin_add_bank_deposit' site.id %}" class="btn btn-info">
             🏦 {% if bank_deposit_today %}Modifier{% else %}Ajouter{% endif %} dépôt bancaire
         </a>
+        <a href="{% url 'admin_site_losses' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-warning">
+            📉 Gérer les pertes
+        </a>
         <a href="{% url 'admin_add_daily_total' site.id %}" class="btn btn-primary">
             💰 Ajouter le total quotidien
         </a>
@@ -86,11 +89,21 @@
             </div>
         </div>
         
-        <div class="card stat-card" style="background: {% if difference_date >= 0 %}var(--warning-color){% else %}var(--error-color){% endif %}; color: white;">
+        <div class="card stat-card" style="background: var(--warning-color); color: white;">
+            <div class="stat-value" style="color: white; font-size: 2.5rem;">{{ pertes_date_total|fc_amount }} FC</div>
+            <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ pertes_date_total|usd_equivalent }} USD</div>
+            <div class="stat-label" style="color: rgba(255,255,255,0.9);">
+                📉 Pertes du jour
+                <a href="{% url 'admin_site_losses' site.id %}?date={{ selected_single_date|date:'Y-m-d' }}"
+                   style="color: rgba(255,255,255,0.85); text-decoration: none; font-size: 0.8rem; margin-left: 0.5rem;">Gérer</a>
+            </div>
+        </div>
+
+        <div class="card stat-card" style="background: {% if difference_date >= 0 %}var(--primary-color){% else %}var(--error-color){% endif %}; color: white;">
             <div class="stat-value" style="color: white; font-size: 2.5rem;">{{ difference_date|fc_amount }} FC</div>
             <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ difference_date|usd_equivalent }} USD</div>
             <div class="stat-label" style="color: rgba(255,255,255,0.9);">
-                {% if difference_date > 0 %}📉 Pertes{% elif difference_date < 0 %}⚠️ Manquant{% else %}✅ Égal{% endif %}
+                🧮 Écart de caisse
             </div>
         </div>
         
@@ -110,7 +123,7 @@
         </div>
     </div>
     <p style="margin: 0 0 1rem 0; color: var(--text-secondary); font-size: 0.9rem;">
-        Note: les pertes incluent les 14&nbsp;000 FC de transport journalier.
+        Astuce: enregistrez les pertes (transport, pannes, urgences) via "Gérer les pertes" pour garder les chiffres exacts.
     </p>
     
     <!-- Détails du dépôt bancaire -->
@@ -211,12 +224,20 @@
         </div>
     </div>
     
-    <div class="card stat-card" style="background: {% if difference_today >= 0 %}var(--warning-color){% else %}var(--error-color){% endif %}; color: white;">
+    <div class="card stat-card" style="background: var(--warning-color); color: white;">
+        <div class="stat-value" style="color: white; font-size: 2rem;">{{ pertes_today_total|fc_amount }} FC</div>
+        <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ pertes_today_total|usd_equivalent }} USD</div>
+        <div class="stat-label" style="color: rgba(255,255,255,0.9);">
+            📉 Pertes (Aujourd'hui)
+            <a href="{% url 'admin_site_losses' site.id %}?date={{ today|date:'Y-m-d' }}"
+               style="color: rgba(255,255,255,0.85); text-decoration: none; font-size: 0.8rem; margin-left: 0.5rem;">Gérer</a>
+        </div>
+    </div>
+
+    <div class="card stat-card" style="background: {% if difference_today >= 0 %}var(--primary-color){% else %}var(--error-color){% endif %}; color: white;">
         <div class="stat-value" style="color: white; font-size: 2rem;">{{ difference_today|fc_amount }} FC</div>
         <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ difference_today|usd_equivalent }} USD</div>
-        <div class="stat-label" style="color: rgba(255,255,255,0.9);">
-            {% if difference_today >= 0 %}📉 Pertes{% else %}⚠️ Manquant{% endif %}
-        </div>
+        <div class="stat-label" style="color: rgba(255,255,255,0.9);">🧮 Écart de caisse (Aujourd'hui)</div>
     </div>
     {% endif %}
     
@@ -228,6 +249,48 @@
     <div class="card stat-card">
         <div class="stat-value" style="color: var(--warning-color);">{{ problemes_ouverts.count }}</div>
         <div class="stat-label">Problèmes ouverts</div>
+    </div>
+</div>
+
+<!-- Pilotage hebdomadaire -->
+<div class="card mb-4">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: 0.75rem; flex-wrap: wrap;">
+        <h2 style="margin: 0; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
+            📊 Pilotage hebdomadaire ({{ week_range_label }})
+        </h2>
+        <a href="{% url 'admin_site_losses' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-warning">Gérer les pertes</a>
+    </div>
+
+    <div class="card-grid">
+        <div class="card stat-card" style="background: var(--primary-color); color: white;">
+            <div class="stat-value" style="color: white; font-size: 2rem;">{{ chiffre_week|fc_amount }} FC</div>
+            <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ chiffre_week|usd_equivalent }} USD</div>
+            <div class="stat-label" style="color: rgba(255,255,255,0.9);">Cash Flow semaine</div>
+        </div>
+
+        <div class="card stat-card" style="background: var(--secondary-color); color: white;">
+            <div class="stat-value" style="color: white; font-size: 2rem;">{{ bank_net_week|fc_amount }} FC</div>
+            <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ bank_net_week|usd_equivalent }} USD</div>
+            <div class="stat-label" style="color: rgba(255,255,255,0.9);">Banque (net semaine)</div>
+        </div>
+
+        <div class="card stat-card" style="background: var(--warning-color); color: white;">
+            <div class="stat-value" style="color: white; font-size: 2rem;">{{ pertes_week_total|fc_amount }} FC</div>
+            <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ pertes_week_total|usd_equivalent }} USD</div>
+            <div class="stat-label" style="color: rgba(255,255,255,0.9);">Pertes semaine</div>
+        </div>
+
+        <div class="card stat-card">
+            <div class="stat-value" style="color: var(--success-color);">{{ bank_deposit_week|fc_amount }} FC</div>
+            <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.1rem;">~ ${{ bank_deposit_week|usd_equivalent }} USD</div>
+            <div class="stat-label">Dépôts en banque (semaine)</div>
+        </div>
+    </div>
+
+    <div style="margin-top: 0.85rem; color: var(--text-secondary); font-size: 0.9rem;">
+        Pertes caisse: <strong>{{ pertes_week_caisse|fc_amount }} FC</strong> |
+        Pertes financées par banque: <strong>{{ pertes_week_banque|fc_amount }} FC</strong> |
+        Écart caisse semaine: <strong>{{ caisse_balance_week|fc_amount }} FC</strong>
     </div>
 </div>
 
@@ -262,18 +325,17 @@
             </div>
             <div>
                 <strong style="color: var(--text-secondary);">Pertes:</strong>
-                <div style="font-size: 1.5rem; font-weight: 600; color: {% if difference_today >= 0 %}var(--warning-color){% else %}var(--error-color){% endif %};">
-                    {{ difference_today|fc_amount }} FC
-                    {% if difference_today > 0 %}
-                        <span style="font-size: 0.875rem;">(pertes)</span>
-                    {% elif difference_today < 0 %}
-                        <span style="font-size: 0.875rem;">(manquant)</span>
-                    {% else %}
-                        <span style="font-size: 0.875rem;">(aucune perte)</span>
-                    {% endif %}
+                <div style="font-size: 1.5rem; font-weight: 600; color: var(--warning-color);">
+                    {{ pertes_today_total|fc_amount }} FC
                 </div>
-                <div style="font-size: 0.72rem; color: var(--text-secondary);">~ ${{ difference_today|usd_equivalent }} USD</div>
+                <div style="font-size: 0.72rem; color: var(--text-secondary);">~ ${{ pertes_today_total|usd_equivalent }} USD</div>
+                <a href="{% url 'admin_site_losses' site.id %}?date={{ today|date:'Y-m-d' }}" style="font-size: 0.82rem; text-decoration: none;">Gérer les pertes</a>
             </div>
+        </div>
+        <div style="margin-top: 0.75rem; color: var(--text-secondary); font-size: 0.85rem;">
+            Pertes caisse: {{ pertes_today_caisse|fc_amount }} FC |
+            Pertes banque: {{ pertes_today_banque|fc_amount }} FC |
+            Écart caisse: {{ difference_today|fc_amount }} FC
         </div>
         {% if bank_deposit_today.notes %}
         <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">

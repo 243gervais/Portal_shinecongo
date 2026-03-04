@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Location, DailyBankDeposit, SiteDocument
+from .models import Location, DailyBankDeposit, SiteDocument, SiteLossEntry
 
 
 @admin.register(Location)
@@ -82,3 +82,25 @@ class SiteDocumentAdmin(admin.ModelAdmin):
     def get_file_size(self, obj):
         return f"{obj.file_size_mb()} MB"
     get_file_size.short_description = "Taille"
+
+
+@admin.register(SiteLossEntry)
+class SiteLossEntryAdmin(admin.ModelAdmin):
+    list_display = ("site", "date", "category", "funding_source", "amount", "title", "created_by", "created_at")
+    list_filter = ("date", "site", "category", "funding_source")
+    search_fields = ("site__nom", "title", "description")
+    ordering = ("-date", "-created_at")
+    readonly_fields = ("created_at", "updated_at")
+
+    fieldsets = (
+        ("Informations", {
+            "fields": ("site", "date", "category", "funding_source", "amount", "title")
+        }),
+        ("Détails", {
+            "fields": ("description", "created_by")
+        }),
+        ("Métadonnées", {
+            "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",)
+        }),
+    )

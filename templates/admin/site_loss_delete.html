@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load currency_tags %}
+
+{% block title %}Supprimer perte - {{ site.nom }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; gap: 0.75rem; flex-wrap: wrap;">
+    <div>
+        <h1 class="mt-2 mb-2">🗑️ Supprimer une perte</h1>
+        <p style="color: var(--text-secondary); margin: 0;">
+            Site: {{ site.nom }}
+        </p>
+    </div>
+    {% if next_url %}
+    <a href="{{ next_url }}" class="btn btn-secondary">← Retour</a>
+    {% else %}
+    <a href="{% url 'admin_site_losses' site.id %}?date={{ loss_entry.date|date:'Y-m-d' }}" class="btn btn-secondary">← Retour</a>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div style="background: rgba(244, 67, 54, 0.1); border-left: 3px solid var(--error-color); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+        <p style="margin: 0; color: var(--error-color);">
+            <strong>⚠️ Attention:</strong> Cette suppression est irréversible.
+        </p>
+    </div>
+
+    <div style="padding: 1rem; background: var(--bg-secondary); border-radius: 8px; margin-bottom: 1.5rem;">
+        <p><strong>Date:</strong> {{ loss_entry.date|date:"d/m/Y" }}</p>
+        <p><strong>Type:</strong> {{ loss_entry.get_category_display }}</p>
+        <p><strong>Source:</strong> {{ loss_entry.get_funding_source_display }}</p>
+        <p><strong>Titre:</strong> {{ loss_entry.title }}</p>
+        <p><strong>Montant:</strong> {{ loss_entry.amount|fc_amount }} FC</p>
+        <p><strong>Description:</strong> {{ loss_entry.description|default:"-" }}</p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next_url }}">
+        <div class="form-group">
+            <label for="motif">Motif de suppression *</label>
+            <textarea class="form-control" id="motif" name="motif" rows="3" required placeholder="Expliquez pourquoi cette perte doit être supprimée..."></textarea>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-danger" style="flex: 1;">Confirmer la suppression</button>
+            {% if next_url %}
+            <a href="{{ next_url }}" class="btn btn-secondary" style="flex: 1;">Annuler</a>
+            {% else %}
+            <a href="{% url 'admin_site_losses' site.id %}?date={{ loss_entry.date|date:'Y-m-d' }}" class="btn btn-secondary" style="flex: 1;">Annuler</a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+{% endblock %}

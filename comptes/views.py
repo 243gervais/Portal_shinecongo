@@ -1,6 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout, login
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods
@@ -9,10 +10,10 @@ from django.http import HttpResponse
 from django.contrib import messages
 from django.db.models import Sum, Count, Q
 from django.contrib.auth.models import User
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from .forms import UserRegistrationForm, SiteCreationForm, SiteEmployeeForm, EmployeePaymentForm
-from sites.models import Location, DailyBankDeposit, SiteDocument
+from sites.models import Location, DailyBankDeposit, SiteDocument, SiteLossEntry
 from lavages.models import CarWash, CarWashPhoto
 from problemes.models import IssueReport
 from pointage.models import ShiftDay
@@ -162,6 +163,19 @@ def _redirect_to_admin_site_detail(request, site):
     if next_url:
         return redirect(next_url)
     return redirect('admin_site_detail', site_id=site.id)
+
+
+def _redirect_to_site_losses(request, site, date_obj=None):
+    """
+    Redirige vers l'URL de retour demandée ou vers la gestion des pertes du site.
+    """
+    next_url = _safe_next_url(request)
+    if next_url:
+        return redirect(next_url)
+    base_url = reverse('admin_site_losses', kwargs={'site_id': site.id})
+    if date_obj:
+        return redirect(f"{base_url}?date={date_obj.strftime('%Y-%m-%d')}")
+    return redirect(base_url)
 
 
 @login_required
@@ -466,16 +480,56 @@ def admin_site_detail(request, site_id):
     # Récupérer le dépôt bancaire pour la date sélectionnée
     bank_deposit_date = DailyBankDeposit.objects.filter(site=site, date=detail_date).first()
     bank_deposit_amount_date = bank_deposit_date.amount if bank_deposit_date else 0
-    
+
+    # Pertes de la date sélectionnée
+    losses_date_qs = SiteLossEntry.objects.filter(site=site, date=detail_date).order_by('-created_at')
+    pertes_date_total = losses_date_qs.aggregate(total=Sum('amount'))['total'] or 0
+    pertes_date_caisse = losses_date_qs.filter(funding_source='CAISSE').aggregate(total=Sum('amount'))['total'] or 0
+    pertes_date_banque = losses_date_qs.filter(funding_source='BANQUE').aggregate(total=Sum('amount'))['total'] or 0
+
     # Calculer le cash flow pour la date sélectionnée
     chiffre_date = CarWash.objects.filter(site=site, date=detail_date).aggregate(total=Sum('montant'))['total'] or 0
-    difference_date = chiffre_date - bank_deposit_amount_date
-    
+    # Écart de caisse: cash flow - dépôt - pertes financées par la caisse
+    difference_date = chiffre_date - bank_deposit_amount_date - pertes_date_caisse
+
     # Cash flow d'aujourd'hui (pour comparaison)
     chiffre_jour = CarWash.objects.filter(site=site, date=today).aggregate(total=Sum('montant'))['total'] or 0
     bank_deposit_today = DailyBankDeposit.objects.filter(site=site, date=today).first()
     bank_deposit_amount_today = bank_deposit_today.amount if bank_deposit_today else 0
-    difference_today = chiffre_jour - bank_deposit_amount_today
+
+    losses_today_qs = SiteLossEntry.objects.filter(site=site, date=today)
+    pertes_today_total = losses_today_qs.aggregate(total=Sum('amount'))['total'] or 0
+    pertes_today_caisse = losses_today_qs.filter(funding_source='CAISSE').aggregate(total=Sum('amount'))['total'] or 0
+    pertes_today_banque = losses_today_qs.filter(funding_source='BANQUE').aggregate(total=Sum('amount'))['total'] or 0
+    difference_today = chiffre_jour - bank_deposit_amount_today - pertes_today_caisse
+
+    # Résumé hebdomadaire (lundi -> dimanche)
+    week_start = detail_date - timedelta(days=detail_date.weekday())
+    week_end = week_start + timedelta(days=6)
+    week_range_label = f"{week_start.strftime('%d/%m/%Y')} - {week_end.strftime('%d/%m/%Y')}"
+
+    chiffre_week = CarWash.objects.filter(
+        site=site,
+        date__gte=week_start,
+        date__lte=week_end,
+    ).aggregate(total=Sum('montant'))['total'] or 0
+
+    bank_deposit_week = DailyBankDeposit.objects.filter(
+        site=site,
+        date__gte=week_start,
+        date__lte=week_end,
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    losses_week_qs = SiteLossEntry.objects.filter(
+        site=site,
+        date__gte=week_start,
+        date__lte=week_end,
+    )
+    pertes_week_total = losses_week_qs.aggregate(total=Sum('amount'))['total'] or 0
+    pertes_week_caisse = losses_week_qs.filter(funding_source='CAISSE').aggregate(total=Sum('amount'))['total'] or 0
+    pertes_week_banque = losses_week_qs.filter(funding_source='BANQUE').aggregate(total=Sum('amount'))['total'] or 0
+    bank_net_week = bank_deposit_week - pertes_week_banque
+    caisse_balance_week = chiffre_week - bank_deposit_week - pertes_week_caisse
     
     context = {
         'site': site,
@@ -491,8 +545,25 @@ def admin_site_detail(request, site_id):
         'bank_deposit_amount_date': bank_deposit_amount_date,
         'bank_deposit_today': bank_deposit_today,
         'bank_deposit_amount_today': bank_deposit_amount_today,
+        'losses_date': losses_date_qs,
+        'pertes_date_total': pertes_date_total,
+        'pertes_date_caisse': pertes_date_caisse,
+        'pertes_date_banque': pertes_date_banque,
+        'pertes_today_total': pertes_today_total,
+        'pertes_today_caisse': pertes_today_caisse,
+        'pertes_today_banque': pertes_today_banque,
         'difference_date': difference_date,
         'difference_today': difference_today,
+        'week_start': week_start,
+        'week_end': week_end,
+        'week_range_label': week_range_label,
+        'chiffre_week': chiffre_week,
+        'bank_deposit_week': bank_deposit_week,
+        'bank_net_week': bank_net_week,
+        'pertes_week_total': pertes_week_total,
+        'pertes_week_caisse': pertes_week_caisse,
+        'pertes_week_banque': pertes_week_banque,
+        'caisse_balance_week': caisse_balance_week,
         'photos_lavages': photos_lavages,
         'problemes_date': problemes_date,
         'problemes_ouverts': problemes_ouverts,
@@ -1268,6 +1339,365 @@ def admin_add_bank_deposit(request, site_id):
         'site': site,
         'today': today,
         'deposit': deposit,
+    })
+
+
+@login_required
+@no_cache_view
+def admin_site_losses(request, site_id):
+    """
+    Gérer les pertes d'un site par date avec résumé hebdomadaire.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    site = get_object_or_404(Location, id=site_id)
+    today = timezone.localdate()
+    selected_date = today
+    date_param = request.GET.get('date')
+    if date_param:
+        try:
+            selected_date = datetime.strptime(date_param, '%Y-%m-%d').date()
+        except ValueError:
+            messages.warning(request, "Date invalide. La date du jour a été utilisée.")
+
+    losses_qs = SiteLossEntry.objects.filter(site=site, date=selected_date).select_related('created_by').order_by('-created_at')
+    pertes_total = losses_qs.aggregate(total=Sum('amount'))['total'] or 0
+    pertes_caisse = losses_qs.filter(funding_source='CAISSE').aggregate(total=Sum('amount'))['total'] or 0
+    pertes_banque = losses_qs.filter(funding_source='BANQUE').aggregate(total=Sum('amount'))['total'] or 0
+
+    cash_flow_date = CarWash.objects.filter(site=site, date=selected_date).aggregate(total=Sum('montant'))['total'] or 0
+    bank_deposit_date = DailyBankDeposit.objects.filter(site=site, date=selected_date).aggregate(total=Sum('amount'))['total'] or 0
+    ecart_caisse_date = cash_flow_date - bank_deposit_date - pertes_caisse
+
+    week_start = selected_date - timedelta(days=selected_date.weekday())
+    week_end = week_start + timedelta(days=6)
+    week_range_label = f"{week_start.strftime('%d/%m/%Y')} - {week_end.strftime('%d/%m/%Y')}"
+
+    cash_flow_week = CarWash.objects.filter(
+        site=site,
+        date__gte=week_start,
+        date__lte=week_end,
+    ).aggregate(total=Sum('montant'))['total'] or 0
+
+    bank_deposit_week = DailyBankDeposit.objects.filter(
+        site=site,
+        date__gte=week_start,
+        date__lte=week_end,
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    losses_week_qs = SiteLossEntry.objects.filter(
+        site=site,
+        date__gte=week_start,
+        date__lte=week_end,
+    )
+    pertes_week_total = losses_week_qs.aggregate(total=Sum('amount'))['total'] or 0
+    pertes_week_caisse = losses_week_qs.filter(funding_source='CAISSE').aggregate(total=Sum('amount'))['total'] or 0
+    pertes_week_banque = losses_week_qs.filter(funding_source='BANQUE').aggregate(total=Sum('amount'))['total'] or 0
+    bank_net_week = bank_deposit_week - pertes_week_banque
+    caisse_balance_week = cash_flow_week - bank_deposit_week - pertes_week_caisse
+
+    context = {
+        'site': site,
+        'today': today,
+        'selected_date': selected_date,
+        'losses': losses_qs,
+        'pertes_total': pertes_total,
+        'pertes_caisse': pertes_caisse,
+        'pertes_banque': pertes_banque,
+        'cash_flow_date': cash_flow_date,
+        'bank_deposit_date': bank_deposit_date,
+        'ecart_caisse_date': ecart_caisse_date,
+        'week_start': week_start,
+        'week_end': week_end,
+        'week_range_label': week_range_label,
+        'cash_flow_week': cash_flow_week,
+        'bank_deposit_week': bank_deposit_week,
+        'bank_net_week': bank_net_week,
+        'pertes_week_total': pertes_week_total,
+        'pertes_week_caisse': pertes_week_caisse,
+        'pertes_week_banque': pertes_week_banque,
+        'caisse_balance_week': caisse_balance_week,
+    }
+    return render(request, 'admin/site_losses.html', context)
+
+
+@login_required
+@no_cache_view
+def admin_add_site_loss(request, site_id):
+    """
+    Ajouter une perte pour un site.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    site = get_object_or_404(Location, id=site_id)
+    today = timezone.localdate()
+    date_value = request.GET.get('date', today.strftime('%Y-%m-%d'))
+    next_url = _safe_next_url(request) or ''
+
+    if request.method == 'POST':
+        date_value = request.POST.get('date', '').strip()
+        category = request.POST.get('category', '').strip()
+        funding_source = request.POST.get('funding_source', '').strip()
+        amount = request.POST.get('amount', '').strip()
+        title = request.POST.get('title', '').strip()
+        description = request.POST.get('description', '').strip()
+        next_url = _safe_next_url(request) or ''
+
+        if not date_value or not category or not funding_source or not amount or not title:
+            messages.error(request, "Date, type de perte, source, montant et titre sont requis.")
+            return render(request, 'admin/site_loss_form.html', {
+                'site': site,
+                'mode': 'create',
+                'loss_categories': SiteLossEntry.CATEGORY_CHOICES,
+                'funding_sources': SiteLossEntry.FUNDING_SOURCE_CHOICES,
+                'today': today,
+                'next_url': next_url,
+            })
+
+        try:
+            date_obj = datetime.strptime(date_value, '%Y-%m-%d').date()
+        except ValueError:
+            messages.error(request, "Format de date invalide.")
+            return render(request, 'admin/site_loss_form.html', {
+                'site': site,
+                'mode': 'create',
+                'loss_categories': SiteLossEntry.CATEGORY_CHOICES,
+                'funding_sources': SiteLossEntry.FUNDING_SOURCE_CHOICES,
+                'today': today,
+                'next_url': next_url,
+            })
+
+        valid_categories = {choice[0] for choice in SiteLossEntry.CATEGORY_CHOICES}
+        valid_sources = {choice[0] for choice in SiteLossEntry.FUNDING_SOURCE_CHOICES}
+        if category not in valid_categories or funding_source not in valid_sources:
+            messages.error(request, "Valeur invalide pour le type de perte ou la source des fonds.")
+            return render(request, 'admin/site_loss_form.html', {
+                'site': site,
+                'mode': 'create',
+                'loss_categories': SiteLossEntry.CATEGORY_CHOICES,
+                'funding_sources': SiteLossEntry.FUNDING_SOURCE_CHOICES,
+                'today': today,
+                'next_url': next_url,
+            })
+
+        try:
+            amount_decimal = Decimal(amount)
+            if amount_decimal < 0:
+                raise InvalidOperation
+        except (InvalidOperation, TypeError):
+            messages.error(request, "Montant invalide.")
+            return render(request, 'admin/site_loss_form.html', {
+                'site': site,
+                'mode': 'create',
+                'loss_categories': SiteLossEntry.CATEGORY_CHOICES,
+                'funding_sources': SiteLossEntry.FUNDING_SOURCE_CHOICES,
+                'today': today,
+                'next_url': next_url,
+            })
+
+        loss_entry = SiteLossEntry.objects.create(
+            site=site,
+            date=date_obj,
+            category=category,
+            funding_source=funding_source,
+            amount=amount_decimal,
+            title=title,
+            description=description,
+            created_by=user,
+        )
+
+        AuditLog.log(
+            user=user,
+            action="CREER",
+            description=f"Perte ajoutée sur {site.nom}: {loss_entry.title} ({loss_entry.amount} FC)",
+            content_object=loss_entry,
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request),
+        )
+
+        messages.success(request, "Perte enregistrée avec succès.")
+        return _redirect_to_site_losses(request, site, date_obj=date_obj)
+
+    return render(request, 'admin/site_loss_form.html', {
+        'site': site,
+        'mode': 'create',
+        'loss_categories': SiteLossEntry.CATEGORY_CHOICES,
+        'funding_sources': SiteLossEntry.FUNDING_SOURCE_CHOICES,
+        'today': date_value,
+        'next_url': next_url,
+    })
+
+
+@login_required
+@no_cache_view
+def admin_edit_site_loss(request, site_id, loss_id):
+    """
+    Modifier une perte existante.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    site = get_object_or_404(Location, id=site_id)
+    loss_entry = get_object_or_404(SiteLossEntry, id=loss_id, site=site)
+    next_url = _safe_next_url(request) or ''
+
+    if request.method == 'POST':
+        motif = request.POST.get('motif', '').strip()
+        date_value = request.POST.get('date', '').strip()
+        category = request.POST.get('category', '').strip()
+        funding_source = request.POST.get('funding_source', '').strip()
+        amount = request.POST.get('amount', '').strip()
+        title = request.POST.get('title', '').strip()
+        description = request.POST.get('description', '').strip()
+        next_url = _safe_next_url(request) or ''
+
+        if not motif:
+            messages.error(request, "Le motif de modification est obligatoire.")
+            return redirect('admin_edit_site_loss', site_id=site.id, loss_id=loss_entry.id)
+
+        if not date_value or not category or not funding_source or not amount or not title:
+            messages.error(request, "Date, type de perte, source, montant et titre sont requis.")
+            return redirect('admin_edit_site_loss', site_id=site.id, loss_id=loss_entry.id)
+
+        try:
+            date_obj = datetime.strptime(date_value, '%Y-%m-%d').date()
+        except ValueError:
+            messages.error(request, "Format de date invalide.")
+            return redirect('admin_edit_site_loss', site_id=site.id, loss_id=loss_entry.id)
+
+        valid_categories = {choice[0] for choice in SiteLossEntry.CATEGORY_CHOICES}
+        valid_sources = {choice[0] for choice in SiteLossEntry.FUNDING_SOURCE_CHOICES}
+        if category not in valid_categories or funding_source not in valid_sources:
+            messages.error(request, "Valeur invalide pour le type de perte ou la source des fonds.")
+            return redirect('admin_edit_site_loss', site_id=site.id, loss_id=loss_entry.id)
+
+        try:
+            amount_decimal = Decimal(amount)
+            if amount_decimal < 0:
+                raise InvalidOperation
+        except (InvalidOperation, TypeError):
+            messages.error(request, "Montant invalide.")
+            return redirect('admin_edit_site_loss', site_id=site.id, loss_id=loss_entry.id)
+
+        donnees_avant = {
+            'date': str(loss_entry.date),
+            'category': loss_entry.category,
+            'funding_source': loss_entry.funding_source,
+            'amount': str(loss_entry.amount),
+            'title': loss_entry.title,
+            'description': loss_entry.description,
+        }
+
+        loss_entry.date = date_obj
+        loss_entry.category = category
+        loss_entry.funding_source = funding_source
+        loss_entry.amount = amount_decimal
+        loss_entry.title = title
+        loss_entry.description = description
+        loss_entry.save()
+
+        donnees_apres = {
+            'date': str(loss_entry.date),
+            'category': loss_entry.category,
+            'funding_source': loss_entry.funding_source,
+            'amount': str(loss_entry.amount),
+            'title': loss_entry.title,
+            'description': loss_entry.description,
+        }
+
+        AuditLog.log(
+            user=user,
+            action="MODIFIER",
+            description=f"Perte modifiée sur {site.nom}: {loss_entry.title} ({loss_entry.amount} FC)",
+            motif=motif,
+            content_object=loss_entry,
+            donnees_avant=donnees_avant,
+            donnees_apres=donnees_apres,
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request),
+        )
+
+        messages.success(request, "Perte modifiée avec succès.")
+        return _redirect_to_site_losses(request, site, date_obj=loss_entry.date)
+
+    return render(request, 'admin/site_loss_form.html', {
+        'site': site,
+        'mode': 'edit',
+        'loss_entry': loss_entry,
+        'loss_categories': SiteLossEntry.CATEGORY_CHOICES,
+        'funding_sources': SiteLossEntry.FUNDING_SOURCE_CHOICES,
+        'today': loss_entry.date.strftime('%Y-%m-%d'),
+        'next_url': next_url,
+    })
+
+
+@login_required
+@no_cache_view
+def admin_delete_site_loss(request, site_id, loss_id):
+    """
+    Supprimer une perte existante.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    site = get_object_or_404(Location, id=site_id)
+    loss_entry = get_object_or_404(SiteLossEntry, id=loss_id, site=site)
+    next_url = _safe_next_url(request) or ''
+
+    if request.method == 'POST':
+        motif = request.POST.get('motif', '').strip()
+        if not motif:
+            messages.error(request, "Le motif de suppression est obligatoire.")
+            return redirect('admin_delete_site_loss', site_id=site.id, loss_id=loss_entry.id)
+
+        donnees_avant = {
+            'date': str(loss_entry.date),
+            'category': loss_entry.category,
+            'funding_source': loss_entry.funding_source,
+            'amount': str(loss_entry.amount),
+            'title': loss_entry.title,
+            'description': loss_entry.description,
+        }
+        deleted_title = loss_entry.title
+        deleted_amount = loss_entry.amount
+        deleted_date = loss_entry.date
+        loss_entry.delete()
+
+        AuditLog.log(
+            user=user,
+            action="SUPPRIMER",
+            description=f"Perte supprimée sur {site.nom}: {deleted_title} ({deleted_amount} FC)",
+            motif=motif,
+            donnees_avant=donnees_avant,
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request),
+        )
+
+        messages.success(request, "Perte supprimée avec succès.")
+        return _redirect_to_site_losses(request, site, date_obj=deleted_date)
+
+    return render(request, 'admin/site_loss_delete.html', {
+        'site': site,
+        'loss_entry': loss_entry,
+        'next_url': next_url,
     })
 
 

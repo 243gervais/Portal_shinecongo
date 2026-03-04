@@ -131,6 +131,78 @@ class DailyBankDeposit(models.Model):
         return f"{self.site.nom} - {self.date} - {self.amount} FC"
 
 
+class SiteLossEntry(models.Model):
+    """
+    Enregistrement des pertes/dépenses d'un site par date.
+    Permet de suivre les pertes financées par la caisse ou par la banque.
+    """
+
+    CATEGORY_CHOICES = [
+        ("TRANSPORT", "Transport"),
+        ("PANNE", "Panne / Réparation"),
+        ("CONSOMMABLE", "Consommables"),
+        ("URGENCE", "Urgence / Incident"),
+        ("RETRAIT_BANQUE", "Retrait banque"),
+        ("AUTRE", "Autre perte"),
+    ]
+
+    FUNDING_SOURCE_CHOICES = [
+        ("CAISSE", "Caisse du jour"),
+        ("BANQUE", "Banque"),
+    ]
+
+    site = models.ForeignKey(
+        Location,
+        on_delete=models.CASCADE,
+        related_name="loss_entries",
+        verbose_name="Site",
+    )
+    date = models.DateField(verbose_name="Date")
+    category = models.CharField(
+        max_length=30,
+        choices=CATEGORY_CHOICES,
+        default="AUTRE",
+        verbose_name="Type de perte",
+    )
+    funding_source = models.CharField(
+        max_length=10,
+        choices=FUNDING_SOURCE_CHOICES,
+        default="CAISSE",
+        verbose_name="Source des fonds",
+    )
+    amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        verbose_name="Montant (FC)",
+    )
+    title = models.CharField(max_length=200, verbose_name="Titre")
+    description = models.TextField(blank=True, verbose_name="Description")
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="site_losses_created",
+        verbose_name="Enregistré par",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")
+
+    class Meta:
+        verbose_name = "Perte du Site"
+        verbose_name_plural = "Pertes du Site"
+        ordering = ["-date", "-created_at"]
+        indexes = [
+            models.Index(fields=["site", "date"]),
+            models.Index(fields=["site", "category"]),
+            models.Index(fields=["-created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.site.nom} - {self.date} - {self.title} ({self.amount} FC)"
+
+
 def site_document_path(instance, filename):
     """Chemin de sauvegarde des documents du site"""
     site_id = str(instance.site.id)
