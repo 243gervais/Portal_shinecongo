@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Corriger pointage - {{ site.nom }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+        <h1 class="mt-2 mb-2">✏️ Corriger un pointage</h1>
+        <p style="color: var(--text-secondary); margin: 0;">
+            {{ pointage.employe.get_full_name|default:pointage.employe.username }} - {{ pointage.date|date:"d/m/Y" }}
+        </p>
+    </div>
+    {% if next_url %}
+    <a href="{{ next_url }}" class="btn btn-secondary">← Retour</a>
+    {% else %}
+    <a href="{% url 'admin_site_detail' site.id %}" class="btn btn-secondary">← Retour</a>
+    {% endif %}
+</div>
+
+<div class="card">
+    {% if pointage.corrected_by %}
+    <div class="alert alert-warning mb-3">
+        ⚠ Ce pointage a déjà été corrigé par {{ pointage.corrected_by.get_full_name|default:pointage.corrected_by.username }} le {{ pointage.corrected_at|date:"d/m/Y à H:i" }}.
+        <br><strong>Motif:</strong> {{ pointage.correction_reason }}
+    </div>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next_url }}">
+
+        <div class="form-group">
+            <label for="clock_in_time">Heure d'entrée</label>
+            <input type="time" class="form-control" id="clock_in_time" name="clock_in_time" value="{% if pointage.clock_in_time %}{{ pointage.clock_in_time|time:'H:i' }}{% endif %}">
+        </div>
+
+        <div class="form-group">
+            <label for="clock_out_time">Heure de sortie</label>
+            <input type="time" class="form-control" id="clock_out_time" name="clock_out_time" value="{% if pointage.clock_out_time %}{{ pointage.clock_out_time|time:'H:i' }}{% endif %}">
+            <small style="color: var(--text-secondary);">Laissez vide pour garder la valeur actuelle.</small>
+        </div>
+
+        <div class="form-group">
+            <label style="display: flex; align-items: center; gap: 0.5rem;">
+                <input type="checkbox" name="clear_clock_out">
+                Supprimer l'heure de sortie (remettre le pointage "en cours")
+            </label>
+        </div>
+
+        <div class="form-group">
+            <label for="total_lavages_reported">Total lavages déclarés</label>
+            <input type="number" class="form-control" id="total_lavages_reported" name="total_lavages_reported" min="0" value="{{ pointage.total_lavages_reported }}">
+        </div>
+
+        <div class="form-group">
+            <label style="display: flex; align-items: center; gap: 0.5rem;">
+                <input type="checkbox" name="daily_report_confirmed" {% if pointage.daily_report_confirmed %}checked{% endif %}>
+                Rapport journalier confirmé
+            </label>
+        </div>
+
+        <div class="form-group">
+            <label for="motif">Motif de correction *</label>
+            <textarea class="form-control" id="motif" name="motif" rows="3" required placeholder="Expliquez la correction demandée..."></textarea>
+        </div>
+
+        <div class="mt-3">
+            <button type="submit" class="btn btn-primary btn-block">Enregistrer la correction</button>
+            {% if next_url %}
+            <a href="{{ next_url }}" class="btn btn-danger btn-block mt-2">Annuler</a>
+            {% else %}
+            <a href="{% url 'admin_site_detail' site.id %}" class="btn btn-danger btn-block mt-2">Annuler</a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+{% endblock %}

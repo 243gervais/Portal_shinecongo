@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Supprimer lavage - {{ site.nom }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+        <h1 class="mt-2 mb-2">🗑️ Supprimer un lavage</h1>
+        <p style="color: var(--text-secondary); margin: 0;">
+            Site: {{ site.nom }} - Entrée #{{ lavage.id }}
+        </p>
+    </div>
+    {% if next_url %}
+    <a href="{{ next_url }}" class="btn btn-secondary">← Retour</a>
+    {% else %}
+    <a href="{% url 'admin_site_detail' site.id %}" class="btn btn-secondary">← Retour</a>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div style="background: rgba(244, 67, 54, 0.1); border-left: 3px solid var(--error-color); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+        <p style="margin: 0; color: var(--error-color);">
+            <strong>⚠️ Attention:</strong> Cette action est irréversible.
+        </p>
+    </div>
+
+    <div style="padding: 1rem; background: var(--bg-secondary); border-radius: 8px; margin-bottom: 1.5rem;">
+        <p><strong>Date:</strong> {{ lavage.date|date:"d/m/Y" }}</p>
+        <p><strong>Employé:</strong> {{ lavage.employe.get_full_name|default:lavage.employe.username }}</p>
+        <p><strong>Service:</strong> {{ lavage.get_type_service_display }}</p>
+        <p><strong>Plaque:</strong> {{ lavage.plaque|default:"-" }}</p>
+        <p><strong>Montant:</strong> {{ lavage.montant|floatformat:0 }} FC</p>
+        <p><strong>Photos:</strong> {{ lavage.photos.count }}</p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next_url }}">
+        <div class="form-group">
+            <label for="motif">Motif de suppression *</label>
+            <textarea class="form-control" id="motif" name="motif" rows="3" required placeholder="Expliquez pourquoi ce lavage doit être supprimé..."></textarea>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-danger" style="flex: 1;">
+                Confirmer la suppression
+            </button>
+            {% if next_url %}
+            <a href="{{ next_url }}" class="btn btn-secondary" style="flex: 1;">Annuler</a>
+            {% else %}
+            <a href="{% url 'admin_site_detail' site.id %}" class="btn btn-secondary" style="flex: 1;">Annuler</a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+{% endblock %}

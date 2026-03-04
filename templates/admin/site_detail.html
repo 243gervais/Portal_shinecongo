@@ -464,6 +464,7 @@
                     <th>Plaque</th>
                     <th>Montant</th>
                     <th>Photos</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -489,6 +490,16 @@
                         {% else %}
                             <span style="color: var(--text-secondary);">-</span>
                         {% endif %}
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <a href="{% url 'admin_edit_wash' site.id lavage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-primary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">
+                                Modifier
+                            </a>
+                            <a href="{% url 'admin_delete_wash' site.id lavage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">
+                                Supprimer
+                            </a>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
@@ -517,6 +528,7 @@
                     <th>Entrée</th>
                     <th>Sortie</th>
                     <th>Durée</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -543,6 +555,16 @@
                         {% else %}
                             <span style="color: var(--text-secondary);">-</span>
                         {% endif %}
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <a href="{% url 'admin_edit_pointage' site.id item.pointage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-primary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">
+                                Modifier
+                            </a>
+                            <a href="{% url 'admin_delete_pointage' site.id item.pointage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">
+                                Supprimer
+                            </a>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}

@@ -2,6 +2,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout, login
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods
 from functools import wraps
 from django.http import HttpResponse
@@ -9,6 +10,7 @@ from django.contrib import messages
 from django.db.models import Sum, Count, Q
 from django.contrib.auth.models import User
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 from .forms import UserRegistrationForm, SiteCreationForm, SiteEmployeeForm, EmployeePaymentForm
 from sites.models import Location, DailyBankDeposit, SiteDocument
 from lavages.models import CarWash, CarWashPhoto
@@ -134,6 +136,32 @@ def ensure_superuser_admin_profile(user):
     elif not user.userprofile.is_admin():
         user.userprofile.role = 'ADMIN'
         user.userprofile.save()
+
+
+def _safe_next_url(request):
+    """
+    Retourne l'URL de retour si elle est sûre, sinon None.
+    """
+    next_url = request.POST.get('next') or request.GET.get('next')
+    if not next_url:
+        return None
+    if url_has_allowed_host_and_scheme(
+        url=next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return next_url
+    return None
+
+
+def _redirect_to_admin_site_detail(request, site):
+    """
+    Redirige vers l'URL de retour demandée ou vers le détail du site.
+    """
+    next_url = _safe_next_url(request)
+    if next_url:
+        return redirect(next_url)
+    return redirect('admin_site_detail', site_id=site.id)
 
 
 @login_required
@@ -766,6 +794,358 @@ def admin_add_wash(request, site_id):
         'employes_site': employes_site,
         'types_service': CarWash.TYPE_SERVICE_CHOICES,
         'today': today,
+    })
+
+
+@login_required
+@no_cache_view
+def admin_edit_wash(request, site_id, lavage_id):
+    """
+    Modifier un lavage existant (lavage saisi par employé ou admin).
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    site = get_object_or_404(Location, id=site_id)
+    lavage = get_object_or_404(
+        CarWash.objects.select_related('employe', 'site'),
+        id=lavage_id,
+        site=site,
+    )
+    employes_site = UserProfile.objects.filter(
+        site=site,
+        role='EMPLOYE',
+        actif=True
+    ).select_related('user')
+
+    if request.method == 'POST':
+        try:
+            motif = request.POST.get('motif', '').strip()
+            if not motif:
+                messages.error(request, "Le motif de modification est obligatoire.")
+                return redirect('admin_edit_wash', site_id=site.id, lavage_id=lavage.id)
+
+            employe_id = request.POST.get('employe')
+            date_wash = request.POST.get('date')
+            type_service = request.POST.get('type_service')
+            plaque = request.POST.get('plaque', '').strip()
+            montant = request.POST.get('montant')
+            notes = request.POST.get('notes', '').strip()
+            photos = request.FILES.getlist('photos')
+
+            if not employe_id or not date_wash or not type_service or not montant:
+                messages.error(request, "Employé, date, type de service et montant sont requis.")
+                return redirect('admin_edit_wash', site_id=site.id, lavage_id=lavage.id)
+
+            valid_service_types = {choice[0] for choice in CarWash.TYPE_SERVICE_CHOICES}
+            if type_service not in valid_service_types:
+                messages.error(request, "Type de service invalide.")
+                return redirect('admin_edit_wash', site_id=site.id, lavage_id=lavage.id)
+
+            employe = get_object_or_404(User, id=employe_id)
+            if not hasattr(employe, 'userprofile') or employe.userprofile.site != site:
+                messages.error(request, "L'employé sélectionné n'appartient pas à ce site.")
+                return redirect('admin_edit_wash', site_id=site.id, lavage_id=lavage.id)
+
+            try:
+                date_obj = datetime.strptime(date_wash, '%Y-%m-%d').date()
+            except ValueError:
+                messages.error(request, "Format de date invalide.")
+                return redirect('admin_edit_wash', site_id=site.id, lavage_id=lavage.id)
+
+            try:
+                montant_decimal = Decimal(montant)
+                if montant_decimal < 0:
+                    raise InvalidOperation
+            except (InvalidOperation, TypeError):
+                messages.error(request, "Montant invalide.")
+                return redirect('admin_edit_wash', site_id=site.id, lavage_id=lavage.id)
+
+            donnees_avant = {
+                'employe': lavage.employe.username,
+                'date': str(lavage.date),
+                'type_service': lavage.type_service,
+                'plaque': lavage.plaque,
+                'montant': str(lavage.montant),
+                'notes': lavage.notes,
+            }
+
+            lavage.employe = employe
+            lavage.date = date_obj
+            lavage.type_service = type_service
+            lavage.plaque = plaque
+            lavage.montant = montant_decimal
+            lavage.notes = notes
+            lavage.save()
+
+            added_photos = 0
+            for photo in photos:
+                CarWashPhoto.objects.create(
+                    lavage=lavage,
+                    photo=photo,
+                    type_photo='APRES',
+                )
+                added_photos += 1
+
+            donnees_apres = {
+                'employe': lavage.employe.username,
+                'date': str(lavage.date),
+                'type_service': lavage.type_service,
+                'plaque': lavage.plaque,
+                'montant': str(lavage.montant),
+                'notes': lavage.notes,
+                'photos_ajoutees': added_photos,
+            }
+
+            AuditLog.log(
+                user=user,
+                action="MODIFIER",
+                description=f"Lavage modifié par admin: {lavage}",
+                motif=motif,
+                content_object=lavage,
+                donnees_avant=donnees_avant,
+                donnees_apres=donnees_apres,
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request),
+            )
+
+            if added_photos:
+                messages.success(request, f"Lavage modifié avec succès. {added_photos} photo(s) ajoutée(s).")
+            else:
+                messages.success(request, "Lavage modifié avec succès.")
+            return _redirect_to_admin_site_detail(request, site)
+        except Exception as e:
+            messages.error(request, f"Erreur lors de la modification du lavage: {str(e)}")
+
+    return render(request, 'admin/edit_wash.html', {
+        'site': site,
+        'lavage': lavage,
+        'employes_site': employes_site,
+        'types_service': CarWash.TYPE_SERVICE_CHOICES,
+        'next_url': _safe_next_url(request) or '',
+    })
+
+
+@login_required
+@no_cache_view
+def admin_delete_wash(request, site_id, lavage_id):
+    """
+    Supprimer un lavage existant.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    site = get_object_or_404(Location, id=site_id)
+    lavage = get_object_or_404(
+        CarWash.objects.select_related('employe', 'site'),
+        id=lavage_id,
+        site=site,
+    )
+
+    if request.method == 'POST':
+        motif = request.POST.get('motif', '').strip()
+        if not motif:
+            messages.error(request, "Le motif de suppression est obligatoire.")
+            return redirect('admin_delete_wash', site_id=site.id, lavage_id=lavage.id)
+
+        donnees_avant = {
+            'id': lavage.id,
+            'employe': lavage.employe.username,
+            'date': str(lavage.date),
+            'type_service': lavage.type_service,
+            'plaque': lavage.plaque,
+            'montant': str(lavage.montant),
+            'photos': lavage.photos.count(),
+        }
+        lavage_label = str(lavage)
+        lavage.delete()
+
+        AuditLog.log(
+            user=user,
+            action="SUPPRIMER",
+            description=f"Lavage supprimé par admin: {lavage_label}",
+            motif=motif,
+            donnees_avant=donnees_avant,
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request),
+        )
+
+        messages.success(request, "Lavage supprimé avec succès.")
+        return _redirect_to_admin_site_detail(request, site)
+
+    return render(request, 'admin/delete_wash.html', {
+        'site': site,
+        'lavage': lavage,
+        'next_url': _safe_next_url(request) or '',
+    })
+
+
+@login_required
+@no_cache_view
+def admin_edit_pointage(request, site_id, pointage_id):
+    """
+    Corriger un pointage depuis le portail admin.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    site = get_object_or_404(Location, id=site_id)
+    pointage = get_object_or_404(
+        ShiftDay.objects.select_related('employe', 'site', 'corrected_by'),
+        id=pointage_id,
+        site=site,
+    )
+
+    if request.method == 'POST':
+        try:
+            motif = request.POST.get('motif', '').strip()
+            if not motif:
+                messages.error(request, "Le motif de correction est obligatoire.")
+                return redirect('admin_edit_pointage', site_id=site.id, pointage_id=pointage.id)
+
+            donnees_avant = {
+                'clock_in_time': str(pointage.clock_in_time) if pointage.clock_in_time else None,
+                'clock_out_time': str(pointage.clock_out_time) if pointage.clock_out_time else None,
+                'daily_report_confirmed': pointage.daily_report_confirmed,
+                'total_lavages_reported': pointage.total_lavages_reported,
+            }
+
+            new_clock_in = request.POST.get('clock_in_time', '').strip()
+            new_clock_out = request.POST.get('clock_out_time', '').strip()
+            clear_clock_out = request.POST.get('clear_clock_out') == 'on'
+            total_lavages_reported = request.POST.get('total_lavages_reported', '').strip()
+            pointage.daily_report_confirmed = request.POST.get('daily_report_confirmed') == 'on'
+
+            if new_clock_in:
+                clock_in_dt = datetime.strptime(
+                    f"{pointage.date} {new_clock_in}",
+                    "%Y-%m-%d %H:%M"
+                )
+                pointage.clock_in_time = timezone.make_aware(clock_in_dt)
+
+            if new_clock_out:
+                clock_out_dt = datetime.strptime(
+                    f"{pointage.date} {new_clock_out}",
+                    "%Y-%m-%d %H:%M"
+                )
+                pointage.clock_out_time = timezone.make_aware(clock_out_dt)
+            elif clear_clock_out:
+                pointage.clock_out_time = None
+
+            if total_lavages_reported:
+                total_lavages_int = int(total_lavages_reported)
+                if total_lavages_int < 0:
+                    raise ValueError("Le total des lavages ne peut pas être négatif.")
+                pointage.total_lavages_reported = total_lavages_int
+
+            if pointage.clock_in_time and pointage.clock_out_time and pointage.clock_out_time < pointage.clock_in_time:
+                messages.error(request, "L'heure de sortie ne peut pas être avant l'heure d'entrée.")
+                return redirect('admin_edit_pointage', site_id=site.id, pointage_id=pointage.id)
+
+            pointage.corrected_by = user
+            pointage.correction_reason = motif
+            pointage.corrected_at = timezone.now()
+            pointage.save()
+
+            donnees_apres = {
+                'clock_in_time': str(pointage.clock_in_time) if pointage.clock_in_time else None,
+                'clock_out_time': str(pointage.clock_out_time) if pointage.clock_out_time else None,
+                'daily_report_confirmed': pointage.daily_report_confirmed,
+                'total_lavages_reported': pointage.total_lavages_reported,
+            }
+
+            AuditLog.log(
+                user=user,
+                action="CORRIGER_POINTAGE",
+                description=f"Pointage corrigé par admin: {pointage}",
+                motif=motif,
+                content_object=pointage,
+                donnees_avant=donnees_avant,
+                donnees_apres=donnees_apres,
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request),
+            )
+
+            messages.success(request, "Pointage corrigé avec succès.")
+            return _redirect_to_admin_site_detail(request, site)
+        except ValueError as e:
+            messages.error(request, f"Erreur de validation: {str(e)}")
+        except Exception as e:
+            messages.error(request, f"Erreur lors de la correction du pointage: {str(e)}")
+
+    return render(request, 'admin/edit_pointage.html', {
+        'site': site,
+        'pointage': pointage,
+        'next_url': _safe_next_url(request) or '',
+    })
+
+
+@login_required
+@no_cache_view
+def admin_delete_pointage(request, site_id, pointage_id):
+    """
+    Supprimer un pointage existant.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    site = get_object_or_404(Location, id=site_id)
+    pointage = get_object_or_404(
+        ShiftDay.objects.select_related('employe', 'site'),
+        id=pointage_id,
+        site=site,
+    )
+
+    if request.method == 'POST':
+        motif = request.POST.get('motif', '').strip()
+        if not motif:
+            messages.error(request, "Le motif de suppression est obligatoire.")
+            return redirect('admin_delete_pointage', site_id=site.id, pointage_id=pointage.id)
+
+        donnees_avant = {
+            'id': pointage.id,
+            'employe': pointage.employe.username,
+            'date': str(pointage.date),
+            'clock_in_time': str(pointage.clock_in_time) if pointage.clock_in_time else None,
+            'clock_out_time': str(pointage.clock_out_time) if pointage.clock_out_time else None,
+            'total_lavages_reported': pointage.total_lavages_reported,
+        }
+        pointage_label = str(pointage)
+        pointage.delete()
+
+        AuditLog.log(
+            user=user,
+            action="SUPPRIMER",
+            description=f"Pointage supprimé par admin: {pointage_label}",
+            motif=motif,
+            donnees_avant=donnees_avant,
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request),
+        )
+
+        messages.success(request, "Pointage supprimé avec succès.")
+        return _redirect_to_admin_site_detail(request, site)
+
+    return render(request, 'admin/delete_pointage.html', {
+        'site': site,
+        'pointage': pointage,
+        'next_url': _safe_next_url(request) or '',
     })
 
 
