@@ -18,13 +18,7 @@ def employe_dashboard(request):
     """
     user = request.user
     today = timezone.localdate()
-    
-    # Pointage du jour
-    try:
-        shift_today = ShiftDay.objects.get(employe=user, date=today)
-    except ShiftDay.DoesNotExist:
-        shift_today = None
-    
+
     # Lavages du jour
     lavages_today = user.lavages.filter(date=today).count()
     
@@ -32,11 +26,8 @@ def employe_dashboard(request):
     problemes_ouverts = user.problemes_signales.filter(statut="OUVERT").count()
     
     context = {
-        'shift_today': shift_today,
         'lavages_today': lavages_today,
         'problemes_ouverts': problemes_ouverts,
-        'has_clocked_in': shift_today is not None,
-        'has_clocked_out': shift_today is not None and shift_today.clock_out_time is not None,
     }
     
     return render(request, 'employe/dashboard.html', context)
