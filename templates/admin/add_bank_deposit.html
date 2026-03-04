@@ -10,7 +10,11 @@
             Site: {{ site.nom }} - {{ site.adresse }}
         </p>
     </div>
+    {% if next_url %}
+    <a href="{{ next_url }}" class="btn btn-secondary">← Retour</a>
+    {% else %}
     <a href="{% url 'admin_site_detail' site.id %}" class="btn btn-secondary">← Retour</a>
+    {% endif %}
 </div>
 
 <div class="card">
@@ -24,6 +28,7 @@
 
     <form method="post">
         {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next_url }}">
 
         <div class="form-group">
             <label for="date">Date du dépôt *</label>
@@ -49,7 +54,11 @@
             <button type="submit" class="btn btn-success btn-block" style="font-size: 1.1rem; padding: 1rem;">
                 {% if deposit %}💾 Modifier le dépôt{% else %}✅ Enregistrer le dépôt{% endif %}
             </button>
+            {% if next_url %}
+            <a href="{{ next_url }}" class="btn btn-danger btn-block mt-2">Annuler</a>
+            {% else %}
             <a href="{% url 'admin_site_detail' site.id %}" class="btn btn-danger btn-block mt-2">Annuler</a>
+            {% endif %}
         </div>
     </form>
 </div>

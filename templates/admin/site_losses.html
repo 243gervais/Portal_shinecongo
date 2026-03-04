@@ -1,19 +1,18 @@
 {% extends "base.html" %}
 {% load currency_tags %}
 
-{% block title %}Pertes - {{ site.nom }}{% endblock %}
+{% block title %}Gestion financière - {{ site.nom }}{% endblock %}
 
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; gap: 0.75rem; flex-wrap: wrap;">
     <div>
-        <h1 class="mt-2 mb-2">📉 Pertes du site</h1>
+        <h1 class="mt-2 mb-2">📊 Gestion financière</h1>
         <p style="color: var(--text-secondary); margin: 0;">
-            {{ site.nom }} - {{ selected_date|date:"d/m/Y" }}
+            {{ site.nom }} - {{ range_label }}
         </p>
     </div>
     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-        <a href="{% url 'admin_add_site_loss' site.id %}?date={{ selected_date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}" class="btn btn-warning">➕ Ajouter une perte</a>
-        <a href="{% url 'admin_site_detail' site.id %}?date_debut={{ selected_date|date:'Y-m-d' }}&date_fin={{ selected_date|date:'Y-m-d' }}" class="btn btn-secondary">← Retour au jour</a>
+        <a href="{% url 'admin_site_detail' site.id %}?date_debut={{ selected_date|date:'Y-m-d' }}&date_fin={{ selected_date|date:'Y-m-d' }}" class="btn btn-secondary">← Retour au site</a>
     </div>
 </div>
 
@@ -22,55 +21,47 @@
 <div class="card mb-4">
     <form method="get" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem; align-items: end;">
         <div class="form-group" style="margin-bottom: 0;">
-            <label for="date">Date</label>
+            <label for="date">Date de référence</label>
             <input type="date" class="form-control" id="date" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+            <label for="period">Période</label>
+            <select class="form-control" id="period" name="period">
+                <option value="day" {% if period == 'day' %}selected{% endif %}>Journée</option>
+                <option value="week" {% if period == 'week' %}selected{% endif %}>Semaine</option>
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+            <label for="metric">Entrées à afficher</label>
+            <select class="form-control" id="metric" name="metric">
+                <option value="cashflow" {% if metric == 'cashflow' %}selected{% endif %}>Cash Flow</option>
+                <option value="bank" {% if metric == 'bank' %}selected{% endif %}>Banque</option>
+                <option value="losses" {% if metric == 'losses' %}selected{% endif %}>Pertes</option>
+            </select>
         </div>
         <div>
             <button type="submit" class="btn btn-primary">Afficher</button>
-            <a href="{% url 'admin_site_losses' site.id %}" class="btn btn-secondary">Aujourd'hui</a>
+            <a href="{% url 'admin_site_losses' site.id %}" class="btn btn-secondary">Réinitialiser</a>
         </div>
     </form>
 </div>
 
-<div class="card-grid mb-4">
-    <div class="card stat-card" style="background: var(--primary-color); color: white;">
-        <div class="stat-value" style="color: white; font-size: 2rem;">{{ cash_flow_date|fc_amount }} FC</div>
-        <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ cash_flow_date|usd_equivalent }} USD</div>
-        <div class="stat-label" style="color: rgba(255,255,255,0.9);">Cash Flow (jour)</div>
-    </div>
-    <div class="card stat-card" style="background: var(--secondary-color); color: white;">
-        <div class="stat-value" style="color: white; font-size: 2rem;">{{ bank_deposit_date|fc_amount }} FC</div>
-        <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ bank_deposit_date|usd_equivalent }} USD</div>
-        <div class="stat-label" style="color: rgba(255,255,255,0.9);">Dépôt banque (jour)</div>
-    </div>
-    <div class="card stat-card" style="background: var(--warning-color); color: white;">
-        <div class="stat-value" style="color: white; font-size: 2rem;">{{ pertes_total|fc_amount }} FC</div>
-        <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ pertes_total|usd_equivalent }} USD</div>
-        <div class="stat-label" style="color: rgba(255,255,255,0.9);">Pertes du jour</div>
-    </div>
-    <div class="card stat-card" style="background: {% if ecart_caisse_date >= 0 %}var(--primary-color){% else %}var(--error-color){% endif %}; color: white;">
-        <div class="stat-value" style="color: white; font-size: 2rem;">{{ ecart_caisse_date|fc_amount }} FC</div>
-        <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ ecart_caisse_date|usd_equivalent }} USD</div>
-        <div class="stat-label" style="color: rgba(255,255,255,0.9);">Écart de caisse (jour)</div>
-    </div>
-</div>
-
 <div class="card mb-4">
     <h2 style="margin-bottom: 1rem; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
-        📊 Semaine ({{ week_range_label }})
+        📊 Pilotage hebdomadaire ({{ week_range_label }})
     </h2>
     <div class="card-grid">
-        <div class="card stat-card">
+        <div class="card stat-card" style="cursor: pointer;" onclick="window.location.href='{% url 'admin_site_losses' site.id %}?date={{ selected_date|date:'Y-m-d' }}&period=week&metric=cashflow'">
             <div class="stat-value" style="color: var(--primary-color);">{{ cash_flow_week|fc_amount }} FC</div>
             <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.1rem;">~ ${{ cash_flow_week|usd_equivalent }} USD</div>
             <div class="stat-label">Cash Flow semaine</div>
         </div>
-        <div class="card stat-card">
+        <div class="card stat-card" style="cursor: pointer;" onclick="window.location.href='{% url 'admin_site_losses' site.id %}?date={{ selected_date|date:'Y-m-d' }}&period=week&metric=bank'">
             <div class="stat-value" style="color: var(--success-color);">{{ bank_net_week|fc_amount }} FC</div>
             <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.1rem;">~ ${{ bank_net_week|usd_equivalent }} USD</div>
-            <div class="stat-label">Banque nette semaine</div>
+            <div class="stat-label">Banque (net semaine)</div>
         </div>
-        <div class="card stat-card">
+        <div class="card stat-card" style="cursor: pointer;" onclick="window.location.href='{% url 'admin_site_losses' site.id %}?date={{ selected_date|date:'Y-m-d' }}&period=week&metric=losses'">
             <div class="stat-value" style="color: var(--warning-color);">{{ pertes_week_total|fc_amount }} FC</div>
             <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.1rem;">~ ${{ pertes_week_total|usd_equivalent }} USD</div>
             <div class="stat-label">Pertes semaine</div>
@@ -82,25 +73,142 @@
         </div>
     </div>
     <div style="margin-top: 0.75rem; color: var(--text-secondary); font-size: 0.9rem;">
-        Pertes caisse: <strong>{{ pertes_week_caisse|fc_amount }} FC</strong> |
-        Pertes banque: <strong>{{ pertes_week_banque|fc_amount }} FC</strong> |
-        Dépôts semaine: <strong>{{ bank_deposit_week|fc_amount }} FC</strong>
+        Dépôts banque semaine: <strong>{{ bank_deposit_week|fc_amount }} FC</strong> |
+        Pertes caisse semaine: <strong>{{ pertes_week_caisse|fc_amount }} FC</strong> |
+        Pertes banque semaine: <strong>{{ pertes_week_banque|fc_amount }} FC</strong>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <h2 style="margin-bottom: 1rem; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
+        📅 Pilotage journalier ({{ selected_date|date:"d/m/Y" }})
+    </h2>
+    <div class="card-grid">
+        <div class="card stat-card" style="cursor: pointer;" onclick="window.location.href='{% url 'admin_site_losses' site.id %}?date={{ selected_date|date:'Y-m-d' }}&period=day&metric=cashflow'">
+            <div class="stat-value" style="color: var(--primary-color);">{{ cash_flow_date|fc_amount }} FC</div>
+            <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.1rem;">~ ${{ cash_flow_date|usd_equivalent }} USD</div>
+            <div class="stat-label">Cash Flow du jour</div>
+        </div>
+        <div class="card stat-card" style="cursor: pointer;" onclick="window.location.href='{% url 'admin_site_losses' site.id %}?date={{ selected_date|date:'Y-m-d' }}&period=day&metric=bank'">
+            <div class="stat-value" style="color: var(--success-color);">{{ bank_deposit_date|fc_amount }} FC</div>
+            <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.1rem;">~ ${{ bank_deposit_date|usd_equivalent }} USD</div>
+            <div class="stat-label">Dépôt banque du jour</div>
+        </div>
+        <div class="card stat-card" style="cursor: pointer;" onclick="window.location.href='{% url 'admin_site_losses' site.id %}?date={{ selected_date|date:'Y-m-d' }}&period=day&metric=losses'">
+            <div class="stat-value" style="color: var(--warning-color);">{{ pertes_total|fc_amount }} FC</div>
+            <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.1rem;">~ ${{ pertes_total|usd_equivalent }} USD</div>
+            <div class="stat-label">Pertes du jour</div>
+        </div>
+        <div class="card stat-card">
+            <div class="stat-value" style="color: {% if ecart_caisse_date >= 0 %}var(--primary-color){% else %}var(--error-color){% endif %};">{{ ecart_caisse_date|fc_amount }} FC</div>
+            <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.1rem;">~ ${{ ecart_caisse_date|usd_equivalent }} USD</div>
+            <div class="stat-label">Écart caisse du jour</div>
+        </div>
+    </div>
+    <div style="margin-top: 0.75rem; color: var(--text-secondary); font-size: 0.9rem;">
+        Pertes caisse jour: <strong>{{ pertes_caisse|fc_amount }} FC</strong> |
+        Pertes banque jour: <strong>{{ pertes_banque|fc_amount }} FC</strong>
     </div>
 </div>
 
 <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: 0.75rem; flex-wrap: wrap;">
         <h2 style="margin: 0; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
-            Liste des pertes ({{ losses.count }})
+            {% if metric == 'cashflow' %}
+            🚗 Entrées Cash Flow ({{ period|title }}) - {{ selected_entries.count }} lavage{{ selected_entries.count|pluralize }}
+            {% elif metric == 'bank' %}
+            🏦 Entrées Banque ({{ period|title }}) - {{ selected_entries.count }} dépôt{{ selected_entries.count|pluralize }}
+            {% else %}
+            📉 Entrées Pertes ({{ period|title }}) - {{ selected_entries.count }} perte{{ selected_entries.count|pluralize }}
+            {% endif %}
         </h2>
-        <a href="{% url 'admin_add_site_loss' site.id %}?date={{ selected_date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}" class="btn btn-warning">➕ Nouvelle perte</a>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            {% if metric == 'cashflow' %}
+            <a href="{% url 'admin_add_wash' site.id %}?date={{ selected_date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}" class="btn btn-primary">➕ Ajouter un lavage</a>
+            {% elif metric == 'bank' %}
+            <a href="{% url 'admin_add_bank_deposit' site.id %}?date={{ selected_date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}" class="btn btn-success">➕ Ajouter/modifier un dépôt</a>
+            {% else %}
+            <a href="{% url 'admin_add_site_loss' site.id %}?date={{ selected_date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}" class="btn btn-warning">➕ Ajouter une perte</a>
+            {% endif %}
+        </div>
     </div>
 
-    {% if losses %}
+    <div style="margin-bottom: 0.75rem; color: var(--text-secondary); font-size: 0.9rem;">
+        Total affiché: <strong>{{ selected_total|fc_amount }} FC</strong>
+        <small style="color: var(--text-secondary);">(~ ${{ selected_total|usd_equivalent }} USD)</small>
+    </div>
+
+    {% if selected_entries %}
     <div class="table-container">
         <table>
+            {% if metric == 'cashflow' %}
             <thead>
                 <tr>
+                    <th>Date</th>
+                    <th>Heure</th>
+                    <th>Employé</th>
+                    <th>Service</th>
+                    <th>Plaque</th>
+                    <th>Montant</th>
+                    <th>Photos</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lavage in selected_entries %}
+                <tr>
+                    <td>{{ lavage.date|date:"d/m/Y" }}</td>
+                    <td>{{ lavage.created_at|date:"H:i" }}</td>
+                    <td>{{ lavage.employe.get_full_name|default:lavage.employe.username }}</td>
+                    <td>{{ lavage.get_type_service_display }}</td>
+                    <td>{{ lavage.plaque|default:"-" }}</td>
+                    <td style="font-weight: 600; color: var(--success-color);">{{ lavage.montant|fc_amount }} FC</td>
+                    <td>{{ lavage.photos.count }}</td>
+                    <td>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <a href="{% url 'admin_edit_wash' site.id lavage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-primary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">Modifier</a>
+                            <a href="{% url 'admin_delete_wash' site.id lavage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">Supprimer</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            {% elif metric == 'bank' %}
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Montant</th>
+                    <th>Notes</th>
+                    <th>Enregistré par</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for deposit in selected_entries %}
+                <tr>
+                    <td>{{ deposit.date|date:"d/m/Y" }}</td>
+                    <td style="font-weight: 600; color: var(--success-color);">{{ deposit.amount|fc_amount }} FC</td>
+                    <td style="max-width: 320px;">{{ deposit.notes|default:"-" }}</td>
+                    <td>
+                        {% if deposit.created_by %}
+                            {{ deposit.created_by.get_full_name|default:deposit.created_by.username }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <a href="{% url 'admin_add_bank_deposit' site.id %}?date={{ deposit.date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}" class="btn btn-primary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">Modifier</a>
+                            <a href="{% url 'admin_delete_bank_deposit' site.id deposit.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">Supprimer</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            {% else %}
+            <thead>
+                <tr>
+                    <th>Date</th>
                     <th>Heure</th>
                     <th>Type</th>
                     <th>Source</th>
@@ -111,8 +219,9 @@
                 </tr>
             </thead>
             <tbody>
-                {% for loss in losses %}
+                {% for loss in selected_entries %}
                 <tr>
+                    <td>{{ loss.date|date:"d/m/Y" }}</td>
                     <td>{{ loss.created_at|date:"H:i" }}</td>
                     <td>{{ loss.get_category_display }}</td>
                     <td>{{ loss.get_funding_source_display }}</td>
@@ -128,10 +237,11 @@
                 </tr>
                 {% endfor %}
             </tbody>
+            {% endif %}
         </table>
     </div>
     {% else %}
-    <p style="color: var(--text-secondary); margin: 0;">Aucune perte enregistrée pour cette date.</p>
+    <p style="color: var(--text-secondary); margin: 0;">Aucune entrée sur la période sélectionnée.</p>
     {% endif %}
 </div>
 {% endblock %}

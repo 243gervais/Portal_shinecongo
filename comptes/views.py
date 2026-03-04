@@ -739,6 +739,7 @@ def admin_add_wash(request, site_id):
         return redirect('dashboard')
     
     site = get_object_or_404(Location, id=site_id)
+    next_url = _safe_next_url(request) or ''
     
     # Récupérer les employés du site
     employes_site = UserProfile.objects.filter(
@@ -764,6 +765,7 @@ def admin_add_wash(request, site_id):
                     'site': site,
                     'employes_site': employes_site,
                     'types_service': CarWash.TYPE_SERVICE_CHOICES,
+                    'next_url': next_url,
                 })
             
             if not date_wash:
@@ -772,6 +774,7 @@ def admin_add_wash(request, site_id):
                     'site': site,
                     'employes_site': employes_site,
                     'types_service': CarWash.TYPE_SERVICE_CHOICES,
+                    'next_url': next_url,
                 })
             
             if not type_service:
@@ -780,6 +783,7 @@ def admin_add_wash(request, site_id):
                     'site': site,
                     'employes_site': employes_site,
                     'types_service': CarWash.TYPE_SERVICE_CHOICES,
+                    'next_url': next_url,
                 })
             
             if not montant:
@@ -788,6 +792,7 @@ def admin_add_wash(request, site_id):
                     'site': site,
                     'employes_site': employes_site,
                     'types_service': CarWash.TYPE_SERVICE_CHOICES,
+                    'next_url': next_url,
                 })
             
             # Vérifier qu'il y a au moins une photo
@@ -798,6 +803,7 @@ def admin_add_wash(request, site_id):
                     'site': site,
                     'employes_site': employes_site,
                     'types_service': CarWash.TYPE_SERVICE_CHOICES,
+                    'next_url': next_url,
                 })
             
             # Récupérer l'employé
@@ -810,6 +816,7 @@ def admin_add_wash(request, site_id):
                     'site': site,
                     'employes_site': employes_site,
                     'types_service': CarWash.TYPE_SERVICE_CHOICES,
+                    'next_url': next_url,
                 })
             
             # Convertir la date
@@ -821,6 +828,7 @@ def admin_add_wash(request, site_id):
                     'site': site,
                     'employes_site': employes_site,
                     'types_service': CarWash.TYPE_SERVICE_CHOICES,
+                    'next_url': next_url,
                 })
             
             # Créer le lavage
@@ -853,18 +861,25 @@ def admin_add_wash(request, site_id):
             )
             
             messages.success(request, f'Lavage enregistré avec succès pour le {date_obj.strftime("%d/%m/%Y")} !')
-            return redirect('admin_site_detail', site_id=site.id)
+            return _redirect_to_admin_site_detail(request, site)
             
         except Exception as e:
             messages.error(request, f'Erreur lors de l\'enregistrement: {str(e)}')
     
     # GET request - afficher le formulaire
     today = timezone.localdate()
+    date_param = request.GET.get('date')
+    if date_param:
+        try:
+            today = datetime.strptime(date_param, '%Y-%m-%d').date()
+        except ValueError:
+            pass
     return render(request, 'admin/add_wash.html', {
         'site': site,
         'employes_site': employes_site,
         'types_service': CarWash.TYPE_SERVICE_CHOICES,
         'today': today,
+        'next_url': next_url,
     })
 
 
@@ -1242,6 +1257,7 @@ def admin_add_bank_deposit(request, site_id):
         return redirect('dashboard')
     
     site = get_object_or_404(Location, id=site_id)
+    next_url = _safe_next_url(request) or ''
     
     if request.method == 'POST':
         try:
@@ -1256,6 +1272,7 @@ def admin_add_bank_deposit(request, site_id):
                 return render(request, 'admin/add_bank_deposit.html', {
                     'site': site,
                     'deposit': None,
+                    'next_url': next_url,
                 })
             
             if not amount:
@@ -1263,6 +1280,7 @@ def admin_add_bank_deposit(request, site_id):
                 return render(request, 'admin/add_bank_deposit.html', {
                     'site': site,
                     'deposit': None,
+                    'next_url': next_url,
                 })
             
             # Convertir la date
@@ -1273,22 +1291,25 @@ def admin_add_bank_deposit(request, site_id):
                 return render(request, 'admin/add_bank_deposit.html', {
                     'site': site,
                     'deposit': None,
+                    'next_url': next_url,
                 })
             
             # Vérifier le montant
             try:
                 amount_decimal = float(amount)
                 if amount_decimal < 0:
-                    messages.error(request, 'Le montant ne peut pas être négatif.')
-                    return render(request, 'admin/add_bank_deposit.html', {
-                        'site': site,
-                        'deposit': None,
-                    })
+                        messages.error(request, 'Le montant ne peut pas être négatif.')
+                        return render(request, 'admin/add_bank_deposit.html', {
+                            'site': site,
+                            'deposit': None,
+                            'next_url': next_url,
+                        })
             except ValueError:
                 messages.error(request, 'Montant invalide.')
                 return render(request, 'admin/add_bank_deposit.html', {
                     'site': site,
                     'deposit': None,
+                    'next_url': next_url,
                 })
             
             # Créer ou mettre à jour le dépôt bancaire
@@ -1314,7 +1335,7 @@ def admin_add_bank_deposit(request, site_id):
             )
             
             messages.success(request, f'Dépôt bancaire de {amount_decimal:,.0f} FC {"ajouté" if created else "modifié"} avec succès pour le {date_obj.strftime("%d/%m/%Y")} !')
-            return redirect('admin_site_detail', site_id=site.id)
+            return _redirect_to_admin_site_detail(request, site)
             
         except Exception as e:
             messages.error(request, f'Erreur lors de l\'enregistrement: {str(e)}')
@@ -1339,6 +1360,58 @@ def admin_add_bank_deposit(request, site_id):
         'site': site,
         'today': today,
         'deposit': deposit,
+        'next_url': next_url,
+    })
+
+
+@login_required
+@no_cache_view
+def admin_delete_bank_deposit(request, site_id, deposit_id):
+    """
+    Supprimer un dépôt bancaire existant.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    site = get_object_or_404(Location, id=site_id)
+    deposit = get_object_or_404(DailyBankDeposit, id=deposit_id, site=site)
+
+    if request.method == 'POST':
+        motif = request.POST.get('motif', '').strip()
+        if not motif:
+            messages.error(request, "Le motif de suppression est obligatoire.")
+            return redirect('admin_delete_bank_deposit', site_id=site.id, deposit_id=deposit.id)
+
+        donnees_avant = {
+            'date': str(deposit.date),
+            'amount': str(deposit.amount),
+            'notes': deposit.notes,
+        }
+        deposit_date = deposit.date
+        amount = deposit.amount
+        deposit.delete()
+
+        AuditLog.log(
+            user=user,
+            action="SUPPRIMER",
+            description=f"Dépôt bancaire supprimé sur {site.nom}: {amount} FC ({deposit_date})",
+            motif=motif,
+            donnees_avant=donnees_avant,
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request),
+        )
+
+        messages.success(request, "Dépôt bancaire supprimé avec succès.")
+        return _redirect_to_admin_site_detail(request, site)
+
+    return render(request, 'admin/delete_bank_deposit.html', {
+        'site': site,
+        'deposit': deposit,
+        'next_url': _safe_next_url(request) or '',
     })
 
 
@@ -1346,7 +1419,7 @@ def admin_add_bank_deposit(request, site_id):
 @no_cache_view
 def admin_site_losses(request, site_id):
     """
-    Gérer les pertes d'un site par date avec résumé hebdomadaire.
+    Gestion financière: cash flow, dépôts banque et pertes, en vue jour ou semaine.
     """
     user = request.user
     ensure_superuser_admin_profile(user)
@@ -1358,6 +1431,14 @@ def admin_site_losses(request, site_id):
     site = get_object_or_404(Location, id=site_id)
     today = timezone.localdate()
     selected_date = today
+    period = request.GET.get('period', 'day')
+    metric = request.GET.get('metric', 'losses')
+
+    if period not in {'day', 'week'}:
+        period = 'day'
+    if metric not in {'cashflow', 'bank', 'losses'}:
+        metric = 'losses'
+
     date_param = request.GET.get('date')
     if date_param:
         try:
@@ -1365,18 +1446,18 @@ def admin_site_losses(request, site_id):
         except ValueError:
             messages.warning(request, "Date invalide. La date du jour a été utilisée.")
 
-    losses_qs = SiteLossEntry.objects.filter(site=site, date=selected_date).select_related('created_by').order_by('-created_at')
-    pertes_total = losses_qs.aggregate(total=Sum('amount'))['total'] or 0
-    pertes_caisse = losses_qs.filter(funding_source='CAISSE').aggregate(total=Sum('amount'))['total'] or 0
-    pertes_banque = losses_qs.filter(funding_source='BANQUE').aggregate(total=Sum('amount'))['total'] or 0
+    week_start = selected_date - timedelta(days=selected_date.weekday())
+    week_end = week_start + timedelta(days=6)
+    week_range_label = f"{week_start.strftime('%d/%m/%Y')} - {week_end.strftime('%d/%m/%Y')}"
+
+    losses_day_qs = SiteLossEntry.objects.filter(site=site, date=selected_date).select_related('created_by').order_by('-created_at')
+    pertes_total = losses_day_qs.aggregate(total=Sum('amount'))['total'] or 0
+    pertes_caisse = losses_day_qs.filter(funding_source='CAISSE').aggregate(total=Sum('amount'))['total'] or 0
+    pertes_banque = losses_day_qs.filter(funding_source='BANQUE').aggregate(total=Sum('amount'))['total'] or 0
 
     cash_flow_date = CarWash.objects.filter(site=site, date=selected_date).aggregate(total=Sum('montant'))['total'] or 0
     bank_deposit_date = DailyBankDeposit.objects.filter(site=site, date=selected_date).aggregate(total=Sum('amount'))['total'] or 0
     ecart_caisse_date = cash_flow_date - bank_deposit_date - pertes_caisse
-
-    week_start = selected_date - timedelta(days=selected_date.weekday())
-    week_end = week_start + timedelta(days=6)
-    week_range_label = f"{week_start.strftime('%d/%m/%Y')} - {week_end.strftime('%d/%m/%Y')}"
 
     cash_flow_week = CarWash.objects.filter(
         site=site,
@@ -1401,11 +1482,57 @@ def admin_site_losses(request, site_id):
     bank_net_week = bank_deposit_week - pertes_week_banque
     caisse_balance_week = cash_flow_week - bank_deposit_week - pertes_week_caisse
 
+    if period == 'week':
+        range_start = week_start
+        range_end = week_end
+        range_label = f"Semaine du {week_range_label}"
+    else:
+        range_start = selected_date
+        range_end = selected_date
+        range_label = f"Journée du {selected_date.strftime('%d/%m/%Y')}"
+
+    cashflow_entries = CarWash.objects.filter(
+        site=site,
+        date__gte=range_start,
+        date__lte=range_end,
+    ).select_related('employe').prefetch_related('photos').order_by('-date', '-created_at')
+
+    bank_entries = DailyBankDeposit.objects.filter(
+        site=site,
+        date__gte=range_start,
+        date__lte=range_end,
+    ).select_related('created_by').order_by('-date', '-created_at')
+
+    loss_entries = SiteLossEntry.objects.filter(
+        site=site,
+        date__gte=range_start,
+        date__lte=range_end,
+    ).select_related('created_by').order_by('-date', '-created_at')
+
+    if metric == 'cashflow':
+        selected_entries = cashflow_entries
+        selected_total = cashflow_entries.aggregate(total=Sum('montant'))['total'] or 0
+    elif metric == 'bank':
+        selected_entries = bank_entries
+        selected_total = bank_entries.aggregate(total=Sum('amount'))['total'] or 0
+    else:
+        selected_entries = loss_entries
+        selected_total = loss_entries.aggregate(total=Sum('amount'))['total'] or 0
+
     context = {
         'site': site,
         'today': today,
         'selected_date': selected_date,
-        'losses': losses_qs,
+        'period': period,
+        'metric': metric,
+        'range_start': range_start,
+        'range_end': range_end,
+        'range_label': range_label,
+        'selected_entries': selected_entries,
+        'selected_total': selected_total,
+        'cashflow_entries': cashflow_entries,
+        'bank_entries': bank_entries,
+        'losses': loss_entries,
         'pertes_total': pertes_total,
         'pertes_caisse': pertes_caisse,
         'pertes_banque': pertes_banque,

@@ -19,7 +19,7 @@
             🏦 {% if bank_deposit_today %}Modifier{% else %}Ajouter{% endif %} dépôt bancaire
         </a>
         <a href="{% url 'admin_site_losses' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-warning">
-            📉 Gérer les pertes
+            📊 Gestion financière
         </a>
         <a href="{% url 'admin_add_daily_total' site.id %}" class="btn btn-primary">
             💰 Ajouter le total quotidien
@@ -74,7 +74,11 @@
         <div class="card stat-card" style="background: var(--primary-color); color: white;">
             <div class="stat-value" style="color: white; font-size: 2.5rem;">{{ chiffre_date|fc_amount }} FC</div>
             <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ chiffre_date|usd_equivalent }} USD</div>
-            <div class="stat-label" style="color: rgba(255,255,255,0.9);">Cash Flow</div>
+            <div class="stat-label" style="color: rgba(255,255,255,0.9);">
+                Cash Flow
+                <a href="{% url 'admin_site_losses' site.id %}?date={{ selected_single_date|date:'Y-m-d' }}&period=day&metric=cashflow"
+                   style="color: rgba(255,255,255,0.85); text-decoration: none; font-size: 0.8rem; margin-left: 0.5rem;">Gérer</a>
+            </div>
         </div>
         
         <div class="card stat-card" style="background: var(--secondary-color); color: white;">
@@ -86,6 +90,8 @@
                     <a href="{% url 'admin_add_bank_deposit' site.id %}?date={{ selected_single_date|date:'Y-m-d' }}" 
                        style="color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.8rem; margin-left: 0.5rem;">✏️</a>
                 {% endif %}
+                <a href="{% url 'admin_site_losses' site.id %}?date={{ selected_single_date|date:'Y-m-d' }}&period=day&metric=bank"
+                   style="color: rgba(255,255,255,0.85); text-decoration: none; font-size: 0.8rem; margin-left: 0.35rem;">Gérer</a>
             </div>
         </div>
         
@@ -262,19 +268,19 @@
     </div>
 
     <div class="card-grid">
-        <div class="card stat-card" style="background: var(--primary-color); color: white;">
+        <div class="card stat-card" style="background: var(--primary-color); color: white; cursor: pointer;" onclick="window.location.href='{% url 'admin_site_losses' site.id %}?date={{ detail_date|date:'Y-m-d' }}&period=week&metric=cashflow'">
             <div class="stat-value" style="color: white; font-size: 2rem;">{{ chiffre_week|fc_amount }} FC</div>
             <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ chiffre_week|usd_equivalent }} USD</div>
             <div class="stat-label" style="color: rgba(255,255,255,0.9);">Cash Flow semaine</div>
         </div>
 
-        <div class="card stat-card" style="background: var(--secondary-color); color: white;">
+        <div class="card stat-card" style="background: var(--secondary-color); color: white; cursor: pointer;" onclick="window.location.href='{% url 'admin_site_losses' site.id %}?date={{ detail_date|date:'Y-m-d' }}&period=week&metric=bank'">
             <div class="stat-value" style="color: white; font-size: 2rem;">{{ bank_net_week|fc_amount }} FC</div>
             <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ bank_net_week|usd_equivalent }} USD</div>
             <div class="stat-label" style="color: rgba(255,255,255,0.9);">Banque (net semaine)</div>
         </div>
 
-        <div class="card stat-card" style="background: var(--warning-color); color: white;">
+        <div class="card stat-card" style="background: var(--warning-color); color: white; cursor: pointer;" onclick="window.location.href='{% url 'admin_site_losses' site.id %}?date={{ detail_date|date:'Y-m-d' }}&period=week&metric=losses'">
             <div class="stat-value" style="color: white; font-size: 2rem;">{{ pertes_week_total|fc_amount }} FC</div>
             <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ pertes_week_total|usd_equivalent }} USD</div>
             <div class="stat-label" style="color: rgba(255,255,255,0.9);">Pertes semaine</div>

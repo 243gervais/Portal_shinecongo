@@ -10,12 +10,17 @@
             Site: {{ site.nom }} - {{ site.adresse }}
         </p>
     </div>
+    {% if next_url %}
+    <a href="{{ next_url }}" class="btn btn-secondary">← Retour</a>
+    {% else %}
     <a href="{% url 'admin_site_detail' site.id %}" class="btn btn-secondary">← Retour</a>
+    {% endif %}
 </div>
 
 <div class="card">
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next_url }}">
 
         <div class="form-group">
             <label for="date">Date du lavage *</label>
@@ -98,7 +103,11 @@
 
         <div class="mt-3">
             <button type="submit" class="btn btn-primary btn-block">Enregistrer le lavage</button>
+            {% if next_url %}
+            <a href="{{ next_url }}" class="btn btn-danger btn-block mt-2">Annuler</a>
+            {% else %}
             <a href="{% url 'admin_site_detail' site.id %}" class="btn btn-danger btn-block mt-2">Annuler</a>
+            {% endif %}
         </div>
     </form>
 </div>
