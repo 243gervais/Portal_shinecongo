@@ -96,7 +96,7 @@
         </div>
 
         <div class="mt-3 action-stack">
-            <button type="submit" class="btn btn-primary btn-block">Enregistrer le lavage</button>
+            <button type="submit" class="btn btn-primary btn-block" id="submit-lavage-btn">Enregistrer le lavage</button>
             <a href="{% url 'employe_dashboard' %}" class="btn btn-danger btn-block mt-2">Annuler</a>
         </div>
     </form>
@@ -274,6 +274,7 @@
 <script>
     (function() {
         const form = document.querySelector('form');
+        const submitBtn = document.getElementById('submit-lavage-btn');
 
         const plaqueModeInputs = document.querySelectorAll('input[name="plaque_mode"]');
         const plaquePhotoPanel = document.getElementById('plaque-photo-panel');
@@ -292,6 +293,7 @@
 
         let plaquePreviewUrl = null;
         const photos = [];
+        let isSubmitting = false;
 
         function getPlaqueMode() {
             const checked = document.querySelector('input[name="plaque_mode"]:checked');
@@ -430,6 +432,11 @@
         }
 
         form.addEventListener('submit', function(e) {
+            if (isSubmitting) {
+                e.preventDefault();
+                return false;
+            }
+
             if (getPlaqueMode() === 'photo') {
                 plaqueInput.value = '';
             } else {
@@ -459,6 +466,12 @@
                     alert('Erreur: Toutes les photos n\'ont pas pu être attachées. Veuillez réessayer.');
                     return false;
                 }
+            }
+
+            isSubmitting = true;
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Enregistrement en cours...';
             }
 
             return true;

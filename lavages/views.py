@@ -2,6 +2,9 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.contrib import messages
+from django.db import transaction
+from datetime import timedelta
+from decimal import Decimal, InvalidOperation
 from .models import CarWash, CarWashPhoto
 from audit.models import AuditLog
 from pointage.utils import get_client_ip, get_user_agent
@@ -38,7 +41,7 @@ def ajouter_lavage(request):
             plaque = request.POST.get('plaque', '').strip().upper()
             plaque_photo = request.FILES.get('plaque_photo')
             montant = request.POST.get('montant')
-            notes = request.POST.get('notes', '')
+            notes = request.POST.get('notes', '').strip()
             
             # Validation des champs requis
             if not type_service:
@@ -52,6 +55,23 @@ def ajouter_lavage(request):
                 return render(request, 'employe/ajouter_lavage.html', {
                     'types_service': CarWash.TYPE_SERVICE_CHOICES
                 })
+
+            valid_service_types = {choice[0] for choice in CarWash.TYPE_SERVICE_CHOICES}
+            if type_service not in valid_service_types:
+                messages.error(request, 'Type de service invalide.')
+                return render(request, 'employe/ajouter_lavage.html', {
+                    'types_service': CarWash.TYPE_SERVICE_CHOICES
+                })
+
+            try:
+                montant_decimal = Decimal(montant)
+                if montant_decimal < 0:
+                    raise InvalidOperation
+            except (InvalidOperation, TypeError):
+                messages.error(request, 'Montant invalide.')
+                return render(request, 'employe/ajouter_lavage.html', {
+                    'types_service': CarWash.TYPE_SERVICE_CHOICES
+                })
             
             # Vérifier qu'il y a au moins une photo
             photos = request.FILES.getlist('photos')
@@ -60,26 +80,55 @@ def ajouter_lavage(request):
                 return render(request, 'employe/ajouter_lavage.html', {
                     'types_service': CarWash.TYPE_SERVICE_CHOICES
                 })
-            
-            # Créer le lavage
-            lavage = CarWash.objects.create(
-                employe=user,
-                site=site,
-                date=timezone.localdate(),
-                type_service=type_service,
-                plaque=plaque,
-                plaque_photo=plaque_photo,
-                montant=montant,
-                notes=notes
-            )
-            
-            # Traiter les photos (toutes marquées comme "après lavage")
-            for photo in photos:
-                CarWashPhoto.objects.create(
-                    lavage=lavage,
-                    photo=photo,
-                    type_photo='APRES'  # Toutes les photos sont après lavage
+
+            with transaction.atomic():
+                # Verrouiller le profil pour sérialiser les soumissions concurrentes du même employé
+                user.userprofile.__class__.objects.select_for_update().filter(pk=user.userprofile.pk).first()
+
+                duplicate_window_start = timezone.now() - timedelta(seconds=45)
+                duplicate_qs = CarWash.objects.filter(
+                    employe=user,
+                    site=site,
+                    date=timezone.localdate(),
+                    type_service=type_service,
+                    plaque=plaque,
+                    montant=montant_decimal,
+                    notes=notes,
+                    created_at__gte=duplicate_window_start,
+                ).order_by('-created_at')
+
+                duplicate_lavage = None
+                for existing in duplicate_qs:
+                    if existing.photos.count() == len(photos):
+                        duplicate_lavage = existing
+                        break
+
+                if duplicate_lavage:
+                    messages.warning(
+                        request,
+                        "Ce lavage vient déjà d'être enregistré. Le doublon a été bloqué."
+                    )
+                    return redirect('employe_dashboard')
+
+                # Créer le lavage
+                lavage = CarWash.objects.create(
+                    employe=user,
+                    site=site,
+                    date=timezone.localdate(),
+                    type_service=type_service,
+                    plaque=plaque,
+                    plaque_photo=plaque_photo,
+                    montant=montant_decimal,
+                    notes=notes
                 )
+
+                # Traiter les photos (toutes marquées comme "après lavage")
+                for photo in photos:
+                    CarWashPhoto.objects.create(
+                        lavage=lavage,
+                        photo=photo,
+                        type_photo='APRES'  # Toutes les photos sont après lavage
+                    )
             
             # Log d'audit
             AuditLog.log(
