@@ -346,6 +346,10 @@
         .mb-3 { margin-bottom: 1.5rem; }
 
         @media (max-width: 768px) {
+            .employee-mobile-hide {
+                display: none !important;
+            }
+
             .container {
                 padding: 12px;
             }
@@ -456,9 +460,9 @@
                     <a href="{% url 'admin_dashboard' %}">Dashboard Admin</a>
                     <a href="{% url 'admin:index' %}">Django Admin</a>
                 {% elif user.userprofile.is_employe %}
-                    <a href="{% url 'employe_dashboard' %}">Tableau de bord</a>
-                    <a href="{% url 'ajouter_lavage' %}">Ajouter lavage</a>
-                    <a href="{% url 'signaler_probleme' %}">Signaler problème</a>
+                    <a href="{% url 'employe_dashboard' %}" class="employee-mobile-hide">Tableau de bord</a>
+                    <a href="{% url 'ajouter_lavage' %}" class="employee-mobile-hide">Ajouter lavage</a>
+                    <a href="{% url 'signaler_probleme' %}" class="employee-mobile-hide">Signaler problème</a>
                     <a href="{% url 'employe_historique' %}">Historique</a>
                 {% elif user.userprofile.is_manager %}
                     <a href="{% url 'manager_dashboard' %}">Dashboard</a>
