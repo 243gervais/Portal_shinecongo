@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% load currency_tags %}
+
+{% block title %}Portail employé - {{ employee_profile.user.get_full_name|default:employee_profile.user.username }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; gap: 0.75rem; flex-wrap: wrap;">
+    <div>
+        <h1 class="mt-2 mb-2">👤 Portail employé</h1>
+        <p style="color: var(--text-secondary); margin: 0;">
+            {{ employee_profile.user.get_full_name|default:employee_profile.user.username }} • {{ site.nom }}
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <a href="{% url 'admin_edit_site_employee' site.id employee_profile.id %}" class="btn btn-secondary">✏️ Modifier</a>
+        <a href="{% url 'admin_create_employee_payment' site.id employee_profile.id %}" class="btn btn-success">💵 Payer</a>
+        <a href="{% url 'admin_site_documents' site.id %}" class="btn btn-primary">← Retour</a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem;">
+        <div>
+            <h3 style="margin: 0 0 0.5rem 0; color: var(--primary-color);">Informations</h3>
+            <p style="margin: 0.2rem 0;"><strong>Nom:</strong> {{ employee_profile.user.get_full_name|default:employee_profile.user.username }}</p>
+            <p style="margin: 0.2rem 0;"><strong>Identifiant:</strong> {{ employee_profile.user.username }}</p>
+            <p style="margin: 0.2rem 0;"><strong>Email:</strong> {{ employee_profile.user.email|default:"-" }}</p>
+            <p style="margin: 0.2rem 0;"><strong>Téléphone:</strong> {{ employee_profile.telephone|default:"-" }}</p>
+            <p style="margin: 0.2rem 0;"><strong>M-Pesa:</strong> {{ employee_profile.mpesa_numero|default:"-" }}</p>
+            <p style="margin: 0.2rem 0;"><strong>Embauche:</strong> {{ employee_profile.date_embauche|date:"d/m/Y"|default:"Non renseignée" }}</p>
+            <p style="margin: 0.2rem 0;"><strong>Ancienneté:</strong> {{ employee_profile.anciennete_texte }}</p>
+            <p style="margin: 0.2rem 0;">
+                <strong>Statut:</strong>
+                {% if employee_profile.actif and employee_profile.user.is_active %}
+                    <span style="color: var(--success-color); font-weight: 600;">Actif</span>
+                {% else %}
+                    <span style="color: var(--error-color); font-weight: 600;">Inactif</span>
+                {% endif %}
+            </p>
+        </div>
+        <div>
+            <h3 style="margin: 0 0 0.5rem 0; color: var(--primary-color);">Rémunération</h3>
+            <p style="margin: 0.2rem 0;"><strong>Salaire mensuel:</strong>
+                {% if employee_profile.salaire_mensuel_usd %}
+                    ${{ employee_profile.salaire_mensuel_usd|floatformat:2 }} USD
+                {% else %}
+                    Non défini
+                {% endif %}
+            </p>
+            <p style="margin: 0.2rem 0;"><strong>Paiements total:</strong> {{ payments_count }}</p>
+            <p style="margin: 0.2rem 0;"><strong>Total payé:</strong> ${{ total_paid_usd|floatformat:2 }} USD</p>
+            <p style="margin: 0.2rem 0;"><strong>Total payé (année):</strong> ${{ total_paid_this_year_usd|floatformat:2 }} USD</p>
+            <p style="margin: 0.2rem 0;">
+                <strong>Dernier paiement:</strong>
+                {% if last_payment %}
+                    {{ last_payment.payment_date|date:"d/m/Y" }} (${{ last_payment.amount_paid_usd|floatformat:2 }})
+                {% else %}
+                    Aucun
+                {% endif %}
+            </p>
+        </div>
+        <div>
+            <h3 style="margin: 0 0 0.5rem 0; color: var(--primary-color);">Dossier RH (CV)</h3>
+            {% if employee_profile.cv_file %}
+                <p style="margin: 0.2rem 0;"><strong>Fichier:</strong> {{ employee_profile.cv_filename }}</p>
+                <p style="margin: 0.2rem 0;">
+                    <a href="{{ employee_profile.cv_file.url }}" target="_blank" class="btn btn-info" style="padding: 0.35rem 0.65rem; font-size: 0.82rem;">📄 Ouvrir</a>
+                </p>
+                <form method="post" style="margin-top: 0.5rem;">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="delete_cv">
+                    <button type="submit" class="btn btn-danger" style="padding: 0.35rem 0.65rem; font-size: 0.82rem;">🗑️ Supprimer CV</button>
+                </form>
+            {% else %}
+                <p style="margin: 0.2rem 0; color: var(--warning-color);">Aucun CV fourni.</p>
+            {% endif %}
+
+            <form method="post" enctype="multipart/form-data" style="margin-top: 0.75rem;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="upload_cv">
+                <div class="form-group" style="margin-bottom: 0.5rem;">
+                    <label for="cv_file" style="font-size: 0.86rem;">Uploader / Remplacer le CV (PDF, DOC, DOCX)</label>
+                    <input type="file" id="cv_file" name="cv_file" class="form-control" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required>
+                </div>
+                <small style="color: var(--text-secondary); display: block; margin-bottom: 0.5rem;">Taille max: 10 MB</small>
+                <button type="submit" class="btn btn-primary" style="padding: 0.35rem 0.65rem; font-size: 0.82rem;">⬆️ Enregistrer CV</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="card-grid mb-4">
+    <div class="card stat-card">
+        <div class="stat-value" style="color: var(--primary-color);">{{ total_lavages }}</div>
+        <div class="stat-label">Lavages (total)</div>
+    </div>
+    <div class="card stat-card">
+        <div class="stat-value" style="color: var(--success-color);">{{ lavages_month }}</div>
+        <div class="stat-label">Lavages (ce mois)</div>
+    </div>
+    <div class="card stat-card">
+        <div class="stat-value" style="color: var(--success-color);">{{ lavages_amount_total|fc_amount }} FC</div>
+        <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.1rem;">~ ${{ lavages_amount_total|usd_equivalent }} USD</div>
+        <div class="stat-label">Montant produit (total)</div>
+    </div>
+    <div class="card stat-card">
+        <div class="stat-value" style="color: var(--primary-color);">{{ average_ticket_fc|fc_amount }} FC</div>
+        <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.1rem;">~ ${{ average_ticket_fc|usd_equivalent }} USD</div>
+        <div class="stat-label">Ticket moyen</div>
+    </div>
+    <div class="card stat-card">
+        <div class="stat-value" style="color: var(--primary-color);">{{ total_pointages }}</div>
+        <div class="stat-label">Pointages (total)</div>
+    </div>
+    <div class="card stat-card">
+        <div class="stat-value" style="color: var(--success-color);">{{ completed_pointages }}</div>
+        <div class="stat-label">Pointages complets</div>
+    </div>
+    <div class="card stat-card">
+        <div class="stat-value" style="color: var(--warning-color);">{{ open_pointages }}</div>
+        <div class="stat-label">Pointages ouverts</div>
+    </div>
+    <div class="card stat-card">
+        <div class="stat-value" style="color: var(--warning-color);">{{ open_issues }}</div>
+        <div class="stat-label">Problèmes ouverts</div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <h2 style="margin-bottom: 1rem; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
+        💳 Historique des paiements
+    </h2>
+    {% if payment_records %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Période</th>
+                    <th>Salaire base</th>
+                    <th>Montant payé</th>
+                    <th>Mode</th>
+                    <th>Signature</th>
+                    <th>Fiche</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for payment in payment_records %}
+                <tr>
+                    <td>{{ payment.payment_date|date:"d/m/Y" }}</td>
+                    <td>{{ payment.period_start|date:"d/m/Y" }} → {{ payment.period_end|date:"d/m/Y" }}</td>
+                    <td>${{ payment.salary_base_usd|floatformat:2 }} USD</td>
+                    <td style="font-weight: 600; color: var(--success-color);">${{ payment.amount_paid_usd|floatformat:2 }} USD</td>
+                    <td>{{ payment.get_payment_method_display }}</td>
+                    <td>{{ payment.employee_signature_name }}</td>
+                    <td>
+                        <a href="{% url 'admin_employee_payment_receipt' site.id payment.id %}" class="btn btn-info" style="padding: 0.35rem 0.7rem; font-size: 0.82rem;">
+                            Fiche
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color: var(--text-secondary); margin: 0;">Aucun paiement enregistré pour cet employé.</p>
+    {% endif %}
+</div>
+
+<div class="card mb-4">
+    <h2 style="margin-bottom: 1rem; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
+        🚗 Activité lavages récente (10)
+    </h2>
+    {% if recent_lavages %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Heure</th>
+                    <th>Service</th>
+                    <th>Plaque</th>
+                    <th>Montant</th>
+                    <th>Photos</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lavage in recent_lavages %}
+                <tr>
+                    <td>{{ lavage.date|date:"d/m/Y" }}</td>
+                    <td>{{ lavage.created_at|date:"H:i" }}</td>
+                    <td>{{ lavage.get_type_service_display }}</td>
+                    <td>{{ lavage.plaque|default:"-" }}</td>
+                    <td style="font-weight: 600; color: var(--success-color);">{{ lavage.montant|fc_amount }} FC</td>
+                    <td>{{ lavage.photos.count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color: var(--text-secondary); margin: 0;">Aucun lavage enregistré.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2 style="margin-bottom: 1rem; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
+        ⏰ Pointages récents (12)
+    </h2>
+    {% if recent_pointages_data %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Entrée</th>
+                    <th>Sortie</th>
+                    <th>Durée</th>
+                    <th>Lavages déclarés</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in recent_pointages_data %}
+                <tr>
+                    <td>{{ item.pointage.date|date:"d/m/Y" }}</td>
+                    <td>{% if item.pointage.clock_in_time %}{{ item.pointage.clock_in_time|date:"H:i" }}{% else %}-{% endif %}</td>
+                    <td>{% if item.pointage.clock_out_time %}{{ item.pointage.clock_out_time|date:"H:i" }}{% else %}<span style="color: var(--warning-color);">En cours</span>{% endif %}</td>
+                    <td>{% if item.duration %}{{ item.duration }}{% else %}-{% endif %}</td>
+                    <td>{{ item.pointage.total_lavages_reported }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color: var(--text-secondary); margin: 0;">Aucun pointage enregistré.</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -4,6 +4,16 @@ from django.core.validators import MinValueValidator
 from django.utils import timezone
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+import os
+
+
+def employee_cv_upload_path(instance, filename):
+    """
+    Chemin de stockage des CV employés.
+    """
+    ext = os.path.splitext(filename)[1].lower()
+    safe_ext = ext if ext else ".pdf"
+    return f"employees/{instance.user_id}/cv{safe_ext}"
 
 
 class UserProfile(models.Model):
@@ -29,6 +39,12 @@ class UserProfile(models.Model):
         blank=True,
         validators=[MinValueValidator(0)],
         verbose_name="Salaire mensuel (USD)",
+    )
+    cv_file = models.FileField(
+        upload_to=employee_cv_upload_path,
+        null=True,
+        blank=True,
+        verbose_name="CV employé",
     )
     actif = models.BooleanField(default=True, verbose_name="Actif")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
@@ -67,6 +83,11 @@ class UserProfile(models.Model):
         if months > 0:
             return f"{months} mois"
         return f"{days} jour(s)"
+
+    def cv_filename(self):
+        if not self.cv_file:
+            return ""
+        return os.path.basename(self.cv_file.name)
 
 
 class EmployeePayment(models.Model):

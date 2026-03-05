@@ -1890,6 +1890,164 @@ def admin_site_documents(request, site_id):
 
 @login_required
 @no_cache_view
+def admin_site_employee_portal(request, site_id, profile_id):
+    """
+    Portail détaillé d'un employé (infos, CV, paiements, performance).
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    site = get_object_or_404(Location, id=site_id)
+    profile = get_object_or_404(
+        UserProfile.objects.select_related('user', 'site'),
+        id=profile_id,
+        site=site,
+        role='EMPLOYE',
+    )
+
+    if request.method == 'POST':
+        action = request.POST.get('action', '').strip()
+
+        if action == 'upload_cv':
+            cv_file = request.FILES.get('cv_file')
+            if not cv_file:
+                messages.error(request, "Veuillez sélectionner un fichier CV.")
+                return redirect('admin_site_employee_portal', site_id=site.id, profile_id=profile.id)
+
+            filename = cv_file.name.lower()
+            allowed_extensions = ('.pdf', '.doc', '.docx')
+            if not filename.endswith(allowed_extensions):
+                messages.error(request, "Format CV non supporté. Utilisez PDF, DOC ou DOCX.")
+                return redirect('admin_site_employee_portal', site_id=site.id, profile_id=profile.id)
+
+            max_size = 10 * 1024 * 1024  # 10 MB
+            if cv_file.size > max_size:
+                messages.error(request, "Le CV dépasse la limite de 10 MB.")
+                return redirect('admin_site_employee_portal', site_id=site.id, profile_id=profile.id)
+
+            old_cv_name = profile.cv_filename() if profile.cv_file else ""
+            if profile.cv_file:
+                profile.cv_file.delete(save=False)
+
+            profile.cv_file = cv_file
+            profile.save(update_fields=['cv_file', 'updated_at'])
+
+            AuditLog.log(
+                user=user,
+                action="MODIFIER",
+                description=f"CV mis à jour pour {profile.user.get_full_name() or profile.user.username}",
+                donnees_avant={'cv': old_cv_name or None},
+                donnees_apres={'cv': profile.cv_filename()},
+                content_object=profile,
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request),
+            )
+
+            messages.success(request, "CV uploadé avec succès.")
+            return redirect('admin_site_employee_portal', site_id=site.id, profile_id=profile.id)
+
+        if action == 'delete_cv':
+            if not profile.cv_file:
+                messages.warning(request, "Aucun CV à supprimer.")
+                return redirect('admin_site_employee_portal', site_id=site.id, profile_id=profile.id)
+
+            deleted_cv_name = profile.cv_filename()
+            profile.cv_file.delete(save=False)
+            profile.cv_file = None
+            profile.save(update_fields=['cv_file', 'updated_at'])
+
+            AuditLog.log(
+                user=user,
+                action="SUPPRIMER",
+                description=f"CV supprimé pour {profile.user.get_full_name() or profile.user.username}",
+                donnees_avant={'cv': deleted_cv_name},
+                donnees_apres={'cv': None},
+                content_object=profile,
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request),
+            )
+
+            messages.success(request, "CV supprimé avec succès.")
+            return redirect('admin_site_employee_portal', site_id=site.id, profile_id=profile.id)
+
+    today = timezone.localdate()
+    month_start = today.replace(day=1)
+    year_start = today.replace(month=1, day=1)
+
+    lavages_qs = CarWash.objects.filter(site=site, employe=profile.user)
+    total_lavages = lavages_qs.count()
+    lavages_month = lavages_qs.filter(date__gte=month_start, date__lte=today).count()
+    lavages_amount_total = lavages_qs.aggregate(total=Sum('montant'))['total'] or 0
+    average_ticket_fc = (lavages_amount_total / total_lavages) if total_lavages else 0
+    recent_lavages = lavages_qs.prefetch_related('photos').order_by('-date', '-created_at')[:10]
+
+    pointages_qs = ShiftDay.objects.filter(site=site, employe=profile.user)
+    total_pointages = pointages_qs.count()
+    completed_pointages = pointages_qs.filter(clock_in_time__isnull=False, clock_out_time__isnull=False).count()
+    open_pointages = pointages_qs.filter(clock_in_time__isnull=False, clock_out_time__isnull=True).count()
+    pointages_month = pointages_qs.filter(date__gte=month_start, date__lte=today, clock_in_time__isnull=False).count()
+
+    recent_pointages_data = []
+    for pointage in pointages_qs.order_by('-date', '-clock_in_time')[:12]:
+        duration_str = None
+        if pointage.clock_in_time and pointage.clock_out_time:
+            duration = pointage.clock_out_time - pointage.clock_in_time
+            total_seconds = int(duration.total_seconds())
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            duration_str = f"{hours}h{minutes:02d}min"
+        recent_pointages_data.append({
+            'pointage': pointage,
+            'duration': duration_str,
+        })
+
+    issues_qs = IssueReport.objects.filter(site=site, employe=profile.user)
+    total_issues = issues_qs.count()
+    open_issues = issues_qs.filter(statut__in=['OUVERT', 'EN_COURS']).count()
+
+    payment_records = EmployeePayment.objects.filter(
+        site=site,
+        employee_profile=profile,
+    ).select_related('created_by').order_by('-payment_date', '-created_at')
+    payments_count = payment_records.count()
+    total_paid_usd = payment_records.aggregate(total=Sum('amount_paid_usd'))['total'] or 0
+    total_paid_this_year_usd = payment_records.filter(
+        payment_date__gte=year_start,
+        payment_date__lte=today,
+    ).aggregate(total=Sum('amount_paid_usd'))['total'] or 0
+    last_payment = payment_records.first()
+
+    context = {
+        'site': site,
+        'employee_profile': profile,
+        'today': today,
+        'month_start': month_start,
+        'total_lavages': total_lavages,
+        'lavages_month': lavages_month,
+        'lavages_amount_total': lavages_amount_total,
+        'average_ticket_fc': average_ticket_fc,
+        'recent_lavages': recent_lavages,
+        'total_pointages': total_pointages,
+        'completed_pointages': completed_pointages,
+        'open_pointages': open_pointages,
+        'pointages_month': pointages_month,
+        'recent_pointages_data': recent_pointages_data,
+        'total_issues': total_issues,
+        'open_issues': open_issues,
+        'payment_records': payment_records,
+        'payments_count': payments_count,
+        'total_paid_usd': total_paid_usd,
+        'total_paid_this_year_usd': total_paid_this_year_usd,
+        'last_payment': last_payment,
+    }
+    return render(request, 'admin/site_employee_portal.html', context)
+
+
+@login_required
+@no_cache_view
 def admin_add_site_employee(request, site_id):
     """
     Ajouter un employé pour un site.

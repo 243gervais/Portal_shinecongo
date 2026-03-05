@@ -63,6 +63,7 @@
                     </td>
                     <td>
                         <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                            <a href="{% url 'admin_site_employee_portal' site.id profile.id %}" class="btn btn-info" style="padding: 0.35rem 0.65rem; font-size: 0.82rem;">Portail</a>
                             <a href="{% url 'admin_edit_site_employee' site.id profile.id %}" class="btn btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.82rem;">Modifier</a>
                             <a href="{% url 'admin_create_employee_payment' site.id profile.id %}" class="btn btn-success" style="padding: 0.35rem 0.65rem; font-size: 0.82rem;">Payer</a>
                             <a href="{% url 'admin_remove_site_employee' site.id profile.id %}" class="btn btn-danger" style="padding: 0.35rem 0.65rem; font-size: 0.82rem;">Retirer</a>
