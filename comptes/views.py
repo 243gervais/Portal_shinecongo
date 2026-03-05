@@ -795,16 +795,7 @@ def admin_add_wash(request, site_id):
                     'next_url': next_url,
                 })
             
-            # Vérifier qu'il y a au moins une photo
             photos = request.FILES.getlist('photos')
-            if not photos:
-                messages.error(request, 'Au moins une photo est requise.')
-                return render(request, 'admin/add_wash.html', {
-                    'site': site,
-                    'employes_site': employes_site,
-                    'types_service': CarWash.TYPE_SERVICE_CHOICES,
-                    'next_url': next_url,
-                })
             
             # Récupérer l'employé
             employe = get_object_or_404(User, id=employe_id)
@@ -842,7 +833,7 @@ def admin_add_wash(request, site_id):
                 notes=notes
             )
             
-            # Traiter les photos (toutes marquées comme "après lavage")
+            # Traiter les photos si présentes (toutes marquées comme "après lavage")
             for photo in photos:
                 CarWashPhoto.objects.create(
                     lavage=lavage,

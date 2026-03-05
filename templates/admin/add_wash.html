@@ -64,7 +64,7 @@
         </div>
 
         <div class="form-group">
-            <label for="photos">Photos après lavage * (minimum 1)</label>
+            <label for="photos">Photos après lavage (optionnel)</label>
             <input type="file" class="form-control" id="photos" name="photos" multiple accept="image/*" style="display: none;">
             
             <div id="camera-container" style="margin-top: 1rem;">
@@ -92,7 +92,7 @@
                 <div id="photo-preview-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; margin-top: 1rem;"></div>
                 
                 <small style="color: var(--text-secondary); display: block; margin-top: 1rem;">
-                    Prenez des photos du véhicule après le lavage. Cliquez sur "Ouvrir l'appareil photo" pour prendre des photos directement, ou utilisez le bouton ci-dessous pour sélectionner des fichiers.
+                    Les photos sont optionnelles pour les corrections admin. Ajoutez-en si disponibles.
                 </small>
                 
                 <button type="button" class="btn btn-secondary" onclick="document.getElementById('photos').click();" style="width: 100%; margin-top: 0.5rem;">
@@ -308,7 +308,8 @@
         function updateFileInput() {
             try {
                 if (photos.length === 0) {
-                    fileInput.setCustomValidity('Veuillez prendre au moins une photo');
+                    fileInput.value = '';
+                    fileInput.setCustomValidity('');
                     return;
                 }
                 
@@ -330,17 +331,11 @@
             }
         }
         
-        // Form submission validation
+        // Form submission
         document.querySelector('form').addEventListener('submit', function(e) {
-            if (photos.length === 0) {
-                e.preventDefault();
-                alert('Veuillez ajouter au moins une photo avant de soumettre le formulaire.');
-                return false;
-            }
-            
             updateFileInput();
-            
-            if (fileInput.files.length === 0) {
+
+            if (photos.length > 0 && fileInput.files.length === 0) {
                 e.preventDefault();
                 alert('Erreur: Les photos n\'ont pas pu être attachées au formulaire. Veuillez réessayer.');
                 return false;
