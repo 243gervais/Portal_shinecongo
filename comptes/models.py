@@ -16,6 +16,15 @@ def employee_cv_upload_path(instance, filename):
     return f"employees/{instance.user_id}/cv{safe_ext}"
 
 
+def employee_photo_upload_path(instance, filename):
+    """
+    Chemin de stockage de la photo profil employé.
+    """
+    ext = os.path.splitext(filename)[1].lower()
+    safe_ext = ext if ext else ".jpg"
+    return f"employees/{instance.user_id}/photo{safe_ext}"
+
+
 class UserProfile(models.Model):
     """
     Profil utilisateur étendu avec rôle et site
@@ -45,6 +54,12 @@ class UserProfile(models.Model):
         null=True,
         blank=True,
         verbose_name="CV employé",
+    )
+    profile_photo = models.ImageField(
+        upload_to=employee_photo_upload_path,
+        null=True,
+        blank=True,
+        verbose_name="Photo employé",
     )
     actif = models.BooleanField(default=True, verbose_name="Actif")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
@@ -88,6 +103,11 @@ class UserProfile(models.Model):
         if not self.cv_file:
             return ""
         return os.path.basename(self.cv_file.name)
+
+    def photo_filename(self):
+        if not self.profile_photo:
+            return ""
+        return os.path.basename(self.profile_photo.name)
 
 
 class EmployeePayment(models.Model):

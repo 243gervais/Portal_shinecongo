@@ -18,7 +18,7 @@ class UserProfileInline(admin.StackedInline):
     can_delete = False
     verbose_name_plural = "Profil Utilisateur"
     fk_name = "user"
-    fields = ("role", "site", "telephone", "mpesa_numero", "date_embauche", "salaire_mensuel_usd", "cv_file", "actif")
+    fields = ("role", "site", "telephone", "mpesa_numero", "date_embauche", "salaire_mensuel_usd", "cv_file", "profile_photo", "actif")
     extra = 0
     min_num = 1
     max_num = 1
@@ -204,7 +204,7 @@ admin.site.register(User, UserAdmin)
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ("user", "role", "site", "telephone", "mpesa_numero", "salaire_mensuel_usd", "has_cv", "date_embauche", "actif", "created_at")
+    list_display = ("user", "role", "site", "telephone", "mpesa_numero", "salaire_mensuel_usd", "has_cv", "has_photo", "date_embauche", "actif", "created_at")
     list_filter = ("role", "site", "actif")
     search_fields = ("user__username", "user__first_name", "user__last_name", "telephone", "mpesa_numero", "site__nom")
     ordering = ("-created_at",)
@@ -214,7 +214,7 @@ class UserProfileAdmin(admin.ModelAdmin):
             "fields": ("user",)
         }),
         ("Informations", {
-            "fields": ("role", "site", "telephone", "mpesa_numero", "date_embauche", "salaire_mensuel_usd", "cv_file", "actif")
+            "fields": ("role", "site", "telephone", "mpesa_numero", "date_embauche", "salaire_mensuel_usd", "cv_file", "profile_photo", "actif")
         }),
         ("Métadonnées", {
             "fields": ("created_at", "updated_at"),
@@ -226,6 +226,10 @@ class UserProfileAdmin(admin.ModelAdmin):
     def has_cv(self, obj):
         return "Oui" if bool(obj.cv_file) else "Non"
     has_cv.short_description = "CV"
+
+    def has_photo(self, obj):
+        return "Oui" if bool(obj.profile_photo) else "Non"
+    has_photo.short_description = "Photo"
 
 
 @admin.register(EmployeePayment)

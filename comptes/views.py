@@ -1911,6 +1911,68 @@ def admin_site_employee_portal(request, site_id, profile_id):
     if request.method == 'POST':
         action = request.POST.get('action', '').strip()
 
+        if action == 'upload_photo':
+            photo_file = request.FILES.get('profile_photo')
+            if not photo_file:
+                messages.error(request, "Veuillez sélectionner une photo.")
+                return redirect('admin_site_employee_portal', site_id=site.id, profile_id=profile.id)
+
+            filename = photo_file.name.lower()
+            allowed_extensions = ('.jpg', '.jpeg', '.png', '.webp')
+            if not filename.endswith(allowed_extensions):
+                messages.error(request, "Format image non supporté. Utilisez JPG, PNG ou WEBP.")
+                return redirect('admin_site_employee_portal', site_id=site.id, profile_id=profile.id)
+
+            max_size = 5 * 1024 * 1024  # 5 MB
+            if photo_file.size > max_size:
+                messages.error(request, "La photo dépasse la limite de 5 MB.")
+                return redirect('admin_site_employee_portal', site_id=site.id, profile_id=profile.id)
+
+            old_photo_name = profile.photo_filename() if profile.profile_photo else ""
+            if profile.profile_photo:
+                profile.profile_photo.delete(save=False)
+
+            profile.profile_photo = photo_file
+            profile.save(update_fields=['profile_photo', 'updated_at'])
+
+            AuditLog.log(
+                user=user,
+                action="MODIFIER",
+                description=f"Photo employé mise à jour pour {profile.user.get_full_name() or profile.user.username}",
+                donnees_avant={'photo': old_photo_name or None},
+                donnees_apres={'photo': profile.photo_filename()},
+                content_object=profile,
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request),
+            )
+
+            messages.success(request, "Photo employé uploadée avec succès.")
+            return redirect('admin_site_employee_portal', site_id=site.id, profile_id=profile.id)
+
+        if action == 'delete_photo':
+            if not profile.profile_photo:
+                messages.warning(request, "Aucune photo à supprimer.")
+                return redirect('admin_site_employee_portal', site_id=site.id, profile_id=profile.id)
+
+            deleted_photo_name = profile.photo_filename()
+            profile.profile_photo.delete(save=False)
+            profile.profile_photo = None
+            profile.save(update_fields=['profile_photo', 'updated_at'])
+
+            AuditLog.log(
+                user=user,
+                action="SUPPRIMER",
+                description=f"Photo employé supprimée pour {profile.user.get_full_name() or profile.user.username}",
+                donnees_avant={'photo': deleted_photo_name},
+                donnees_apres={'photo': None},
+                content_object=profile,
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request),
+            )
+
+            messages.success(request, "Photo employé supprimée avec succès.")
+            return redirect('admin_site_employee_portal', site_id=site.id, profile_id=profile.id)
+
         if action == 'upload_cv':
             cv_file = request.FILES.get('cv_file')
             if not cv_file:

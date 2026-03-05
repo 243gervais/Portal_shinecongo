@@ -21,6 +21,36 @@
 <div class="card mb-4">
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem;">
         <div>
+            <h3 style="margin: 0 0 0.5rem 0; color: var(--primary-color);">Photo employé</h3>
+            {% if employee_profile.profile_photo %}
+                <div style="width: 100%; max-width: 220px; aspect-ratio: 1/1; border-radius: 12px; border: 1px solid var(--border-color); overflow: hidden; background: #f7f9fc; margin-bottom: 0.6rem;">
+                    <img src="{{ employee_profile.profile_photo.url }}" alt="Photo de {{ employee_profile.user.get_full_name|default:employee_profile.user.username }}" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <p style="margin: 0.2rem 0;"><strong>Fichier:</strong> {{ employee_profile.photo_filename }}</p>
+                <form method="post" style="margin-top: 0.5rem;">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="delete_photo">
+                    <button type="submit" class="btn btn-danger" style="padding: 0.35rem 0.65rem; font-size: 0.82rem;">Supprimer photo</button>
+                </form>
+            {% else %}
+                <div style="width: 100%; max-width: 220px; aspect-ratio: 1/1; border-radius: 12px; border: 1px dashed var(--border-color); display: flex; align-items: center; justify-content: center; color: var(--text-secondary); background: #fafbfd; margin-bottom: 0.6rem; text-align: center; padding: 0.8rem;">
+                    Photo non fournie
+                </div>
+                <p style="margin: 0.2rem 0; color: var(--warning-color);">Aucune photo enregistrée.</p>
+            {% endif %}
+
+            <form method="post" enctype="multipart/form-data" style="margin-top: 0.75rem;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="upload_photo">
+                <div class="form-group" style="margin-bottom: 0.5rem;">
+                    <label for="profile_photo" style="font-size: 0.86rem;">Uploader / Remplacer la photo (JPG, PNG, WEBP)</label>
+                    <input type="file" id="profile_photo" name="profile_photo" class="form-control" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" required>
+                </div>
+                <small style="color: var(--text-secondary); display: block; margin-bottom: 0.5rem;">Taille max: 5 MB</small>
+                <button type="submit" class="btn btn-primary" style="padding: 0.35rem 0.65rem; font-size: 0.82rem;">Enregistrer photo</button>
+            </form>
+        </div>
+        <div>
             <h3 style="margin: 0 0 0.5rem 0; color: var(--primary-color);">Informations</h3>
             <p style="margin: 0.2rem 0;"><strong>Nom:</strong> {{ employee_profile.user.get_full_name|default:employee_profile.user.username }}</p>
             <p style="margin: 0.2rem 0;"><strong>Identifiant:</strong> {{ employee_profile.user.username }}</p>
