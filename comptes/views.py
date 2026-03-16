@@ -8,7 +8,7 @@ from django.views.decorators.http import require_http_methods
 from functools import wraps
 from django.http import HttpResponse
 from django.contrib import messages
-from django.db.models import Sum, Count, Q
+from django.db.models import Sum, Count, Q, Min
 from django.contrib.auth.models import User
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
@@ -341,8 +341,16 @@ def admin_site_detail(request, site_id):
     # Récupérer les paramètres de filtre de date
     date_debut = request.GET.get('date_debut')
     date_fin = request.GET.get('date_fin')
+    week_anchor_param = request.GET.get('week_anchor')
     filter_today = request.GET.get('filter_today', 'false') == 'true'
     selected_single_date = None  # Date unique sélectionnée pour affichage détaillé
+    selected_week_anchor = today
+
+    if week_anchor_param:
+        try:
+            selected_week_anchor = datetime.strptime(week_anchor_param, '%Y-%m-%d').date()
+        except ValueError:
+            selected_week_anchor = today
     
     # Par défaut, afficher tous les lavages (pas seulement aujourd'hui)
     # Sauf si l'utilisateur demande explicitement de filtrer sur aujourd'hui
@@ -352,6 +360,7 @@ def admin_site_detail(request, site_id):
         selected_date_start = today
         selected_date_end = today
         selected_single_date = today
+        selected_week_anchor = today
     elif date_debut and date_fin and date_debut == date_fin:
         # Une seule date sélectionnée - affichage détaillé
         try:
@@ -359,6 +368,7 @@ def admin_site_detail(request, site_id):
             lavages_query = CarWash.objects.filter(site=site, date=selected_single_date)
             selected_date_start = selected_single_date
             selected_date_end = selected_single_date
+            selected_week_anchor = selected_single_date
         except ValueError:
             lavages_query = CarWash.objects.filter(site=site)
             selected_date_start = None
@@ -402,7 +412,7 @@ def admin_site_detail(request, site_id):
             })
     
     # Déterminer la date pour les détails quotidiens (aujourd'hui ou date sélectionnée)
-    detail_date = selected_single_date if selected_single_date else today
+    detail_date = selected_single_date if selected_single_date else selected_week_anchor
     
     # Problèmes du jour sélectionné
     problemes_date = IssueReport.objects.filter(site=site, created_at__date=detail_date).order_by('-created_at')
@@ -530,6 +540,68 @@ def admin_site_detail(request, site_id):
     pertes_week_banque = losses_week_qs.filter(funding_source='BANQUE').aggregate(total=Sum('amount'))['total'] or 0
     bank_net_week = bank_deposit_week - pertes_week_banque
     caisse_balance_week = chiffre_week - bank_deposit_week - pertes_week_caisse
+
+    earliest_activity_candidates = [
+        CarWash.objects.filter(site=site).aggregate(value=Min('date'))['value'],
+        DailyBankDeposit.objects.filter(site=site).aggregate(value=Min('date'))['value'],
+        SiteLossEntry.objects.filter(site=site).aggregate(value=Min('date'))['value'],
+    ]
+    earliest_activity_date = min(
+        (date_value for date_value in earliest_activity_candidates if date_value),
+        default=week_start,
+    )
+
+    weekly_history = []
+    history_cursor = week_start
+    history_limit = 8
+    while history_cursor >= earliest_activity_date and len(weekly_history) < history_limit:
+        history_end = history_cursor + timedelta(days=6)
+        history_cash = CarWash.objects.filter(
+            site=site,
+            date__gte=history_cursor,
+            date__lte=history_end,
+        ).aggregate(total=Sum('montant'))['total'] or 0
+        history_bank = DailyBankDeposit.objects.filter(
+            site=site,
+            date__gte=history_cursor,
+            date__lte=history_end,
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        history_losses = SiteLossEntry.objects.filter(
+            site=site,
+            date__gte=history_cursor,
+            date__lte=history_end,
+        )
+        history_pertes_total = history_losses.aggregate(total=Sum('amount'))['total'] or 0
+        history_pertes_caisse = history_losses.filter(funding_source='CAISSE').aggregate(total=Sum('amount'))['total'] or 0
+        history_pertes_banque = history_losses.filter(funding_source='BANQUE').aggregate(total=Sum('amount'))['total'] or 0
+
+        if (
+            history_cash
+            or history_bank
+            or history_pertes_total
+            or history_cursor == week_start
+        ):
+            weekly_history.append({
+                'week_start': history_cursor,
+                'week_end': history_end,
+                'label': f"{history_cursor.strftime('%d/%m/%Y')} - {history_end.strftime('%d/%m/%Y')}",
+                'cash_flow': history_cash,
+                'bank_deposit': history_bank,
+                'bank_net': history_bank - history_pertes_banque,
+                'pertes_total': history_pertes_total,
+                'pertes_caisse': history_pertes_caisse,
+                'pertes_banque': history_pertes_banque,
+                'ecart_caisse': history_cash - history_bank - history_pertes_caisse,
+                'is_selected': history_cursor == week_start,
+            })
+
+        history_cursor -= timedelta(days=7)
+
+    previous_week_start = week_start - timedelta(days=7)
+    previous_week_end = previous_week_start + timedelta(days=6)
+    next_week_start = week_start + timedelta(days=7)
+    next_week_end = next_week_start + timedelta(days=6)
+    can_view_next_week = next_week_start <= today
     
     context = {
         'site': site,
@@ -557,6 +629,7 @@ def admin_site_detail(request, site_id):
         'week_start': week_start,
         'week_end': week_end,
         'week_range_label': week_range_label,
+        'selected_week_anchor': selected_week_anchor,
         'chiffre_week': chiffre_week,
         'bank_deposit_week': bank_deposit_week,
         'bank_net_week': bank_net_week,
@@ -564,6 +637,12 @@ def admin_site_detail(request, site_id):
         'pertes_week_caisse': pertes_week_caisse,
         'pertes_week_banque': pertes_week_banque,
         'caisse_balance_week': caisse_balance_week,
+        'weekly_history': weekly_history,
+        'previous_week_start': previous_week_start,
+        'previous_week_end': previous_week_end,
+        'next_week_start': next_week_start,
+        'next_week_end': next_week_end,
+        'can_view_next_week': can_view_next_week,
         'photos_lavages': photos_lavages,
         'problemes_date': problemes_date,
         'problemes_ouverts': problemes_ouverts,

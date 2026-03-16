@@ -264,7 +264,13 @@
         <h2 style="margin: 0; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
             📊 Pilotage hebdomadaire ({{ week_range_label }})
         </h2>
-        <a href="{% url 'admin_site_losses' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-warning">Gérer les pertes</a>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <a href="{% url 'admin_site_detail' site.id %}?date_debut={{ previous_week_start|date:'Y-m-d' }}&date_fin={{ previous_week_end|date:'Y-m-d' }}&week_anchor={{ previous_week_start|date:'Y-m-d' }}" class="btn btn-secondary">Semaine précédente</a>
+            {% if can_view_next_week %}
+            <a href="{% url 'admin_site_detail' site.id %}?date_debut={{ next_week_start|date:'Y-m-d' }}&date_fin={{ next_week_end|date:'Y-m-d' }}&week_anchor={{ next_week_start|date:'Y-m-d' }}" class="btn btn-secondary">Semaine suivante</a>
+            {% endif %}
+            <a href="{% url 'admin_site_losses' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-warning">Gérer les pertes</a>
+        </div>
     </div>
 
     <div class="card-grid">
@@ -298,6 +304,53 @@
         Pertes financées par banque: <strong>{{ pertes_week_banque|fc_amount }} FC</strong> |
         Écart caisse semaine: <strong>{{ caisse_balance_week|fc_amount }} FC</strong>
     </div>
+</div>
+
+<div class="card mb-4">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: 0.75rem; flex-wrap: wrap;">
+        <h2 style="margin: 0; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
+            🗓️ Historique hebdomadaire
+        </h2>
+        <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">Les 8 dernières semaines avec activité sont affichées.</p>
+    </div>
+
+    {% if weekly_history %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Semaine</th>
+                    <th>Cash Flow</th>
+                    <th>Dépôts banque</th>
+                    <th>Banque net</th>
+                    <th>Pertes</th>
+                    <th>Écart caisse</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for week in weekly_history %}
+                <tr {% if week.is_selected %}style="background: rgba(0, 102, 255, 0.06);"{% endif %}>
+                    <td style="font-weight: 600;">{{ week.label }}</td>
+                    <td style="color: var(--primary-color); font-weight: 600;">{{ week.cash_flow|fc_amount }} FC</td>
+                    <td style="color: var(--success-color); font-weight: 600;">{{ week.bank_deposit|fc_amount }} FC</td>
+                    <td style="font-weight: 600; color: {% if week.bank_net < 0 %}var(--error-color){% else %}var(--text-primary){% endif %};">{{ week.bank_net|fc_amount }} FC</td>
+                    <td style="color: var(--warning-color); font-weight: 600;">{{ week.pertes_total|fc_amount }} FC</td>
+                    <td style="font-weight: 600; color: {% if week.ecart_caisse < 0 %}var(--error-color){% else %}var(--text-primary){% endif %};">{{ week.ecart_caisse|fc_amount }} FC</td>
+                    <td>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <a href="{% url 'admin_site_detail' site.id %}?date_debut={{ week.week_start|date:'Y-m-d' }}&date_fin={{ week.week_end|date:'Y-m-d' }}&week_anchor={{ week.week_start|date:'Y-m-d' }}" class="btn btn-primary" style="padding: 0.35rem 0.7rem; font-size: 0.82rem;">Voir semaine</a>
+                            <a href="{% url 'admin_site_losses' site.id %}?date={{ week.week_start|date:'Y-m-d' }}&period=week&metric=cashflow" class="btn btn-info" style="padding: 0.35rem 0.7rem; font-size: 0.82rem;">Détails</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="margin: 0; color: var(--text-secondary);">Aucune semaine historique disponible pour ce site.</p>
+    {% endif %}
 </div>
 
 <!-- Section Dépôt Bancaire (seulement si pas de date spécifique sélectionnée) -->
