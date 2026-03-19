@@ -18,6 +18,26 @@
 </div>
 
 <div class="card">
+    <div style="background: rgba(0, 102, 255, 0.06); border: 1px solid rgba(0, 102, 255, 0.14); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem;">
+            <div>
+                <strong style="color: var(--text-secondary);">Cash flow du jour</strong>
+                <div style="font-weight: 700; color: var(--primary-color);">{{ funding_snapshot.cash_flow|floatformat:0 }} FC</div>
+            </div>
+            <div>
+                <strong style="color: var(--text-secondary);">Caisse du jour</strong>
+                <div style="font-weight: 700; color: var(--primary-color);">{{ funding_snapshot.caisse_available|floatformat:0 }} FC</div>
+            </div>
+            <div>
+                <strong style="color: var(--text-secondary);">Banque</strong>
+                <div style="font-weight: 700; color: {% if funding_snapshot.bank_available < 0 %}var(--error-color){% else %}var(--success-color){% endif %};">{{ funding_snapshot.bank_available|floatformat:0 }} FC</div>
+            </div>
+        </div>
+        <p style="margin: 0.75rem 0 0 0; color: var(--text-secondary); font-size: 0.84rem;">
+            Les montants affichés correspondent au {{ funding_snapshot.date|date:"d/m/Y" }} avant l'enregistrement de cette perte.
+        </p>
+    </div>
+
     <form method="post">
         {% csrf_token %}
         <input type="hidden" name="next" value="{{ next_url }}">
@@ -43,7 +63,7 @@
                 <option value="{{ value }}" {% if loss_entry and loss_entry.funding_source == value %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
             </select>
-            <small style="color: var(--text-secondary);">Choisissez "Banque" si l'argent a été retiré du compte bancaire.</small>
+            <small style="color: var(--text-secondary);">Choisissez la source disponible: le solde courant est affiché entre parenthèses pour chaque option.</small>
         </div>
 
         <div class="form-group">

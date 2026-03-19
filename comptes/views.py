@@ -178,6 +178,115 @@ def _redirect_to_site_losses(request, site, date_obj=None):
     return redirect(base_url)
 
 
+def _format_fc_compact(amount):
+    """
+    Formate un montant FC sans décimales pour les libellés courts de formulaires.
+    """
+    return f"{amount:,.0f}".replace(",", " ")
+
+
+def _daily_funding_snapshot(site, date_obj, exclude_loss_id=None, exclude_deposit_id=None):
+    """
+    Calcule les soldes disponibles du jour pour la caisse et la banque.
+    """
+    cash_flow = CarWash.objects.filter(site=site, date=date_obj).aggregate(total=Sum('montant'))['total'] or Decimal('0')
+
+    deposits_qs = DailyBankDeposit.objects.filter(site=site, date=date_obj)
+    if exclude_deposit_id:
+        deposits_qs = deposits_qs.exclude(id=exclude_deposit_id)
+    bank_deposit = deposits_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+    losses_qs = SiteLossEntry.objects.filter(site=site, date=date_obj)
+    if exclude_loss_id:
+        losses_qs = losses_qs.exclude(id=exclude_loss_id)
+    pertes_caisse = losses_qs.filter(funding_source='CAISSE').aggregate(total=Sum('amount'))['total'] or Decimal('0')
+    pertes_banque = losses_qs.filter(funding_source='BANQUE').aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+    return {
+        'date': date_obj,
+        'cash_flow': cash_flow,
+        'bank_deposit': bank_deposit,
+        'pertes_caisse': pertes_caisse,
+        'pertes_banque': pertes_banque,
+        'caisse_available': cash_flow - bank_deposit - pertes_caisse,
+        'bank_available': bank_deposit - pertes_banque,
+    }
+
+
+def _funding_source_choices_with_balances(snapshot):
+    """
+    Libellés de source des fonds enrichis avec les soldes disponibles.
+    """
+    return [
+        (
+            'CAISSE',
+            f"Caisse du jour ({_format_fc_compact(snapshot['caisse_available'])} FC)"
+        ),
+        (
+            'BANQUE',
+            f"Banque ({_format_fc_compact(snapshot['bank_available'])} FC)"
+        ),
+    ]
+
+
+def _render_bank_deposit_form(request, site, date_value, deposit=None, next_url=''):
+    """
+    Construit le contexte du formulaire de dépôt bancaire avec les soldes du jour.
+    """
+    if isinstance(date_value, str):
+        try:
+            date_obj = datetime.strptime(date_value, '%Y-%m-%d').date()
+        except ValueError:
+            date_obj = timezone.localdate()
+    else:
+        date_obj = date_value
+
+    if deposit is None:
+        deposit = DailyBankDeposit.objects.filter(site=site, date=date_obj).first()
+
+    snapshot = _daily_funding_snapshot(
+        site,
+        date_obj,
+        exclude_deposit_id=deposit.id if deposit else None,
+    )
+    return render(request, 'admin/add_bank_deposit.html', {
+        'site': site,
+        'today': date_obj,
+        'deposit': deposit,
+        'next_url': next_url,
+        'funding_snapshot': snapshot,
+    })
+
+
+def _render_site_loss_form(request, site, mode, date_value, next_url='', loss_entry=None):
+    """
+    Construit le contexte du formulaire de perte avec les soldes du jour.
+    """
+    if isinstance(date_value, str):
+        try:
+            date_obj = datetime.strptime(date_value, '%Y-%m-%d').date()
+        except ValueError:
+            date_obj = timezone.localdate()
+    else:
+        date_obj = date_value
+
+    snapshot = _daily_funding_snapshot(
+        site,
+        date_obj,
+        exclude_loss_id=loss_entry.id if loss_entry else None,
+    )
+    return render(request, 'admin/site_loss_form.html', {
+        'site': site,
+        'mode': mode,
+        'loss_entry': loss_entry,
+        'loss_categories': SiteLossEntry.CATEGORY_CHOICES,
+        'funding_sources': _funding_source_choices_with_balances(snapshot),
+        'today': date_obj.strftime('%Y-%m-%d'),
+        'next_url': next_url,
+        'funding_snapshot': snapshot,
+    })
+
+
 @login_required
 @no_cache_view
 def admin_dashboard(request):
@@ -1339,48 +1448,28 @@ def admin_add_bank_deposit(request, site_id):
             # Validation des champs requis
             if not date_deposit:
                 messages.error(request, 'La date est requise.')
-                return render(request, 'admin/add_bank_deposit.html', {
-                    'site': site,
-                    'deposit': None,
-                    'next_url': next_url,
-                })
+                return _render_bank_deposit_form(request, site, today, next_url=next_url)
             
             if not amount:
                 messages.error(request, 'Le montant est requis.')
-                return render(request, 'admin/add_bank_deposit.html', {
-                    'site': site,
-                    'deposit': None,
-                    'next_url': next_url,
-                })
+                return _render_bank_deposit_form(request, site, date_deposit or today, next_url=next_url)
             
             # Convertir la date
             try:
                 date_obj = datetime.strptime(date_deposit, '%Y-%m-%d').date()
             except ValueError:
                 messages.error(request, 'Format de date invalide.')
-                return render(request, 'admin/add_bank_deposit.html', {
-                    'site': site,
-                    'deposit': None,
-                    'next_url': next_url,
-                })
+                return _render_bank_deposit_form(request, site, date_deposit or today, next_url=next_url)
             
             # Vérifier le montant
             try:
                 amount_decimal = float(amount)
                 if amount_decimal < 0:
                         messages.error(request, 'Le montant ne peut pas être négatif.')
-                        return render(request, 'admin/add_bank_deposit.html', {
-                            'site': site,
-                            'deposit': None,
-                            'next_url': next_url,
-                        })
+                        return _render_bank_deposit_form(request, site, date_obj, next_url=next_url)
             except ValueError:
                 messages.error(request, 'Montant invalide.')
-                return render(request, 'admin/add_bank_deposit.html', {
-                    'site': site,
-                    'deposit': None,
-                    'next_url': next_url,
-                })
+                return _render_bank_deposit_form(request, site, date_deposit or today, next_url=next_url)
             
             # Créer ou mettre à jour le dépôt bancaire
             deposit, created = DailyBankDeposit.objects.update_or_create(
@@ -1426,12 +1515,7 @@ def admin_add_bank_deposit(request, site_id):
         except ValueError:
             pass
     
-    return render(request, 'admin/add_bank_deposit.html', {
-        'site': site,
-        'today': today,
-        'deposit': deposit,
-        'next_url': next_url,
-    })
+    return _render_bank_deposit_form(request, site, today, deposit=deposit, next_url=next_url)
 
 
 @login_required
@@ -1652,40 +1736,19 @@ def admin_add_site_loss(request, site_id):
 
         if not date_value or not category or not funding_source or not amount or not title:
             messages.error(request, "Date, type de perte, source, montant et titre sont requis.")
-            return render(request, 'admin/site_loss_form.html', {
-                'site': site,
-                'mode': 'create',
-                'loss_categories': SiteLossEntry.CATEGORY_CHOICES,
-                'funding_sources': SiteLossEntry.FUNDING_SOURCE_CHOICES,
-                'today': today,
-                'next_url': next_url,
-            })
+            return _render_site_loss_form(request, site, 'create', date_value or today, next_url=next_url)
 
         try:
             date_obj = datetime.strptime(date_value, '%Y-%m-%d').date()
         except ValueError:
             messages.error(request, "Format de date invalide.")
-            return render(request, 'admin/site_loss_form.html', {
-                'site': site,
-                'mode': 'create',
-                'loss_categories': SiteLossEntry.CATEGORY_CHOICES,
-                'funding_sources': SiteLossEntry.FUNDING_SOURCE_CHOICES,
-                'today': today,
-                'next_url': next_url,
-            })
+            return _render_site_loss_form(request, site, 'create', date_value or today, next_url=next_url)
 
         valid_categories = {choice[0] for choice in SiteLossEntry.CATEGORY_CHOICES}
         valid_sources = {choice[0] for choice in SiteLossEntry.FUNDING_SOURCE_CHOICES}
         if category not in valid_categories or funding_source not in valid_sources:
             messages.error(request, "Valeur invalide pour le type de perte ou la source des fonds.")
-            return render(request, 'admin/site_loss_form.html', {
-                'site': site,
-                'mode': 'create',
-                'loss_categories': SiteLossEntry.CATEGORY_CHOICES,
-                'funding_sources': SiteLossEntry.FUNDING_SOURCE_CHOICES,
-                'today': today,
-                'next_url': next_url,
-            })
+            return _render_site_loss_form(request, site, 'create', date_obj, next_url=next_url)
 
         try:
             amount_decimal = Decimal(amount)
@@ -1693,14 +1756,7 @@ def admin_add_site_loss(request, site_id):
                 raise InvalidOperation
         except (InvalidOperation, TypeError):
             messages.error(request, "Montant invalide.")
-            return render(request, 'admin/site_loss_form.html', {
-                'site': site,
-                'mode': 'create',
-                'loss_categories': SiteLossEntry.CATEGORY_CHOICES,
-                'funding_sources': SiteLossEntry.FUNDING_SOURCE_CHOICES,
-                'today': today,
-                'next_url': next_url,
-            })
+            return _render_site_loss_form(request, site, 'create', date_obj, next_url=next_url)
 
         loss_entry = SiteLossEntry.objects.create(
             site=site,
@@ -1725,14 +1781,7 @@ def admin_add_site_loss(request, site_id):
         messages.success(request, "Perte enregistrée avec succès.")
         return _redirect_to_site_losses(request, site, date_obj=date_obj)
 
-    return render(request, 'admin/site_loss_form.html', {
-        'site': site,
-        'mode': 'create',
-        'loss_categories': SiteLossEntry.CATEGORY_CHOICES,
-        'funding_sources': SiteLossEntry.FUNDING_SOURCE_CHOICES,
-        'today': date_value,
-        'next_url': next_url,
-    })
+    return _render_site_loss_form(request, site, 'create', date_value, next_url=next_url)
 
 
 @login_required
@@ -1831,15 +1880,14 @@ def admin_edit_site_loss(request, site_id, loss_id):
         messages.success(request, "Perte modifiée avec succès.")
         return _redirect_to_site_losses(request, site, date_obj=loss_entry.date)
 
-    return render(request, 'admin/site_loss_form.html', {
-        'site': site,
-        'mode': 'edit',
-        'loss_entry': loss_entry,
-        'loss_categories': SiteLossEntry.CATEGORY_CHOICES,
-        'funding_sources': SiteLossEntry.FUNDING_SOURCE_CHOICES,
-        'today': loss_entry.date.strftime('%Y-%m-%d'),
-        'next_url': next_url,
-    })
+    return _render_site_loss_form(
+        request,
+        site,
+        'edit',
+        loss_entry.date,
+        next_url=next_url,
+        loss_entry=loss_entry,
+    )
 
 
 @login_required
