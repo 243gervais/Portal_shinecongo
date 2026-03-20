@@ -18,7 +18,6 @@
                     <th>Sortie</th>
                     <th>Durée</th>
                     <th>Lavages déclarés</th>
-                    <th>Montant déclaré</th>
                     <th>Rapport</th>
                 </tr>
             </thead>
@@ -44,13 +43,6 @@
                     <td>
                         {% if pointage.daily_report_confirmed %}
                         {{ pointage.total_lavages_reported }}
-                        {% else %}
-                        <span style="color: var(--text-secondary);">—</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if pointage.daily_report_confirmed %}
-                        {{ pointage.total_amount_reported_fc|floatformat:0 }} FC
                         {% else %}
                         <span style="color: var(--text-secondary);">—</span>
                         {% endif %}

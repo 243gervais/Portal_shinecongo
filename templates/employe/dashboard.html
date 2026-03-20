@@ -12,10 +12,17 @@
         <div class="stat-label">Lavages aujourd'hui</div>
     </div>
 
+    {% if show_live_amount %}
     <div class="card stat-card">
         <div class="stat-value">{{ montant_today|floatformat:0 }} FC</div>
         <div class="stat-label">Montant du jour</div>
     </div>
+    {% else %}
+    <div class="card stat-card">
+        <div class="stat-value">OK</div>
+        <div class="stat-label">Rapport du jour confirmé</div>
+    </div>
+    {% endif %}
 
     <div class="card stat-card">
         <div class="stat-value">{{ problemes_ouverts }}</div>

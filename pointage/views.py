@@ -35,6 +35,7 @@ def employe_dashboard(request):
         'montant_today': montant_today,
         'problemes_ouverts': problemes_ouverts,
         'shift_today': shift_today,
+        'show_live_amount': not (shift_today and shift_today.daily_report_confirmed),
     }
     
     return render(request, 'employe/dashboard.html', context)
@@ -64,27 +65,28 @@ def employe_daily_report(request):
 
     computed_total_amount = today_washes.aggregate(total=Sum('montant'))['total'] or Decimal('0')
     computed_total_washes = today_washes.count()
+    report_locked = shift.daily_report_confirmed
 
     if request.method == 'POST':
+        if report_locked:
+            messages.warning(request, "Le rapport de la journée a déjà été confirmé. Contactez l'administrateur pour une correction.")
+            return redirect('employe_daily_report')
+
         total_amount_value = request.POST.get('total_amount_reported_fc', '').strip()
-        total_lavages_value = request.POST.get('total_lavages_reported', '').strip()
-        lavages_review = request.POST.get('lavages_review', '').strip()
-        problems_review = request.POST.get('problems_review', '').strip()
         report_notes = request.POST.get('report_notes', '').strip()
 
         try:
             total_amount_reported = Decimal(total_amount_value or '0')
-            total_lavages_reported = int(total_lavages_value or 0)
-            if total_amount_reported < 0 or total_lavages_reported < 0:
+            if total_amount_reported < 0:
                 raise ValueError
         except (ArithmeticError, ValueError):
-            messages.error(request, "Veuillez entrer des valeurs valides pour le montant total et le nombre de lavages.")
+            messages.error(request, "Veuillez entrer une valeur valide pour le montant total.")
         else:
             shift.site = site
             shift.total_amount_reported_fc = total_amount_reported
-            shift.total_lavages_reported = total_lavages_reported
-            shift.lavages_review = lavages_review
-            shift.problems_review = problems_review
+            shift.total_lavages_reported = computed_total_washes
+            shift.lavages_review = ""
+            shift.problems_review = ""
             shift.report_notes = report_notes
             shift.daily_report_confirmed = True
             shift.save()
@@ -108,6 +110,7 @@ def employe_daily_report(request):
         'today_issues': today_issues,
         'computed_total_amount': computed_total_amount,
         'computed_total_washes': computed_total_washes,
+        'report_locked': report_locked,
     }
     return render(request, 'employe/daily_report.html', context)
 

@@ -19,10 +19,12 @@
             <strong style="color: var(--text-secondary);">Lavages enregistrés</strong>
             <div style="font-size: 1.6rem; font-weight: 700; color: var(--primary-color);">{{ computed_total_washes }}</div>
         </div>
+        {% if not report_locked %}
         <div>
             <strong style="color: var(--text-secondary);">Montant calculé</strong>
             <div style="font-size: 1.6rem; font-weight: 700; color: var(--success-color);">{{ computed_total_amount|floatformat:0 }} FC</div>
         </div>
+        {% endif %}
         <div>
             <strong style="color: var(--text-secondary);">Problèmes du jour</strong>
             <div style="font-size: 1.6rem; font-weight: 700; color: var(--warning-color);">{{ today_issues|length }}</div>
@@ -36,6 +38,19 @@
     </div>
 </div>
 
+{% if report_locked %}
+<div class="card mb-4">
+    <div style="padding: 1rem; background: rgba(12, 166, 120, 0.08); border: 1px solid rgba(12, 166, 120, 0.16); border-radius: 10px;">
+        <h2 style="margin-top: 0; color: var(--success-color);">Rapport clôturé</h2>
+        <p style="margin-bottom: 0; color: var(--text-secondary);">
+            Le montant final a déjà été confirmé pour aujourd'hui. Il n'est plus affiché sur le portail employé.
+        </p>
+        {% if shift.report_notes %}
+        <p style="margin: 0.75rem 0 0 0; color: var(--text-secondary);"><strong>Note enregistrée:</strong> {{ shift.report_notes }}</p>
+        {% endif %}
+    </div>
+</div>
+{% else %}
 <div class="card mb-4">
     <form method="post">
         {% csrf_token %}
@@ -50,44 +65,22 @@
                 min="0"
                 step="0.01"
                 required
-                value="{% if shift.total_amount_reported_fc %}{{ shift.total_amount_reported_fc }}{% else %}{{ computed_total_amount }}{% endif %}"
+                value="{{ computed_total_amount }}"
             >
             <small style="color: var(--text-secondary);">Le système a calculé {{ computed_total_amount|floatformat:0 }} FC à partir des lavages enregistrés aujourd'hui.</small>
         </div>
 
         <div class="form-group">
-            <label for="total_lavages_reported">Total des lavages du jour *</label>
-            <input
-                type="number"
-                class="form-control"
-                id="total_lavages_reported"
-                name="total_lavages_reported"
-                min="0"
-                required
-                value="{% if shift.total_lavages_reported %}{{ shift.total_lavages_reported }}{% else %}{{ computed_total_washes }}{% endif %}"
-            >
-        </div>
-
-        <div class="form-group">
-            <label for="lavages_review">Revue des lavages</label>
-            <textarea class="form-control" id="lavages_review" name="lavages_review" rows="4" placeholder="Décrivez brièvement les lavages du jour, les oublis éventuels ou les remarques.">{{ shift.lavages_review }}</textarea>
-        </div>
-
-        <div class="form-group">
-            <label for="problems_review">Revue des problèmes</label>
-            <textarea class="form-control" id="problems_review" name="problems_review" rows="4" placeholder="Indiquez les problèmes rencontrés, même s'ils ont déjà été signalés.">{{ shift.problems_review }}</textarea>
-        </div>
-
-        <div class="form-group">
-            <label for="report_notes">Notes complémentaires</label>
+            <label for="report_notes">Notes complémentaires (optionnel)</label>
             <textarea class="form-control" id="report_notes" name="report_notes" rows="4" placeholder="Ajouter toute autre information utile pour l'administrateur.">{{ shift.report_notes }}</textarea>
         </div>
 
         <button type="submit" class="btn btn-primary btn-block">
-            {% if shift.daily_report_confirmed %}Mettre à jour le rapport{% else %}Enregistrer le rapport{% endif %}
+            Enregistrer le rapport
         </button>
     </form>
 </div>
+{% endif %}
 
 <div class="card">
     <h2 class="mb-3">Résumé du jour</h2>
@@ -98,7 +91,7 @@
             <ul style="margin: 0; padding-left: 1rem;">
                 {% for lavage in today_washes %}
                 <li style="margin-bottom: 0.4rem;">
-                    {{ lavage.created_at|date:"H:i" }} - {{ lavage.montant|floatformat:0 }} FC
+                    {{ lavage.created_at|date:"H:i" }} - {{ lavage.get_type_service_display }}
                     {% if lavage.plaque %}({{ lavage.plaque }}){% endif %}
                 </li>
                 {% endfor %}
