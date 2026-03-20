@@ -31,7 +31,7 @@ class DailyQRTokenAdmin(admin.ModelAdmin):
 
 @admin.register(ShiftDay)
 class ShiftDayAdmin(admin.ModelAdmin):
-    list_display = ("employe", "site", "date", "clock_in_time", "clock_out_time", "clock_in_gps_status", "is_complete", "daily_report_confirmed")
+    list_display = ("employe", "site", "date", "clock_in_time", "clock_out_time", "clock_in_gps_status", "is_complete", "daily_report_confirmed", "total_amount_reported_fc")
     list_filter = ("date", "site", "daily_report_confirmed", "clock_in_gps_status", "clock_out_gps_status")
     search_fields = ("employe__username", "employe__first_name", "employe__last_name", "site__nom")
     ordering = ("-date", "-clock_in_time")
@@ -45,7 +45,19 @@ class ShiftDayAdmin(admin.ModelAdmin):
             "fields": ("clock_in_time", "clock_in_gps_latitude", "clock_in_gps_longitude", "clock_in_gps_distance_mètres", "clock_in_gps_status")
         }),
         ("Sortie", {
-            "fields": ("clock_out_time", "clock_out_gps_latitude", "clock_out_gps_longitude", "clock_out_gps_distance_mètres", "clock_out_gps_status", "daily_report_confirmed", "total_lavages_reported")
+            "fields": (
+                "clock_out_time",
+                "clock_out_gps_latitude",
+                "clock_out_gps_longitude",
+                "clock_out_gps_distance_mètres",
+                "clock_out_gps_status",
+                "daily_report_confirmed",
+                "total_lavages_reported",
+                "total_amount_reported_fc",
+                "lavages_review",
+                "problems_review",
+                "report_notes",
+            )
         }),
         ("Correction (Manager)", {
             "fields": ("corrected_by", "correction_reason", "corrected_at"),

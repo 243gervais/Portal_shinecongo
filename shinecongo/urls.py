@@ -59,7 +59,7 @@ admin.site.index_title = "Portail Opérations Employés"
 
 # Importations des vues
 from pointage.views import (
-    employe_dashboard, scan_qr_clock_in, scan_qr_clock_out, employe_historique, scan_qr_fixe
+    employe_dashboard, scan_qr_clock_in, scan_qr_clock_out, employe_historique, scan_qr_fixe, employe_daily_report
 )
 from pointage.views_manager import (
     manager_dashboard, manager_qr_du_jour, manager_regenerer_qr,
@@ -91,6 +91,7 @@ urlpatterns = [
     path("employe/", employe_dashboard, name="employe_dashboard"),
     path("employe/scan-in/", scan_qr_clock_in, name="scan_qr_clock_in"),
     path("employe/scan-out/", scan_qr_clock_out, name="scan_qr_clock_out"),
+    path("employe/rapport-journee/", employe_daily_report, name="employe_daily_report"),
     path("employe/historique/", employe_historique, name="employe_historique"),
     
     # Scan QR fixe (URL publique pour le QR code)

@@ -4,8 +4,11 @@ from django.utils import timezone
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+from django.db.models import Sum
 from .models import ShiftDay
 from sites.models import Location
+from lavages.models import CarWash
+from problemes.models import IssueReport
 from .utils import get_client_ip, get_user_agent
 from audit.models import AuditLog
 from decimal import Decimal
@@ -21,16 +24,92 @@ def employe_dashboard(request):
 
     # Lavages du jour
     lavages_today = user.lavages.filter(date=today).count()
+    montant_today = user.lavages.filter(date=today).aggregate(total=Sum('montant'))['total'] or 0
     
     # Problèmes ouverts de l'employé
     problemes_ouverts = user.problemes_signales.filter(statut="OUVERT").count()
+    shift_today = ShiftDay.objects.filter(employe=user, date=today).first()
     
     context = {
         'lavages_today': lavages_today,
+        'montant_today': montant_today,
         'problemes_ouverts': problemes_ouverts,
+        'shift_today': shift_today,
     }
     
     return render(request, 'employe/dashboard.html', context)
+
+
+@login_required
+def employe_daily_report(request):
+    """
+    Rapport de la journée pour l'employé connecté.
+    """
+    user = request.user
+    today = timezone.localdate()
+
+    if not hasattr(user, 'userprofile') or not user.userprofile.site:
+        messages.error(request, "Aucun site n'est associé à votre profil.")
+        return redirect('employe_dashboard')
+
+    site = user.userprofile.site
+    shift, _created = ShiftDay.objects.get_or_create(
+        employe=user,
+        date=today,
+        defaults={'site': site},
+    )
+
+    today_washes = CarWash.objects.filter(employe=user, site=site, date=today).order_by('-created_at')
+    today_issues = IssueReport.objects.filter(employe=user, site=site, created_at__date=today).order_by('-created_at')
+
+    computed_total_amount = today_washes.aggregate(total=Sum('montant'))['total'] or Decimal('0')
+    computed_total_washes = today_washes.count()
+
+    if request.method == 'POST':
+        total_amount_value = request.POST.get('total_amount_reported_fc', '').strip()
+        total_lavages_value = request.POST.get('total_lavages_reported', '').strip()
+        lavages_review = request.POST.get('lavages_review', '').strip()
+        problems_review = request.POST.get('problems_review', '').strip()
+        report_notes = request.POST.get('report_notes', '').strip()
+
+        try:
+            total_amount_reported = Decimal(total_amount_value or '0')
+            total_lavages_reported = int(total_lavages_value or 0)
+            if total_amount_reported < 0 or total_lavages_reported < 0:
+                raise ValueError
+        except (ArithmeticError, ValueError):
+            messages.error(request, "Veuillez entrer des valeurs valides pour le montant total et le nombre de lavages.")
+        else:
+            shift.site = site
+            shift.total_amount_reported_fc = total_amount_reported
+            shift.total_lavages_reported = total_lavages_reported
+            shift.lavages_review = lavages_review
+            shift.problems_review = problems_review
+            shift.report_notes = report_notes
+            shift.daily_report_confirmed = True
+            shift.save()
+
+            AuditLog.log(
+                user=user,
+                action="AUTRE",
+                description=f"Rapport journalier employé enregistré: {site.nom} - {today}",
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request),
+            )
+
+            messages.success(request, "Rapport de la journée enregistré avec succès.")
+            return redirect('employe_daily_report')
+
+    context = {
+        'shift': shift,
+        'today': today,
+        'site': site,
+        'today_washes': today_washes,
+        'today_issues': today_issues,
+        'computed_total_amount': computed_total_amount,
+        'computed_total_washes': computed_total_washes,
+    }
+    return render(request, 'employe/daily_report.html', context)
 
 
 @login_required

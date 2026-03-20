@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Rapport de la Journée{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem;">
+    <div>
+        <h1 class="mt-2 mb-2">Rapport de la Journée</h1>
+        <p style="color: var(--text-secondary); margin: 0;">
+            {{ site.nom }} - {{ today|date:"d/m/Y" }}
+        </p>
+    </div>
+    <a href="{% url 'employe_dashboard' %}" class="btn btn-secondary">Retour</a>
+</div>
+
+<div class="card mb-4">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem;">
+        <div>
+            <strong style="color: var(--text-secondary);">Lavages enregistrés</strong>
+            <div style="font-size: 1.6rem; font-weight: 700; color: var(--primary-color);">{{ computed_total_washes }}</div>
+        </div>
+        <div>
+            <strong style="color: var(--text-secondary);">Montant calculé</strong>
+            <div style="font-size: 1.6rem; font-weight: 700; color: var(--success-color);">{{ computed_total_amount|floatformat:0 }} FC</div>
+        </div>
+        <div>
+            <strong style="color: var(--text-secondary);">Problèmes du jour</strong>
+            <div style="font-size: 1.6rem; font-weight: 700; color: var(--warning-color);">{{ today_issues|length }}</div>
+        </div>
+        <div>
+            <strong style="color: var(--text-secondary);">Statut</strong>
+            <div style="font-size: 1rem; font-weight: 700; color: {% if shift.daily_report_confirmed %}var(--success-color){% else %}var(--text-primary){% endif %};">
+                {% if shift.daily_report_confirmed %}Rapport enregistré{% else %}En attente{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="form-group">
+            <label for="total_amount_reported_fc">Montant total du jour (FC) *</label>
+            <input
+                type="number"
+                class="form-control"
+                id="total_amount_reported_fc"
+                name="total_amount_reported_fc"
+                min="0"
+                step="0.01"
+                required
+                value="{% if shift.total_amount_reported_fc %}{{ shift.total_amount_reported_fc }}{% else %}{{ computed_total_amount }}{% endif %}"
+            >
+            <small style="color: var(--text-secondary);">Le système a calculé {{ computed_total_amount|floatformat:0 }} FC à partir des lavages enregistrés aujourd'hui.</small>
+        </div>
+
+        <div class="form-group">
+            <label for="total_lavages_reported">Total des lavages du jour *</label>
+            <input
+                type="number"
+                class="form-control"
+                id="total_lavages_reported"
+                name="total_lavages_reported"
+                min="0"
+                required
+                value="{% if shift.total_lavages_reported %}{{ shift.total_lavages_reported }}{% else %}{{ computed_total_washes }}{% endif %}"
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="lavages_review">Revue des lavages</label>
+            <textarea class="form-control" id="lavages_review" name="lavages_review" rows="4" placeholder="Décrivez brièvement les lavages du jour, les oublis éventuels ou les remarques.">{{ shift.lavages_review }}</textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="problems_review">Revue des problèmes</label>
+            <textarea class="form-control" id="problems_review" name="problems_review" rows="4" placeholder="Indiquez les problèmes rencontrés, même s'ils ont déjà été signalés.">{{ shift.problems_review }}</textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="report_notes">Notes complémentaires</label>
+            <textarea class="form-control" id="report_notes" name="report_notes" rows="4" placeholder="Ajouter toute autre information utile pour l'administrateur.">{{ shift.report_notes }}</textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">
+            {% if shift.daily_report_confirmed %}Mettre à jour le rapport{% else %}Enregistrer le rapport{% endif %}
+        </button>
+    </form>
+</div>
+
+<div class="card">
+    <h2 class="mb-3">Résumé du jour</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem;">
+        <div>
+            <h3 style="margin-top: 0;">Lavages du jour</h3>
+            {% if today_washes %}
+            <ul style="margin: 0; padding-left: 1rem;">
+                {% for lavage in today_washes %}
+                <li style="margin-bottom: 0.4rem;">
+                    {{ lavage.created_at|date:"H:i" }} - {{ lavage.montant|floatformat:0 }} FC
+                    {% if lavage.plaque %}({{ lavage.plaque }}){% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p style="color: var(--text-secondary); margin: 0;">Aucun lavage enregistré aujourd'hui.</p>
+            {% endif %}
+        </div>
+        <div>
+            <h3 style="margin-top: 0;">Problèmes du jour</h3>
+            {% if today_issues %}
+            <ul style="margin: 0; padding-left: 1rem;">
+                {% for issue in today_issues %}
+                <li style="margin-bottom: 0.4rem;">{{ issue.get_categorie_display }} - {{ issue.description|truncatechars:90 }}</li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p style="color: var(--text-secondary); margin: 0;">Aucun problème signalé aujourd'hui.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

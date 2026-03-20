@@ -205,6 +205,15 @@ class ShiftDay(models.Model):
     # Rapport de fin de journée
     daily_report_confirmed = models.BooleanField(default=False, verbose_name="Rapport confirmé")
     total_lavages_reported = models.IntegerField(default=0, verbose_name="Total lavages déclaré")
+    total_amount_reported_fc = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name="Montant total déclaré (FC)",
+    )
+    lavages_review = models.TextField(blank=True, verbose_name="Revue des lavages")
+    problems_review = models.TextField(blank=True, verbose_name="Revue des problèmes")
+    report_notes = models.TextField(blank=True, verbose_name="Notes du rapport")
     
     # Corrections (manager)
     corrected_by = models.ForeignKey(

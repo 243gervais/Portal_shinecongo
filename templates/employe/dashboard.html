@@ -13,6 +13,11 @@
     </div>
 
     <div class="card stat-card">
+        <div class="stat-value">{{ montant_today|floatformat:0 }} FC</div>
+        <div class="stat-label">Montant du jour</div>
+    </div>
+
+    <div class="card stat-card">
         <div class="stat-value">{{ problemes_ouverts }}</div>
         <div class="stat-label">Problèmes ouverts</div>
     </div>
@@ -36,6 +41,20 @@
         <h3>Historique</h3>
         <p style="color: var(--text-secondary)">Mes pointages et activités</p>
         <a href="{% url 'employe_historique' %}" class="btn btn-primary btn-block mt-3">Voir</a>
+    </div>
+
+    <div class="card">
+        <h3>Rapport de la Journée</h3>
+        <p style="color: var(--text-secondary)">
+            {% if shift_today and shift_today.daily_report_confirmed %}
+            Rapport déjà enregistré pour aujourd'hui
+            {% else %}
+            Déclarer le total du jour, les lavages et les problèmes
+            {% endif %}
+        </p>
+        <a href="{% url 'employe_daily_report' %}" class="btn btn-primary btn-block mt-3">
+            {% if shift_today and shift_today.daily_report_confirmed %}Modifier{% else %}Ouvrir{% endif %}
+        </a>
     </div>
 </div>
 
