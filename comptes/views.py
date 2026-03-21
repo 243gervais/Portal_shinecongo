@@ -2178,6 +2178,8 @@ def admin_site_employee_portal(request, site_id, profile_id):
     completed_pointages = pointages_qs.filter(clock_in_time__isnull=False, clock_out_time__isnull=False).count()
     open_pointages = pointages_qs.filter(clock_in_time__isnull=False, clock_out_time__isnull=True).count()
     pointages_month = pointages_qs.filter(date__gte=month_start, date__lte=today, clock_in_time__isnull=False).count()
+    today_pointage = pointages_qs.filter(date=today).first()
+    latest_daily_report = pointages_qs.filter(daily_report_confirmed=True).order_by('-date', '-updated_at').first()
 
     recent_pointages_data = []
     for pointage in pointages_qs.order_by('-date', '-clock_in_time')[:12]:
@@ -2223,6 +2225,8 @@ def admin_site_employee_portal(request, site_id, profile_id):
         'completed_pointages': completed_pointages,
         'open_pointages': open_pointages,
         'pointages_month': pointages_month,
+        'today_pointage': today_pointage,
+        'latest_daily_report': latest_daily_report,
         'recent_pointages_data': recent_pointages_data,
         'total_issues': total_issues,
         'open_issues': open_issues,

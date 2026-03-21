@@ -158,6 +158,69 @@
 
 <div class="card mb-4">
     <h2 style="margin-bottom: 1rem; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
+        Rapport de la journée
+    </h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem;">
+        <div style="padding: 1rem; border-radius: 12px; background: var(--bg-secondary); border: 1px solid var(--border-color);">
+            <p style="margin: 0 0 0.35rem 0; color: var(--text-secondary); font-weight: 600;">Statut aujourd'hui</p>
+            {% if today_pointage and today_pointage.daily_report_confirmed %}
+                <div style="font-size: 1.15rem; font-weight: 700; color: var(--success-color);">Rapport confirmé</div>
+                <p style="margin: 0.35rem 0 0 0; color: var(--text-secondary);">{{ today|date:"d/m/Y" }}</p>
+            {% elif today_pointage %}
+                <div style="font-size: 1.15rem; font-weight: 700; color: var(--warning-color);">En attente</div>
+                <p style="margin: 0.35rem 0 0 0; color: var(--text-secondary);">Le pointage existe, mais le rapport final n'a pas encore été confirmé.</p>
+            {% else %}
+                <div style="font-size: 1.15rem; font-weight: 700; color: var(--text-secondary);">Aucun pointage</div>
+                <p style="margin: 0.35rem 0 0 0; color: var(--text-secondary);">Aucune activité enregistrée pour aujourd'hui.</p>
+            {% endif %}
+        </div>
+
+        <div style="padding: 1rem; border-radius: 12px; background: var(--bg-secondary); border: 1px solid var(--border-color);">
+            <p style="margin: 0 0 0.35rem 0; color: var(--text-secondary); font-weight: 600;">Montant final déclaré</p>
+            {% if today_pointage and today_pointage.daily_report_confirmed %}
+                <div style="font-size: 1.4rem; font-weight: 700; color: var(--primary-color);">{{ today_pointage.total_amount_reported_fc|fc_amount }} FC</div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.2rem;">~ ${{ today_pointage.total_amount_reported_fc|usd_equivalent }} USD</div>
+            {% else %}
+                <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-secondary);">Non disponible</div>
+            {% endif %}
+        </div>
+
+        <div style="padding: 1rem; border-radius: 12px; background: var(--bg-secondary); border: 1px solid var(--border-color);">
+            <p style="margin: 0 0 0.35rem 0; color: var(--text-secondary); font-weight: 600;">Lavages déclarés</p>
+            {% if today_pointage and today_pointage.daily_report_confirmed %}
+                <div style="font-size: 1.4rem; font-weight: 700; color: var(--primary-color);">{{ today_pointage.total_lavages_reported }}</div>
+            {% else %}
+                <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-secondary);">Non disponible</div>
+            {% endif %}
+        </div>
+
+        <div style="padding: 1rem; border-radius: 12px; background: var(--bg-secondary); border: 1px solid var(--border-color);">
+            <p style="margin: 0 0 0.35rem 0; color: var(--text-secondary); font-weight: 600;">Dernier rapport confirmé</p>
+            {% if latest_daily_report %}
+                <div style="font-size: 1.15rem; font-weight: 700; color: var(--primary-color);">{{ latest_daily_report.date|date:"d/m/Y" }}</div>
+                <p style="margin: 0.35rem 0 0 0; color: var(--text-secondary);">{{ latest_daily_report.total_amount_reported_fc|fc_amount }} FC</p>
+            {% else %}
+                <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-secondary);">Aucun rapport</div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if today_pointage and today_pointage.daily_report_confirmed %}
+    <div style="margin-top: 1rem; padding: 1rem; border-radius: 12px; background: rgba(10, 67, 107, 0.05); border: 1px solid rgba(10, 67, 107, 0.1);">
+        <p style="margin: 0 0 0.45rem 0; color: var(--text-secondary); font-weight: 600;">Notes du rapport</p>
+        <p style="margin: 0; color: var(--text-primary);">
+            {% if today_pointage.report_notes %}
+                {{ today_pointage.report_notes }}
+            {% else %}
+                Aucune note complémentaire.
+            {% endif %}
+        </p>
+    </div>
+    {% endif %}
+</div>
+
+<div class="card mb-4">
+    <h2 style="margin-bottom: 1rem; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
         💳 Historique des paiements
     </h2>
     {% if payment_records %}
@@ -247,7 +310,10 @@
                     <th>Entrée</th>
                     <th>Sortie</th>
                     <th>Durée</th>
+                    <th>Rapport</th>
                     <th>Lavages déclarés</th>
+                    <th>Montant final</th>
+                    <th>Notes</th>
                 </tr>
             </thead>
             <tbody>
@@ -257,7 +323,29 @@
                     <td>{% if item.pointage.clock_in_time %}{{ item.pointage.clock_in_time|date:"H:i" }}{% else %}-{% endif %}</td>
                     <td>{% if item.pointage.clock_out_time %}{{ item.pointage.clock_out_time|date:"H:i" }}{% else %}<span style="color: var(--warning-color);">En cours</span>{% endif %}</td>
                     <td>{% if item.duration %}{{ item.duration }}{% else %}-{% endif %}</td>
+                    <td>
+                        {% if item.pointage.daily_report_confirmed %}
+                            <span style="color: var(--success-color); font-weight: 600;">Confirmé</span>
+                        {% else %}
+                            <span style="color: var(--warning-color); font-weight: 600;">En attente</span>
+                        {% endif %}
+                    </td>
                     <td>{{ item.pointage.total_lavages_reported }}</td>
+                    <td>
+                        {% if item.pointage.daily_report_confirmed %}
+                            {{ item.pointage.total_amount_reported_fc|fc_amount }} FC
+                            <br><small style="color: var(--text-secondary);">~ ${{ item.pointage.total_amount_reported_fc|usd_equivalent }}</small>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td style="max-width: 260px;">
+                        {% if item.pointage.daily_report_confirmed %}
+                            {{ item.pointage.report_notes|default:"-" }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
