@@ -19,12 +19,10 @@
             <strong style="color: var(--text-secondary);">Lavages enregistrés</strong>
             <div style="font-size: 1.6rem; font-weight: 700; color: var(--primary-color);">{{ computed_total_washes }}</div>
         </div>
-        {% if not report_locked %}
         <div>
             <strong style="color: var(--text-secondary);">Montant calculé</strong>
             <div style="font-size: 1.6rem; font-weight: 700; color: var(--success-color);">{{ computed_total_amount|floatformat:0 }} FC</div>
         </div>
-        {% endif %}
         <div>
             <strong style="color: var(--text-secondary);">Problèmes du jour</strong>
             <div style="font-size: 1.6rem; font-weight: 700; color: var(--warning-color);">{{ today_issues|length }}</div>
@@ -38,20 +36,19 @@
     </div>
 </div>
 
-{% if report_locked %}
 <div class="card mb-4">
-    <div style="padding: 1rem; background: rgba(12, 166, 120, 0.08); border: 1px solid rgba(12, 166, 120, 0.16); border-radius: 10px;">
-        <h2 style="margin-top: 0; color: var(--success-color);">Rapport clôturé</h2>
+    {% if report_submitted %}
+    <div style="padding: 1rem; background: rgba(12, 166, 120, 0.08); border: 1px solid rgba(12, 166, 120, 0.16); border-radius: 10px; margin-bottom: 1rem;">
+        <h2 style="margin-top: 0; color: var(--success-color);">Rapport déjà envoyé</h2>
         <p style="margin-bottom: 0; color: var(--text-secondary);">
-            Le montant final a déjà été confirmé pour aujourd'hui. Il n'est plus affiché sur le portail employé.
+            Vous pouvez encore corriger le montant final et les notes si vous remarquez une erreur. Chaque modification enverra aussi une notification à l'administrateur.
         </p>
         {% if shift.report_notes %}
         <p style="margin: 0.75rem 0 0 0; color: var(--text-secondary);"><strong>Note enregistrée:</strong> {{ shift.report_notes }}</p>
         {% endif %}
     </div>
-</div>
-{% else %}
-<div class="card mb-4">
+    {% endif %}
+
     <form method="post">
         {% csrf_token %}
 
@@ -65,7 +62,7 @@
                 min="0"
                 step="0.01"
                 required
-                value="{{ computed_total_amount }}"
+                value="{% if shift.daily_report_confirmed %}{{ shift.total_amount_reported_fc|floatformat:2 }}{% else %}{{ computed_total_amount|floatformat:2 }}{% endif %}"
             >
             <small style="color: var(--text-secondary);">Le système a calculé {{ computed_total_amount|floatformat:0 }} FC à partir des lavages enregistrés aujourd'hui.</small>
         </div>
@@ -76,11 +73,10 @@
         </div>
 
         <button type="submit" class="btn btn-primary btn-block">
-            Enregistrer le rapport
+            {% if report_submitted %}Mettre à jour le rapport{% else %}Enregistrer le rapport{% endif %}
         </button>
     </form>
 </div>
-{% endif %}
 
 <div class="card">
     <h2 class="mb-3">Résumé du jour</h2>
