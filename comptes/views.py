@@ -372,11 +372,30 @@ def admin_dashboard(request):
             "requested_at": pending_user.date_joined,
         })
 
+    recent_daily_reports = []
+    for shift in (
+        ShiftDay.objects.filter(daily_report_confirmed=True)
+        .select_related("employe", "site")
+        .order_by("-updated_at", "-date")[:12]
+    ):
+        employee_name = shift.employe.get_full_name() or shift.employe.username
+        recent_daily_reports.append({
+            "shift": shift,
+            "employee_name": employee_name,
+            "site_name": shift.site.nom if shift.site else "Site inconnu",
+            "is_update": shift.updated_at and shift.created_at and shift.updated_at > (shift.created_at + timedelta(seconds=5)),
+            "detail_url": reverse("admin_site_detail", kwargs={"site_id": shift.site.id}) + f"?date_debut={shift.date:%Y-%m-%d}&date_fin={shift.date:%Y-%m-%d}" if shift.site else "",
+            "employee_url": reverse("admin_site_employee_portal", kwargs={"site_id": shift.site.id, "profile_id": shift.employe.userprofile.id})
+            if shift.site and hasattr(shift.employe, "userprofile") else "",
+        })
+
     context = {
         'sites_stats': sites_stats,
         'today': today,
         'pending_account_requests': pending_account_requests,
         'pending_account_requests_count': len(pending_account_requests),
+        'recent_daily_reports': recent_daily_reports,
+        'recent_daily_reports_count': len(recent_daily_reports),
     }
     
     return render(request, 'admin/dashboard.html', context)

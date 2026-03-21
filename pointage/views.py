@@ -1,13 +1,10 @@
 from django.contrib.auth.decorators import login_required
-from django.conf import settings
-from django.core.mail import send_mail
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.db.models import Sum
-from django.urls import reverse
 from .models import ShiftDay
 from sites.models import Location
 from lavages.models import CarWash
@@ -15,49 +12,6 @@ from problemes.models import IssueReport
 from .utils import get_client_ip, get_user_agent
 from audit.models import AuditLog
 from decimal import Decimal
-import logging
-
-
-logger = logging.getLogger(__name__)
-
-
-def _send_daily_report_notification(request, shift, computed_total_amount, was_update):
-    recipient = getattr(settings, "FINAL_REPORT_NOTIFICATION_EMAIL", "").strip()
-    if not recipient:
-        return
-
-    employee_name = shift.employe.get_full_name() or shift.employe.username
-    site_name = shift.site.nom if shift.site else "Site inconnu"
-    report_url = request.build_absolute_uri(
-        reverse("admin_site_detail", kwargs={"site_id": shift.site.id})
-        + f"?date_debut={shift.date:%Y-%m-%d}&date_fin={shift.date:%Y-%m-%d}"
-    ) if shift.site else ""
-
-    delta_amount = shift.total_amount_reported_fc - computed_total_amount
-    action_label = "mis à jour" if was_update else "envoyé"
-    subject = f"Rapport final {action_label} - {site_name} - {shift.date:%d/%m/%Y}"
-    message = "\n".join([
-        f"Site: {site_name}",
-        f"Employé: {employee_name}",
-        f"Date: {shift.date:%d/%m/%Y}",
-        f"Montant final déclaré: {shift.total_amount_reported_fc:,.2f} FC",
-        f"Montant calculé par le système: {computed_total_amount:,.2f} FC",
-        f"Écart: {delta_amount:,.2f} FC",
-        f"Lavages déclarés: {shift.total_lavages_reported}",
-        f"Notes: {shift.report_notes or 'Aucune note'}",
-        f"Portail admin: {report_url or 'Non disponible'}",
-    ])
-
-    try:
-        send_mail(
-            subject=subject,
-            message=message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[recipient],
-            fail_silently=False,
-        )
-    except Exception:
-        logger.exception("Failed to send daily report notification for shift %s", shift.pk)
 
 
 @login_required
@@ -141,8 +95,6 @@ def employe_daily_report(request):
                 ip_address=get_client_ip(request),
                 user_agent=get_user_agent(request),
             )
-
-            _send_daily_report_notification(request, shift, computed_total_amount, was_update)
 
             messages.success(
                 request,

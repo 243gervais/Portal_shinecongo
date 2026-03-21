@@ -64,6 +64,63 @@
     {% endif %}
 </div>
 
+<div class="card" style="margin-bottom: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap;">
+        <h2 style="margin: 0; color: var(--primary-color);">Messages - Rapports de fin de journée</h2>
+        <span style="background: var(--primary-color); color: white; padding: 0.35rem 0.8rem; border-radius: 999px; font-weight: 700; font-size: 0.85rem;">
+            {{ recent_daily_reports_count }}
+        </span>
+    </div>
+
+    {% if recent_daily_reports %}
+    <div style="display: grid; gap: 0.85rem;">
+        {% for item in recent_daily_reports %}
+        <div style="padding: 1rem; border: 1px solid var(--border-color); border-radius: 14px; background: var(--bg-secondary);">
+            <div style="display: flex; justify-content: space-between; align-items: start; gap: 1rem; flex-wrap: wrap;">
+                <div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.4rem;">
+                        <strong style="color: var(--primary-color);">{{ item.employee_name }}</strong>
+                        <span style="background: {% if item.is_update %}rgba(244, 163, 64, 0.16){% else %}rgba(10, 67, 107, 0.1){% endif %}; color: {% if item.is_update %}#8a5600{% else %}var(--primary-color){% endif %}; padding: 0.2rem 0.55rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700;">
+                            {% if item.is_update %}Rapport mis à jour{% else %}Nouveau rapport{% endif %}
+                        </span>
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 0.9rem;">
+                        {{ item.site_name }} • {{ item.shift.date|date:"d/m/Y" }} • {{ item.shift.updated_at|date:"H:i" }}
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 1.2rem; font-weight: 700; color: var(--primary-color);">{{ item.shift.total_amount_reported_fc|fc_amount }} FC</div>
+                    <div style="font-size: 0.72rem; color: var(--text-secondary);">~ ${{ item.shift.total_amount_reported_fc|usd_equivalent }} USD</div>
+                </div>
+            </div>
+
+            <div style="margin-top: 0.75rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem;">
+                <div>
+                    <strong style="color: var(--text-secondary); font-size: 0.82rem;">Lavages déclarés</strong>
+                    <div style="margin-top: 0.15rem;">{{ item.shift.total_lavages_reported }}</div>
+                </div>
+                <div>
+                    <strong style="color: var(--text-secondary); font-size: 0.82rem;">Notes</strong>
+                    <div style="margin-top: 0.15rem; color: var(--text-primary);">{{ item.shift.report_notes|default:"Aucune note" }}</div>
+                </div>
+            </div>
+
+            <div style="margin-top: 0.85rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                {% if item.detail_url %}
+                <a href="{{ item.detail_url }}" class="btn btn-secondary" style="padding: 0.45rem 0.75rem; font-size: 0.85rem;">Voir la journée</a>
+                {% endif %}
+                {% if item.employee_url %}
+                <a href="{{ item.employee_url }}" class="btn btn-info" style="padding: 0.45rem 0.75rem; font-size: 0.85rem;">Portail employé</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p style="margin: 0; color: var(--text-secondary);">Aucun rapport de fin de journée reçu pour le moment.</p>
+    {% endif %}
+</div>
+
 {% if sites_stats %}
 <div class="card-grid">
     {% for stats in sites_stats %}
