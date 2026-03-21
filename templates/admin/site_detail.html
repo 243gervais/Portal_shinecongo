@@ -567,6 +567,23 @@
         </div>
     </div>
 
+    <div class="finance-meta">
+        <div class="finance-meta-grid">
+            <div class="finance-meta-block">
+                <h3>Montant déclaré par les employés</h3>
+                <div><strong>{{ montant_rapports_date|fc_amount }} FC</strong> (~ ${{ montant_rapports_date|usd_equivalent }} USD)</div>
+                <div style="margin-top: 0.45rem;">{{ rapports_confirmes_date }} rapport{{ rapports_confirmes_date|pluralize }} confirmé{{ rapports_confirmes_date|pluralize }} pour cette date.</div>
+            </div>
+            <div class="finance-meta-block">
+                <h3>Écart rapports vs système</h3>
+                <div style="font-weight: 700; color: {% if ecart_rapports_date < 0 %}var(--error-color){% else %}var(--primary-color){% endif %};">
+                    {{ ecart_rapports_date|fc_amount }} FC
+                </div>
+                <div style="margin-top: 0.45rem;">0 FC signifie que les rapports employés correspondent exactement aux lavages enregistrés.</div>
+            </div>
+        </div>
+    </div>
+
     {% if bank_deposit_date %}
     <div class="finance-meta">
         <div class="finance-meta-grid">
@@ -784,6 +801,23 @@
             </div>
         </div>
     </div>
+
+    <div class="finance-meta">
+        <div class="finance-meta-grid">
+            <div class="finance-meta-block">
+                <h3>Rapports employés de la semaine</h3>
+                <div><strong>{{ montant_rapports_week|fc_amount }} FC</strong> (~ ${{ montant_rapports_week|usd_equivalent }} USD)</div>
+                <div style="margin-top: 0.45rem;">{{ rapports_confirmes_week }} rapport{{ rapports_confirmes_week|pluralize }} confirmé{{ rapports_confirmes_week|pluralize }} sur la semaine.</div>
+            </div>
+            <div class="finance-meta-block">
+                <h3>Écart rapports vs système</h3>
+                <div style="font-weight: 700; color: {% if ecart_rapports_week < 0 %}var(--error-color){% else %}var(--primary-color){% endif %};">
+                    {{ ecart_rapports_week|fc_amount }} FC
+                </div>
+                <div style="margin-top: 0.45rem;">Cet écart compare les montants confirmés par les employés avec le cash flow calculé depuis les lavages.</div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="card finance-panel finance-history mb-4">
@@ -801,6 +835,7 @@
                 <tr>
                     <th>Semaine</th>
                     <th>Cash Flow</th>
+                    <th>Rapports employés</th>
                     <th>Dépôts banque</th>
                     <th>Banque net</th>
                     <th>Pertes</th>
@@ -813,6 +848,7 @@
                 <tr {% if week.is_selected %}class="is-selected"{% endif %}>
                     <td style="font-weight: 600;">{{ week.label }}</td>
                     <td class="finance-table-money finance-table-money--primary">{{ week.cash_flow|fc_amount }} FC</td>
+                    <td class="finance-table-money">{{ week.reported_cash|fc_amount }} FC</td>
                     <td class="finance-table-money finance-table-money--success">{{ week.bank_deposit|fc_amount }} FC</td>
                     <td class="finance-table-money {% if week.bank_net < 0 %}finance-table-money--danger{% endif %}">{{ week.bank_net|fc_amount }} FC</td>
                     <td class="finance-table-money finance-table-money--warning">{{ week.pertes_total|fc_amount }} FC</td>
@@ -902,6 +938,11 @@
 
     <div class="finance-breakdown">
         <div class="finance-breakdown-item">
+            <div class="finance-breakdown-label">Rapports employés</div>
+            <div class="finance-breakdown-value">{{ montant_rapports_today|fc_amount }} FC</div>
+            <div class="finance-breakdown-note">{{ rapports_confirmes_today }} rapport{{ rapports_confirmes_today|pluralize }} confirmé{{ rapports_confirmes_today|pluralize }} aujourd'hui.</div>
+        </div>
+        <div class="finance-breakdown-item">
             <div class="finance-breakdown-label">Pertes caisse</div>
             <div class="finance-breakdown-value">{{ pertes_today_caisse|fc_amount }} FC</div>
             <div class="finance-breakdown-note">Depenses reglees directement depuis la caisse du jour.</div>
@@ -922,6 +963,21 @@
                 {% else %}
                 Aucun depot bancaire n'a encore ete saisi pour aujourd'hui.
                 {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="finance-meta">
+        <div class="finance-meta-grid">
+            <div class="finance-meta-block">
+                <h3>Montant déclaré par les employés</h3>
+                <div><strong>{{ montant_rapports_today|fc_amount }} FC</strong> (~ ${{ montant_rapports_today|usd_equivalent }} USD)</div>
+            </div>
+            <div class="finance-meta-block">
+                <h3>Écart rapports vs système</h3>
+                <div style="font-weight: 700; color: {% if ecart_rapports_today < 0 %}var(--error-color){% else %}var(--primary-color){% endif %};">
+                    {{ ecart_rapports_today|fc_amount }} FC
+                </div>
             </div>
         </div>
     </div>

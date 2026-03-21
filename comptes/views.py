@@ -328,6 +328,10 @@ def admin_dashboard(request):
         lavages_today = CarWash.objects.filter(site=site, date=today)
         total_lavages = lavages_today.count()
         chiffre_jour = lavages_today.aggregate(total=Sum('montant'))['total'] or 0
+
+        rapports_today = pointages_today.filter(daily_report_confirmed=True)
+        montant_rapports_jour = rapports_today.aggregate(total=Sum('total_amount_reported_fc'))['total'] or 0
+        rapports_confirmes = rapports_today.count()
         
         # Problèmes du jour
         problemes_today = IssueReport.objects.filter(site=site, created_at__date=today)
@@ -343,6 +347,8 @@ def admin_dashboard(request):
             'absents': absents,
             'total_lavages': total_lavages,
             'chiffre_jour': chiffre_jour,
+            'montant_rapports_jour': montant_rapports_jour,
+            'rapports_confirmes': rapports_confirmes,
             'problemes_today': problemes_today.count(),
             'problemes_ouverts': problemes_ouverts,
         })
@@ -608,11 +614,19 @@ def admin_site_detail(request, site_id):
 
     # Calculer le cash flow pour la date sélectionnée
     chiffre_date = CarWash.objects.filter(site=site, date=detail_date).aggregate(total=Sum('montant'))['total'] or 0
+    rapports_date_qs = ShiftDay.objects.filter(site=site, date=detail_date, daily_report_confirmed=True)
+    montant_rapports_date = rapports_date_qs.aggregate(total=Sum('total_amount_reported_fc'))['total'] or 0
+    rapports_confirmes_date = rapports_date_qs.count()
+    ecart_rapports_date = montant_rapports_date - chiffre_date
     # Écart de caisse: cash flow - dépôt - pertes financées par la caisse
     difference_date = chiffre_date - bank_deposit_amount_date - pertes_date_caisse
 
     # Cash flow d'aujourd'hui (pour comparaison)
     chiffre_jour = CarWash.objects.filter(site=site, date=today).aggregate(total=Sum('montant'))['total'] or 0
+    rapports_today_qs = ShiftDay.objects.filter(site=site, date=today, daily_report_confirmed=True)
+    montant_rapports_today = rapports_today_qs.aggregate(total=Sum('total_amount_reported_fc'))['total'] or 0
+    rapports_confirmes_today = rapports_today_qs.count()
+    ecart_rapports_today = montant_rapports_today - chiffre_jour
     bank_deposit_today = DailyBankDeposit.objects.filter(site=site, date=today).first()
     bank_deposit_amount_today = bank_deposit_today.amount if bank_deposit_today else 0
 
@@ -632,6 +646,15 @@ def admin_site_detail(request, site_id):
         date__gte=week_start,
         date__lte=week_end,
     ).aggregate(total=Sum('montant'))['total'] or 0
+    rapports_week_qs = ShiftDay.objects.filter(
+        site=site,
+        date__gte=week_start,
+        date__lte=week_end,
+        daily_report_confirmed=True,
+    )
+    montant_rapports_week = rapports_week_qs.aggregate(total=Sum('total_amount_reported_fc'))['total'] or 0
+    rapports_confirmes_week = rapports_week_qs.count()
+    ecart_rapports_week = montant_rapports_week - chiffre_week
 
     bank_deposit_week = DailyBankDeposit.objects.filter(
         site=site,
@@ -690,11 +713,19 @@ def admin_site_detail(request, site_id):
             or history_pertes_total
             or history_cursor == week_start
         ):
+            history_reports = ShiftDay.objects.filter(
+                site=site,
+                date__gte=history_cursor,
+                date__lte=history_end,
+                daily_report_confirmed=True,
+            )
+            history_report_total = history_reports.aggregate(total=Sum('total_amount_reported_fc'))['total'] or 0
             weekly_history.append({
                 'week_start': history_cursor,
                 'week_end': history_end,
                 'label': f"{history_cursor.strftime('%d/%m/%Y')} - {history_end.strftime('%d/%m/%Y')}",
                 'cash_flow': history_cash,
+                'reported_cash': history_report_total,
                 'bank_deposit': history_bank,
                 'bank_net': history_bank - history_pertes_banque,
                 'pertes_total': history_pertes_total,
@@ -722,6 +753,12 @@ def admin_site_detail(request, site_id):
         'chiffre_periode': chiffre_periode,
         'chiffre_date': chiffre_date,
         'chiffre_jour': chiffre_jour,
+        'montant_rapports_date': montant_rapports_date,
+        'rapports_confirmes_date': rapports_confirmes_date,
+        'ecart_rapports_date': ecart_rapports_date,
+        'montant_rapports_today': montant_rapports_today,
+        'rapports_confirmes_today': rapports_confirmes_today,
+        'ecart_rapports_today': ecart_rapports_today,
         'bank_deposit_date': bank_deposit_date,
         'bank_deposit_amount_date': bank_deposit_amount_date,
         'bank_deposit_today': bank_deposit_today,
@@ -740,6 +777,9 @@ def admin_site_detail(request, site_id):
         'week_range_label': week_range_label,
         'selected_week_anchor': selected_week_anchor,
         'chiffre_week': chiffre_week,
+        'montant_rapports_week': montant_rapports_week,
+        'rapports_confirmes_week': rapports_confirmes_week,
+        'ecart_rapports_week': ecart_rapports_week,
         'bank_deposit_week': bank_deposit_week,
         'bank_net_week': bank_net_week,
         'pertes_week_total': pertes_week_total,

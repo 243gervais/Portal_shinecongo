@@ -80,6 +80,13 @@
                 <div class="stat-value" style="font-size: 2rem; margin-bottom: 0.1rem;">{{ stats.chiffre_jour|fc_amount }} FC</div>
                 <div style="font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.25rem;">~ ${{ stats.chiffre_jour|usd_equivalent }} USD</div>
                 <div class="stat-label" style="font-size: 0.75rem;">FC (Aujourd'hui)</div>
+                <div style="margin-top: 0.5rem; font-size: 0.78rem; color: var(--text-secondary);">
+                    Rapport employés:
+                    <strong style="color: var(--primary-color);">{{ stats.montant_rapports_jour|fc_amount }} FC</strong>
+                </div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary);">
+                    {{ stats.rapports_confirmes }} rapport{{ stats.rapports_confirmes|pluralize }} confirmé{{ stats.rapports_confirmes|pluralize }}
+                </div>
             </div>
             
             <div class="stat-card" style="text-align: center; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
