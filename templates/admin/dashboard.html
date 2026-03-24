@@ -108,6 +108,15 @@
         border: 1px solid rgba(10, 67, 107, 0.08);
         background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 248, 250, 0.96));
         box-shadow: 0 14px 34px rgba(31, 41, 51, 0.06);
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    .admin-site-card:hover,
+    .admin-site-card:focus-within {
+        transform: translateY(-3px);
+        box-shadow: 0 20px 42px rgba(10, 67, 107, 0.12);
+        border-color: rgba(10, 67, 107, 0.18);
     }
 
     .admin-site-head {
@@ -367,7 +376,7 @@
         {% if sites_stats %}
         <div class="admin-sites-grid">
             {% for stats in sites_stats %}
-            <article class="admin-site-card">
+            <article class="admin-site-card" onclick="window.location.href='{% url 'admin_site_detail' stats.site.id %}'" tabindex="0" role="link" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); window.location.href='{% url 'admin_site_detail' stats.site.id %}';}">
                 <div class="admin-site-head">
                     <div>
                         <h3 class="admin-site-title">{{ stats.site.nom }}</h3>
@@ -399,8 +408,8 @@
                 <div class="admin-site-actions">
                     <span class="admin-site-subvalue">Le reste se gère dans la vue site.</span>
                     <div class="admin-mini-actions">
-                        <a href="{% url 'admin_site_detail' stats.site.id %}" class="admin-mini-btn admin-mini-btn--light">Ouvrir le site</a>
-                        <a href="{% url 'admin_site_losses' stats.site.id %}?date={{ today|date:'Y-m-d' }}" class="admin-mini-btn admin-mini-btn--warn">Finance</a>
+                        <span class="admin-mini-btn admin-mini-btn--light">Ouvrir le site</span>
+                        <a href="{% url 'admin_site_losses' stats.site.id %}?date={{ today|date:'Y-m-d' }}" class="admin-mini-btn admin-mini-btn--warn" onclick="event.stopPropagation();">Finance</a>
                     </div>
                 </div>
             </article>
