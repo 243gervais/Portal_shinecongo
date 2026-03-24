@@ -4,35 +4,290 @@
 {% block title %}Détails - {{ site.nom }}{% endblock %}
 
 {% block content %}
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-    <div>
-        <h1 class="mt-2 mb-2">{{ site.nom }}</h1>
-        <p style="color: var(--text-secondary); margin: 0;">
-            {{ site.adresse }} - {{ site.ville }} | {{ today|date:"d/m/Y" }}
-        </p>
+<div class="site-shell">
+<section class="site-hero">
+    <div class="site-hero-top">
+        <div>
+            <span class="site-kicker">Site Command Center</span>
+            <h1 class="site-title">{{ site.nom }}</h1>
+            <p class="site-copy">
+                {{ site.adresse }} • {{ site.ville }} • Mise a jour du {{ today|date:"d/m/Y" }}
+            </p>
+            <div class="site-context-row">
+                <span class="site-chip">
+                    {% if selected_single_date %}
+                    Vue du {{ selected_single_date|date:"d/m/Y" }}
+                    {% else %}
+                    Semaine active: {{ week_range_label }}
+                    {% endif %}
+                </span>
+                <span class="site-chip">Documents: {{ documents_count }}</span>
+                <span class="site-chip">Problèmes ouverts: {{ problemes_ouverts.count }}</span>
+            </div>
+        </div>
+        <div class="site-actions">
+            <a href="{% url 'admin_site_documents' site.id %}" class="btn btn-success">Documents du site</a>
+            <a href="{% url 'admin_add_bank_deposit' site.id %}" class="btn btn-info">{% if bank_deposit_today %}Modifier{% else %}Ajouter{% endif %} dépôt bancaire</a>
+            <a href="{% url 'admin_site_losses' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-warning">Gestion financière</a>
+            <a href="{% url 'admin_add_daily_total' site.id %}" class="btn btn-primary">Ajouter le total quotidien</a>
+            <a href="{% url 'admin_add_wash' site.id %}" class="btn btn-primary">Ajouter un lavage complet</a>
+            <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">Retour aux sites</a>
+        </div>
     </div>
-    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-        <a href="{% url 'admin_site_documents' site.id %}" class="btn btn-success">
-            📁 Documents du site {% if documents_count %}({{ documents_count }}){% endif %}
-        </a>
-        <a href="{% url 'admin_add_bank_deposit' site.id %}" class="btn btn-info">
-            🏦 {% if bank_deposit_today %}Modifier{% else %}Ajouter{% endif %} dépôt bancaire
-        </a>
-        <a href="{% url 'admin_site_losses' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-warning">
-            📊 Gestion financière
-        </a>
-        <a href="{% url 'admin_add_daily_total' site.id %}" class="btn btn-primary">
-            💰 Ajouter le total quotidien
-        </a>
-        <a href="{% url 'admin_add_wash' site.id %}" class="btn btn-primary">
-            ➕ Ajouter un lavage complet
-        </a>
-        <a href="{% url 'admin_dashboard' %}" class="btn btn-primary">← Retour aux sites</a>
+
+    <div class="site-summary-grid">
+        <div class="site-summary-card">
+            <div class="site-summary-label">Cash flow période</div>
+            <div class="site-summary-value">{{ chiffre_periode|fc_amount }} FC</div>
+            <div class="site-summary-subvalue">~ ${{ chiffre_periode|usd_equivalent }} USD</div>
+        </div>
+        <div class="site-summary-card">
+            <div class="site-summary-label">Cash flow semaine</div>
+            <div class="site-summary-value">{{ chiffre_week|fc_amount }} FC</div>
+            <div class="site-summary-subvalue">Banque nette: {{ bank_net_week|fc_amount }} FC</div>
+        </div>
+        <div class="site-summary-card">
+            <div class="site-summary-label">Cash flow aujourd'hui</div>
+            <div class="site-summary-value">{{ chiffre_jour|fc_amount }} FC</div>
+            <div class="site-summary-subvalue">Dépôt du jour: {{ bank_deposit_amount_today|fc_amount }} FC</div>
+        </div>
+        <div class="site-summary-card">
+            <div class="site-summary-label">Supervision</div>
+            <div class="site-summary-value">{{ presents }}</div>
+            <div class="site-summary-subvalue">présent{{ presents|pluralize }} • {{ total_lavages }} lavage{{ total_lavages|pluralize }}</div>
+        </div>
     </div>
-</div>
-<p style="margin: -1rem 0 1.25rem 0; color: var(--text-secondary); font-size: 0.82rem;">{% fx_rate_label %}</p>
+</section>
+<p class="site-rate-note">{% fx_rate_label %}</p>
 
 <style>
+    .site-shell {
+        display: grid;
+        gap: 1.5rem;
+    }
+
+    .site-hero {
+        position: relative;
+        overflow: hidden;
+        padding: 1.8rem;
+        border-radius: 28px;
+        background:
+            radial-gradient(circle at top left, rgba(244, 163, 64, 0.2), transparent 28%),
+            radial-gradient(circle at bottom right, rgba(43, 131, 184, 0.18), transparent 24%),
+            linear-gradient(135deg, #0b2438 0%, #0A436B 45%, #155f95 100%);
+        color: white;
+        box-shadow: 0 24px 60px rgba(10, 67, 107, 0.24);
+    }
+
+    .site-hero::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+            linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+        background-size: 28px 28px;
+        mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.34), transparent 82%);
+        pointer-events: none;
+    }
+
+    .site-hero > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .site-hero-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.35rem;
+    }
+
+    .site-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.35rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+        color: rgba(255, 255, 255, 0.92);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .site-title {
+        margin: 0.8rem 0 0.35rem 0;
+        font-size: clamp(2rem, 4vw, 3rem);
+        line-height: 0.98;
+        letter-spacing: -0.04em;
+    }
+
+    .site-copy {
+        margin: 0;
+        color: rgba(255, 255, 255, 0.82);
+        font-size: 0.96rem;
+    }
+
+    .site-context-row {
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+
+    .site-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.3rem 0.72rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+
+    .site-actions {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        max-width: 560px;
+        justify-content: flex-end;
+    }
+
+    .site-actions .btn-secondary {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border-color: rgba(255, 255, 255, 0.22);
+    }
+
+    .site-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.9rem;
+    }
+
+    .site-summary-card {
+        padding: 1rem 1.05rem;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(8px);
+    }
+
+    .site-summary-label {
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .site-summary-value {
+        margin-top: 0.42rem;
+        font-size: 1.55rem;
+        font-weight: 800;
+        line-height: 1.04;
+        letter-spacing: -0.03em;
+    }
+
+    .site-summary-subvalue {
+        margin-top: 0.25rem;
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 0.81rem;
+    }
+
+    .site-rate-note {
+        margin: -0.55rem 0 0 0;
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+    }
+
+    .site-metric-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.9rem;
+    }
+
+    .site-metric-card {
+        padding: 1rem 1.05rem;
+        border-radius: 18px;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        background: rgba(255, 255, 255, 0.86);
+    }
+
+    .site-metric-label {
+        color: var(--text-secondary);
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .site-metric-value {
+        margin-top: 0.35rem;
+        color: var(--primary-dark);
+        font-size: 1.35rem;
+        font-weight: 800;
+        line-height: 1.08;
+    }
+
+    .site-metric-subvalue {
+        margin-top: 0.2rem;
+        color: var(--text-secondary);
+        font-size: 0.8rem;
+    }
+
+    .site-section-card {
+        border-radius: 24px;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+        box-shadow: 0 16px 36px rgba(31, 41, 51, 0.06);
+    }
+
+    .site-section-card summary {
+        list-style: none;
+        cursor: pointer;
+    }
+
+    .site-section-card summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .site-section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1.3rem 1.4rem;
+    }
+
+    .site-section-title {
+        margin: 0;
+        color: var(--primary-dark);
+        font-size: 1.14rem;
+    }
+
+    .site-section-copy {
+        margin: 0.28rem 0 0 0;
+        color: var(--text-secondary);
+        font-size: 0.88rem;
+    }
+
+    .site-section-state {
+        color: var(--primary-color);
+        font-size: 0.82rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .site-section-body {
+        padding: 0 1.4rem 1.4rem 1.4rem;
+    }
+
     .finance-panel {
         position: relative;
         overflow: hidden;
@@ -468,6 +723,7 @@
     }
 
     @media (max-width: 1024px) {
+        .site-summary-grid,
         .finance-summary,
         .finance-card-grid,
         .finance-badges,
@@ -478,6 +734,21 @@
     }
 
     @media (max-width: 720px) {
+        .site-hero {
+            padding: 1.25rem;
+            border-radius: 22px;
+        }
+
+        .site-actions {
+            max-width: none;
+            width: 100%;
+            justify-content: stretch;
+        }
+
+        .site-actions .btn {
+            width: 100%;
+        }
+
         .finance-panel {
             padding: 1.15rem;
         }
@@ -508,10 +779,15 @@
 </style>
 
 <!-- Filtres de date -->
-<div class="card mb-4">
-    <h2 style="margin-bottom: 1rem; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
-        🔍 Filtrer l'historique des lavages
-    </h2>
+<details class="site-section-card" open>
+    <summary class="site-section-head">
+        <div>
+            <h2 class="site-section-title">Filtres de date</h2>
+            <p class="site-section-copy">Choisissez une journée précise ou une période pour recadrer le site detail sans surcharger l'écran principal.</p>
+        </div>
+        <span class="site-section-state">{{ period_label }}</span>
+    </summary>
+    <div class="site-section-body">
     <form method="get" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; align-items: end;">
         <div class="form-group" style="margin-bottom: 0;">
             <label for="date_debut">Date début</label>
@@ -535,7 +811,8 @@
         <strong>Période sélectionnée:</strong> {{ period_label }} ({{ total_lavages }} lavage{{ total_lavages|pluralize }})
     </div>
     {% endif %}
-</div>
+    </div>
+</details>
 
 <!-- Résumé détaillé pour une date spécifique -->
 {% if selected_single_date %}
@@ -731,64 +1008,59 @@
 {% endif %}
 
 <!-- Statistiques principales -->
-<div class="card-grid mb-4">
-    <div class="card stat-card" style="background: var(--primary-color); color: white;">
-        <div class="stat-value" style="color: white; font-size: 2.5rem;">{{ chiffre_periode|fc_amount }} FC</div>
-        <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ chiffre_periode|usd_equivalent }} USD</div>
-        <div class="stat-label" style="color: rgba(255,255,255,0.9);">Cash Flow ({{ period_label }})</div>
+<section class="site-section-card">
+    <div class="site-section-head">
+        <div>
+            <h2 class="site-section-title">Synthèse opérationnelle</h2>
+            <p class="site-section-copy">Chiffres rapides pour la période active, la journée et le niveau de supervision du site.</p>
+        </div>
+        <span class="site-section-state">{{ period_label }}</span>
     </div>
-    
-    <div class="card stat-card">
-        <div class="stat-value" style="color: var(--success-color);">{{ total_lavages }}</div>
-        <div class="stat-label">Lavages ({{ period_label }})</div>
-    </div>
-    
-    {% if not selected_single_date %}
-    <div class="card stat-card" style="background: var(--secondary-color); color: white;">
-        <div class="stat-value" style="color: white; font-size: 2rem;">{{ chiffre_jour|fc_amount }} FC</div>
-        <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ chiffre_jour|usd_equivalent }} USD</div>
-        <div class="stat-label" style="color: rgba(255,255,255,0.9);">Cash Flow (Aujourd'hui)</div>
-    </div>
-    
-    <div class="card stat-card" style="background: var(--primary-color); color: white;">
-        <div class="stat-value" style="color: white; font-size: 2rem;">{{ bank_deposit_amount_today|fc_amount }} FC</div>
-        <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ bank_deposit_amount_today|usd_equivalent }} USD</div>
-        <div class="stat-label" style="color: rgba(255,255,255,0.9);">
-            🏦 Dépôt bancaire (Aujourd'hui)
-            {% if bank_deposit_today %}
-                <a href="{% url 'admin_add_bank_deposit' site.id %}?date={{ today|date:'Y-m-d' }}" 
-                   style="color: rgba(255,255,255,0.8); text-decoration: none; font-size: 0.8rem; margin-left: 0.5rem;">✏️</a>
-            {% endif %}
+    <div class="site-section-body">
+        <div class="site-metric-grid">
+            <div class="site-metric-card">
+                <div class="site-metric-label">Cash flow période</div>
+                <div class="site-metric-value">{{ chiffre_periode|fc_amount }} FC</div>
+                <div class="site-metric-subvalue">~ ${{ chiffre_periode|usd_equivalent }} USD</div>
+            </div>
+            <div class="site-metric-card">
+                <div class="site-metric-label">Lavages période</div>
+                <div class="site-metric-value">{{ total_lavages }}</div>
+                <div class="site-metric-subvalue">Volume total enregistré</div>
+            </div>
+            <div class="site-metric-card">
+                <div class="site-metric-label">Cash flow aujourd'hui</div>
+                <div class="site-metric-value">{{ chiffre_jour|fc_amount }} FC</div>
+                <div class="site-metric-subvalue">~ ${{ chiffre_jour|usd_equivalent }} USD</div>
+            </div>
+            <div class="site-metric-card">
+                <div class="site-metric-label">Dépôt du jour</div>
+                <div class="site-metric-value">{{ bank_deposit_amount_today|fc_amount }} FC</div>
+                <div class="site-metric-subvalue">{% if bank_deposit_today %}Saisi{% else %}En attente{% endif %}</div>
+            </div>
+            <div class="site-metric-card">
+                <div class="site-metric-label">Pertes du jour</div>
+                <div class="site-metric-value">{{ pertes_today_total|fc_amount }} FC</div>
+                <div class="site-metric-subvalue">~ ${{ pertes_today_total|usd_equivalent }} USD</div>
+            </div>
+            <div class="site-metric-card">
+                <div class="site-metric-label">Écart de caisse</div>
+                <div class="site-metric-value" style="color: {% if difference_today < 0 %}var(--error-color){% elif difference_today > 0 %}var(--warning-color){% else %}var(--success-color){% endif %};">{{ difference_today|fc_amount }} FC</div>
+                <div class="site-metric-subvalue">Lecture du jour</div>
+            </div>
+            <div class="site-metric-card">
+                <div class="site-metric-label">Présences</div>
+                <div class="site-metric-value">{{ presents }}</div>
+                <div class="site-metric-subvalue">Employé{{ presents|pluralize }} présent{{ presents|pluralize }}</div>
+            </div>
+            <div class="site-metric-card">
+                <div class="site-metric-label">Problèmes ouverts</div>
+                <div class="site-metric-value">{{ problemes_ouverts.count }}</div>
+                <div class="site-metric-subvalue">Incidents actifs à suivre</div>
+            </div>
         </div>
     </div>
-    
-    <div class="card stat-card" style="background: var(--warning-color); color: white;">
-        <div class="stat-value" style="color: white; font-size: 2rem;">{{ pertes_today_total|fc_amount }} FC</div>
-        <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ pertes_today_total|usd_equivalent }} USD</div>
-        <div class="stat-label" style="color: rgba(255,255,255,0.9);">
-            📉 Pertes (Aujourd'hui)
-            <a href="{% url 'admin_site_losses' site.id %}?date={{ today|date:'Y-m-d' }}"
-               style="color: rgba(255,255,255,0.85); text-decoration: none; font-size: 0.8rem; margin-left: 0.5rem;">Gérer</a>
-        </div>
-    </div>
-
-    <div class="card stat-card" style="background: {% if difference_today >= 0 %}var(--primary-color){% else %}var(--error-color){% endif %}; color: white;">
-        <div class="stat-value" style="color: white; font-size: 2rem;">{{ difference_today|fc_amount }} FC</div>
-        <div style="font-size: 0.72rem; color: rgba(255,255,255,0.92); margin-top: 0.1rem;">~ ${{ difference_today|usd_equivalent }} USD</div>
-        <div class="stat-label" style="color: rgba(255,255,255,0.9);">🧮 Écart de caisse (Aujourd'hui)</div>
-    </div>
-    {% endif %}
-    
-    <div class="card stat-card">
-        <div class="stat-value" style="color: var(--success-color);">{{ presents }}</div>
-        <div class="stat-label">Employés présents</div>
-    </div>
-    
-    <div class="card stat-card">
-        <div class="stat-value" style="color: var(--warning-color);">{{ problemes_ouverts.count }}</div>
-        <div class="stat-label">Problèmes ouverts</div>
-    </div>
-</div>
+</section>
 
 <!-- Pilotage hebdomadaire -->
 <div class="card finance-panel mb-4">
@@ -1164,11 +1436,15 @@
 {% endif %}
 
 <!-- Photos des voitures lavées -->
-<div class="card mb-4">
-    <h2 style="margin-bottom: 1.5rem; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
-        📸 Photos des voitures lavées ({{ period_label }}) - {{ photos_lavages|length }} photo{{ photos_lavages|length|pluralize }}
-    </h2>
-    
+<details class="site-section-card">
+    <summary class="site-section-head">
+        <div>
+            <h2 class="site-section-title">Photos des voitures lavées</h2>
+            <p class="site-section-copy">Galerie de preuves visuelles pour la période sélectionnée.</p>
+        </div>
+        <span class="site-section-state">{{ photos_lavages|length }} photo{{ photos_lavages|length|pluralize }}</span>
+    </summary>
+    <div class="site-section-body">
     {% if photos_lavages %}
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.5rem;">
         {% for item in photos_lavages %}
@@ -1198,7 +1474,8 @@
         <p style="font-size: 1.1rem;">Aucune photo disponible pour la période sélectionnée.</p>
     </div>
     {% endif %}
-</div>
+    </div>
+</details>
 
 <style>
     .card div[onclick]:hover img {
@@ -1211,11 +1488,15 @@
 </style>
 
 <!-- Problèmes signalés -->
-<div class="card mb-4">
-    <h2 style="margin-bottom: 1.5rem; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
-        ⚠️ Problèmes signalés {% if selected_single_date %}le {{ selected_single_date|date:"d/m/Y" }}{% else %}aujourd'hui{% endif %} ({{ problemes_date.count }})
-    </h2>
-    
+<details class="site-section-card" {% if problemes_date %}open{% endif %}>
+    <summary class="site-section-head">
+        <div>
+            <h2 class="site-section-title">Problèmes signalés</h2>
+            <p class="site-section-copy">{% if selected_single_date %}Signalements du {{ selected_single_date|date:"d/m/Y" }}.{% else %}Signalements liés au jour de référence.{% endif %}</p>
+        </div>
+        <span class="site-section-state">{{ problemes_date.count }} problème{{ problemes_date.count|pluralize }}</span>
+    </summary>
+    <div class="site-section-body">
     {% if problemes_date %}
     <div class="table-container">
         <table>
@@ -1266,15 +1547,20 @@
         <p>Aucun problème signalé {% if selected_single_date %}cette date{% else %}aujourd'hui{% endif %}.</p>
     </div>
     {% endif %}
-</div>
+    </div>
+</details>
 
 <!-- Problèmes ouverts (tous statuts) -->
 {% if problemes_ouverts %}
-<div class="card mb-4">
-    <h2 style="margin-bottom: 1.5rem; color: var(--warning-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
-        🔴 Problèmes ouverts ({{ problemes_ouverts.count }})
-    </h2>
-    
+<details class="site-section-card">
+    <summary class="site-section-head">
+        <div>
+            <h2 class="site-section-title" style="color: var(--warning-color);">Problèmes ouverts</h2>
+            <p class="site-section-copy">Vue transverse des incidents encore actifs sur ce site.</p>
+        </div>
+        <span class="site-section-state">{{ problemes_ouverts.count }} ouvert{{ problemes_ouverts.count|pluralize }}</span>
+    </summary>
+    <div class="site-section-body">
     <div class="table-container">
         <table>
             <thead>
@@ -1309,15 +1595,20 @@
             </tbody>
         </table>
     </div>
-</div>
+    </div>
+</details>
 {% endif %}
 
 <!-- Liste des lavages -->
-<div class="card mb-4">
-    <h2 style="margin-bottom: 1.5rem; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
-        🚗 Historique des lavages ({{ period_label }}) - {{ total_lavages }} lavage{{ total_lavages|pluralize }}
-    </h2>
-    
+<details class="site-section-card" {% if selected_single_date %}open{% endif %}>
+    <summary class="site-section-head">
+        <div>
+            <h2 class="site-section-title">Historique des lavages</h2>
+            <p class="site-section-copy">Journal opérationnel complet des lavages sur la période sélectionnée.</p>
+        </div>
+        <span class="site-section-state">{{ total_lavages }} lavage{{ total_lavages|pluralize }}</span>
+    </summary>
+    <div class="site-section-body">
     {% if lavages_all %}
     <div class="table-container">
         <table>
@@ -1377,14 +1668,19 @@
         <p>Aucun lavage enregistré pour la période sélectionnée.</p>
     </div>
     {% endif %}
-</div>
+    </div>
+</details>
 
 <!-- Pointages du jour -->
-<div class="card mb-4">
-    <h2 style="margin-bottom: 1.5rem; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem;">
-        ⏰ Pointages {% if selected_single_date %}du {{ selected_single_date|date:"d/m/Y" }}{% else %}du jour{% endif %} ({{ presents }} présent{{ presents|pluralize }})
-    </h2>
-    
+<details class="site-section-card" {% if selected_single_date %}open{% endif %}>
+    <summary class="site-section-head">
+        <div>
+            <h2 class="site-section-title">Pointages</h2>
+            <p class="site-section-copy">{% if selected_single_date %}Présences et durées du {{ selected_single_date|date:"d/m/Y" }}.{% else %}Présences de la journée de référence.{% endif %}</p>
+        </div>
+        <span class="site-section-state">{{ presents }} présent{{ presents|pluralize }}</span>
+    </summary>
+    <div class="site-section-body">
     {% if pointages_date %}
     <div class="table-container">
         <table>
@@ -1442,9 +1738,11 @@
         <p>Aucun pointage enregistré {% if selected_single_date %}cette date{% else %}aujourd'hui{% endif %}.</p>
     </div>
     {% endif %}
-</div>
+    </div>
+</details>
 
 <div class="mt-4">
     <a href="{% url 'admin_dashboard' %}" class="btn btn-primary">← Retour aux sites</a>
+</div>
 </div>
 {% endblock %}
