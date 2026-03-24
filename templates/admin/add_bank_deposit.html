@@ -40,9 +40,17 @@
                 <strong style="color: var(--text-secondary);">Banque</strong>
                 <div style="font-weight: 700; color: {% if funding_snapshot.bank_available < 0 %}var(--error-color){% else %}var(--success-color){% endif %};">{{ funding_snapshot.bank_available|floatformat:0 }} FC</div>
             </div>
+            <div>
+                <strong style="color: var(--text-secondary);">Banque de la semaine</strong>
+                <div style="font-weight: 700; color: {% if funding_snapshot.bank_week_available < 0 %}var(--error-color){% else %}var(--success-color){% endif %};">{{ funding_snapshot.bank_week_available|floatformat:0 }} FC</div>
+            </div>
+            <div>
+                <strong style="color: var(--text-secondary);">Banque globale</strong>
+                <div style="font-weight: 700; color: {% if funding_snapshot.bank_total_available < 0 %}var(--error-color){% else %}var(--success-color){% endif %};">{{ funding_snapshot.bank_total_available|floatformat:0 }} FC</div>
+            </div>
         </div>
         <p style="margin: 0.75rem 0 0 0; color: var(--text-secondary); font-size: 0.84rem;">
-            Ces montants sont calculés pour le {{ funding_snapshot.date|date:"d/m/Y" }} avant votre modification du dépôt.
+            Ces montants sont calculés pour le {{ funding_snapshot.date|date:"d/m/Y" }} avant votre modification du dépôt. La banque de la semaine couvre {{ funding_snapshot.week_start|date:"d/m/Y" }} à {{ funding_snapshot.week_end|date:"d/m/Y" }}.
         </p>
     </div>
 

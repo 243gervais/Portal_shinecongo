@@ -191,25 +191,55 @@ def _daily_funding_snapshot(site, date_obj, exclude_loss_id=None, exclude_deposi
     """
     cash_flow = CarWash.objects.filter(site=site, date=date_obj).aggregate(total=Sum('montant'))['total'] or Decimal('0')
 
-    deposits_qs = DailyBankDeposit.objects.filter(site=site, date=date_obj)
+    deposits_all_qs = DailyBankDeposit.objects.filter(site=site)
     if exclude_deposit_id:
-        deposits_qs = deposits_qs.exclude(id=exclude_deposit_id)
-    bank_deposit = deposits_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        deposits_all_qs = deposits_all_qs.exclude(id=exclude_deposit_id)
 
-    losses_qs = SiteLossEntry.objects.filter(site=site, date=date_obj)
+    losses_all_qs = SiteLossEntry.objects.filter(site=site)
     if exclude_loss_id:
-        losses_qs = losses_qs.exclude(id=exclude_loss_id)
-    pertes_caisse = losses_qs.filter(funding_source='CAISSE').aggregate(total=Sum('amount'))['total'] or Decimal('0')
-    pertes_banque = losses_qs.filter(funding_source='BANQUE').aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        losses_all_qs = losses_all_qs.exclude(id=exclude_loss_id)
+
+    deposits_day_qs = deposits_all_qs.filter(date=date_obj)
+    losses_day_qs = losses_all_qs.filter(date=date_obj)
+
+    bank_deposit = deposits_day_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0')
+    pertes_caisse = losses_day_qs.filter(funding_source='CAISSE').aggregate(total=Sum('amount'))['total'] or Decimal('0')
+    pertes_banque = losses_day_qs.filter(funding_source='BANQUE').aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+    week_start = date_obj - timedelta(days=date_obj.weekday())
+    week_end = week_start + timedelta(days=6)
+    bank_week_deposit = deposits_all_qs.filter(
+        date__gte=week_start,
+        date__lte=week_end,
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+    pertes_banque_week = losses_all_qs.filter(
+        funding_source='BANQUE',
+        date__gte=week_start,
+        date__lte=week_end,
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+    bank_total_deposit = deposits_all_qs.filter(date__lte=date_obj).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+    pertes_banque_total = losses_all_qs.filter(
+        funding_source='BANQUE',
+        date__lte=date_obj,
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
     return {
         'date': date_obj,
+        'week_start': week_start,
+        'week_end': week_end,
         'cash_flow': cash_flow,
         'bank_deposit': bank_deposit,
         'pertes_caisse': pertes_caisse,
         'pertes_banque': pertes_banque,
         'caisse_available': cash_flow - bank_deposit - pertes_caisse,
         'bank_available': bank_deposit - pertes_banque,
+        'bank_week_deposit': bank_week_deposit,
+        'pertes_banque_week': pertes_banque_week,
+        'bank_week_available': bank_week_deposit - pertes_banque_week,
+        'bank_total_deposit': bank_total_deposit,
+        'pertes_banque_total': pertes_banque_total,
+        'bank_total_available': bank_total_deposit - pertes_banque_total,
     }
 
 
@@ -224,7 +254,12 @@ def _funding_source_choices_with_balances(snapshot):
         ),
         (
             'BANQUE',
-            f"Banque ({_format_fc_compact(snapshot['bank_available'])} FC)"
+            (
+                "Banque "
+                f"(jour: {_format_fc_compact(snapshot['bank_available'])} FC, "
+                f"semaine: {_format_fc_compact(snapshot['bank_week_available'])} FC, "
+                f"global: {_format_fc_compact(snapshot['bank_total_available'])} FC)"
+            )
         ),
     ]
 

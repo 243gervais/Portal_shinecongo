@@ -2,9 +2,13 @@ from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
+from datetime import date
+from decimal import Decimal
 
 from comptes.forms import ApprovalAuthenticationForm
+from comptes.views import _daily_funding_snapshot
 from sites.models import Location, SiteDocument
+from sites.models import DailyBankDeposit, SiteLossEntry
 
 
 class AccountApprovalFlowTests(TestCase):
@@ -183,3 +187,48 @@ class SiteDocumentUploadTests(TestCase):
         self.assertEqual(SiteDocument.objects.filter(site=self.site).count(), 2)
         self.assertTrue(SiteDocument.objects.filter(site=self.site, title="Photos chantier (1)").exists())
         self.assertTrue(SiteDocument.objects.filter(site=self.site, title="Photos chantier (2)").exists())
+
+
+class FundingSnapshotTests(TestCase):
+    def test_snapshot_includes_weekly_and_total_bank_balances(self):
+        site = Location.objects.create(
+            nom="Site Finance",
+            adresse="Adresse Finance",
+            ville="Kinshasa",
+            actif=True,
+        )
+
+        DailyBankDeposit.objects.create(site=site, date="2026-03-10", amount=50000)
+        DailyBankDeposit.objects.create(site=site, date="2026-03-12", amount=30000)
+        DailyBankDeposit.objects.create(site=site, date="2026-03-17", amount=20000)
+
+        SiteLossEntry.objects.create(
+            site=site,
+            date="2026-03-11",
+            funding_source="BANQUE",
+            category="AUTRE",
+            amount=10000,
+            title="Achat semaine",
+        )
+        SiteLossEntry.objects.create(
+            site=site,
+            date="2026-03-15",
+            funding_source="BANQUE",
+            category="AUTRE",
+            amount=5000,
+            title="Cloture semaine",
+        )
+        SiteLossEntry.objects.create(
+            site=site,
+            date="2026-03-18",
+            funding_source="BANQUE",
+            category="AUTRE",
+            amount=7000,
+            title="Perte globale",
+        )
+
+        snapshot = _daily_funding_snapshot(site, date_obj=date(2026, 3, 15))
+
+        self.assertEqual(snapshot["bank_available"], Decimal("-5000"))
+        self.assertEqual(snapshot["bank_week_available"], 65000)
+        self.assertEqual(snapshot["bank_total_available"], 65000)
