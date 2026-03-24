@@ -4,183 +4,931 @@
 {% block title %}Dashboard Administrateur{% endblock %}
 
 {% block content %}
-<div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
-    <h1 class="mt-2 mb-0">Dashboard Administrateur - {{ today|date:"d/m/Y" }}</h1>
-    <a href="{% url 'admin_create_site' %}" class="btn btn-primary">+ Créer un site</a>
-</div>
-<p style="margin: -0.75rem 0 1.5rem 0; color: var(--text-secondary); font-size: 0.82rem;">{% fx_rate_label %}</p>
+<style>
+    .ops-shell {
+        display: grid;
+        gap: 1.5rem;
+    }
 
-<div class="card" style="margin-bottom: 1.5rem;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap;">
-        <h2 style="margin: 0; color: var(--primary-color);">Demandes de comptes en attente</h2>
-        <span style="background: var(--warning-color); color: white; padding: 0.35rem 0.8rem; border-radius: 999px; font-weight: 700; font-size: 0.85rem;">
-            {{ pending_account_requests_count }}
-        </span>
-    </div>
+    .ops-hero {
+        position: relative;
+        overflow: hidden;
+        padding: 2rem;
+        border-radius: 28px;
+        background:
+            radial-gradient(circle at top left, rgba(244, 163, 64, 0.22), transparent 28%),
+            radial-gradient(circle at bottom right, rgba(43, 131, 184, 0.2), transparent 24%),
+            linear-gradient(135deg, #0b2438 0%, #0A436B 42%, #155f95 100%);
+        color: white;
+        box-shadow: 0 24px 60px rgba(10, 67, 107, 0.24);
+    }
 
-    {% if pending_account_requests %}
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>Utilisateur</th>
-                    <th>Site</th>
-                    <th>Adresse</th>
-                    <th>Téléphone</th>
-                    <th>Demandé le</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for req in pending_account_requests %}
-                <tr>
-                    <td>
-                        <strong>{{ req.username }}</strong><br>
-                        <small style="color: var(--text-secondary);">{{ req.email|default:"-" }}</small>
-                    </td>
-                    <td>{{ req.site_name }}</td>
-                    <td>{{ req.site_address }}</td>
-                    <td>{{ req.telephone|default:"-" }}</td>
-                    <td>{{ req.requested_at|date:"d/m/Y H:i" }}</td>
-                    <td>
-                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+    .ops-hero::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+            linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+        background-size: 30px 30px;
+        mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.42), transparent 85%);
+        pointer-events: none;
+    }
+
+    .ops-hero > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .ops-hero-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.35rem;
+    }
+
+    .ops-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.35rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+        color: rgba(255, 255, 255, 0.92);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .ops-hero-title {
+        margin: 0.8rem 0 0.45rem 0;
+        font-size: clamp(2rem, 4vw, 3.1rem);
+        line-height: 0.98;
+        letter-spacing: -0.04em;
+    }
+
+    .ops-hero-copy {
+        max-width: 760px;
+        margin: 0;
+        color: rgba(255, 255, 255, 0.82);
+        font-size: 0.98rem;
+    }
+
+    .ops-toolbar {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .ops-toolbar .btn-secondary {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border-color: rgba(255, 255, 255, 0.22);
+    }
+
+    .ops-toolbar .btn-secondary:hover {
+        border-color: rgba(255, 255, 255, 0.4);
+        box-shadow: 0 10px 24px rgba(8, 50, 79, 0.2);
+    }
+
+    .ops-overview-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.9rem;
+    }
+
+    .ops-overview-card {
+        padding: 1rem 1.1rem;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(8px);
+    }
+
+    .ops-overview-label {
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .ops-overview-value {
+        margin-top: 0.45rem;
+        font-size: 1.55rem;
+        font-weight: 800;
+        line-height: 1.05;
+        letter-spacing: -0.03em;
+    }
+
+    .ops-overview-note {
+        margin-top: 0.32rem;
+        color: rgba(255, 255, 255, 0.76);
+        font-size: 0.8rem;
+    }
+
+    .ops-section {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .ops-section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .ops-section-title {
+        margin: 0;
+        color: var(--primary-dark);
+        font-size: 1.35rem;
+        letter-spacing: -0.03em;
+    }
+
+    .ops-section-copy {
+        margin: 0.3rem 0 0 0;
+        color: var(--text-secondary);
+        font-size: 0.92rem;
+    }
+
+    .ops-inline-note {
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+    }
+
+    .ops-period-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .ops-period-card {
+        padding: 1.35rem;
+        border-radius: 22px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 248, 250, 0.95));
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        box-shadow: 0 14px 34px rgba(31, 41, 51, 0.06);
+    }
+
+    .ops-period-card--today {
+        background: linear-gradient(180deg, rgba(232, 241, 247, 0.96), rgba(255, 255, 255, 0.98));
+    }
+
+    .ops-period-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.3rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(10, 67, 107, 0.08);
+        color: var(--primary-color);
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .ops-period-value {
+        margin-top: 1rem;
+        font-size: 2rem;
+        font-weight: 800;
+        line-height: 1.02;
+        letter-spacing: -0.04em;
+        color: var(--primary-dark);
+    }
+
+    .ops-period-subvalue {
+        margin-top: 0.3rem;
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+    }
+
+    .ops-period-meta {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .ops-mini-label {
+        color: var(--text-secondary);
+        font-size: 0.74rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .ops-mini-value {
+        margin-top: 0.22rem;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .ops-mini-value--danger {
+        color: var(--error-color);
+    }
+
+    .ops-mini-value--success {
+        color: var(--primary-color);
+    }
+
+    .ops-inbox-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+        gap: 1rem;
+    }
+
+    .ops-panel {
+        padding: 1.4rem;
+        border-radius: 22px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        box-shadow: 0 14px 36px rgba(31, 41, 51, 0.06);
+    }
+
+    .ops-panel-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .ops-panel-title {
+        margin: 0;
+        color: var(--primary-dark);
+        font-size: 1.06rem;
+    }
+
+    .ops-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 2rem;
+        padding: 0.3rem 0.7rem;
+        border-radius: 999px;
+        background: var(--primary-color);
+        color: white;
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+
+    .ops-badge--warning {
+        background: var(--warning-color);
+    }
+
+    .ops-empty {
+        padding: 1.1rem 1rem;
+        border-radius: 16px;
+        background: var(--bg-secondary);
+        color: var(--text-secondary);
+    }
+
+    .ops-feed {
+        display: grid;
+        gap: 0.8rem;
+    }
+
+    .ops-feed-item {
+        padding: 1rem;
+        border-radius: 18px;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        background: rgba(255, 255, 255, 0.88);
+    }
+
+    .ops-feed-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.9rem;
+        flex-wrap: wrap;
+    }
+
+    .ops-feed-title {
+        font-weight: 700;
+        color: var(--primary-dark);
+    }
+
+    .ops-feed-meta {
+        margin-top: 0.22rem;
+        color: var(--text-secondary);
+        font-size: 0.86rem;
+    }
+
+    .ops-feed-amount {
+        text-align: right;
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: var(--primary-color);
+        letter-spacing: -0.03em;
+    }
+
+    .ops-feed-note {
+        margin-top: 0.75rem;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+    }
+
+    .ops-feed-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-top: 0.85rem;
+    }
+
+    .ops-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.55rem;
+        border-radius: 999px;
+        background: rgba(10, 67, 107, 0.08);
+        color: var(--primary-color);
+        font-size: 0.74rem;
+        font-weight: 700;
+    }
+
+    .ops-chip--warning {
+        background: rgba(244, 163, 64, 0.16);
+        color: #8a5600;
+    }
+
+    .ops-list {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .ops-list-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 0.95rem 1rem;
+        border-radius: 16px;
+        background: var(--bg-secondary);
+    }
+
+    .ops-list-title {
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .ops-list-meta {
+        margin-top: 0.2rem;
+        font-size: 0.84rem;
+        color: var(--text-secondary);
+    }
+
+    .ops-action-row {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-top: 0.85rem;
+    }
+
+    .ops-mini-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.45rem 0.75rem;
+        border-radius: 10px;
+        text-decoration: none;
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
+    .ops-mini-btn--light {
+        background: rgba(10, 67, 107, 0.08);
+        color: var(--primary-color);
+    }
+
+    .ops-mini-btn--warn {
+        background: rgba(244, 163, 64, 0.16);
+        color: #8a5600;
+    }
+
+    .ops-sites-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1rem;
+    }
+
+    .ops-site-card {
+        padding: 1.4rem;
+        border-radius: 24px;
+        background:
+            radial-gradient(circle at top right, rgba(244, 163, 64, 0.11), transparent 24%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 248, 250, 0.96));
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        box-shadow: 0 16px 36px rgba(31, 41, 51, 0.07);
+    }
+
+    .ops-site-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.8rem;
+        margin-bottom: 1rem;
+    }
+
+    .ops-site-title {
+        margin: 0;
+        color: var(--primary-dark);
+        font-size: 1.2rem;
+    }
+
+    .ops-site-meta {
+        margin-top: 0.28rem;
+        color: var(--text-secondary);
+        font-size: 0.88rem;
+    }
+
+    .ops-site-kpis {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.85rem;
+    }
+
+    .ops-site-kpi {
+        padding: 0.95rem 1rem;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .ops-site-kpi-label {
+        color: var(--text-secondary);
+        font-size: 0.76rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .ops-site-kpi-value {
+        margin-top: 0.28rem;
+        font-size: 1.2rem;
+        font-weight: 800;
+        color: var(--primary-dark);
+        letter-spacing: -0.02em;
+    }
+
+    .ops-site-kpi-subvalue {
+        margin-top: 0.18rem;
+        font-size: 0.78rem;
+        color: var(--text-secondary);
+    }
+
+    .ops-site-disclosure {
+        margin-top: 1rem;
+        border-top: 1px solid rgba(10, 67, 107, 0.08);
+        padding-top: 1rem;
+    }
+
+    .ops-site-disclosure summary,
+    .ops-panel details summary {
+        list-style: none;
+        cursor: pointer;
+    }
+
+    .ops-site-disclosure summary::-webkit-details-marker,
+    .ops-panel details summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .ops-disclosure-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        color: var(--primary-color);
+        font-weight: 700;
+    }
+
+    .ops-disclosure-body {
+        display: grid;
+        gap: 0.8rem;
+        margin-top: 0.9rem;
+    }
+
+    .ops-site-foot {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .ops-site-links {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .ops-soft-note {
+        font-size: 0.82rem;
+        color: var(--text-secondary);
+    }
+
+    @media (max-width: 1100px) {
+        .ops-overview-grid,
+        .ops-period-grid,
+        .ops-inbox-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 720px) {
+        .ops-hero {
+            padding: 1.35rem;
+            border-radius: 22px;
+        }
+
+        .ops-overview-grid,
+        .ops-site-kpis,
+        .ops-period-meta {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .ops-toolbar,
+        .ops-site-links {
+            width: 100%;
+        }
+
+        .ops-toolbar .btn,
+        .ops-site-links .ops-mini-btn,
+        .ops-site-links .btn {
+            width: 100%;
+        }
+    }
+</style>
+
+<div class="ops-shell">
+    <section class="ops-hero">
+        <div class="ops-hero-top">
+            <div>
+                <span class="ops-kicker">Command Center</span>
+                <h1 class="ops-hero-title">Admin Dashboard</h1>
+                <p class="ops-hero-copy">
+                    Vue executive du réseau Shine Congo. Les chiffres clés sont séparés par horizon de temps, les alertes remontent dans une inbox dédiée, et chaque site garde un niveau de détail repliable.
+                </p>
+            </div>
+            <div class="ops-toolbar">
+                <a href="{% url 'admin_create_site' %}" class="btn btn-success">Créer un site</a>
+                <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">Rafraîchir</a>
+            </div>
+        </div>
+
+        <div class="ops-overview-grid">
+            <div class="ops-overview-card">
+                <div class="ops-overview-label">Sites actifs</div>
+                <div class="ops-overview-value">{{ dashboard_summary.active_sites }}</div>
+                <div class="ops-overview-note">Réseau actuellement piloté</div>
+            </div>
+            <div class="ops-overview-card">
+                <div class="ops-overview-label">Employés actifs</div>
+                <div class="ops-overview-value">{{ dashboard_summary.active_employees }}</div>
+                <div class="ops-overview-note">Profils opérationnels en service</div>
+            </div>
+            <div class="ops-overview-card">
+                <div class="ops-overview-label">Problèmes ouverts</div>
+                <div class="ops-overview-value">{{ dashboard_summary.open_issues }}</div>
+                <div class="ops-overview-note">Tickets à traiter sans délai</div>
+            </div>
+            <div class="ops-overview-card">
+                <div class="ops-overview-label">Comptes en attente</div>
+                <div class="ops-overview-value">{{ dashboard_summary.pending_accounts }}</div>
+                <div class="ops-overview-note">Demandes prêtes pour validation</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="ops-section">
+        <div class="ops-section-head">
+            <div>
+                <h2 class="ops-section-title">Performance Executive</h2>
+                <p class="ops-section-copy">Lecture rapide des montants système et des montants confirmés par les employés pour aujourd'hui, ce mois et cette année.</p>
+            </div>
+            <p class="ops-inline-note">{% fx_rate_label %}</p>
+        </div>
+
+        <div class="ops-period-grid">
+            <article class="ops-period-card ops-period-card--today">
+                <span class="ops-period-label">Jour</span>
+                <div class="ops-period-value">{{ dashboard_summary.cash_today|fc_amount }} FC</div>
+                <div class="ops-period-subvalue">~ ${{ dashboard_summary.cash_today|usd_equivalent }} USD</div>
+                <div class="ops-period-meta">
+                    <div>
+                        <div class="ops-mini-label">Rapports</div>
+                        <div class="ops-mini-value ops-mini-value--success">{{ dashboard_summary.reports_today|fc_amount }} FC</div>
+                    </div>
+                    <div>
+                        <div class="ops-mini-label">Écart</div>
+                        <div class="ops-mini-value {% if dashboard_summary.delta_today < 0 %}ops-mini-value--danger{% else %}ops-mini-value--success{% endif %}">
+                            {{ dashboard_summary.delta_today|fc_amount }} FC
+                        </div>
+                    </div>
+                    <div>
+                        <div class="ops-mini-label">Lavages</div>
+                        <div class="ops-mini-value">{{ dashboard_summary.washes_today }}</div>
+                    </div>
+                </div>
+            </article>
+
+            <article class="ops-period-card">
+                <span class="ops-period-label">Mois</span>
+                <div class="ops-period-value">{{ dashboard_summary.cash_month|fc_amount }} FC</div>
+                <div class="ops-period-subvalue">~ ${{ dashboard_summary.cash_month|usd_equivalent }} USD</div>
+                <div class="ops-period-meta">
+                    <div>
+                        <div class="ops-mini-label">Rapports</div>
+                        <div class="ops-mini-value ops-mini-value--success">{{ dashboard_summary.reports_month|fc_amount }} FC</div>
+                    </div>
+                    <div>
+                        <div class="ops-mini-label">Écart</div>
+                        <div class="ops-mini-value {% if dashboard_summary.delta_month < 0 %}ops-mini-value--danger{% else %}ops-mini-value--success{% endif %}">
+                            {{ dashboard_summary.delta_month|fc_amount }} FC
+                        </div>
+                    </div>
+                    <div>
+                        <div class="ops-mini-label">Lavages</div>
+                        <div class="ops-mini-value">{{ dashboard_summary.washes_month }}</div>
+                    </div>
+                </div>
+            </article>
+
+            <article class="ops-period-card">
+                <span class="ops-period-label">Année</span>
+                <div class="ops-period-value">{{ dashboard_summary.cash_year|fc_amount }} FC</div>
+                <div class="ops-period-subvalue">~ ${{ dashboard_summary.cash_year|usd_equivalent }} USD</div>
+                <div class="ops-period-meta">
+                    <div>
+                        <div class="ops-mini-label">Rapports</div>
+                        <div class="ops-mini-value ops-mini-value--success">{{ dashboard_summary.reports_year|fc_amount }} FC</div>
+                    </div>
+                    <div>
+                        <div class="ops-mini-label">Écart</div>
+                        <div class="ops-mini-value {% if dashboard_summary.delta_year < 0 %}ops-mini-value--danger{% else %}ops-mini-value--success{% endif %}">
+                            {{ dashboard_summary.delta_year|fc_amount }} FC
+                        </div>
+                    </div>
+                    <div>
+                        <div class="ops-mini-label">Lavages</div>
+                        <div class="ops-mini-value">{{ dashboard_summary.washes_year }}</div>
+                    </div>
+                </div>
+            </article>
+        </div>
+    </section>
+
+    <section class="ops-section">
+        <div class="ops-section-head">
+            <div>
+                <h2 class="ops-section-title">Inbox Opérationnelle</h2>
+                <p class="ops-section-copy">Les demandes urgentes et les rapports de fin de journée sont séparés ici pour éviter de surcharger le reste du dashboard.</p>
+            </div>
+        </div>
+
+        <div class="ops-inbox-grid">
+            <section class="ops-panel">
+                <div class="ops-panel-top">
+                    <h3 class="ops-panel-title">Demandes de comptes en attente</h3>
+                    <span class="ops-badge ops-badge--warning">{{ pending_account_requests_count }}</span>
+                </div>
+
+                {% if pending_account_requests %}
+                <div class="ops-list">
+                    {% for req in pending_account_requests|slice:":3" %}
+                    <div class="ops-list-item">
+                        <div>
+                            <div class="ops-list-title">{{ req.username }}</div>
+                            <div class="ops-list-meta">{{ req.site_name }} • {{ req.site_address }}</div>
+                            <div class="ops-list-meta">{{ req.telephone|default:"-" }} • {{ req.requested_at|date:"d/m/Y H:i" }}</div>
+                        </div>
+                        <div class="ops-action-row">
                             <form method="post" action="{% url 'admin_approve_account_request' req.id %}" style="margin: 0;">
                                 {% csrf_token %}
-                                <button type="submit" class="btn btn-success" style="padding: 0.45rem 0.75rem; font-size: 0.85rem;">Approuver</button>
+                                <button type="submit" class="ops-mini-btn ops-mini-btn--light">Approuver</button>
                             </form>
                             <form method="post" action="{% url 'admin_reject_account_request' req.id %}" style="margin: 0;" onsubmit="return confirm('Rejeter et supprimer cette demande ?');">
                                 {% csrf_token %}
-                                <button type="submit" class="btn btn-danger" style="padding: 0.45rem 0.75rem; font-size: 0.85rem;">Rejeter</button>
+                                <button type="submit" class="ops-mini-btn ops-mini-btn--warn">Rejeter</button>
                             </form>
                         </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <p style="margin: 0; color: var(--text-secondary);">Aucune demande en attente.</p>
-    {% endif %}
-</div>
-
-<div class="card" style="margin-bottom: 1.5rem;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap;">
-        <h2 style="margin: 0; color: var(--primary-color);">Messages - Rapports de fin de journée</h2>
-        <span style="background: var(--primary-color); color: white; padding: 0.35rem 0.8rem; border-radius: 999px; font-weight: 700; font-size: 0.85rem;">
-            {{ recent_daily_reports_count }}
-        </span>
-    </div>
-
-    {% if recent_daily_reports %}
-    <div style="display: grid; gap: 0.85rem;">
-        {% for item in recent_daily_reports %}
-        <div style="padding: 1rem; border: 1px solid var(--border-color); border-radius: 14px; background: var(--bg-secondary);">
-            <div style="display: flex; justify-content: space-between; align-items: start; gap: 1rem; flex-wrap: wrap;">
-                <div>
-                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.4rem;">
-                        <strong style="color: var(--primary-color);">{{ item.employee_name }}</strong>
-                        <span style="background: {% if item.is_update %}rgba(244, 163, 64, 0.16){% else %}rgba(10, 67, 107, 0.1){% endif %}; color: {% if item.is_update %}#8a5600{% else %}var(--primary-color){% endif %}; padding: 0.2rem 0.55rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700;">
-                            {% if item.is_update %}Rapport mis à jour{% else %}Nouveau rapport{% endif %}
-                        </span>
                     </div>
-                    <div style="color: var(--text-secondary); font-size: 0.9rem;">
-                        {{ item.site_name }} • {{ item.shift.date|date:"d/m/Y" }} • {{ item.shift.updated_at|date:"H:i" }}
+                    {% endfor %}
+                </div>
+
+                {% if pending_account_requests_count > 3 %}
+                <details style="margin-top: 1rem;">
+                    <summary class="ops-disclosure-head">
+                        <span>Voir toutes les demandes</span>
+                        <span class="ops-soft-note">{{ pending_account_requests_count }} au total</span>
+                    </summary>
+                    <div class="table-container" style="margin-top: 0.9rem;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Utilisateur</th>
+                                    <th>Site</th>
+                                    <th>Téléphone</th>
+                                    <th>Demandé le</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for req in pending_account_requests %}
+                                <tr>
+                                    <td><strong>{{ req.username }}</strong><br><small style="color: var(--text-secondary);">{{ req.email|default:"-" }}</small></td>
+                                    <td>{{ req.site_name }}<br><small style="color: var(--text-secondary);">{{ req.site_address }}</small></td>
+                                    <td>{{ req.telephone|default:"-" }}</td>
+                                    <td>{{ req.requested_at|date:"d/m/Y H:i" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </details>
+                {% endif %}
+                {% else %}
+                <div class="ops-empty">Aucune demande en attente.</div>
+                {% endif %}
+            </section>
+
+            <section class="ops-panel">
+                <div class="ops-panel-top">
+                    <h3 class="ops-panel-title">Messages - Rapports de fin de journée</h3>
+                    <span class="ops-badge">{{ recent_daily_reports_count }}</span>
+                </div>
+
+                {% if recent_daily_reports %}
+                <div class="ops-feed">
+                    {% for item in recent_daily_reports|slice:":4" %}
+                    <article class="ops-feed-item">
+                        <div class="ops-feed-row">
+                            <div>
+                                <div style="display: flex; gap: 0.45rem; align-items: center; flex-wrap: wrap;">
+                                    <div class="ops-feed-title">{{ item.employee_name }}</div>
+                                    <span class="ops-chip {% if item.is_update %}ops-chip--warning{% endif %}">
+                                        {% if item.is_update %}Mis à jour{% else %}Nouveau{% endif %}
+                                    </span>
+                                </div>
+                                <div class="ops-feed-meta">{{ item.site_name }} • {{ item.shift.date|date:"d/m/Y" }} • {{ item.shift.updated_at|date:"H:i" }}</div>
+                            </div>
+                            <div class="ops-feed-amount">{{ item.shift.total_amount_reported_fc|fc_amount }} FC</div>
+                        </div>
+                        <div class="ops-feed-note">{{ item.shift.report_notes|default:"Aucune note" }}</div>
+                        <div class="ops-feed-actions">
+                            {% if item.detail_url %}
+                            <a href="{{ item.detail_url }}" class="ops-mini-btn ops-mini-btn--light">Voir la journée</a>
+                            {% endif %}
+                            {% if item.employee_url %}
+                            <a href="{{ item.employee_url }}" class="ops-mini-btn ops-mini-btn--warn">Portail employé</a>
+                            {% endif %}
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+
+                {% if recent_daily_reports_count > 4 %}
+                <details style="margin-top: 1rem;">
+                    <summary class="ops-disclosure-head">
+                        <span>Ouvrir l’historique des messages</span>
+                        <span class="ops-soft-note">{{ recent_daily_reports_count }} rapports visibles</span>
+                    </summary>
+                    <div class="table-container" style="margin-top: 0.9rem;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Employé</th>
+                                    <th>Site</th>
+                                    <th>Date</th>
+                                    <th>Montant</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in recent_daily_reports %}
+                                <tr>
+                                    <td>{{ item.employee_name }}</td>
+                                    <td>{{ item.site_name }}</td>
+                                    <td>{{ item.shift.date|date:"d/m/Y" }}<br><small style="color: var(--text-secondary);">{{ item.shift.updated_at|date:"H:i" }}</small></td>
+                                    <td>{{ item.shift.total_amount_reported_fc|fc_amount }} FC</td>
+                                    <td>{{ item.shift.report_notes|default:"-" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </details>
+                {% endif %}
+                {% else %}
+                <div class="ops-empty">Aucun rapport de fin de journée reçu pour le moment.</div>
+                {% endif %}
+            </section>
+        </div>
+    </section>
+
+    <section class="ops-section">
+        <div class="ops-section-head">
+            <div>
+                <h2 class="ops-section-title">Sites</h2>
+                <p class="ops-section-copy">Chaque carte garde les chiffres essentiels visibles et repousse le reste dans un niveau de détail repliable.</p>
+            </div>
+        </div>
+
+        {% if sites_stats %}
+        <div class="ops-sites-grid">
+            {% for stats in sites_stats %}
+            <article class="ops-site-card">
+                <div class="ops-site-head">
+                    <div>
+                        <h3 class="ops-site-title">{{ stats.site.nom }}</h3>
+                        <div class="ops-site-meta">{{ stats.site.ville }}{% if stats.site.adresse %} • {{ stats.site.adresse }}{% endif %}</div>
+                    </div>
+                    <span class="ops-chip {% if stats.ecart_rapports != 0 %}ops-chip--warning{% endif %}">
+                        {% if stats.ecart_rapports == 0 %}Aligné{% else %}Écart {{ stats.ecart_rapports|fc_amount }} FC{% endif %}
+                    </span>
+                </div>
+
+                <div class="ops-site-kpis">
+                    <div class="ops-site-kpi">
+                        <div class="ops-site-kpi-label">Cash du jour</div>
+                        <div class="ops-site-kpi-value">{{ stats.chiffre_jour|fc_amount }} FC</div>
+                        <div class="ops-site-kpi-subvalue">~ ${{ stats.chiffre_jour|usd_equivalent }} USD</div>
+                    </div>
+                    <div class="ops-site-kpi">
+                        <div class="ops-site-kpi-label">Rapports employés</div>
+                        <div class="ops-site-kpi-value">{{ stats.montant_rapports_jour|fc_amount }} FC</div>
+                        <div class="ops-site-kpi-subvalue">{{ stats.rapports_confirmes }} rapport{{ stats.rapports_confirmes|pluralize }} confirmé{{ stats.rapports_confirmes|pluralize }}</div>
+                    </div>
+                    <div class="ops-site-kpi">
+                        <div class="ops-site-kpi-label">Lavages</div>
+                        <div class="ops-site-kpi-value">{{ stats.total_lavages }}</div>
+                        <div class="ops-site-kpi-subvalue">Production enregistrée aujourd'hui</div>
+                    </div>
+                    <div class="ops-site-kpi">
+                        <div class="ops-site-kpi-label">Présence / alertes</div>
+                        <div class="ops-site-kpi-value">{{ stats.presents }}</div>
+                        <div class="ops-site-kpi-subvalue">{{ stats.problemes_ouverts }} problème{{ stats.problemes_ouverts|pluralize }} ouvert{{ stats.problemes_ouverts|pluralize }}</div>
                     </div>
                 </div>
-                <div style="text-align: right;">
-                    <div style="font-size: 1.2rem; font-weight: 700; color: var(--primary-color);">{{ item.shift.total_amount_reported_fc|fc_amount }} FC</div>
-                    <div style="font-size: 0.72rem; color: var(--text-secondary);">~ ${{ item.shift.total_amount_reported_fc|usd_equivalent }} USD</div>
-                </div>
-            </div>
 
-            <div style="margin-top: 0.75rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem;">
-                <div>
-                    <strong style="color: var(--text-secondary); font-size: 0.82rem;">Lavages déclarés</strong>
-                    <div style="margin-top: 0.15rem;">{{ item.shift.total_lavages_reported }}</div>
-                </div>
-                <div>
-                    <strong style="color: var(--text-secondary); font-size: 0.82rem;">Notes</strong>
-                    <div style="margin-top: 0.15rem; color: var(--text-primary);">{{ item.shift.report_notes|default:"Aucune note" }}</div>
-                </div>
-            </div>
+                <details class="ops-site-disclosure">
+                    <summary class="ops-disclosure-head">
+                        <span>Ouvrir les détails opérationnels</span>
+                        <span class="ops-soft-note">présents, absents, alertes, cohérence</span>
+                    </summary>
+                    <div class="ops-disclosure-body">
+                        <div class="ops-list-item">
+                            <div>
+                                <div class="ops-list-title">Couverture équipe</div>
+                                <div class="ops-list-meta">{{ stats.presents }} présent{{ stats.presents|pluralize }} • {{ stats.absents }} absent{{ stats.absents|pluralize }}</div>
+                            </div>
+                            <div class="ops-list-title">{{ stats.total_employes }} employé{{ stats.total_employes|pluralize }}</div>
+                        </div>
+                        <div class="ops-list-item">
+                            <div>
+                                <div class="ops-list-title">Cohérence des montants</div>
+                                <div class="ops-list-meta">Cash système vs rapports employés</div>
+                            </div>
+                            <div class="ops-list-title {% if stats.ecart_rapports != 0 %}" style="color: var(--warning-color);" {% endif %}>
+                                {{ stats.ecart_rapports|fc_amount }} FC
+                            </div>
+                        </div>
+                        <div class="ops-list-item">
+                            <div>
+                                <div class="ops-list-title">Problèmes du jour</div>
+                                <div class="ops-list-meta">Signalements enregistrés aujourd'hui</div>
+                            </div>
+                            <div class="ops-list-title">{{ stats.problemes_today }}</div>
+                        </div>
+                    </div>
+                </details>
 
-            <div style="margin-top: 0.85rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                {% if item.detail_url %}
-                <a href="{{ item.detail_url }}" class="btn btn-secondary" style="padding: 0.45rem 0.75rem; font-size: 0.85rem;">Voir la journée</a>
-                {% endif %}
-                {% if item.employee_url %}
-                <a href="{{ item.employee_url }}" class="btn btn-info" style="padding: 0.45rem 0.75rem; font-size: 0.85rem;">Portail employé</a>
-                {% endif %}
-            </div>
+                <div class="ops-site-foot">
+                    <span class="ops-soft-note">Utilisez les raccourcis ci-dessous pour ouvrir directement la bonne vue.</span>
+                    <div class="ops-site-links">
+                        <a href="{% url 'admin_site_detail' stats.site.id %}" class="ops-mini-btn ops-mini-btn--light">Vue site</a>
+                        <a href="{% url 'admin_site_losses' stats.site.id %}?date={{ today|date:'Y-m-d' }}" class="ops-mini-btn ops-mini-btn--warn">Finance</a>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
         </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <p style="margin: 0; color: var(--text-secondary);">Aucun rapport de fin de journée reçu pour le moment.</p>
-    {% endif %}
+        {% else %}
+        <div class="ops-empty">
+            Aucun site disponible.
+        </div>
+        {% endif %}
+    </section>
 </div>
-
-{% if sites_stats %}
-<div class="card-grid">
-    {% for stats in sites_stats %}
-    <div class="card" style="cursor: pointer; transition: all 0.3s ease;" onclick="window.location.href='{% url 'admin_site_detail' stats.site.id %}'">
-        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1.5rem;">
-            <h2 style="margin: 0; color: var(--primary-color);">{{ stats.site.nom }}</h2>
-            <span style="background: var(--primary-light); color: var(--primary-color); padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
-                {{ stats.site.ville }}
-            </span>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
-            <div class="stat-card" style="text-align: center; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
-                <div class="stat-value" style="font-size: 2rem; margin-bottom: 0.1rem;">{{ stats.chiffre_jour|fc_amount }} FC</div>
-                <div style="font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 0.25rem;">~ ${{ stats.chiffre_jour|usd_equivalent }} USD</div>
-                <div class="stat-label" style="font-size: 0.75rem;">FC (Aujourd'hui)</div>
-                <div style="margin-top: 0.5rem; font-size: 0.78rem; color: var(--text-secondary);">
-                    Rapport employés:
-                    <strong style="color: var(--primary-color);">{{ stats.montant_rapports_jour|fc_amount }} FC</strong>
-                </div>
-                <div style="font-size: 0.75rem; color: var(--text-secondary);">
-                    {{ stats.rapports_confirmes }} rapport{{ stats.rapports_confirmes|pluralize }} confirmé{{ stats.rapports_confirmes|pluralize }}
-                </div>
-            </div>
-            
-            <div class="stat-card" style="text-align: center; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
-                <div class="stat-value" style="font-size: 2rem; margin-bottom: 0.25rem; color: var(--success-color);">{{ stats.total_lavages }}</div>
-                <div class="stat-label" style="font-size: 0.75rem;">Lavages</div>
-            </div>
-            
-            <div class="stat-card" style="text-align: center; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
-                <div class="stat-value" style="font-size: 2rem; margin-bottom: 0.25rem; color: var(--success-color);">{{ stats.presents }}</div>
-                <div class="stat-label" style="font-size: 0.75rem;">Présents</div>
-            </div>
-            
-            <div class="stat-card" style="text-align: center; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
-                <div class="stat-value" style="font-size: 2rem; margin-bottom: 0.25rem; color: var(--warning-color);">{{ stats.problemes_ouverts }}</div>
-                <div class="stat-label" style="font-size: 0.75rem;">Problèmes</div>
-            </div>
-        </div>
-        
-        <div style="text-align: center; padding-top: 1rem; border-top: 1px solid var(--border-color);">
-            <span style="color: var(--primary-color); font-weight: 600; font-size: 0.9rem;">
-                👆 Cliquez pour voir les détails →
-            </span>
-        </div>
-    </div>
-    {% endfor %}
-</div>
-{% else %}
-<div class="card text-center">
-    <p style="color: var(--text-secondary); font-size: 1.2rem;">Aucun site disponible.</p>
-    <a href="{% url 'admin_create_site' %}" class="btn btn-primary mt-3">Créer un site</a>
-</div>
-{% endif %}
-
-<style>
-    .card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 24px rgba(10, 67, 107, 0.2);
-    }
-</style>
 {% endblock %}

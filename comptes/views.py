@@ -340,6 +340,9 @@ def admin_dashboard(request):
     
     today = timezone.localdate()
     
+    month_start = today.replace(day=1)
+    year_start = today.replace(month=1, day=1)
+
     # Récupérer tous les sites actifs
     sites = Location.objects.filter(actif=True).order_by('nom')
     
@@ -367,6 +370,7 @@ def admin_dashboard(request):
         rapports_today = pointages_today.filter(daily_report_confirmed=True)
         montant_rapports_jour = rapports_today.aggregate(total=Sum('total_amount_reported_fc'))['total'] or 0
         rapports_confirmes = rapports_today.count()
+        ecart_rapports = montant_rapports_jour - chiffre_jour
         
         # Problèmes du jour
         problemes_today = IssueReport.objects.filter(site=site, created_at__date=today)
@@ -384,6 +388,7 @@ def admin_dashboard(request):
             'chiffre_jour': chiffre_jour,
             'montant_rapports_jour': montant_rapports_jour,
             'rapports_confirmes': rapports_confirmes,
+            'ecart_rapports': ecart_rapports,
             'problemes_today': problemes_today.count(),
             'problemes_ouverts': problemes_ouverts,
         })
@@ -424,9 +429,63 @@ def admin_dashboard(request):
             if shift.site and hasattr(shift.employe, "userprofile") else "",
         })
 
+    dashboard_summary = {
+        'active_sites': sites.count(),
+        'active_employees': UserProfile.objects.filter(
+            role='EMPLOYE',
+            actif=True,
+            site__actif=True,
+        ).count(),
+        'open_issues': IssueReport.objects.filter(
+            site__actif=True,
+            statut__in=['OUVERT', 'EN_COURS'],
+        ).count(),
+        'pending_accounts': len(pending_account_requests),
+        'cash_today': CarWash.objects.filter(
+            site__actif=True,
+            date=today,
+        ).aggregate(total=Sum('montant'))['total'] or Decimal('0'),
+        'cash_month': CarWash.objects.filter(
+            site__actif=True,
+            date__gte=month_start,
+            date__lte=today,
+        ).aggregate(total=Sum('montant'))['total'] or Decimal('0'),
+        'cash_year': CarWash.objects.filter(
+            site__actif=True,
+            date__gte=year_start,
+            date__lte=today,
+        ).aggregate(total=Sum('montant'))['total'] or Decimal('0'),
+        'reports_today': ShiftDay.objects.filter(
+            site__actif=True,
+            date=today,
+            daily_report_confirmed=True,
+        ).aggregate(total=Sum('total_amount_reported_fc'))['total'] or Decimal('0'),
+        'reports_month': ShiftDay.objects.filter(
+            site__actif=True,
+            date__gte=month_start,
+            date__lte=today,
+            daily_report_confirmed=True,
+        ).aggregate(total=Sum('total_amount_reported_fc'))['total'] or Decimal('0'),
+        'reports_year': ShiftDay.objects.filter(
+            site__actif=True,
+            date__gte=year_start,
+            date__lte=today,
+            daily_report_confirmed=True,
+        ).aggregate(total=Sum('total_amount_reported_fc'))['total'] or Decimal('0'),
+        'washes_today': CarWash.objects.filter(site__actif=True, date=today).count(),
+        'washes_month': CarWash.objects.filter(site__actif=True, date__gte=month_start, date__lte=today).count(),
+        'washes_year': CarWash.objects.filter(site__actif=True, date__gte=year_start, date__lte=today).count(),
+    }
+    dashboard_summary['delta_today'] = dashboard_summary['reports_today'] - dashboard_summary['cash_today']
+    dashboard_summary['delta_month'] = dashboard_summary['reports_month'] - dashboard_summary['cash_month']
+    dashboard_summary['delta_year'] = dashboard_summary['reports_year'] - dashboard_summary['cash_year']
+
     context = {
         'sites_stats': sites_stats,
         'today': today,
+        'month_start': month_start,
+        'year_start': year_start,
+        'dashboard_summary': dashboard_summary,
         'pending_account_requests': pending_account_requests,
         'pending_account_requests_count': len(pending_account_requests),
         'recent_daily_reports': recent_daily_reports,
