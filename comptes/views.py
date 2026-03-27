@@ -1726,7 +1726,8 @@ def admin_delete_bank_deposit(request, site_id, deposit_id):
 @no_cache_view
 def admin_site_losses(request, site_id):
     """
-    Gestion financière: cash flow, dépôts banque et pertes, en vue jour ou semaine.
+    Gestion financière et centre de correction: cash flow, dépôts banque,
+    pertes et pointages, en vue jour ou semaine.
     """
     user = request.user
     ensure_superuser_admin_profile(user)
@@ -1743,7 +1744,7 @@ def admin_site_losses(request, site_id):
 
     if period not in {'day', 'week'}:
         period = 'day'
-    if metric not in {'cashflow', 'bank', 'losses'}:
+    if metric not in {'cashflow', 'bank', 'losses', 'pointages'}:
         metric = 'losses'
 
     date_param = request.GET.get('date')
@@ -1816,15 +1817,28 @@ def admin_site_losses(request, site_id):
         date__lte=range_end,
     ).select_related('created_by').order_by('-date', '-created_at')
 
+    pointage_entries = ShiftDay.objects.filter(
+        site=site,
+        date__gte=range_start,
+        date__lte=range_end,
+    ).select_related('employe').order_by('-date', '-clock_in_time')
+
     if metric == 'cashflow':
         selected_entries = cashflow_entries
         selected_total = cashflow_entries.aggregate(total=Sum('montant'))['total'] or 0
+        selected_total_is_count = False
     elif metric == 'bank':
         selected_entries = bank_entries
         selected_total = bank_entries.aggregate(total=Sum('amount'))['total'] or 0
+        selected_total_is_count = False
+    elif metric == 'pointages':
+        selected_entries = pointage_entries
+        selected_total = pointage_entries.count()
+        selected_total_is_count = True
     else:
         selected_entries = loss_entries
         selected_total = loss_entries.aggregate(total=Sum('amount'))['total'] or 0
+        selected_total_is_count = False
 
     context = {
         'site': site,
@@ -1837,9 +1851,11 @@ def admin_site_losses(request, site_id):
         'range_label': range_label,
         'selected_entries': selected_entries,
         'selected_total': selected_total,
+        'selected_total_is_count': selected_total_is_count,
         'cashflow_entries': cashflow_entries,
         'bank_entries': bank_entries,
         'losses': loss_entries,
+        'pointage_entries': pointage_entries,
         'pertes_total': pertes_total,
         'pertes_caisse': pertes_caisse,
         'pertes_banque': pertes_banque,

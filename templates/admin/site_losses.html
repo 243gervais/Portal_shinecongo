@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 {% load currency_tags %}
 
-{% block title %}Gestion financière - {{ site.nom }}{% endblock %}
+{% block title %}Corrections et finance - {{ site.nom }}{% endblock %}
 
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; gap: 0.75rem; flex-wrap: wrap;">
     <div>
-        <h1 class="mt-2 mb-2">📊 Gestion financière</h1>
+        <h1 class="mt-2 mb-2">📊 Corrections et finance</h1>
         <p style="color: var(--text-secondary); margin: 0;">
             {{ site.nom }} - {{ range_label }}
         </p>
@@ -19,6 +19,9 @@
 <p style="margin: -1rem 0 1.25rem 0; color: var(--text-secondary); font-size: 0.82rem;">{% fx_rate_label %}</p>
 
 <div class="card mb-4">
+    <div style="margin-bottom: 0.85rem; color: var(--text-secondary); font-size: 0.9rem;">
+        Ce centre permet de corriger les actions déjà enregistrées: lavages, totaux quotidiens ajoutés manuellement, dépôts bancaires, pertes et pointages.
+    </div>
     <form method="get" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem; align-items: end;">
         <div class="form-group" style="margin-bottom: 0;">
             <label for="date">Date de référence</label>
@@ -37,6 +40,7 @@
                 <option value="cashflow" {% if metric == 'cashflow' %}selected{% endif %}>Cash Flow</option>
                 <option value="bank" {% if metric == 'bank' %}selected{% endif %}>Banque</option>
                 <option value="losses" {% if metric == 'losses' %}selected{% endif %}>Pertes</option>
+                <option value="pointages" {% if metric == 'pointages' %}selected{% endif %}>Pointages</option>
             </select>
         </div>
         <div>
@@ -118,6 +122,8 @@
             🚗 Entrées Cash Flow ({{ period|title }}) - {{ selected_entries.count }} lavage{{ selected_entries.count|pluralize }}
             {% elif metric == 'bank' %}
             🏦 Entrées Banque ({{ period|title }}) - {{ selected_entries.count }} dépôt{{ selected_entries.count|pluralize }}
+            {% elif metric == 'pointages' %}
+            ⏰ Entrées Pointages ({{ period|title }}) - {{ selected_entries.count }} pointage{{ selected_entries.count|pluralize }}
             {% else %}
             📉 Entrées Pertes ({{ period|title }}) - {{ selected_entries.count }} perte{{ selected_entries.count|pluralize }}
             {% endif %}
@@ -127,6 +133,8 @@
             <a href="{% url 'admin_add_wash' site.id %}?date={{ selected_date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}" class="btn btn-primary">➕ Ajouter un lavage</a>
             {% elif metric == 'bank' %}
             <a href="{% url 'admin_add_bank_deposit' site.id %}?date={{ selected_date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}" class="btn btn-success">➕ Ajouter/modifier un dépôt</a>
+            {% elif metric == 'pointages' %}
+            <a href="{% url 'admin_site_detail' site.id %}?date_debut={{ selected_date|date:'Y-m-d' }}&date_fin={{ selected_date|date:'Y-m-d' }}" class="btn btn-secondary">↗ Ouvrir la journée</a>
             {% else %}
             <a href="{% url 'admin_add_site_loss' site.id %}?date={{ selected_date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}" class="btn btn-warning">➕ Ajouter une perte</a>
             {% endif %}
@@ -134,8 +142,12 @@
     </div>
 
     <div style="margin-bottom: 0.75rem; color: var(--text-secondary); font-size: 0.9rem;">
+        {% if selected_total_is_count %}
+        Total affiché: <strong>{{ selected_total }}</strong>
+        {% else %}
         Total affiché: <strong>{{ selected_total|fc_amount }} FC</strong>
         <small style="color: var(--text-secondary);">(~ ${{ selected_total|usd_equivalent }} USD)</small>
+        {% endif %}
     </div>
 
     {% if selected_entries %}
@@ -148,6 +160,7 @@
                     <th>Heure</th>
                     <th>Employé</th>
                     <th>Service</th>
+                    <th>Notes</th>
                     <th>Plaque</th>
                     <th>Montant</th>
                     <th>Photos</th>
@@ -161,6 +174,7 @@
                     <td>{{ lavage.created_at|date:"H:i" }}</td>
                     <td>{{ lavage.employe.get_full_name|default:lavage.employe.username }}</td>
                     <td>{{ lavage.get_type_service_display }}</td>
+                    <td style="max-width: 260px;">{{ lavage.notes|default:"-" }}</td>
                     <td>{{ lavage.plaque|default:"-" }}</td>
                     <td style="font-weight: 600; color: var(--success-color);">{{ lavage.montant|fc_amount }} FC</td>
                     <td>{{ lavage.photos.count }}</td>
@@ -168,6 +182,36 @@
                         <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                             <a href="{% url 'admin_edit_wash' site.id lavage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-primary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">Modifier</a>
                             <a href="{% url 'admin_delete_wash' site.id lavage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">Supprimer</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            {% elif metric == 'pointages' %}
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Employé</th>
+                    <th>Entrée</th>
+                    <th>Sortie</th>
+                    <th>Rapport final</th>
+                    <th>Montant déclaré</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pointage in selected_entries %}
+                <tr>
+                    <td>{{ pointage.date|date:"d/m/Y" }}</td>
+                    <td>{{ pointage.employe.get_full_name|default:pointage.employe.username }}</td>
+                    <td>{% if pointage.clock_in_time %}{{ pointage.clock_in_time|date:"H:i" }}{% else %}-{% endif %}</td>
+                    <td>{% if pointage.clock_out_time %}{{ pointage.clock_out_time|date:"H:i" }}{% else %}<span style="color: var(--warning-color);">En cours</span>{% endif %}</td>
+                    <td>{% if pointage.daily_report_confirmed %}Confirmé{% else %}-{% endif %}</td>
+                    <td>{% if pointage.daily_report_confirmed %}{{ pointage.total_amount_reported_fc|fc_amount }} FC{% else %}-{% endif %}</td>
+                    <td>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <a href="{% url 'admin_edit_pointage' site.id pointage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-primary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">Modifier</a>
+                            <a href="{% url 'admin_delete_pointage' site.id pointage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">Supprimer</a>
                         </div>
                     </td>
                 </tr>

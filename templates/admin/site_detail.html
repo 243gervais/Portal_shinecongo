@@ -28,7 +28,7 @@
         <div class="site-actions">
             <a href="{% url 'admin_site_documents' site.id %}" class="btn btn-success">Documents du site</a>
             <a href="{% url 'admin_add_bank_deposit' site.id %}" class="btn btn-info">{% if bank_deposit_today %}Modifier{% else %}Ajouter{% endif %} dépôt bancaire</a>
-            <a href="{% url 'admin_site_losses' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-warning">Gestion financière</a>
+            <a href="{% url 'admin_site_losses' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-warning">Corrections & finance</a>
             <a href="{% url 'admin_add_daily_total' site.id %}" class="btn btn-primary">Ajouter le total quotidien</a>
             <a href="{% url 'admin_add_wash' site.id %}" class="btn btn-primary">Ajouter un lavage complet</a>
             <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">Retour aux sites</a>
@@ -826,7 +826,7 @@
             </p>
         </div>
         <div class="finance-actions">
-            <a href="{% url 'admin_site_losses' site.id %}?date={{ selected_single_date|date:'Y-m-d' }}" class="btn btn-warning">Gerer les pertes</a>
+            <a href="{% url 'admin_site_losses' site.id %}?date={{ selected_single_date|date:'Y-m-d' }}" class="btn btn-warning">Corriger cette journée</a>
             <a href="{% url 'admin_add_bank_deposit' site.id %}?date={{ selected_single_date|date:'Y-m-d' }}" class="btn btn-secondary">
                 {% if bank_deposit_date %}Modifier le depot{% else %}Ajouter un depot{% endif %}
             </a>
@@ -952,6 +952,11 @@
                         <div class="finance-meta-block">
                             <h3>Note de depot</h3>
                             <div>{% if bank_deposit_date.notes %}{{ bank_deposit_date.notes }}{% else %}Aucune note ajoutee pour ce depot.{% endif %}</div>
+                            <div style="margin-top: 0.85rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                <a href="{% url 'admin_add_bank_deposit' site.id %}?date={{ selected_single_date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}" class="btn btn-primary" style="padding: 0.45rem 0.8rem; font-size: 0.82rem;">Modifier ce dépôt</a>
+                                <a href="{% url 'admin_delete_bank_deposit' site.id bank_deposit_date.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger" style="padding: 0.45rem 0.8rem; font-size: 0.82rem;">Supprimer</a>
+                                <a href="{% url 'admin_site_losses' site.id %}?date={{ selected_single_date|date:'Y-m-d' }}&period=day&metric=bank" class="btn btn-secondary" style="padding: 0.45rem 0.8rem; font-size: 0.82rem;">Centre de correction</a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1286,7 +1291,7 @@
             </p>
         </div>
         <div class="finance-actions">
-            <a href="{% url 'admin_site_losses' site.id %}?date={{ today|date:'Y-m-d' }}" class="btn btn-warning">Gerer les pertes</a>
+            <a href="{% url 'admin_site_losses' site.id %}?date={{ today|date:'Y-m-d' }}" class="btn btn-warning">Corriger les actions</a>
             <a href="{% url 'admin_add_bank_deposit' site.id %}" class="btn btn-success">
                 {% if bank_deposit_today %}Modifier le depot{% else %}Ajouter le depot{% endif %}
             </a>
@@ -1420,6 +1425,11 @@
                         <div class="finance-meta-block">
                             <h3>Note</h3>
                             <div>{% if bank_deposit_today.notes %}{{ bank_deposit_today.notes }}{% else %}Aucune note ajoutee pour le depot du jour.{% endif %}</div>
+                            <div style="margin-top: 0.85rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                <a href="{% url 'admin_add_bank_deposit' site.id %}?date={{ today|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}" class="btn btn-primary" style="padding: 0.45rem 0.8rem; font-size: 0.82rem;">Modifier ce dépôt</a>
+                                <a href="{% url 'admin_delete_bank_deposit' site.id bank_deposit_today.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger" style="padding: 0.45rem 0.8rem; font-size: 0.82rem;">Supprimer</a>
+                                <a href="{% url 'admin_site_losses' site.id %}?date={{ today|date:'Y-m-d' }}&period=day&metric=bank" class="btn btn-secondary" style="padding: 0.45rem 0.8rem; font-size: 0.82rem;">Centre de correction</a>
+                            </div>
                         </div>
                     </div>
                 </div>

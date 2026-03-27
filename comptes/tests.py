@@ -2,6 +2,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.utils import timezone
 from datetime import date
 from decimal import Decimal
 
@@ -9,6 +10,7 @@ from comptes.forms import ApprovalAuthenticationForm
 from comptes.views import _daily_funding_snapshot
 from sites.models import Location, SiteDocument
 from sites.models import DailyBankDeposit, SiteLossEntry
+from pointage.models import ShiftDay
 
 
 class AccountApprovalFlowTests(TestCase):
@@ -232,3 +234,48 @@ class FundingSnapshotTests(TestCase):
         self.assertEqual(snapshot["bank_available"], Decimal("-5000"))
         self.assertEqual(snapshot["bank_week_available"], 65000)
         self.assertEqual(snapshot["bank_total_available"], 65000)
+
+
+class SiteCorrectionsViewTests(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            username="finance_admin",
+            email="finance_admin@example.com",
+            password="AdminPass123!",
+        )
+        self.employee = User.objects.create_user(
+            username="employee_fix",
+            email="employee_fix@example.com",
+            password="EmployeePass123!",
+        )
+        self.site = Location.objects.create(
+            nom="Site Correction",
+            adresse="Adresse Correction",
+            ville="Kinshasa",
+            actif=True,
+        )
+        self.employee.userprofile.site = self.site
+        self.employee.userprofile.role = "EMPLOYE"
+        self.employee.userprofile.actif = True
+        self.employee.userprofile.save()
+        ShiftDay.objects.create(
+            employe=self.employee,
+            site=self.site,
+            date=date(2026, 3, 27),
+            clock_in_time=timezone.now(),
+            daily_report_confirmed=True,
+            total_amount_reported_fc=15000,
+        )
+        self.client.login(username="finance_admin", password="AdminPass123!")
+
+    def test_corrections_page_supports_pointage_metric(self):
+        response = self.client.get(
+            reverse("admin_site_losses", args=[self.site.id]),
+            data={"date": "2026-03-27", "period": "day", "metric": "pointages"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Entrées Pointages")
+        self.assertContains(response, "employee_fix")
+        self.assertContains(response, "Modifier")
+        self.assertContains(response, "Supprimer")
