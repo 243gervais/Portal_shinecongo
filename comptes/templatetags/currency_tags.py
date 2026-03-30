@@ -3,6 +3,7 @@ from __future__ import annotations
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from django import template
+from django.utils.html import format_html
 from django.utils.dateparse import parse_date
 from django.utils import timezone
 
@@ -43,8 +44,15 @@ def fx_rate_label():
     usd_to_cdf = _to_decimal(rate_data.get("usd_to_cdf"))
     source_date = parse_date(rate_data.get("source_date") or "")
     source_date_label = source_date.strftime("%d/%m/%Y") if source_date else "aujourd'hui"
-    kinshasa_time = timezone.localtime(timezone.now()).strftime("%H:%M")
-    return (
-        f"Taux du {source_date_label}: 1 USD = {_format_number_without_decimals(usd_to_cdf)} FC "
-        f"(mise a jour quotidienne, heure de Kinshasa {kinshasa_time})"
+    kinshasa_time = timezone.localtime(timezone.now()).strftime("%H:%M:%S")
+    return format_html(
+        (
+            "Taux du {}: 1 USD = {} FC "
+            "(mise a jour quotidienne • "
+            "<span class=\"fx-live-clock\" data-timezone=\"Africa/Kinshasa\">🕒 {}</span> "
+            "Kinshasa)"
+        ),
+        source_date_label,
+        _format_number_without_decimals(usd_to_cdf),
+        kinshasa_time,
     )

@@ -156,6 +156,15 @@
             line-height: 1;
         }
 
+        .fx-live-clock {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            white-space: nowrap;
+        }
+
         .card {
             background: var(--card-bg);
             border-radius: 16px;
@@ -526,6 +535,42 @@
     {% block extra_js %}{% endblock %}
     
     <script>
+        (() => {
+            const clockNodes = document.querySelectorAll('.fx-live-clock[data-timezone]');
+            if (!clockNodes.length || typeof Intl === 'undefined' || !Intl.DateTimeFormat) {
+                return;
+            }
+
+            const formatters = new Map();
+
+            const getFormatter = (timeZone) => {
+                if (!formatters.has(timeZone)) {
+                    formatters.set(
+                        timeZone,
+                        new Intl.DateTimeFormat('fr-FR', {
+                            timeZone,
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: false,
+                        })
+                    );
+                }
+                return formatters.get(timeZone);
+            };
+
+            const updateClocks = () => {
+                const now = new Date();
+                clockNodes.forEach((node) => {
+                    const timeZone = node.dataset.timezone || 'Africa/Kinshasa';
+                    node.textContent = `🕒 ${getFormatter(timeZone).format(now)}`;
+                });
+            };
+
+            updateClocks();
+            window.setInterval(updateClocks, 1000);
+        })();
+
         // Protection stricte contre l'accès non autorisé après déconnexion
         // Cette vérification s'exécute immédiatement pour bloquer tout accès sans authentification
         
