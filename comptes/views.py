@@ -853,6 +853,10 @@ def admin_site_detail(request, site_id):
 
         history_cursor -= timedelta(days=7)
 
+    weekly_history_max_cash_flow = max((week['cash_flow'] for week in weekly_history), default=0) or 1
+    weekly_history_max_bank_deposit = max((week['bank_deposit'] for week in weekly_history), default=0) or 1
+    weekly_history_max_pertes_total = max((week['pertes_total'] for week in weekly_history), default=0) or 1
+
     previous_week_start = week_start - timedelta(days=7)
     previous_week_end = previous_week_start + timedelta(days=6)
     next_week_start = week_start + timedelta(days=7)
@@ -903,6 +907,9 @@ def admin_site_detail(request, site_id):
         'pertes_week_banque': pertes_week_banque,
         'caisse_balance_week': caisse_balance_week,
         'weekly_history': weekly_history,
+        'weekly_history_max_cash_flow': weekly_history_max_cash_flow,
+        'weekly_history_max_bank_deposit': weekly_history_max_bank_deposit,
+        'weekly_history_max_pertes_total': weekly_history_max_pertes_total,
         'previous_week_start': previous_week_start,
         'previous_week_end': previous_week_end,
         'next_week_start': next_week_start,
