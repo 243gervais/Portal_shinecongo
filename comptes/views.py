@@ -1,3 +1,4 @@
+import calendar
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout, login
 from django.shortcuts import render, redirect, get_object_or_404
@@ -799,63 +800,158 @@ def admin_site_detail(request, site_id):
         default=week_start,
     )
 
-    weekly_history = []
-    history_cursor = week_start
-    history_limit = 8
-    while history_cursor >= earliest_activity_date and len(weekly_history) < history_limit:
-        history_end = history_cursor + timedelta(days=6)
-        history_cash = CarWash.objects.filter(
-            site=site,
-            date__gte=history_cursor,
-            date__lte=history_end,
-        ).aggregate(total=Sum('montant'))['total'] or 0
-        history_bank = DailyBankDeposit.objects.filter(
-            site=site,
-            date__gte=history_cursor,
-            date__lte=history_end,
-        ).aggregate(total=Sum('amount'))['total'] or 0
-        history_losses = SiteLossEntry.objects.filter(
-            site=site,
-            date__gte=history_cursor,
-            date__lte=history_end,
-        )
-        history_pertes_total = history_losses.aggregate(total=Sum('amount'))['total'] or 0
-        history_pertes_caisse = history_losses.filter(funding_source='CAISSE').aggregate(total=Sum('amount'))['total'] or 0
-        history_pertes_banque = history_losses.filter(funding_source='BANQUE').aggregate(total=Sum('amount'))['total'] or 0
+    month_names = [
+        "Janvier",
+        "Fevrier",
+        "Mars",
+        "Avril",
+        "Mai",
+        "Juin",
+        "Juillet",
+        "Aout",
+        "Septembre",
+        "Octobre",
+        "Novembre",
+        "Decembre",
+    ]
 
-        if (
-            history_cash
-            or history_bank
-            or history_pertes_total
-            or history_cursor == week_start
-        ):
-            history_reports = ShiftDay.objects.filter(
+    def build_period_history(period_key, current_start, history_limit):
+        entries = []
+        cursor = current_start
+
+        while len(entries) < history_limit:
+            if period_key == 'week':
+                period_end = cursor + timedelta(days=6)
+                label = f"{cursor.strftime('%d/%m/%Y')} - {period_end.strftime('%d/%m/%Y')}"
+                detail_query = (
+                    f"date_debut={cursor.strftime('%Y-%m-%d')}"
+                    f"&date_fin={period_end.strftime('%Y-%m-%d')}"
+                    f"&week_anchor={cursor.strftime('%Y-%m-%d')}"
+                )
+                previous_cursor = cursor - timedelta(days=7)
+            elif period_key == 'month':
+                period_end = cursor.replace(day=calendar.monthrange(cursor.year, cursor.month)[1])
+                label = f"{month_names[cursor.month - 1]} {cursor.year}"
+                detail_query = (
+                    f"date_debut={cursor.strftime('%Y-%m-%d')}"
+                    f"&date_fin={period_end.strftime('%Y-%m-%d')}"
+                )
+                previous_cursor = (cursor - timedelta(days=1)).replace(day=1)
+            else:
+                period_end = cursor.replace(month=12, day=31)
+                label = str(cursor.year)
+                detail_query = (
+                    f"date_debut={cursor.strftime('%Y-%m-%d')}"
+                    f"&date_fin={period_end.strftime('%Y-%m-%d')}"
+                )
+                previous_cursor = cursor.replace(year=cursor.year - 1, month=1, day=1)
+
+            if period_end < earliest_activity_date:
+                break
+
+            history_cash = CarWash.objects.filter(
                 site=site,
-                date__gte=history_cursor,
-                date__lte=history_end,
-                daily_report_confirmed=True,
+                date__gte=cursor,
+                date__lte=period_end,
+            ).aggregate(total=Sum('montant'))['total'] or 0
+            history_bank = DailyBankDeposit.objects.filter(
+                site=site,
+                date__gte=cursor,
+                date__lte=period_end,
+            ).aggregate(total=Sum('amount'))['total'] or 0
+            history_losses = SiteLossEntry.objects.filter(
+                site=site,
+                date__gte=cursor,
+                date__lte=period_end,
             )
-            history_report_total = history_reports.aggregate(total=Sum('total_amount_reported_fc'))['total'] or 0
-            weekly_history.append({
-                'week_start': history_cursor,
-                'week_end': history_end,
-                'label': f"{history_cursor.strftime('%d/%m/%Y')} - {history_end.strftime('%d/%m/%Y')}",
-                'cash_flow': history_cash,
-                'reported_cash': history_report_total,
-                'bank_deposit': history_bank,
-                'bank_net': history_bank - history_pertes_banque,
-                'pertes_total': history_pertes_total,
-                'pertes_caisse': history_pertes_caisse,
-                'pertes_banque': history_pertes_banque,
-                'ecart_caisse': history_cash - history_bank - history_pertes_caisse,
-                'is_selected': history_cursor == week_start,
-            })
+            history_pertes_total = history_losses.aggregate(total=Sum('amount'))['total'] or 0
+            history_pertes_caisse = history_losses.filter(funding_source='CAISSE').aggregate(total=Sum('amount'))['total'] or 0
+            history_pertes_banque = history_losses.filter(funding_source='BANQUE').aggregate(total=Sum('amount'))['total'] or 0
 
-        history_cursor -= timedelta(days=7)
+            if (
+                history_cash
+                or history_bank
+                or history_pertes_total
+                or cursor == current_start
+            ):
+                history_reports = ShiftDay.objects.filter(
+                    site=site,
+                    date__gte=cursor,
+                    date__lte=period_end,
+                    daily_report_confirmed=True,
+                )
+                history_report_total = history_reports.aggregate(total=Sum('total_amount_reported_fc'))['total'] or 0
+                entries.append({
+                    'period_start': cursor,
+                    'period_end': period_end,
+                    'label': label,
+                    'cash_flow': history_cash,
+                    'reported_cash': history_report_total,
+                    'bank_deposit': history_bank,
+                    'bank_net': history_bank - history_pertes_banque,
+                    'pertes_total': history_pertes_total,
+                    'pertes_caisse': history_pertes_caisse,
+                    'pertes_banque': history_pertes_banque,
+                    'ecart_caisse': history_cash - history_bank - history_pertes_caisse,
+                    'is_selected': cursor == current_start,
+                    'detail_query': detail_query,
+                })
 
-    weekly_history_max_cash_flow = max((week['cash_flow'] for week in weekly_history), default=0) or 1
-    weekly_history_max_bank_deposit = max((week['bank_deposit'] for week in weekly_history), default=0) or 1
-    weekly_history_max_pertes_total = max((week['pertes_total'] for week in weekly_history), default=0) or 1
+            cursor = previous_cursor
+
+        return entries
+
+    weekly_history = build_period_history('week', week_start, 8)
+    monthly_history = build_period_history('month', detail_date.replace(day=1), 6)
+    yearly_history = build_period_history('year', detail_date.replace(month=1, day=1), 5)
+
+    comparison_periods = [
+        {
+            'key': 'week',
+            'toggle_label': 'Hebdomadaire',
+            'title': 'Historique hebdomadaire',
+            'copy': 'Comparer les 8 dernieres semaines actives et rouvrir rapidement une semaine precise.',
+            'row_label': 'Semaine',
+            'items': weekly_history,
+            'item_count': len(weekly_history),
+            'max_cash_flow': max((item['cash_flow'] for item in weekly_history), default=0) or 1,
+            'max_bank_deposit': max((item['bank_deposit'] for item in weekly_history), default=0) or 1,
+            'max_pertes_total': max((item['pertes_total'] for item in weekly_history), default=0) or 1,
+            'empty_message': 'Aucune semaine historique disponible pour ce site.',
+            'default_open': True,
+            'show_correction_link': True,
+        },
+        {
+            'key': 'month',
+            'toggle_label': 'Mensuel',
+            'title': 'Historique mensuel',
+            'copy': 'Comparer les derniers mois actifs pour repérer rapidement les variations de rythme et de charges.',
+            'row_label': 'Mois',
+            'items': monthly_history,
+            'item_count': len(monthly_history),
+            'max_cash_flow': max((item['cash_flow'] for item in monthly_history), default=0) or 1,
+            'max_bank_deposit': max((item['bank_deposit'] for item in monthly_history), default=0) or 1,
+            'max_pertes_total': max((item['pertes_total'] for item in monthly_history), default=0) or 1,
+            'empty_message': 'Aucun mois historique disponible pour ce site.',
+            'default_open': False,
+            'show_correction_link': False,
+        },
+        {
+            'key': 'year',
+            'toggle_label': 'Annuel',
+            'title': 'Historique annuel',
+            'copy': 'Voir la trajectoire annuelle du site sans empiler toutes les semaines sur un seul ecran.',
+            'row_label': 'Annee',
+            'items': yearly_history,
+            'item_count': len(yearly_history),
+            'max_cash_flow': max((item['cash_flow'] for item in yearly_history), default=0) or 1,
+            'max_bank_deposit': max((item['bank_deposit'] for item in yearly_history), default=0) or 1,
+            'max_pertes_total': max((item['pertes_total'] for item in yearly_history), default=0) or 1,
+            'empty_message': 'Aucune annee historique disponible pour ce site.',
+            'default_open': False,
+            'show_correction_link': False,
+        },
+    ]
 
     previous_week_start = week_start - timedelta(days=7)
     previous_week_end = previous_week_start + timedelta(days=6)
@@ -906,10 +1002,7 @@ def admin_site_detail(request, site_id):
         'pertes_week_caisse': pertes_week_caisse,
         'pertes_week_banque': pertes_week_banque,
         'caisse_balance_week': caisse_balance_week,
-        'weekly_history': weekly_history,
-        'weekly_history_max_cash_flow': weekly_history_max_cash_flow,
-        'weekly_history_max_bank_deposit': weekly_history_max_bank_deposit,
-        'weekly_history_max_pertes_total': weekly_history_max_pertes_total,
+        'comparison_periods': comparison_periods,
         'previous_week_start': previous_week_start,
         'previous_week_end': previous_week_end,
         'next_week_start': next_week_start,

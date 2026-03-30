@@ -815,6 +815,89 @@
         white-space: nowrap;
     }
 
+    .history-switcher {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .history-switcher-buttons {
+        display: inline-flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+    }
+
+    .history-switcher-btn {
+        appearance: none;
+        border: 1px solid rgba(10, 67, 107, 0.1);
+        background: rgba(255, 255, 255, 0.88);
+        color: #35566d;
+        border-radius: 999px;
+        padding: 0.55rem 0.9rem;
+        font-size: 0.82rem;
+        font-weight: 800;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .history-switcher-btn:hover {
+        border-color: rgba(10, 67, 107, 0.2);
+        color: #0b2438;
+    }
+
+    .history-switcher-btn.is-active {
+        background: linear-gradient(135deg, #0A436B, #155f95);
+        color: white;
+        border-color: transparent;
+        box-shadow: 0 12px 28px rgba(10, 67, 107, 0.18);
+    }
+
+    .history-switcher-caption {
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+    }
+
+    .history-pane {
+        display: none;
+        gap: 1rem;
+    }
+
+    .history-pane.is-active {
+        display: grid;
+    }
+
+    .history-pane-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+    }
+
+    .history-pane-title {
+        margin: 0;
+        color: var(--primary-dark);
+        font-size: 1.02rem;
+    }
+
+    .history-pane-copy {
+        margin: 0.3rem 0 0 0;
+        color: var(--text-secondary);
+        font-size: 0.86rem;
+    }
+
+    .history-pane-state {
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(10, 67, 107, 0.08);
+        color: var(--primary-color);
+        font-size: 0.8rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
     @media (max-width: 1024px) {
         .site-summary-grid,
         .finance-summary,
@@ -884,6 +967,23 @@
         .weekly-graph-head {
             flex-direction: column;
             align-items: flex-start;
+        }
+
+        .history-switcher {
+            align-items: stretch;
+        }
+
+        .history-switcher-buttons {
+            width: 100%;
+        }
+
+        .history-switcher-btn {
+            flex: 1 1 calc(50% - 0.55rem);
+            text-align: center;
+        }
+
+        .history-pane-head {
+            flex-direction: column;
         }
     }
 </style>
@@ -1339,104 +1439,134 @@
         <details class="finance-disclosure">
             <summary class="finance-disclosure-head">
                 <div>
-                    <div class="finance-disclosure-title">Historique hebdomadaire</div>
-                    <div class="finance-disclosure-copy">Comparer les 8 dernieres semaines actives et rouvrir rapidement une semaine precise.</div>
+                    <div class="finance-disclosure-title">Historique comparatif</div>
+                    <div class="finance-disclosure-copy">Basculer entre les vues hebdomadaire, mensuelle et annuelle pour comparer le cash flow, la banque et les pertes.</div>
                 </div>
-                <span class="finance-disclosure-state">{{ weekly_history|length }} semaine{{ weekly_history|length|pluralize }}</span>
+                <span class="finance-disclosure-state" data-history-state-display>Hebdomadaire</span>
             </summary>
             <div class="finance-disclosure-body">
-                {% if weekly_history %}
-                <div class="weekly-graphs">
-                    <div class="weekly-graph-card">
-                        <div class="weekly-graph-head">
-                            <h3 class="weekly-graph-title">Cash Flow</h3>
-                            <div class="weekly-graph-note">Comparaison des semaines</div>
-                        </div>
-                        <div class="weekly-graph-stack">
-                            {% for week in weekly_history %}
-                            <div class="weekly-graph-row {% if week.is_selected %}is-selected{% endif %}">
-                                <div class="weekly-graph-label">{{ week.week_start|date:"d/m" }} - {{ week.week_end|date:"d/m" }}</div>
-                                <div class="weekly-graph-track">
-                                    <div class="weekly-graph-fill weekly-graph-fill--cash" style="width: {% widthratio week.cash_flow weekly_history_max_cash_flow 100 %}%;"></div>
-                                </div>
-                                <div class="weekly-graph-value">{{ week.cash_flow|fc_amount }} FC</div>
-                            </div>
-                            {% endfor %}
-                        </div>
+                <div class="history-switcher" data-history-switcher>
+                    <div class="history-switcher-buttons">
+                        {% for period in comparison_periods %}
+                        <button
+                            type="button"
+                            class="history-switcher-btn {% if period.default_open %}is-active{% endif %}"
+                            data-history-target="{{ period.key }}"
+                            data-history-state-label="{{ period.toggle_label }}"
+                        >
+                            {{ period.toggle_label }}
+                        </button>
+                        {% endfor %}
                     </div>
-                    <div class="weekly-graph-card">
-                        <div class="weekly-graph-head">
-                            <h3 class="weekly-graph-title">Depots banque</h3>
-                            <div class="weekly-graph-note">Flux verses en banque</div>
-                        </div>
-                        <div class="weekly-graph-stack">
-                            {% for week in weekly_history %}
-                            <div class="weekly-graph-row {% if week.is_selected %}is-selected{% endif %}">
-                                <div class="weekly-graph-label">{{ week.week_start|date:"d/m" }} - {{ week.week_end|date:"d/m" }}</div>
-                                <div class="weekly-graph-track">
-                                    <div class="weekly-graph-fill weekly-graph-fill--bank" style="width: {% widthratio week.bank_deposit weekly_history_max_bank_deposit 100 %}%;"></div>
-                                </div>
-                                <div class="weekly-graph-value">{{ week.bank_deposit|fc_amount }} FC</div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    <div class="weekly-graph-card">
-                        <div class="weekly-graph-head">
-                            <h3 class="weekly-graph-title">Pertes</h3>
-                            <div class="weekly-graph-note">Charges hebdomadaires</div>
-                        </div>
-                        <div class="weekly-graph-stack">
-                            {% for week in weekly_history %}
-                            <div class="weekly-graph-row {% if week.is_selected %}is-selected{% endif %}">
-                                <div class="weekly-graph-label">{{ week.week_start|date:"d/m" }} - {{ week.week_end|date:"d/m" }}</div>
-                                <div class="weekly-graph-track">
-                                    <div class="weekly-graph-fill weekly-graph-fill--loss" style="width: {% widthratio week.pertes_total weekly_history_max_pertes_total 100 %}%;"></div>
-                                </div>
-                                <div class="weekly-graph-value">{{ week.pertes_total|fc_amount }} FC</div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
+                    <div class="history-switcher-caption">Un seul niveau de lecture a la fois pour garder la comparaison nette.</div>
                 </div>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Semaine</th>
-                                <th>Cash Flow</th>
-                                <th>Rapports employés</th>
-                                <th>Dépôts banque</th>
-                                <th>Banque net</th>
-                                <th>Pertes</th>
-                                <th>Écart caisse</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for week in weekly_history %}
-                            <tr {% if week.is_selected %}class="is-selected"{% endif %}>
-                                <td style="font-weight: 600;">{{ week.label }}</td>
-                                <td class="finance-table-money finance-table-money--primary">{{ week.cash_flow|fc_amount }} FC</td>
-                                <td class="finance-table-money">{{ week.reported_cash|fc_amount }} FC</td>
-                                <td class="finance-table-money finance-table-money--success">{{ week.bank_deposit|fc_amount }} FC</td>
-                                <td class="finance-table-money {% if week.bank_net < 0 %}finance-table-money--danger{% endif %}">{{ week.bank_net|fc_amount }} FC</td>
-                                <td class="finance-table-money finance-table-money--warning">{{ week.pertes_total|fc_amount }} FC</td>
-                                <td class="finance-table-money {% if week.ecart_caisse < 0 %}finance-table-money--danger{% endif %}">{{ week.ecart_caisse|fc_amount }} FC</td>
-                                <td>
-                                    <div class="finance-action-row">
-                                        <a href="{% url 'admin_site_detail' site.id %}?date_debut={{ week.week_start|date:'Y-m-d' }}&date_fin={{ week.week_end|date:'Y-m-d' }}&week_anchor={{ week.week_start|date:'Y-m-d' }}" class="finance-mini-btn finance-mini-btn--light">Voir semaine</a>
-                                        <a href="{% url 'admin_site_losses' site.id %}?date={{ week.week_start|date:'Y-m-d' }}&period=week&metric=cashflow" class="finance-mini-btn finance-mini-btn--warning">Details</a>
+
+                {% for period in comparison_periods %}
+                <div class="history-pane {% if period.default_open %}is-active{% endif %}" data-history-pane="{{ period.key }}"{% if not period.default_open %} hidden{% endif %}>
+                    <div class="history-pane-head">
+                        <div>
+                            <h3 class="history-pane-title">{{ period.title }}</h3>
+                            <p class="history-pane-copy">{{ period.copy }}</p>
+                        </div>
+                        <span class="history-pane-state">{{ period.item_count }} periode{{ period.item_count|pluralize }}</span>
+                    </div>
+
+                    {% if period.items %}
+                    <div class="weekly-graphs">
+                        <div class="weekly-graph-card">
+                            <div class="weekly-graph-head">
+                                <h3 class="weekly-graph-title">Cash Flow</h3>
+                                <div class="weekly-graph-note">{{ period.toggle_label }}</div>
+                            </div>
+                            <div class="weekly-graph-stack">
+                                {% for item in period.items %}
+                                <div class="weekly-graph-row {% if item.is_selected %}is-selected{% endif %}">
+                                    <div class="weekly-graph-label">{{ item.label }}</div>
+                                    <div class="weekly-graph-track">
+                                        <div class="weekly-graph-fill weekly-graph-fill--cash" style="width: {% widthratio item.cash_flow period.max_cash_flow 100 %}%;"></div>
                                     </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                                    <div class="weekly-graph-value">{{ item.cash_flow|fc_amount }} FC</div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="weekly-graph-card">
+                            <div class="weekly-graph-head">
+                                <h3 class="weekly-graph-title">Depots banque</h3>
+                                <div class="weekly-graph-note">{{ period.toggle_label }}</div>
+                            </div>
+                            <div class="weekly-graph-stack">
+                                {% for item in period.items %}
+                                <div class="weekly-graph-row {% if item.is_selected %}is-selected{% endif %}">
+                                    <div class="weekly-graph-label">{{ item.label }}</div>
+                                    <div class="weekly-graph-track">
+                                        <div class="weekly-graph-fill weekly-graph-fill--bank" style="width: {% widthratio item.bank_deposit period.max_bank_deposit 100 %}%;"></div>
+                                    </div>
+                                    <div class="weekly-graph-value">{{ item.bank_deposit|fc_amount }} FC</div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="weekly-graph-card">
+                            <div class="weekly-graph-head">
+                                <h3 class="weekly-graph-title">Pertes</h3>
+                                <div class="weekly-graph-note">{{ period.toggle_label }}</div>
+                            </div>
+                            <div class="weekly-graph-stack">
+                                {% for item in period.items %}
+                                <div class="weekly-graph-row {% if item.is_selected %}is-selected{% endif %}">
+                                    <div class="weekly-graph-label">{{ item.label }}</div>
+                                    <div class="weekly-graph-track">
+                                        <div class="weekly-graph-fill weekly-graph-fill--loss" style="width: {% widthratio item.pertes_total period.max_pertes_total 100 %}%;"></div>
+                                    </div>
+                                    <div class="weekly-graph-value">{{ item.pertes_total|fc_amount }} FC</div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>{{ period.row_label }}</th>
+                                    <th>Cash Flow</th>
+                                    <th>Rapports employés</th>
+                                    <th>Dépôts banque</th>
+                                    <th>Banque net</th>
+                                    <th>Pertes</th>
+                                    <th>Écart caisse</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in period.items %}
+                                <tr {% if item.is_selected %}class="is-selected"{% endif %}>
+                                    <td style="font-weight: 600;">{{ item.label }}</td>
+                                    <td class="finance-table-money finance-table-money--primary">{{ item.cash_flow|fc_amount }} FC</td>
+                                    <td class="finance-table-money">{{ item.reported_cash|fc_amount }} FC</td>
+                                    <td class="finance-table-money finance-table-money--success">{{ item.bank_deposit|fc_amount }} FC</td>
+                                    <td class="finance-table-money {% if item.bank_net < 0 %}finance-table-money--danger{% endif %}">{{ item.bank_net|fc_amount }} FC</td>
+                                    <td class="finance-table-money finance-table-money--warning">{{ item.pertes_total|fc_amount }} FC</td>
+                                    <td class="finance-table-money {% if item.ecart_caisse < 0 %}finance-table-money--danger{% endif %}">{{ item.ecart_caisse|fc_amount }} FC</td>
+                                    <td>
+                                        <div class="finance-action-row">
+                                            <a href="{% url 'admin_site_detail' site.id %}?{{ item.detail_query }}" class="finance-mini-btn finance-mini-btn--light">Ouvrir</a>
+                                            {% if period.show_correction_link %}
+                                            <a href="{% url 'admin_site_losses' site.id %}?date={{ item.period_start|date:'Y-m-d' }}&period=week&metric=cashflow" class="finance-mini-btn finance-mini-btn--warning">Corrections</a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p style="margin: 0; color: var(--text-secondary);">{{ period.empty_message }}</p>
+                    {% endif %}
                 </div>
-                {% else %}
-                <p style="margin: 0; color: var(--text-secondary);">Aucune semaine historique disponible pour ce site.</p>
-                {% endif %}
+                {% endfor %}
             </div>
         </details>
     </div>
@@ -1918,4 +2048,49 @@
     <a href="{% url 'admin_dashboard' %}" class="btn btn-primary">← Retour aux sites</a>
 </div>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-history-switcher]').forEach(function (switcher) {
+        const disclosure = switcher.closest('.finance-disclosure');
+        const buttons = Array.from(switcher.querySelectorAll('[data-history-target]'));
+        const panes = Array.from(disclosure.querySelectorAll('[data-history-pane]'));
+        const stateDisplay = disclosure.querySelector('[data-history-state-display]');
+
+        function activatePeriod(target) {
+            buttons.forEach(function (button) {
+                const isActive = button.dataset.historyTarget === target;
+                button.classList.toggle('is-active', isActive);
+                button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            });
+
+            panes.forEach(function (pane) {
+                const isActive = pane.dataset.historyPane === target;
+                pane.classList.toggle('is-active', isActive);
+                pane.hidden = !isActive;
+            });
+
+            const activeButton = buttons.find(function (button) {
+                return button.dataset.historyTarget === target;
+            });
+
+            if (stateDisplay && activeButton) {
+                stateDisplay.textContent = activeButton.dataset.historyStateLabel || activeButton.textContent.trim();
+            }
+        }
+
+        buttons.forEach(function (button) {
+            button.addEventListener('click', function () {
+                activatePeriod(button.dataset.historyTarget);
+            });
+        });
+
+        if (buttons.length) {
+            const defaultButton = buttons.find(function (button) {
+                return button.classList.contains('is-active');
+            }) || buttons[0];
+            activatePeriod(defaultButton.dataset.historyTarget);
+        }
+    });
+});
+</script>
 {% endblock %}
