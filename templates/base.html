@@ -130,12 +130,30 @@
             border-radius: 8px;
             transition: all 0.3s ease;
             font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
         }
 
         .nav-menu a:hover {
             background: var(--primary-light);
             color: var(--primary-color);
             transform: translateY(-2px);
+        }
+
+        .nav-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 1.35rem;
+            height: 1.35rem;
+            padding: 0 0.35rem;
+            border-radius: 999px;
+            background: var(--error-color);
+            color: white;
+            font-size: 0.72rem;
+            font-weight: 700;
+            line-height: 1;
         }
 
         .card {
@@ -457,8 +475,12 @@
             {% if user.is_authenticated %}
             <nav class="nav-menu">
                 {% if user.is_superuser %}
-                    <a href="{% url 'admin_dashboard' %}">Dashboard Admin</a>
-                    <a href="{% url 'admin:index' %}">Django Admin</a>
+                    <a href="{% url 'admin_dashboard' %}">
+                        Boite Admin
+                        {% if admin_inbox_unread_total %}
+                        <span class="nav-badge">{{ admin_inbox_unread_total }}</span>
+                        {% endif %}
+                    </a>
                 {% elif user.userprofile.is_employe %}
                     <a href="{% url 'employe_dashboard' %}" class="employee-mobile-hide">Tableau de bord</a>
                     <a href="{% url 'ajouter_lavage' %}" class="employee-mobile-hide">Ajouter lavage</a>
@@ -470,8 +492,12 @@
                     <a href="{% url 'manager_lavages' %}">Lavages</a>
                     <a href="{% url 'manager_problemes' %}">Problèmes</a>
                 {% elif user.userprofile.is_admin %}
-                    <a href="{% url 'admin_dashboard' %}">Dashboard Admin</a>
-                    <a href="{% url 'admin:index' %}">Django Admin</a>
+                    <a href="{% url 'admin_dashboard' %}">
+                        Boite Admin
+                        {% if admin_inbox_unread_total %}
+                        <span class="nav-badge">{{ admin_inbox_unread_total }}</span>
+                        {% endif %}
+                    </a>
                 {% endif %}
                 <a href="{% url 'logout' %}">Déconnexion</a>
             </nav>

@@ -129,10 +129,15 @@ class AdminAccountRequestsDashboardTests(TestCase):
         response = self.client.get(reverse("admin_dashboard"))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Boite Admin")
+        self.assertNotContains(response, "Django Admin")
         self.assertContains(response, "Demandes de comptes en attente")
         self.assertContains(response, "pending_candidate")
         self.assertContains(response, "Site Pending")
         self.assertContains(response, "Adresse Pending")
+        self.admin_user.userprofile.refresh_from_db()
+        self.assertIsNotNone(self.admin_user.userprofile.admin_requests_last_seen_at)
+        self.assertIsNotNone(self.admin_user.userprofile.admin_reports_last_seen_at)
 
     def test_admin_can_approve_pending_account_request(self):
         response = self.client.post(reverse("admin_approve_account_request", args=[self.pending_user.id]))

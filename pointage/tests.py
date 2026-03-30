@@ -117,7 +117,10 @@ class AdminDashboardDailyReportMessagesTests(TestCase):
         response = self.client.get(reverse("admin_dashboard"))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Boite Admin")
         self.assertContains(response, "Messages - Rapports de fin de journée")
         self.assertContains(response, "mike")
         self.assertContains(response, "25 000")
         self.assertContains(response, "RAS")
+        self.admin_user.userprofile.refresh_from_db()
+        self.assertIsNotNone(self.admin_user.userprofile.admin_reports_last_seen_at)

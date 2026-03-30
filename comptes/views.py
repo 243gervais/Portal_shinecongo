@@ -20,6 +20,7 @@ from pointage.models import ShiftDay
 from comptes.models import UserProfile, EmployeePayment
 from audit.models import AuditLog
 from pointage.utils import get_client_ip, get_user_agent
+from comptes.admin_inbox import mark_admin_inbox_seen
 
 
 def no_cache_view(view_func):
@@ -491,7 +492,9 @@ def admin_dashboard(request):
         'recent_daily_reports': recent_daily_reports,
         'recent_daily_reports_count': len(recent_daily_reports),
     }
-    
+
+    mark_admin_inbox_seen(user)
+
     return render(request, 'admin/dashboard.html', context)
 
 

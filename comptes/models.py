@@ -61,6 +61,16 @@ class UserProfile(models.Model):
         blank=True,
         verbose_name="Photo employé",
     )
+    admin_requests_last_seen_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Dernière consultation des demandes admin",
+    )
+    admin_reports_last_seen_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Dernière consultation des rapports admin",
+    )
     actif = models.BooleanField(default=True, verbose_name="Actif")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")
