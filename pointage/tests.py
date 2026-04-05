@@ -173,3 +173,57 @@ class AdminDashboardDailyReportMessagesTests(TestCase):
         self.assertContains(response, "Transport de Personnels")
         self.admin_user.userprofile.refresh_from_db()
         self.assertIsNotNone(self.admin_user.userprofile.admin_reports_last_seen_at)
+
+    def test_admin_dashboard_shows_modify_and_delete_actions_for_daily_report(self):
+        today = timezone.localdate()
+        shift = ShiftDay.objects.create(
+            employe=self.employee,
+            site=self.site,
+            date=today,
+            daily_report_confirmed=True,
+            total_amount_reported_fc=Decimal("25000.00"),
+            total_lavages_reported=3,
+            daily_expenses_total_fc=Decimal("14000.00"),
+        )
+
+        response = self.client.get(reverse("admin_dashboard"))
+
+        self.assertContains(response, reverse("admin_edit_pointage", args=[self.site.id, shift.id]))
+        self.assertContains(response, reverse("admin_delete_daily_report", args=[self.site.id, shift.id]))
+
+    def test_admin_can_delete_only_daily_report_and_keep_pointage(self):
+        today = timezone.localdate()
+        shift = ShiftDay.objects.create(
+            employe=self.employee,
+            site=self.site,
+            date=today,
+            clock_in_time=timezone.now(),
+            clock_out_time=timezone.now(),
+            daily_report_confirmed=True,
+            total_amount_reported_fc=Decimal("25000.00"),
+            total_lavages_reported=3,
+            daily_expenses=[
+                {
+                    "key": "transport_personnels",
+                    "label": "Transport de Personnels",
+                    "amount_fc": "14000.00",
+                    "is_known": True,
+                }
+            ],
+            daily_expenses_total_fc=Decimal("14000.00"),
+        )
+
+        response = self.client.post(
+            reverse("admin_delete_daily_report", args=[self.site.id, shift.id]),
+            data={"motif": "Rapport envoyé par erreur"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        shift.refresh_from_db()
+        self.assertFalse(shift.daily_report_confirmed)
+        self.assertEqual(shift.total_amount_reported_fc, Decimal("0"))
+        self.assertEqual(shift.total_lavages_reported, 0)
+        self.assertEqual(shift.daily_expenses_total_fc, Decimal("0"))
+        self.assertEqual(shift.daily_expenses, [])
+        self.assertIsNotNone(shift.clock_in_time)
+        self.assertIsNotNone(shift.clock_out_time)

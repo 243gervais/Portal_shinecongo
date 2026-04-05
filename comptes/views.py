@@ -18,6 +18,7 @@ from sites.models import Location, DailyBankDeposit, SiteDocument, SiteLossEntry
 from lavages.models import CarWash, CarWashPhoto
 from problemes.models import IssueReport
 from pointage.models import ShiftDay
+from pointage.views import _build_initial_daily_expense_form, _parse_daily_expenses_form
 from comptes.models import UserProfile, EmployeePayment
 from audit.models import AuditLog
 from pointage.utils import get_client_ip, get_user_agent
@@ -415,6 +416,7 @@ def admin_dashboard(request):
         })
 
     recent_daily_reports = []
+    dashboard_url = reverse("admin_dashboard")
     for shift in (
         ShiftDay.objects.filter(daily_report_confirmed=True)
         .select_related("employe", "site")
@@ -429,6 +431,10 @@ def admin_dashboard(request):
             "detail_url": reverse("admin_site_detail", kwargs={"site_id": shift.site.id}) + f"?date_debut={shift.date:%Y-%m-%d}&date_fin={shift.date:%Y-%m-%d}" if shift.site else "",
             "employee_url": reverse("admin_site_employee_portal", kwargs={"site_id": shift.site.id, "profile_id": shift.employe.userprofile.id})
             if shift.site and hasattr(shift.employe, "userprofile") else "",
+            "edit_url": reverse("admin_edit_pointage", kwargs={"site_id": shift.site.id, "pointage_id": shift.id}) + f"?next={dashboard_url}"
+            if shift.site else "",
+            "delete_report_url": reverse("admin_delete_daily_report", kwargs={"site_id": shift.site.id, "pointage_id": shift.id}) + f"?next={dashboard_url}"
+            if shift.site else "",
         })
 
     dashboard_summary = {
@@ -1528,6 +1534,8 @@ def admin_edit_pointage(request, site_id, pointage_id):
         id=pointage_id,
         site=site,
     )
+    expense_form = _build_initial_daily_expense_form(pointage)
+    submitted_total_amount = f"{pointage.total_amount_reported_fc:.2f}"
 
     if request.method == 'POST':
         try:
@@ -1541,12 +1549,17 @@ def admin_edit_pointage(request, site_id, pointage_id):
                 'clock_out_time': str(pointage.clock_out_time) if pointage.clock_out_time else None,
                 'daily_report_confirmed': pointage.daily_report_confirmed,
                 'total_lavages_reported': pointage.total_lavages_reported,
+                'total_amount_reported_fc': str(pointage.total_amount_reported_fc),
+                'daily_expenses_total_fc': str(pointage.daily_expenses_total_fc),
+                'daily_expenses': pointage.daily_expenses,
             }
 
             new_clock_in = request.POST.get('clock_in_time', '').strip()
             new_clock_out = request.POST.get('clock_out_time', '').strip()
             clear_clock_out = request.POST.get('clear_clock_out') == 'on'
             total_lavages_reported = request.POST.get('total_lavages_reported', '').strip()
+            submitted_total_amount = request.POST.get('total_amount_reported_fc', '').strip()
+            expense_form = _parse_daily_expenses_form(request.POST)
             pointage.daily_report_confirmed = request.POST.get('daily_report_confirmed') == 'on'
 
             if new_clock_in:
@@ -1571,6 +1584,24 @@ def admin_edit_pointage(request, site_id, pointage_id):
                     raise ValueError("Le total des lavages ne peut pas être négatif.")
                 pointage.total_lavages_reported = total_lavages_int
 
+            if pointage.daily_report_confirmed:
+                try:
+                    total_amount_reported = Decimal(submitted_total_amount or '0')
+                except (ArithmeticError, InvalidOperation, ValueError):
+                    raise ValueError("Le montant final déclaré est invalide.")
+                if total_amount_reported < 0:
+                    raise ValueError("Le montant final déclaré ne peut pas être négatif.")
+                if expense_form['errors']:
+                    raise ValueError(expense_form['errors'][0])
+
+                pointage.total_amount_reported_fc = total_amount_reported
+                pointage.daily_expenses = expense_form['items']
+                pointage.daily_expenses_total_fc = expense_form['total']
+            else:
+                pointage.total_amount_reported_fc = Decimal('0')
+                pointage.daily_expenses = []
+                pointage.daily_expenses_total_fc = Decimal('0')
+
             if pointage.clock_in_time and pointage.clock_out_time and pointage.clock_out_time < pointage.clock_in_time:
                 messages.error(request, "L'heure de sortie ne peut pas être avant l'heure d'entrée.")
                 return redirect('admin_edit_pointage', site_id=site.id, pointage_id=pointage.id)
@@ -1585,6 +1616,9 @@ def admin_edit_pointage(request, site_id, pointage_id):
                 'clock_out_time': str(pointage.clock_out_time) if pointage.clock_out_time else None,
                 'daily_report_confirmed': pointage.daily_report_confirmed,
                 'total_lavages_reported': pointage.total_lavages_reported,
+                'total_amount_reported_fc': str(pointage.total_amount_reported_fc),
+                'daily_expenses_total_fc': str(pointage.daily_expenses_total_fc),
+                'daily_expenses': pointage.daily_expenses,
             }
 
             AuditLog.log(
@@ -1609,6 +1643,8 @@ def admin_edit_pointage(request, site_id, pointage_id):
     return render(request, 'admin/edit_pointage.html', {
         'site': site,
         'pointage': pointage,
+        'expense_form': expense_form,
+        'submitted_total_amount': submitted_total_amount,
         'next_url': _safe_next_url(request) or '',
     })
 
@@ -1664,6 +1700,86 @@ def admin_delete_pointage(request, site_id, pointage_id):
         return _redirect_to_admin_site_detail(request, site)
 
     return render(request, 'admin/delete_pointage.html', {
+        'site': site,
+        'pointage': pointage,
+        'next_url': _safe_next_url(request) or '',
+    })
+
+
+@login_required
+@no_cache_view
+def admin_delete_daily_report(request, site_id, pointage_id):
+    """
+    Supprime uniquement le rapport de fin de journée sans supprimer le pointage.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    site = get_object_or_404(Location, id=site_id)
+    pointage = get_object_or_404(
+        ShiftDay.objects.select_related('employe', 'site'),
+        id=pointage_id,
+        site=site,
+    )
+
+    if request.method == 'POST':
+        motif = request.POST.get('motif', '').strip()
+        if not motif:
+            messages.error(request, "Le motif de suppression est obligatoire.")
+            return redirect('admin_delete_daily_report', site_id=site.id, pointage_id=pointage.id)
+
+        donnees_avant = {
+            'id': pointage.id,
+            'employe': pointage.employe.username,
+            'date': str(pointage.date),
+            'daily_report_confirmed': pointage.daily_report_confirmed,
+            'total_lavages_reported': pointage.total_lavages_reported,
+            'total_amount_reported_fc': str(pointage.total_amount_reported_fc),
+            'daily_expenses_total_fc': str(pointage.daily_expenses_total_fc),
+            'daily_expenses': pointage.daily_expenses,
+        }
+
+        pointage.daily_report_confirmed = False
+        pointage.total_lavages_reported = 0
+        pointage.total_amount_reported_fc = Decimal('0')
+        pointage.lavages_review = ""
+        pointage.problems_review = ""
+        pointage.report_notes = ""
+        pointage.daily_expenses = []
+        pointage.daily_expenses_total_fc = Decimal('0')
+        pointage.corrected_by = user
+        pointage.correction_reason = motif
+        pointage.corrected_at = timezone.now()
+        pointage.save()
+
+        donnees_apres = {
+            'daily_report_confirmed': pointage.daily_report_confirmed,
+            'total_lavages_reported': pointage.total_lavages_reported,
+            'total_amount_reported_fc': str(pointage.total_amount_reported_fc),
+            'daily_expenses_total_fc': str(pointage.daily_expenses_total_fc),
+            'daily_expenses': pointage.daily_expenses,
+        }
+
+        AuditLog.log(
+            user=user,
+            action="SUPPRIMER",
+            description=f"Rapport de fin de journée supprimé par admin: {pointage}",
+            motif=motif,
+            content_object=pointage,
+            donnees_avant=donnees_avant,
+            donnees_apres=donnees_apres,
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request),
+        )
+
+        messages.success(request, "Rapport de fin de journée supprimé avec succès.")
+        return _redirect_to_admin_site_detail(request, site)
+
+    return render(request, 'admin/delete_daily_report.html', {
         'site': site,
         'pointage': pointage,
         'next_url': _safe_next_url(request) or '',
