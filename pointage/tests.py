@@ -1,7 +1,9 @@
 from decimal import Decimal
 
 from django.contrib.auth.models import User
+from django.core import mail
 from django.test import TestCase
+from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -10,6 +12,11 @@ from pointage.models import ShiftDay
 from sites.models import Location
 
 
+@override_settings(
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    DEFAULT_FROM_EMAIL="noreply@example.com",
+    FINAL_REPORT_NOTIFICATION_EMAIL="mbadunkokorigervais@gmail.com",
+)
 class EmployeeDailyReportTests(TestCase):
     def setUp(self):
         self.site = Location.objects.create(
@@ -58,6 +65,11 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(shift.daily_expenses_total_fc, Decimal("16000"))
         self.assertEqual(len(shift.daily_expense_items), 2)
         self.assertEqual(shift.daily_expense_items[0]["label"], "Transport de Personnels")
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("Rapport de fin de journée soumis", mail.outbox[0].subject)
+        self.assertEqual(mail.outbox[0].to, ["mbadunkokorigervais@gmail.com"])
+        self.assertIn("Montant déclaré: 15 000 FC", mail.outbox[0].body)
+        self.assertIn("Dépenses du jour: 16 000 FC", mail.outbox[0].body)
 
     def test_employee_can_update_same_day_report(self):
         today = timezone.localdate()
@@ -98,6 +110,8 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(shift.total_amount_reported_fc, Decimal("17000"))
         self.assertEqual(shift.daily_expenses_total_fc, Decimal("18000"))
         self.assertEqual(len(shift.daily_expense_items), 3)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("Rapport de fin de journée mis à jour", mail.outbox[0].subject)
 
     def test_unchecked_known_expenses_are_not_added_to_total(self):
         today = timezone.localdate()

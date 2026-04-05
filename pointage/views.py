@@ -1,4 +1,7 @@
+import logging
 from django.contrib.auth.decorators import login_required
+from django.conf import settings
+from django.core.mail import send_mail
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.contrib import messages
@@ -13,6 +16,8 @@ from problemes.models import IssueReport
 from .utils import get_client_ip, get_user_agent
 from audit.models import AuditLog
 from decimal import Decimal, InvalidOperation
+
+logger = logging.getLogger(__name__)
 
 
 KNOWN_DAILY_EXPENSES = [
@@ -151,6 +156,46 @@ def _parse_daily_expenses_form(post_data):
     }
 
 
+def _send_final_report_notification(shift, computed_total_amount, issue_count, was_update):
+    recipient = (getattr(settings, "FINAL_REPORT_NOTIFICATION_EMAIL", "") or "").strip()
+    if not recipient:
+        return False
+
+    action_label = "mis à jour" if was_update else "soumis"
+    expense_summary = shift.daily_expense_summary
+    subject = (
+        f"Rapport de fin de journée {action_label} - "
+        f"{shift.site.nom} - {shift.date.strftime('%d/%m/%Y')}"
+    )
+    message = "\n".join([
+        f"Employé: {shift.employe.get_full_name() or shift.employe.username}",
+        f"Site: {shift.site.nom}",
+        f"Date: {shift.date.strftime('%d/%m/%Y')}",
+        f"Action: Rapport {'mis à jour' if was_update else 'envoyé'}",
+        "",
+        f"Montant déclaré: {shift.total_amount_reported_fc:,.0f} FC".replace(",", " "),
+        f"Montant système: {computed_total_amount:,.0f} FC".replace(",", " "),
+        f"Lavages déclarés: {shift.total_lavages_reported}",
+        f"Problèmes signalés: {issue_count}",
+        "",
+        f"Dépenses du jour: {shift.daily_expenses_total_fc:,.0f} FC".replace(",", " "),
+        f"Détail dépenses: {expense_summary}",
+    ])
+
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            recipient_list=[recipient],
+            fail_silently=False,
+        )
+        return True
+    except Exception:
+        logger.exception("Impossible d'envoyer la notification email du rapport de fin de journée")
+        return False
+
+
 @login_required
 @never_cache
 def employe_dashboard(request):
@@ -242,6 +287,12 @@ def employe_daily_report(request):
             shift.daily_expenses_total_fc = expense_form['total']
             shift.daily_report_confirmed = True
             shift.save()
+            _send_final_report_notification(
+                shift=shift,
+                computed_total_amount=computed_total_amount,
+                issue_count=today_issues.count(),
+                was_update=was_update,
+            )
 
             AuditLog.log(
                 user=user,
