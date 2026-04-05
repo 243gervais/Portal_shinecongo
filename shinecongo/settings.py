@@ -210,11 +210,24 @@ LOGOUT_REDIRECT_URL = "/login/"
 QR_SECRET_KEY = os.getenv("DJANGO_SECRET_QR", "changeme-in-production-qr-secret-key")
 
 # Email notifications
+def clean_smtp_credential(value):
+    if not value:
+        return ""
+    if isinstance(value, str):
+        value = value.replace("\xa0", "").replace("\u00a0", "")
+        value = value.replace("\u2009", "").replace("\u2008", "")
+        value = value.encode("ascii", "ignore").decode("ascii")
+        return value.strip()
+    return str(value).strip()
+
+
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
-EMAIL_HOST = os.getenv("EMAIL_HOST", "")
+EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_HOST_USER = clean_smtp_credential(os.getenv("EMAIL_HOST_USER", ""))
+EMAIL_HOST_PASSWORD = clean_smtp_credential(
+    os.getenv("EMAIL_HOST_PASSWORD") or os.getenv("SMTP_PASSWORD", "")
+)
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True") == "True"
 EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False") == "True"
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "no-reply@shinecongo.local")

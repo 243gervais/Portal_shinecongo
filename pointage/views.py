@@ -160,6 +160,17 @@ def _send_final_report_notification(shift, computed_total_amount, issue_count, w
     recipient = (getattr(settings, "FINAL_REPORT_NOTIFICATION_EMAIL", "") or "").strip()
     if not recipient:
         return False
+    email_backend = getattr(settings, "EMAIL_BACKEND", "")
+    uses_smtp_backend = email_backend.endswith("smtp.EmailBackend")
+    if uses_smtp_backend and (
+        not getattr(settings, "EMAIL_HOST", "")
+        or not getattr(settings, "EMAIL_HOST_USER", "")
+        or not getattr(settings, "EMAIL_HOST_PASSWORD", "")
+    ):
+        logger.warning(
+            "Notification email skipped for final report because SMTP settings are incomplete"
+        )
+        return False
 
     action_label = "mis à jour" if was_update else "soumis"
     expense_summary = shift.daily_expense_summary
