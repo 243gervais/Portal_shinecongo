@@ -227,3 +227,28 @@ class AdminDashboardDailyReportMessagesTests(TestCase):
         self.assertEqual(shift.daily_expenses, [])
         self.assertIsNotNone(shift.clock_in_time)
         self.assertIsNotNone(shift.clock_out_time)
+
+    def test_employee_history_shows_pending_after_admin_deletes_daily_report(self):
+        today = timezone.localdate()
+        shift = ShiftDay.objects.create(
+            employe=self.employee,
+            site=self.site,
+            date=today,
+            clock_in_time=timezone.now(),
+            daily_report_confirmed=True,
+            total_amount_reported_fc=Decimal("18000.00"),
+            total_lavages_reported=2,
+        )
+
+        self.client.post(
+            reverse("admin_delete_daily_report", args=[self.site.id, shift.id]),
+            data={"motif": "Rapport à reprendre"},
+        )
+
+        self.client.logout()
+        self.client.login(username="mike", password="TestPass123!")
+        response = self.client.get(reverse("employe_historique"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "En attente")
+        self.assertNotContains(response, "Enregistré")

@@ -4,6 +4,7 @@ from django.utils import timezone
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+from django.views.decorators.cache import never_cache
 from django.db.models import Sum
 from .models import ShiftDay
 from sites.models import Location
@@ -151,6 +152,7 @@ def _parse_daily_expenses_form(post_data):
 
 
 @login_required
+@never_cache
 def employe_dashboard(request):
     """
     Dashboard principal pour les employés
@@ -178,6 +180,7 @@ def employe_dashboard(request):
 
 
 @login_required
+@never_cache
 def employe_daily_report(request):
     """
     Rapport de la journée pour l'employé connecté.
@@ -524,6 +527,7 @@ def scan_qr_fixe(request, site_token):
 
 
 @login_required
+@never_cache
 def employe_historique(request):
     """
     Historique des pointages et lavages de l'employé
