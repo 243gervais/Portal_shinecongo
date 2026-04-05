@@ -207,14 +207,9 @@
 
     {% if today_pointage and today_pointage.daily_report_confirmed %}
     <div style="margin-top: 1rem; padding: 1rem; border-radius: 12px; background: rgba(10, 67, 107, 0.05); border: 1px solid rgba(10, 67, 107, 0.1);">
-        <p style="margin: 0 0 0.45rem 0; color: var(--text-secondary); font-weight: 600;">Notes du rapport</p>
-        <p style="margin: 0; color: var(--text-primary);">
-            {% if today_pointage.report_notes %}
-                {{ today_pointage.report_notes }}
-            {% else %}
-                Aucune note complémentaire.
-            {% endif %}
-        </p>
+        <p style="margin: 0 0 0.45rem 0; color: var(--text-secondary); font-weight: 600;">Dépenses du rapport</p>
+        <div style="font-size: 1.15rem; font-weight: 700; color: var(--primary-color);">{{ today_pointage.daily_expenses_total_fc|fc_amount }} FC</div>
+        <p style="margin: 0.45rem 0 0 0; color: var(--text-primary);">{{ today_pointage.daily_expense_summary }}</p>
     </div>
     {% endif %}
 </div>
@@ -313,7 +308,7 @@
                     <th>Rapport</th>
                     <th>Lavages déclarés</th>
                     <th>Montant final</th>
-                    <th>Notes</th>
+                    <th>Dépenses</th>
                 </tr>
             </thead>
             <tbody>
@@ -341,7 +336,8 @@
                     </td>
                     <td style="max-width: 260px;">
                         {% if item.pointage.daily_report_confirmed %}
-                            {{ item.pointage.report_notes|default:"-" }}
+                            <strong>{{ item.pointage.daily_expenses_total_fc|fc_amount }} FC</strong>
+                            <br><small style="color: var(--text-secondary);">{{ item.pointage.daily_expense_summary }}</small>
                         {% else %}
                             -
                         {% endif %}

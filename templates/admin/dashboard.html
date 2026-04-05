@@ -473,7 +473,8 @@
                     <div>
                         <div class="admin-compact-title">{{ item.employee_name }}</div>
                         <div class="admin-compact-meta">{{ item.site_name }} • {{ item.shift.date|date:"d/m/Y" }} • {{ item.shift.updated_at|date:"H:i" }}</div>
-                        <div class="admin-compact-meta">{{ item.shift.report_notes|default:"Aucune note" }}</div>
+                        <div class="admin-compact-meta">Dépenses: {{ item.shift.daily_expenses_total_fc|fc_amount }} FC</div>
+                        <div class="admin-compact-meta">{{ item.shift.daily_expense_summary }}</div>
                     </div>
                     <div>
                         <div class="admin-compact-amount">{{ item.shift.total_amount_reported_fc|fc_amount }} FC</div>

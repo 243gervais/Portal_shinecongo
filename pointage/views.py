@@ -11,7 +11,143 @@ from lavages.models import CarWash
 from problemes.models import IssueReport
 from .utils import get_client_ip, get_user_agent
 from audit.models import AuditLog
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
+
+
+KNOWN_DAILY_EXPENSES = [
+    {
+        "key": "transport_personnels",
+        "label": "Transport de Personnels",
+        "default_amount": Decimal("14000"),
+    },
+    {
+        "key": "achat_savon",
+        "label": "Achat Savon",
+        "default_amount": Decimal("3000"),
+    },
+]
+
+
+def _normalize_fc_amount(value):
+    amount = Decimal(str(value or "0")).quantize(Decimal("0.01"))
+    if amount < 0:
+        raise InvalidOperation
+    return amount
+
+
+def _build_initial_daily_expense_form(shift):
+    saved_by_key = {
+        item.get("key"): item
+        for item in shift.daily_expense_items
+        if item.get("is_known") and item.get("key")
+    }
+    known_items = []
+    for expense in KNOWN_DAILY_EXPENSES:
+        saved_item = saved_by_key.get(expense["key"])
+        amount_value = saved_item["amount_fc"] if saved_item else expense["default_amount"]
+        known_items.append({
+            "key": expense["key"],
+            "label": expense["label"],
+            "selected": bool(saved_item),
+            "amount_value": f"{Decimal(amount_value):.2f}",
+        })
+
+    custom_items = []
+    for item in shift.daily_expense_items:
+        if item.get("is_known"):
+            continue
+        custom_items.append({
+            "label": item["label"],
+            "amount_value": f"{item['amount_fc']:.2f}",
+        })
+
+    if not custom_items:
+        custom_items.append({"label": "", "amount_value": ""})
+
+    return {
+        "known": known_items,
+        "custom": custom_items,
+        "total": shift.daily_expenses_total_fc or Decimal("0"),
+    }
+
+
+def _parse_daily_expenses_form(post_data):
+    expense_items = []
+    known_items = []
+    custom_items = []
+    errors = []
+
+    for expense in KNOWN_DAILY_EXPENSES:
+        selected = bool(post_data.get(f"known_expense_{expense['key']}_enabled"))
+        amount_value = post_data.get(f"known_expense_{expense['key']}_amount", f"{expense['default_amount']:.2f}").strip()
+        known_items.append({
+            "key": expense["key"],
+            "label": expense["label"],
+            "selected": selected,
+            "amount_value": amount_value,
+        })
+
+        if not selected:
+            continue
+
+        try:
+            amount_fc = _normalize_fc_amount(amount_value)
+        except (ArithmeticError, InvalidOperation, ValueError):
+            errors.append(f"Montant invalide pour {expense['label']}.")
+            continue
+
+        expense_items.append({
+            "key": expense["key"],
+            "label": expense["label"],
+            "amount_fc": f"{amount_fc:.2f}",
+            "is_known": True,
+        })
+
+    custom_labels = post_data.getlist("custom_expense_label")
+    custom_amounts = post_data.getlist("custom_expense_amount")
+    custom_count = max(len(custom_labels), len(custom_amounts))
+
+    for index in range(custom_count):
+        label = custom_labels[index].strip() if index < len(custom_labels) else ""
+        amount_value = custom_amounts[index].strip() if index < len(custom_amounts) else ""
+        custom_items.append({
+            "label": label,
+            "amount_value": amount_value,
+        })
+
+        if not label and not amount_value:
+            continue
+        if not label:
+            errors.append("Chaque dépense supplémentaire doit avoir un nom.")
+            continue
+        if not amount_value:
+            errors.append(f"Montant manquant pour la dépense supplémentaire \"{label}\".")
+            continue
+
+        try:
+            amount_fc = _normalize_fc_amount(amount_value)
+        except (ArithmeticError, InvalidOperation, ValueError):
+            errors.append(f"Montant invalide pour la dépense supplémentaire \"{label}\".")
+            continue
+
+        expense_items.append({
+            "key": "",
+            "label": label,
+            "amount_fc": f"{amount_fc:.2f}",
+            "is_known": False,
+        })
+
+    total_expenses = sum((Decimal(item["amount_fc"]) for item in expense_items), Decimal("0"))
+    if not custom_items:
+        custom_items.append({"label": "", "amount_value": ""})
+
+    return {
+        "items": expense_items,
+        "known": known_items,
+        "custom": custom_items,
+        "total": total_expenses,
+        "errors": errors,
+    }
 
 
 @login_required
@@ -66,10 +202,17 @@ def employe_daily_report(request):
     computed_total_amount = today_washes.aggregate(total=Sum('montant'))['total'] or Decimal('0')
     computed_total_washes = today_washes.count()
     report_submitted = shift.daily_report_confirmed
+    expense_form = _build_initial_daily_expense_form(shift)
+    submitted_total_amount = (
+        f"{shift.total_amount_reported_fc:.2f}"
+        if shift.daily_report_confirmed else
+        f"{computed_total_amount:.2f}"
+    )
 
     if request.method == 'POST':
         total_amount_value = request.POST.get('total_amount_reported_fc', '').strip()
-        report_notes = request.POST.get('report_notes', '').strip()
+        submitted_total_amount = total_amount_value
+        expense_form = _parse_daily_expenses_form(request.POST)
 
         try:
             total_amount_reported = Decimal(total_amount_value or '0')
@@ -77,6 +220,13 @@ def employe_daily_report(request):
                 raise ValueError
         except (ArithmeticError, ValueError):
             messages.error(request, "Veuillez entrer une valeur valide pour le montant total.")
+            total_amount_reported = None
+
+        if total_amount_reported is None:
+            pass
+        elif expense_form['errors']:
+            for error in expense_form['errors']:
+                messages.error(request, error)
         else:
             was_update = shift.daily_report_confirmed
             shift.site = site
@@ -84,7 +234,9 @@ def employe_daily_report(request):
             shift.total_lavages_reported = computed_total_washes
             shift.lavages_review = ""
             shift.problems_review = ""
-            shift.report_notes = report_notes
+            shift.report_notes = ""
+            shift.daily_expenses = expense_form['items']
+            shift.daily_expenses_total_fc = expense_form['total']
             shift.daily_report_confirmed = True
             shift.save()
 
@@ -113,6 +265,8 @@ def employe_daily_report(request):
         'computed_total_amount': computed_total_amount,
         'computed_total_washes': computed_total_washes,
         'report_submitted': report_submitted,
+        'expense_form': expense_form,
+        'submitted_total_amount': submitted_total_amount,
     }
     return render(request, 'employe/daily_report.html', context)
 

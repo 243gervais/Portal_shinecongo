@@ -41,11 +41,14 @@
     <div style="padding: 1rem; background: rgba(12, 166, 120, 0.08); border: 1px solid rgba(12, 166, 120, 0.16); border-radius: 10px; margin-bottom: 1rem;">
         <h2 style="margin-top: 0; color: var(--success-color);">Rapport déjà envoyé</h2>
         <p style="margin-bottom: 0; color: var(--text-secondary);">
-            Vous pouvez encore corriger le montant final et les notes si vous remarquez une erreur. Chaque modification apparaîtra aussi dans la boîte messages du dashboard administrateur.
+            Vous pouvez encore corriger le montant final et les dépenses si vous remarquez une erreur. Chaque modification apparaîtra aussi dans la boîte messages du dashboard administrateur.
         </p>
-        {% if shift.report_notes %}
-        <p style="margin: 0.75rem 0 0 0; color: var(--text-secondary);"><strong>Note enregistrée:</strong> {{ shift.report_notes }}</p>
-        {% endif %}
+        <p style="margin: 0.75rem 0 0 0; color: var(--text-secondary);">
+            <strong>Dépenses enregistrées:</strong> {{ shift.daily_expenses_total_fc|floatformat:0 }} FC
+            {% if shift.daily_expense_items %}
+                • {{ shift.daily_expense_summary }}
+            {% endif %}
+        </p>
     </div>
     {% endif %}
 
@@ -62,14 +65,90 @@
                 min="0"
                 step="0.01"
                 required
-                value="{% if shift.daily_report_confirmed %}{{ shift.total_amount_reported_fc|floatformat:2 }}{% else %}{{ computed_total_amount|floatformat:2 }}{% endif %}"
+                value="{{ submitted_total_amount }}"
             >
             <small style="color: var(--text-secondary);">Le système a calculé {{ computed_total_amount|floatformat:0 }} FC à partir des lavages enregistrés aujourd'hui.</small>
         </div>
 
         <div class="form-group">
-            <label for="report_notes">Notes complémentaires (optionnel)</label>
-            <textarea class="form-control" id="report_notes" name="report_notes" rows="4" placeholder="Ajouter toute autre information utile pour l'administrateur.">{{ shift.report_notes }}</textarea>
+            <label style="display: block; margin-bottom: 0.85rem;">Dépense de la Journée</label>
+            <div style="display: grid; gap: 0.85rem;">
+                {% for expense in expense_form.known %}
+                <div class="daily-expense-row" data-known-expense-row>
+                    <label style="display: flex; align-items: center; gap: 0.75rem; margin: 0;">
+                        <input
+                            type="checkbox"
+                            name="known_expense_{{ expense.key }}_enabled"
+                            value="1"
+                            {% if expense.selected %}checked{% endif %}
+                            data-expense-toggle
+                        >
+                        <span style="font-weight: 700; color: var(--text-primary);">{{ expense.label }}</span>
+                    </label>
+                    <div style="display: flex; align-items: center; gap: 0.55rem;">
+                        <input
+                            type="number"
+                            class="form-control"
+                            name="known_expense_{{ expense.key }}_amount"
+                            min="0"
+                            step="0.01"
+                            value="{{ expense.amount_value }}"
+                            data-expense-amount
+                        >
+                        <span style="color: var(--text-secondary); font-size: 0.88rem;">FC</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <small style="display: block; margin-top: 0.55rem; color: var(--text-secondary);">
+                Cochez seulement les dépenses réellement utilisées aujourd'hui. Vous pouvez modifier les montants avant de confirmer.
+            </small>
+        </div>
+
+        <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.85rem;">
+                <label style="margin: 0;">Autres dépenses</label>
+                <button type="button" class="btn btn-secondary" id="add-expense-row" style="padding: 0.45rem 0.75rem;">Ajouter une dépense</button>
+            </div>
+            <div id="custom-expense-list" style="display: grid; gap: 0.75rem;">
+                {% for expense in expense_form.custom %}
+                <div class="daily-expense-row">
+                    <input
+                        type="text"
+                        class="form-control"
+                        name="custom_expense_label"
+                        placeholder="Nom de la dépense"
+                        value="{{ expense.label }}"
+                    >
+                    <div style="display: flex; align-items: center; gap: 0.55rem;">
+                        <input
+                            type="number"
+                            class="form-control"
+                            name="custom_expense_amount"
+                            min="0"
+                            step="0.01"
+                            placeholder="0"
+                            value="{{ expense.amount_value }}"
+                            data-expense-amount
+                        >
+                        <span style="color: var(--text-secondary); font-size: 0.88rem;">FC</span>
+                    </div>
+                    <button type="button" class="btn btn-danger remove-expense-row" style="padding: 0.45rem 0.75rem;">Supprimer</button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div style="padding: 0.95rem 1rem; border-radius: 12px; background: rgba(10, 67, 107, 0.06); border: 1px solid rgba(10, 67, 107, 0.1); margin-bottom: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                <div>
+                    <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.03em;">Total dépenses du jour</div>
+                    <div id="daily-expense-total" style="font-size: 1.4rem; font-weight: 800; color: var(--primary-color);">{{ expense_form.total|floatformat:0 }} FC</div>
+                </div>
+                <div style="color: var(--text-secondary); font-size: 0.88rem;">
+                    Le total se met à jour automatiquement selon les cases cochées et les autres dépenses ajoutées.
+                </div>
+            </div>
         </div>
 
         <button type="submit" class="btn btn-primary btn-block">
@@ -110,4 +189,99 @@
         </div>
     </div>
 </div>
+
+<style>
+    .daily-expense-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(140px, 180px) auto;
+        gap: 0.75rem;
+        align-items: center;
+        padding: 0.8rem;
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+        background: rgba(255, 255, 255, 0.92);
+    }
+
+    @media (max-width: 720px) {
+        .daily-expense-row {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const expenseList = document.getElementById('custom-expense-list');
+    const addExpenseButton = document.getElementById('add-expense-row');
+    const totalNode = document.getElementById('daily-expense-total');
+
+    function parseAmount(value) {
+        const parsed = parseFloat(value || '0');
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    }
+
+    function updateExpenseTotal() {
+        let total = 0;
+
+        document.querySelectorAll('[data-known-expense-row]').forEach(function (row) {
+            const checkbox = row.querySelector('[data-expense-toggle]');
+            const amountInput = row.querySelector('[data-expense-amount]');
+            if (checkbox && checkbox.checked && amountInput) {
+                total += parseAmount(amountInput.value);
+            }
+        });
+
+        expenseList.querySelectorAll('.daily-expense-row').forEach(function (row) {
+            const labelInput = row.querySelector('input[name="custom_expense_label"]');
+            const amountInput = row.querySelector('input[name="custom_expense_amount"]');
+            if (labelInput && labelInput.value.trim() && amountInput) {
+                total += parseAmount(amountInput.value);
+            }
+        });
+
+        totalNode.textContent = total.toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FC';
+    }
+
+    function bindExpenseRow(row) {
+        row.querySelectorAll('input').forEach(function (input) {
+            input.addEventListener('input', updateExpenseTotal);
+            input.addEventListener('change', updateExpenseTotal);
+        });
+
+        const removeButton = row.querySelector('.remove-expense-row');
+        if (removeButton) {
+            removeButton.addEventListener('click', function () {
+                row.remove();
+                if (!expenseList.children.length) {
+                    addCustomExpenseRow();
+                }
+                updateExpenseTotal();
+            });
+        }
+    }
+
+    function addCustomExpenseRow() {
+        const row = document.createElement('div');
+        row.className = 'daily-expense-row';
+        row.innerHTML = `
+            <input type="text" class="form-control" name="custom_expense_label" placeholder="Nom de la dépense">
+            <div style="display: flex; align-items: center; gap: 0.55rem;">
+                <input type="number" class="form-control" name="custom_expense_amount" min="0" step="0.01" placeholder="0" data-expense-amount>
+                <span style="color: var(--text-secondary); font-size: 0.88rem;">FC</span>
+            </div>
+            <button type="button" class="btn btn-danger remove-expense-row" style="padding: 0.45rem 0.75rem;">Supprimer</button>
+        `;
+        expenseList.appendChild(row);
+        bindExpenseRow(row);
+    }
+
+    document.querySelectorAll('.daily-expense-row').forEach(bindExpenseRow);
+
+    if (addExpenseButton) {
+        addExpenseButton.addEventListener('click', addCustomExpenseRow);
+    }
+
+    updateExpenseTotal();
+});
+</script>
 {% endblock %}

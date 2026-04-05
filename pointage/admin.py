@@ -31,7 +31,7 @@ class DailyQRTokenAdmin(admin.ModelAdmin):
 
 @admin.register(ShiftDay)
 class ShiftDayAdmin(admin.ModelAdmin):
-    list_display = ("employe", "site", "date", "clock_in_time", "clock_out_time", "clock_in_gps_status", "is_complete", "daily_report_confirmed", "total_amount_reported_fc")
+    list_display = ("employe", "site", "date", "clock_in_time", "clock_out_time", "clock_in_gps_status", "is_complete", "daily_report_confirmed", "total_amount_reported_fc", "daily_expenses_total_fc")
     list_filter = ("date", "site", "daily_report_confirmed", "clock_in_gps_status", "clock_out_gps_status")
     search_fields = ("employe__username", "employe__first_name", "employe__last_name", "site__nom")
     ordering = ("-date", "-clock_in_time")
@@ -54,6 +54,8 @@ class ShiftDayAdmin(admin.ModelAdmin):
                 "daily_report_confirmed",
                 "total_lavages_reported",
                 "total_amount_reported_fc",
+                "daily_expenses_total_fc",
+                "daily_expenses",
                 "lavages_review",
                 "problems_review",
                 "report_notes",

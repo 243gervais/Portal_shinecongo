@@ -43,7 +43,11 @@ class EmployeeDailyReportTests(TestCase):
             reverse("employe_daily_report"),
             data={
                 "total_amount_reported_fc": "15000",
-                "report_notes": "Fin de journée OK",
+                "known_expense_transport_personnels_enabled": "1",
+                "known_expense_transport_personnels_amount": "14000",
+                "known_expense_achat_savon_amount": "3000",
+                "custom_expense_label": ["Achat eau"],
+                "custom_expense_amount": ["2000"],
             },
         )
 
@@ -51,6 +55,9 @@ class EmployeeDailyReportTests(TestCase):
         shift = ShiftDay.objects.get(employe=self.user, date=today)
         self.assertTrue(shift.daily_report_confirmed)
         self.assertEqual(shift.total_amount_reported_fc, Decimal("15000"))
+        self.assertEqual(shift.daily_expenses_total_fc, Decimal("16000"))
+        self.assertEqual(len(shift.daily_expense_items), 2)
+        self.assertEqual(shift.daily_expense_items[0]["label"], "Transport de Personnels")
 
     def test_employee_can_update_same_day_report(self):
         today = timezone.localdate()
@@ -61,14 +68,27 @@ class EmployeeDailyReportTests(TestCase):
             daily_report_confirmed=True,
             total_amount_reported_fc=Decimal("12000.00"),
             total_lavages_reported=1,
-            report_notes="Premier envoi",
+            daily_expenses=[
+                {
+                    "key": "transport_personnels",
+                    "label": "Transport de Personnels",
+                    "amount_fc": "12000.00",
+                    "is_known": True,
+                }
+            ],
+            daily_expenses_total_fc=Decimal("12000.00"),
         )
 
         response = self.client.post(
             reverse("employe_daily_report"),
             data={
                 "total_amount_reported_fc": "17000",
-                "report_notes": "Montant corrigé",
+                "known_expense_transport_personnels_enabled": "1",
+                "known_expense_transport_personnels_amount": "10000",
+                "known_expense_achat_savon_enabled": "1",
+                "known_expense_achat_savon_amount": "3000",
+                "custom_expense_label": ["Gasoil"],
+                "custom_expense_amount": ["5000"],
             },
         )
 
@@ -76,7 +96,27 @@ class EmployeeDailyReportTests(TestCase):
         shift = ShiftDay.objects.get(employe=self.user, date=today)
         self.assertTrue(shift.daily_report_confirmed)
         self.assertEqual(shift.total_amount_reported_fc, Decimal("17000"))
-        self.assertEqual(shift.report_notes, "Montant corrigé")
+        self.assertEqual(shift.daily_expenses_total_fc, Decimal("18000"))
+        self.assertEqual(len(shift.daily_expense_items), 3)
+
+    def test_unchecked_known_expenses_are_not_added_to_total(self):
+        today = timezone.localdate()
+
+        response = self.client.post(
+            reverse("employe_daily_report"),
+            data={
+                "total_amount_reported_fc": "9000",
+                "known_expense_transport_personnels_amount": "14000",
+                "known_expense_achat_savon_amount": "3000",
+                "custom_expense_label": [""],
+                "custom_expense_amount": [""],
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        shift = ShiftDay.objects.get(employe=self.user, date=today)
+        self.assertEqual(shift.daily_expenses_total_fc, Decimal("0"))
+        self.assertEqual(shift.daily_expense_items, [])
 
 
 class AdminDashboardDailyReportMessagesTests(TestCase):
@@ -111,7 +151,15 @@ class AdminDashboardDailyReportMessagesTests(TestCase):
             daily_report_confirmed=True,
             total_amount_reported_fc=Decimal("25000.00"),
             total_lavages_reported=3,
-            report_notes="RAS",
+            daily_expenses=[
+                {
+                    "key": "transport_personnels",
+                    "label": "Transport de Personnels",
+                    "amount_fc": "14000.00",
+                    "is_known": True,
+                }
+            ],
+            daily_expenses_total_fc=Decimal("14000.00"),
         )
 
         response = self.client.get(reverse("admin_dashboard"))
@@ -121,6 +169,7 @@ class AdminDashboardDailyReportMessagesTests(TestCase):
         self.assertContains(response, "Messages - Rapports de fin de journée")
         self.assertContains(response, "mike")
         self.assertContains(response, "25 000")
-        self.assertContains(response, "RAS")
+        self.assertContains(response, "14 000")
+        self.assertContains(response, "Transport de Personnels")
         self.admin_user.userprofile.refresh_from_db()
         self.assertIsNotNone(self.admin_user.userprofile.admin_reports_last_seen_at)

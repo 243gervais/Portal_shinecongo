@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from decimal import Decimal, InvalidOperation
 import hashlib
 import secrets
 import json
@@ -214,6 +215,13 @@ class ShiftDay(models.Model):
     lavages_review = models.TextField(blank=True, verbose_name="Revue des lavages")
     problems_review = models.TextField(blank=True, verbose_name="Revue des problèmes")
     report_notes = models.TextField(blank=True, verbose_name="Notes du rapport")
+    daily_expenses = models.JSONField(default=list, blank=True, verbose_name="Depenses du jour")
+    daily_expenses_total_fc = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name="Total depenses du jour (FC)",
+    )
     
     # Corrections (manager)
     corrected_by = models.ForeignKey(
@@ -243,6 +251,42 @@ class ShiftDay(models.Model):
     
     def __str__(self):
         return f"{self.employe.get_full_name() or self.employe.username} - {self.date}"
+
+    @property
+    def daily_expense_items(self):
+        expense_items = []
+        for item in self.daily_expenses or []:
+            label = str(item.get("label", "")).strip()
+            if not label:
+                continue
+
+            try:
+                amount_fc = Decimal(str(item.get("amount_fc", "0")))
+            except (ArithmeticError, InvalidOperation, TypeError, ValueError):
+                amount_fc = Decimal("0")
+
+            if amount_fc < 0:
+                amount_fc = Decimal("0")
+
+            expense_items.append({
+                "key": str(item.get("key", "")).strip(),
+                "label": label,
+                "amount_fc": amount_fc,
+                "is_known": bool(item.get("is_known")),
+            })
+
+        return expense_items
+
+    @property
+    def daily_expense_summary(self):
+        items = self.daily_expense_items
+        if not items:
+            return "Aucune depense confirmee."
+
+        return " • ".join(
+            f"{item['label']}: {item['amount_fc']:,.0f} FC".replace(",", " ")
+            for item in items
+        )
     
     def is_complete(self):
         """Vérifie si le pointage est complet (entrée ET sortie)"""
