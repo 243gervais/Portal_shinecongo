@@ -52,7 +52,6 @@ class EmployeeDailyReportTests(TestCase):
                 "total_amount_reported_fc": "15000",
                 "known_expense_transport_personnels_enabled": "1",
                 "known_expense_transport_personnels_amount": "14000",
-                "known_expense_achat_savon_amount": "3000",
                 "custom_expense_label": ["Achat eau"],
                 "custom_expense_amount": ["2000"],
             },
@@ -97,8 +96,6 @@ class EmployeeDailyReportTests(TestCase):
                 "total_amount_reported_fc": "17000",
                 "known_expense_transport_personnels_enabled": "1",
                 "known_expense_transport_personnels_amount": "10000",
-                "known_expense_achat_savon_enabled": "1",
-                "known_expense_achat_savon_amount": "3000",
                 "custom_expense_label": ["Gasoil"],
                 "custom_expense_amount": ["5000"],
             },
@@ -108,8 +105,8 @@ class EmployeeDailyReportTests(TestCase):
         shift = ShiftDay.objects.get(employe=self.user, date=today)
         self.assertTrue(shift.daily_report_confirmed)
         self.assertEqual(shift.total_amount_reported_fc, Decimal("17000"))
-        self.assertEqual(shift.daily_expenses_total_fc, Decimal("18000"))
-        self.assertEqual(len(shift.daily_expense_items), 3)
+        self.assertEqual(shift.daily_expenses_total_fc, Decimal("15000"))
+        self.assertEqual(len(shift.daily_expense_items), 2)
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn("Rapport de fin de journée mis à jour", mail.outbox[0].subject)
 
@@ -121,7 +118,6 @@ class EmployeeDailyReportTests(TestCase):
             data={
                 "total_amount_reported_fc": "9000",
                 "known_expense_transport_personnels_amount": "14000",
-                "known_expense_achat_savon_amount": "3000",
                 "custom_expense_label": [""],
                 "custom_expense_amount": [""],
             },

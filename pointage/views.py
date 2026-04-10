@@ -26,11 +26,6 @@ KNOWN_DAILY_EXPENSES = [
         "label": "Transport de Personnels",
         "default_amount": Decimal("14000"),
     },
-    {
-        "key": "achat_savon",
-        "label": "Achat Savon",
-        "default_amount": Decimal("3000"),
-    },
 ]
 
 
