@@ -8,7 +8,7 @@ from decimal import Decimal
 
 from comptes.forms import ApprovalAuthenticationForm
 from comptes.views import _daily_funding_snapshot
-from sites.models import Location, SiteDocument
+from sites.models import Location, SiteDocument, SiteJournalEntry
 from sites.models import DailyBankDeposit, SiteLossEntry
 from pointage.models import ShiftDay
 
@@ -194,6 +194,62 @@ class SiteDocumentUploadTests(TestCase):
         self.assertEqual(SiteDocument.objects.filter(site=self.site).count(), 2)
         self.assertTrue(SiteDocument.objects.filter(site=self.site, title="Photos chantier (1)").exists())
         self.assertTrue(SiteDocument.objects.filter(site=self.site, title="Photos chantier (2)").exists())
+
+
+class SiteJournalEntryTests(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            username="journal_admin",
+            email="journal_admin@example.com",
+            password="AdminPass123!",
+        )
+        self.site = Location.objects.create(
+            nom="Site Journal",
+            adresse="Adresse Journal",
+            ville="Kinshasa",
+            actif=True,
+        )
+        self.client.login(username="journal_admin", password="AdminPass123!")
+
+    def test_admin_can_create_site_journal_entry(self):
+        response = self.client.post(
+            reverse("admin_site_journal", args=[self.site.id]),
+            data={
+                "entry_date": "2026-04-11",
+                "category": "DEPENSE",
+                "title": "Achat matériel supplémentaire",
+                "description": "Achat urgent de matériel pour le site.",
+                "amount_fc": "25000",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(
+            response,
+            reverse("admin_site_journal", args=[self.site.id]),
+            fetch_redirect_response=False,
+        )
+        entry = SiteJournalEntry.objects.get(site=self.site)
+        self.assertEqual(entry.title, "Achat matériel supplémentaire")
+        self.assertEqual(entry.amount_fc, Decimal("25000"))
+        self.assertEqual(entry.created_by, self.admin_user)
+
+    def test_site_detail_shows_journal_preview(self):
+        SiteJournalEntry.objects.create(
+            site=self.site,
+            entry_date=date(2026, 4, 11),
+            category="INFO",
+            title="Visite du bailleur",
+            description="Passage sur site pour validation du prochain chantier.",
+            created_by=self.admin_user,
+        )
+
+        response = self.client.get(reverse("admin_site_detail", args=[self.site.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Journal du site")
+        self.assertContains(response, "Visite du bailleur")
+        self.assertContains(response, reverse("admin_site_journal", args=[self.site.id]))
 
 
 class FundingSnapshotTests(TestCase):

@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% load currency_tags %}
+
+{% block title %}Journal du site - {{ site.nom }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem;">
+    <div>
+        <h1 class="mt-2 mb-2">Journal du site</h1>
+        <p style="color: var(--text-secondary); margin: 0;">{{ site.nom }} • Registre opérationnel et informations de suivi</p>
+    </div>
+    <a href="{% url 'admin_site_detail' site.id %}" class="btn btn-secondary">Retour au site</a>
+</div>
+
+<div class="card mb-4">
+    <h2 class="mb-3">Nouvelle entrée</h2>
+    <p style="margin-top: -0.5rem; color: var(--text-secondary);">
+        Utilisez ce journal pour consigner les actions, informations, avances et dépenses exceptionnelles.
+        Le montant est optionnel et reste informatif.
+    </p>
+    <form method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+            {% for error in form.non_field_errors %}
+            <div>{{ error }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
+            <div class="form-group">
+                <label for="{{ form.entry_date.id_for_label }}">Date</label>
+                {{ form.entry_date }}
+                {% for error in form.entry_date.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+            </div>
+            <div class="form-group">
+                <label for="{{ form.category.id_for_label }}">Catégorie</label>
+                {{ form.category }}
+                {% for error in form.category.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+            </div>
+            <div class="form-group">
+                <label for="{{ form.amount_fc.id_for_label }}">Montant lié (FC)</label>
+                {{ form.amount_fc }}
+                <small style="color: var(--text-secondary);">{{ form.amount_fc.help_text }}</small>
+                {% for error in form.amount_fc.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.title.id_for_label }}">Titre</label>
+            {{ form.title }}
+            {% for error in form.title.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.description.id_for_label }}">Détails</label>
+            {{ form.description }}
+            {% for error in form.description.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+        </div>
+
+        <button type="submit" class="btn btn-primary">Enregistrer l'entrée</button>
+    </form>
+</div>
+
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem;">
+        <h2 class="mb-0">Historique du journal</h2>
+        <span style="color: var(--text-secondary);">{{ entries|length }} entrée{{ entries|length|pluralize }}</span>
+    </div>
+
+    {% if entries %}
+    <div style="display: grid; gap: 0.9rem;">
+        {% for entry in entries %}
+        <article style="padding: 1rem 1.05rem; border: 1px solid rgba(10, 67, 107, 0.08); border-radius: 18px; background: rgba(255, 255, 255, 0.95);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap;">
+                <div style="min-width: 0; flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap;">
+                        <span class="site-chip" style="background: rgba(10, 67, 107, 0.08); color: var(--primary-color);">{{ entry.get_category_display }}</span>
+                        <span style="color: var(--text-secondary); font-size: 0.85rem;">{{ entry.entry_date|date:"d/m/Y" }}</span>
+                    </div>
+                    <h3 style="margin: 0.55rem 0 0.3rem 0; color: var(--primary-dark); font-size: 1.04rem;">{{ entry.title }}</h3>
+                    {% if entry.description %}
+                    <p style="margin: 0; color: var(--text-secondary); white-space: pre-line;">{{ entry.description }}</p>
+                    {% endif %}
+                    <div style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.82rem;">
+                        Ajouté le {{ entry.created_at|date:"d/m/Y H:i" }}
+                        {% if entry.created_by %} • {{ entry.created_by.get_full_name|default:entry.created_by.username }}{% endif %}
+                    </div>
+                </div>
+                <div style="min-width: 180px; text-align: right;">
+                    {% if entry.amount_fc %}
+                    <div style="font-size: 1.1rem; font-weight: 800; color: var(--primary-color);">{{ entry.amount_fc|fc_amount }} FC</div>
+                    {% else %}
+                    <div style="font-size: 0.86rem; font-weight: 700; color: var(--text-secondary);">Sans montant</div>
+                    {% endif %}
+                    <div style="display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.85rem;">
+                        <a href="{% url 'admin_edit_site_journal_entry' site.id entry.id %}" class="btn btn-info">Modifier</a>
+                        <a href="{% url 'admin_delete_site_journal_entry' site.id entry.id %}" class="btn btn-danger">Supprimer</a>
+                    </div>
+                </div>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p style="margin: 0; color: var(--text-secondary);">Aucune entrée pour ce site.</p>
+    {% endif %}
+</div>
+{% endblock %}

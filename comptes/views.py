@@ -13,8 +13,20 @@ from django.db.models import Sum, Count, Q, Min
 from django.contrib.auth.models import User
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
-from .forms import UserRegistrationForm, SiteCreationForm, SiteEmployeeForm, EmployeePaymentForm
-from sites.models import Location, DailyBankDeposit, SiteDocument, SiteLossEntry
+from .forms import (
+    UserRegistrationForm,
+    SiteCreationForm,
+    SiteEmployeeForm,
+    EmployeePaymentForm,
+    SiteJournalEntryForm,
+)
+from sites.models import (
+    Location,
+    DailyBankDeposit,
+    SiteDocument,
+    SiteLossEntry,
+    SiteJournalEntry,
+)
 from lavages.models import CarWash, CarWashPhoto
 from problemes.models import IssueReport
 from pointage.models import ShiftDay
@@ -1027,11 +1039,111 @@ def admin_site_detail(request, site_id):
         'period_label': period_label,
     }
     
+    recent_journal_entries = list(
+        SiteJournalEntry.objects.filter(site=site)
+        .select_related("created_by")
+        .order_by("-entry_date", "-created_at")[:4]
+    )
+    journal_entries_count = SiteJournalEntry.objects.filter(site=site).count()
+
     # Ajouter les statistiques des documents
     documents_count = SiteDocument.objects.filter(site=site).count()
     context['documents_count'] = documents_count
+    context['recent_journal_entries'] = recent_journal_entries
+    context['journal_entries_count'] = journal_entries_count
     
     return render(request, 'admin/site_detail.html', context)
+
+
+@login_required
+@no_cache_view
+def admin_site_journal(request, site_id):
+    ensure_superuser_admin_profile(request.user)
+    if not is_admin_user(request.user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect("dashboard")
+
+    site = get_object_or_404(Location, id=site_id)
+    entries = SiteJournalEntry.objects.filter(site=site).select_related("created_by").order_by("-entry_date", "-created_at")
+
+    if request.method == "POST":
+        form = SiteJournalEntryForm(request.POST)
+        if form.is_valid():
+            entry = form.save(commit=False)
+            entry.site = site
+            entry.created_by = request.user
+            entry.save()
+            messages.success(request, "L'entrée du journal a été enregistrée.")
+            return redirect("admin_site_journal", site_id=site.id)
+    else:
+        form = SiteJournalEntryForm(initial={"entry_date": timezone.localdate()})
+
+    return render(
+        request,
+        "admin/site_journal.html",
+        {
+            "site": site,
+            "form": form,
+            "entries": entries,
+        },
+    )
+
+
+@login_required
+@no_cache_view
+def admin_edit_site_journal_entry(request, site_id, entry_id):
+    ensure_superuser_admin_profile(request.user)
+    if not is_admin_user(request.user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect("dashboard")
+
+    site = get_object_or_404(Location, id=site_id)
+    entry = get_object_or_404(SiteJournalEntry, id=entry_id, site=site)
+
+    if request.method == "POST":
+        form = SiteJournalEntryForm(request.POST, instance=entry)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "L'entrée du journal a été mise à jour.")
+            return redirect("admin_site_journal", site_id=site.id)
+    else:
+        form = SiteJournalEntryForm(instance=entry)
+
+    return render(
+        request,
+        "admin/edit_site_journal_entry.html",
+        {
+            "site": site,
+            "entry": entry,
+            "form": form,
+        },
+    )
+
+
+@login_required
+@no_cache_view
+def admin_delete_site_journal_entry(request, site_id, entry_id):
+    ensure_superuser_admin_profile(request.user)
+    if not is_admin_user(request.user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect("dashboard")
+
+    site = get_object_or_404(Location, id=site_id)
+    entry = get_object_or_404(SiteJournalEntry, id=entry_id, site=site)
+
+    if request.method == "POST":
+        entry.delete()
+        messages.success(request, "L'entrée du journal a été supprimée.")
+        return redirect("admin_site_journal", site_id=site.id)
+
+    return render(
+        request,
+        "admin/delete_site_journal_entry.html",
+        {
+            "site": site,
+            "entry": entry,
+        },
+    )
 
 
 @login_required

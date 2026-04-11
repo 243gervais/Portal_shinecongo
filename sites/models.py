@@ -203,6 +203,69 @@ class SiteLossEntry(models.Model):
         return f"{self.site.nom} - {self.date} - {self.title} ({self.amount} FC)"
 
 
+class SiteJournalEntry(models.Model):
+    """
+    Journal libre du site pour les suivis opérationnels de l'admin.
+    Peut contenir une information simple ou une action avec montant optionnel.
+    """
+
+    CATEGORY_CHOICES = [
+        ("INFO", "Information"),
+        ("SUIVI", "Suivi"),
+        ("INTERVENTION", "Intervention"),
+        ("DEPENSE", "Dépense / avance"),
+        ("INCIDENT", "Incident"),
+        ("AUTRE", "Autre"),
+    ]
+
+    site = models.ForeignKey(
+        Location,
+        on_delete=models.CASCADE,
+        related_name="journal_entries",
+        verbose_name="Site",
+    )
+    entry_date = models.DateField(verbose_name="Date")
+    category = models.CharField(
+        max_length=20,
+        choices=CATEGORY_CHOICES,
+        default="INFO",
+        verbose_name="Catégorie",
+    )
+    title = models.CharField(max_length=200, verbose_name="Titre")
+    description = models.TextField(blank=True, verbose_name="Détails")
+    amount_fc = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        null=True,
+        blank=True,
+        verbose_name="Montant lié (FC)",
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="site_journal_entries_created",
+        verbose_name="Enregistré par",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")
+
+    class Meta:
+        verbose_name = "Journal du Site"
+        verbose_name_plural = "Journal du Site"
+        ordering = ["-entry_date", "-created_at"]
+        indexes = [
+            models.Index(fields=["site", "entry_date"]),
+            models.Index(fields=["site", "category"]),
+            models.Index(fields=["-created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.site.nom} - {self.entry_date} - {self.title}"
+
+
 def site_document_path(instance, filename):
     """Chemin de sauvegarde des documents du site"""
     site_id = str(instance.site.id)

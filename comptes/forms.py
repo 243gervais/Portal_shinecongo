@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.models import User
 from django.utils import timezone
-from sites.models import Location
+from sites.models import Location, SiteJournalEntry
 from .models import UserProfile, EmployeePayment
 
 
@@ -386,3 +386,23 @@ class EmployeePaymentForm(forms.Form):
             raise forms.ValidationError("La référence M-Pesa est obligatoire pour un paiement M-Pesa.")
 
         return cleaned_data
+
+
+class SiteJournalEntryForm(forms.ModelForm):
+    class Meta:
+        model = SiteJournalEntry
+        fields = ["entry_date", "category", "title", "description", "amount_fc"]
+        widgets = {
+            "entry_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "category": forms.Select(attrs={"class": "form-control"}),
+            "title": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": "Ex: Achat matériel, visite du site, décision à retenir"}
+            ),
+            "description": forms.Textarea(
+                attrs={"class": "form-control", "rows": 4, "placeholder": "Décrivez ce qui a été fait, constaté ou payé"}
+            ),
+            "amount_fc": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0"}),
+        }
+        help_texts = {
+            "amount_fc": "Optionnel. Ce montant reste informatif et n'entre pas automatiquement dans les calculs financiers.",
+        }

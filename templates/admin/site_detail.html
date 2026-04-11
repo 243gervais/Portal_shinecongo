@@ -27,6 +27,7 @@
         </div>
         <div class="site-actions">
             <a href="{% url 'admin_site_documents' site.id %}" class="btn btn-success">Documents du site</a>
+            <a href="{% url 'admin_site_journal' site.id %}" class="btn btn-secondary">Journal du site</a>
             <a href="{% url 'admin_add_bank_deposit' site.id %}" class="btn btn-info">{% if bank_deposit_today %}Modifier{% else %}Ajouter{% endif %} dépôt bancaire</a>
             <a href="{% url 'admin_site_losses' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-warning">Corrections & finance</a>
             <a href="{% url 'admin_add_daily_total' site.id %}" class="btn btn-primary">Ajouter le total quotidien</a>
@@ -59,6 +60,53 @@
     </div>
 </section>
 <p class="site-rate-note">{% fx_rate_label %}</p>
+
+<section class="site-section-card">
+    <div class="site-section-head">
+        <div>
+            <h2 class="site-section-title">Journal du site</h2>
+            <p class="site-section-copy">Gardez une trace des informations terrain, des décisions, des avances et des dépenses exceptionnelles sans les mélanger aux calculs automatiques.</p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+            <span class="site-section-state">{{ journal_entries_count }} entrée{{ journal_entries_count|pluralize }}</span>
+            <a href="{% url 'admin_site_journal' site.id %}" class="btn btn-secondary">Gérer le journal</a>
+        </div>
+    </div>
+    <div class="site-section-body">
+        {% if recent_journal_entries %}
+        <div style="display: grid; gap: 0.8rem;">
+            {% for entry in recent_journal_entries %}
+            <article style="padding: 1rem 1.05rem; border: 1px solid rgba(10, 67, 107, 0.08); border-radius: 18px; background: rgba(255, 255, 255, 0.94);">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; flex-wrap: wrap;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                            <span class="site-chip" style="background: rgba(10, 67, 107, 0.08); color: var(--primary-color);">{{ entry.get_category_display }}</span>
+                            <span style="color: var(--text-secondary); font-size: 0.85rem;">{{ entry.entry_date|date:"d/m/Y" }}</span>
+                        </div>
+                        <h3 style="margin: 0.55rem 0 0.25rem 0; color: var(--primary-dark); font-size: 1.02rem;">{{ entry.title }}</h3>
+                        {% if entry.description %}
+                        <p style="margin: 0; color: var(--text-secondary);">{{ entry.description|truncatechars:180 }}</p>
+                        {% endif %}
+                    </div>
+                    <div style="text-align: right; min-width: 140px;">
+                        {% if entry.amount_fc %}
+                        <div style="font-size: 1.05rem; font-weight: 800; color: var(--primary-color);">{{ entry.amount_fc|fc_amount }} FC</div>
+                        {% else %}
+                        <div style="font-size: 0.86rem; font-weight: 700; color: var(--text-secondary);">Sans montant</div>
+                        {% endif %}
+                        <div style="margin-top: 0.3rem; color: var(--text-secondary); font-size: 0.82rem;">
+                            {% if entry.created_by %}{{ entry.created_by.get_full_name|default:entry.created_by.username }}{% else %}Admin{% endif %}
+                        </div>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="margin: 0; color: var(--text-secondary);">Aucune note enregistrée pour ce site. Utilisez le journal pour garder une trace de vos actions, informations et dépenses exceptionnelles.</p>
+        {% endif %}
+    </div>
+</section>
 
 <style>
     .site-shell {

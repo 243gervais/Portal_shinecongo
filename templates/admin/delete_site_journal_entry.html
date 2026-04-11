@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% load currency_tags %}
+
+{% block title %}Supprimer une entrée - {{ site.nom }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem;">
+    <div>
+        <h1 class="mt-2 mb-2">Supprimer l'entrée du journal</h1>
+        <p style="color: var(--text-secondary); margin: 0;">{{ site.nom }}</p>
+    </div>
+    <a href="{% url 'admin_site_journal' site.id %}" class="btn btn-secondary">Retour au journal</a>
+</div>
+
+<div class="card">
+    <div style="padding: 1rem; border-radius: 14px; background: rgba(220, 38, 38, 0.08); border: 1px solid rgba(220, 38, 38, 0.12); margin-bottom: 1rem;">
+        <strong style="color: #b42318;">Cette suppression est définitive.</strong>
+    </div>
+
+    <p><strong>Date :</strong> {{ entry.entry_date|date:"d/m/Y" }}</p>
+    <p><strong>Catégorie :</strong> {{ entry.get_category_display }}</p>
+    <p><strong>Titre :</strong> {{ entry.title }}</p>
+    {% if entry.description %}
+    <p><strong>Détails :</strong> {{ entry.description }}</p>
+    {% endif %}
+    <p><strong>Montant :</strong> {% if entry.amount_fc %}{{ entry.amount_fc|fc_amount }} FC{% else %}Sans montant{% endif %}</p>
+
+    <form method="post" style="margin-top: 1.5rem;">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger" style="width: 100%;">Supprimer l'entrée</button>
+        <a href="{% url 'admin_site_journal' site.id %}" class="btn btn-secondary btn-block mt-2">Annuler</a>
+    </form>
+</div>
+{% endblock %}
