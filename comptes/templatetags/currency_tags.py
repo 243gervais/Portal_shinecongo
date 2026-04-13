@@ -56,3 +56,10 @@ def fx_rate_label():
         _format_number_without_decimals(usd_to_cdf),
         kinshasa_time,
     )
+
+
+@register.simple_tag
+def fx_rate_value():
+    rate_data = get_usd_to_cdf_rate()
+    usd_to_cdf = _to_decimal(rate_data.get("usd_to_cdf"))
+    return f"{usd_to_cdf}"

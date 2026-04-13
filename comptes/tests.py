@@ -132,6 +132,7 @@ class AdminAccountRequestsDashboardTests(TestCase):
         self.assertContains(response, "Boite Admin")
         self.assertNotContains(response, "Django Admin")
         self.assertContains(response, "Demandes de comptes en attente")
+        self.assertContains(response, "Mini convertisseur")
         self.assertContains(response, "pending_candidate")
         self.assertContains(response, "Site Pending")
         self.assertContains(response, "Adresse Pending")

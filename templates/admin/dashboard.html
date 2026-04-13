@@ -4,6 +4,7 @@
 {% block title %}Boite Admin{% endblock %}
 
 {% block content %}
+{% fx_rate_value as usd_to_cdf_rate %}
 <style>
     .admin-shell {
         display: grid;
@@ -68,6 +69,83 @@
         margin: -0.45rem 0 0 0;
         color: var(--text-secondary);
         font-size: 0.82rem;
+    }
+
+    .admin-fx-tools {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+        margin-top: 0.4rem;
+    }
+
+    .admin-fx-converter {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        flex-wrap: wrap;
+        padding: 0.35rem 0.5rem;
+        border: 1px solid rgba(10, 67, 107, 0.12);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.88);
+        max-width: 100%;
+    }
+
+    .admin-fx-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: var(--primary-dark);
+        white-space: nowrap;
+    }
+
+    .admin-fx-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.22rem;
+        padding: 0.16rem;
+        border-radius: 999px;
+        background: rgba(10, 67, 107, 0.08);
+    }
+
+    .admin-fx-toggle button {
+        border: none;
+        background: transparent;
+        color: var(--text-secondary);
+        border-radius: 999px;
+        padding: 0.18rem 0.45rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .admin-fx-toggle button.is-active {
+        background: white;
+        color: var(--primary-color);
+        box-shadow: 0 4px 10px rgba(10, 67, 107, 0.12);
+    }
+
+    .admin-fx-input {
+        width: 6.8rem;
+        min-height: 1.95rem;
+        padding: 0.25rem 0.45rem;
+        border: 1px solid rgba(10, 67, 107, 0.14);
+        border-radius: 999px;
+        background: white;
+        color: var(--text-primary);
+        font-size: 0.74rem;
+    }
+
+    .admin-fx-input:focus {
+        outline: none;
+        border-color: rgba(10, 67, 107, 0.35);
+        box-shadow: 0 0 0 3px rgba(43, 131, 184, 0.12);
+    }
+
+    .admin-fx-result {
+        font-size: 0.74rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        white-space: nowrap;
     }
 
     .admin-section {
@@ -365,6 +443,25 @@
     </section>
 
     <p class="admin-rate-note">{% fx_rate_label %}</p>
+    <div class="admin-fx-tools">
+        <div class="admin-fx-converter" data-fx-rate="{{ usd_to_cdf_rate }}" data-default-mode="usd-to-cdf">
+            <span class="admin-fx-label">Mini convertisseur</span>
+            <div class="admin-fx-toggle" role="tablist" aria-label="Sens de conversion">
+                <button type="button" class="is-active" data-mode="usd-to-cdf">USD→FC</button>
+                <button type="button" data-mode="cdf-to-usd">FC→USD</button>
+            </div>
+            <input
+                type="text"
+                value="1"
+                inputmode="decimal"
+                class="admin-fx-input"
+                data-fx-input
+                aria-label="Montant à convertir"
+                autocomplete="off"
+            >
+            <span class="admin-fx-result" data-fx-result>{{ usd_to_cdf_rate|fc_amount }} FC</span>
+        </div>
+    </div>
 
     <section class="admin-section">
         <div class="admin-section-head">
@@ -560,4 +657,73 @@
         </div>
     </details>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    (() => {
+        const converter = document.querySelector('.admin-fx-converter[data-fx-rate]');
+        if (!converter) {
+            return;
+        }
+
+        const rate = Number.parseFloat(converter.dataset.fxRate || '0');
+        if (!Number.isFinite(rate) || rate <= 0) {
+            return;
+        }
+
+        const input = converter.querySelector('[data-fx-input]');
+        const result = converter.querySelector('[data-fx-result]');
+        const buttons = Array.from(converter.querySelectorAll('[data-mode]'));
+        let mode = converter.dataset.defaultMode || 'usd-to-cdf';
+
+        const formatFc = (value) => new Intl.NumberFormat('fr-FR', {
+            maximumFractionDigits: 0,
+        }).format(value);
+
+        const formatUsd = (value) => new Intl.NumberFormat('fr-FR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(value);
+
+        const parseAmount = (rawValue) => {
+            const normalized = String(rawValue || '')
+                .replace(/\s+/g, '')
+                .replace(',', '.')
+                .replace(/[^0-9.]/g, '');
+            const parsed = Number.parseFloat(normalized);
+            return Number.isFinite(parsed) ? parsed : 0;
+        };
+
+        const updateButtons = () => {
+            buttons.forEach((button) => {
+                button.classList.toggle('is-active', button.dataset.mode === mode);
+            });
+        };
+
+        const updateResult = () => {
+            const amount = parseAmount(input.value);
+            if (mode === 'usd-to-cdf') {
+                result.textContent = `${formatFc(amount * rate)} FC`;
+                input.placeholder = 'Montant USD';
+            } else {
+                result.textContent = `${formatUsd(amount / rate)} USD`;
+                input.placeholder = 'Montant FC';
+            }
+        };
+
+        buttons.forEach((button) => {
+            button.addEventListener('click', () => {
+                mode = button.dataset.mode;
+                updateButtons();
+                updateResult();
+            });
+        });
+
+        input.addEventListener('input', updateResult);
+
+        updateButtons();
+        updateResult();
+    })();
+</script>
 {% endblock %}
