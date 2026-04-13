@@ -3,7 +3,13 @@ import uuid
 from decimal import Decimal
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
+from django.utils import timezone
 import os
+
+
+def current_month_start():
+    today = timezone.localdate()
+    return today.replace(day=1)
 
 
 class Location(models.Model):
@@ -278,6 +284,11 @@ class SiteWaterPurchase(models.Model):
         related_name="water_purchases",
         verbose_name="Site",
     )
+    billing_month = models.DateField(
+        default=current_month_start,
+        verbose_name="Mois concerné",
+        help_text="Le mois à facturer au propriétaire du forage.",
+    )
     purchase_date = models.DateField(verbose_name="Date d'achat")
     amount_fc = models.DecimalField(
         max_digits=10,
@@ -301,14 +312,15 @@ class SiteWaterPurchase(models.Model):
     class Meta:
         verbose_name = "Achat d'eau du Site"
         verbose_name_plural = "Achats d'eau du Site"
-        ordering = ["-purchase_date", "-created_at"]
+        ordering = ["-billing_month", "-purchase_date", "-created_at"]
         indexes = [
+            models.Index(fields=["site", "billing_month"]),
             models.Index(fields=["site", "purchase_date"]),
             models.Index(fields=["-created_at"]),
         ]
 
     def __str__(self):
-        return f"{self.site.nom} - {self.purchase_date} - {self.amount_fc} FC"
+        return f"{self.site.nom} - {self.billing_month:%m/%Y} - {self.purchase_date} - {self.amount_fc} FC"
 
 
 def site_document_path(instance, filename):

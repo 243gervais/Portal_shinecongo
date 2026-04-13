@@ -410,9 +410,19 @@ class SiteJournalEntryForm(forms.ModelForm):
 
 
 class SiteWaterPurchaseForm(forms.ModelForm):
+    billing_month = forms.DateField(
+        label="Mois concerné",
+        help_text="Sélectionnez le mois auquel cet achat d'eau doit être rattaché.",
+        input_formats=["%Y-%m"],
+        widget=forms.DateInput(
+            format="%Y-%m",
+            attrs={"class": "form-control", "type": "month"},
+        ),
+    )
+
     class Meta:
         model = SiteWaterPurchase
-        fields = ["site", "purchase_date", "amount_fc", "notes"]
+        fields = ["site", "billing_month", "purchase_date", "amount_fc", "notes"]
         widgets = {
             "site": forms.Select(attrs={"class": "form-control"}),
             "purchase_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
@@ -427,6 +437,15 @@ class SiteWaterPurchaseForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        current_month = timezone.localdate().replace(day=1)
         self.fields["site"].queryset = Location.objects.filter(actif=True).order_by("nom")
+        self.fields["billing_month"].initial = current_month
         self.fields["purchase_date"].initial = timezone.localdate()
         self.fields["amount_fc"].initial = Decimal("24000")
+
+        if self.instance and self.instance.pk and self.instance.billing_month:
+            self.initial["billing_month"] = self.instance.billing_month
+
+    def clean_billing_month(self):
+        billing_month = self.cleaned_data["billing_month"]
+        return billing_month.replace(day=1)

@@ -272,6 +272,7 @@ class WaterPurchaseTrackingTests(TestCase):
             reverse("admin_water_purchases"),
             data={
                 "site": str(self.site.id),
+                "billing_month": "2026-04",
                 "purchase_date": "2026-04-13",
                 "amount_fc": "24000",
                 "notes": "Remplissage du réservoir",
@@ -279,14 +280,20 @@ class WaterPurchaseTrackingTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertRedirects(response, reverse("admin_water_purchases"), fetch_redirect_response=False)
+        self.assertRedirects(
+            response,
+            f"{reverse('admin_water_purchases')}?month=2026-04",
+            fetch_redirect_response=False,
+        )
         purchase = SiteWaterPurchase.objects.get(site=self.site)
+        self.assertEqual(purchase.billing_month, date(2026, 4, 1))
         self.assertEqual(purchase.amount_fc, Decimal("24000"))
         self.assertEqual(purchase.created_by, self.admin_user)
 
     def test_admin_dashboard_shows_water_purchase_summary(self):
         SiteWaterPurchase.objects.create(
             site=self.site,
+            billing_month=date(2026, 4, 1),
             purchase_date=timezone.localdate(),
             amount_fc=Decimal("24000"),
             notes="Achat eau du jour",
@@ -299,6 +306,31 @@ class WaterPurchaseTrackingTests(TestCase):
         self.assertContains(response, "Achats d'eau")
         self.assertContains(response, "24 000")
         self.assertContains(response, reverse("admin_water_purchases"))
+
+    def test_water_purchase_view_filters_by_selected_billing_month(self):
+        SiteWaterPurchase.objects.create(
+            site=self.site,
+            billing_month=date(2026, 3, 1),
+            purchase_date=date(2026, 4, 2),
+            amount_fc=Decimal("24000"),
+            notes="Mars",
+            created_by=self.admin_user,
+        )
+        SiteWaterPurchase.objects.create(
+            site=self.site,
+            billing_month=date(2026, 4, 1),
+            purchase_date=date(2026, 4, 13),
+            amount_fc=Decimal("48000"),
+            notes="Avril",
+            created_by=self.admin_user,
+        )
+
+        response = self.client.get(reverse("admin_water_purchases"), data={"month": "2026-03"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Mars")
+        self.assertNotContains(response, "Avril")
+        self.assertContains(response, "24 000")
 
 
 class FundingSnapshotTests(TestCase):

@@ -202,6 +202,28 @@ def _format_fc_compact(amount):
     return f"{amount:,.0f}".replace(",", " ")
 
 
+def _normalize_month_start(value=None):
+    """
+    Retourne le premier jour du mois pour la date fournie ou pour aujourd'hui.
+    """
+    if value is None:
+        value = timezone.localdate()
+    return value.replace(day=1)
+
+
+def _parse_month_filter(raw_value):
+    """
+    Parse un champ HTML month (YYYY-MM) et retourne le premier jour du mois.
+    """
+    if not raw_value:
+        return _normalize_month_start()
+    try:
+        parsed = datetime.strptime(raw_value, "%Y-%m").date()
+    except ValueError:
+        return _normalize_month_start()
+    return parsed.replace(day=1)
+
+
 def _daily_funding_snapshot(site, date_obj, exclude_loss_id=None, exclude_deposit_id=None):
     """
     Calcule les soldes disponibles du jour pour la caisse et la banque.
@@ -502,17 +524,18 @@ def admin_dashboard(request):
     dashboard_summary['delta_month'] = dashboard_summary['reports_month'] - dashboard_summary['cash_month']
     dashboard_summary['delta_year'] = dashboard_summary['reports_year'] - dashboard_summary['cash_year']
 
+    selected_water_month = _normalize_month_start(today)
     water_purchases_month_qs = SiteWaterPurchase.objects.filter(
         site__actif=True,
-        purchase_date__gte=month_start,
-        purchase_date__lte=today,
+        billing_month=selected_water_month,
     ).select_related("site").order_by("-purchase_date", "-created_at")
     recent_water_purchases = list(
         SiteWaterPurchase.objects.filter(site__actif=True)
         .select_related("site")
-        .order_by("-purchase_date", "-created_at")[:6]
+        .order_by("-billing_month", "-purchase_date", "-created_at")[:6]
     )
     water_purchase_summary = {
+        "selected_month": selected_water_month,
         "month_total": water_purchases_month_qs.aggregate(total=Sum("amount_fc"))["total"] or Decimal("0"),
         "month_count": water_purchases_month_qs.count(),
         "site_breakdown": list(
@@ -603,8 +626,12 @@ def admin_water_purchases(request):
         return redirect("dashboard")
 
     today = timezone.localdate()
-    month_start = today.replace(day=1)
-    purchases = SiteWaterPurchase.objects.filter(site__actif=True).select_related("site", "created_by").order_by("-purchase_date", "-created_at")
+    selected_month = _parse_month_filter(request.GET.get("month"))
+    purchases = (
+        SiteWaterPurchase.objects.filter(site__actif=True, billing_month=selected_month)
+        .select_related("site", "created_by")
+        .order_by("-purchase_date", "-created_at")
+    )
 
     if request.method == "POST":
         form = SiteWaterPurchaseForm(request.POST)
@@ -613,15 +640,15 @@ def admin_water_purchases(request):
             purchase.created_by = user
             purchase.save()
             messages.success(request, "L'achat d'eau a été enregistré.")
-            return redirect("admin_water_purchases")
+            month_query = purchase.billing_month.strftime("%Y-%m")
+            return redirect(f"{reverse('admin_water_purchases')}?month={month_query}")
     else:
-        form = SiteWaterPurchaseForm()
+        form = SiteWaterPurchaseForm(initial={"billing_month": selected_month})
 
-    month_purchases = purchases.filter(purchase_date__gte=month_start, purchase_date__lte=today)
-    month_total = month_purchases.aggregate(total=Sum("amount_fc"))["total"] or Decimal("0")
-    month_count = month_purchases.count()
+    month_total = purchases.aggregate(total=Sum("amount_fc"))["total"] or Decimal("0")
+    month_count = purchases.count()
     by_site = list(
-        month_purchases.values("site__nom")
+        purchases.values("site__nom")
         .annotate(total=Sum("amount_fc"), count=Count("id"))
         .order_by("-total", "site__nom")
     )
@@ -633,7 +660,8 @@ def admin_water_purchases(request):
             "form": form,
             "purchases": purchases[:30],
             "today": today,
-            "month_start": month_start,
+            "selected_month": selected_month,
+            "selected_month_input": selected_month.strftime("%Y-%m"),
             "month_total": month_total,
             "month_count": month_count,
             "site_breakdown": by_site,
@@ -655,9 +683,10 @@ def admin_edit_water_purchase(request, purchase_id):
     if request.method == "POST":
         form = SiteWaterPurchaseForm(request.POST, instance=purchase)
         if form.is_valid():
-            form.save()
+            updated_purchase = form.save()
             messages.success(request, "L'achat d'eau a été mis à jour.")
-            return redirect("admin_water_purchases")
+            month_query = updated_purchase.billing_month.strftime("%Y-%m")
+            return redirect(f"{reverse('admin_water_purchases')}?month={month_query}")
     else:
         form = SiteWaterPurchaseForm(instance=purchase)
 
@@ -683,9 +712,10 @@ def admin_delete_water_purchase(request, purchase_id):
 
     purchase = get_object_or_404(SiteWaterPurchase, id=purchase_id)
     if request.method == "POST":
+        month_query = purchase.billing_month.strftime("%Y-%m")
         purchase.delete()
         messages.success(request, "L'achat d'eau a été supprimé.")
-        return redirect("admin_water_purchases")
+        return redirect(f"{reverse('admin_water_purchases')}?month={month_query}")
 
     return render(
         request,
