@@ -123,7 +123,8 @@
             flex-wrap: wrap;
         }
 
-        .nav-menu a {
+        .nav-menu a,
+        .nav-menu-button {
             color: var(--text-secondary);
             text-decoration: none;
             padding: 0.5rem 1rem;
@@ -133,12 +134,207 @@
             display: inline-flex;
             align-items: center;
             gap: 0.45rem;
+            border: none;
+            background: transparent;
+            font-size: 1rem;
+            line-height: 1.2;
+            cursor: pointer;
+            font-family: inherit;
         }
 
-        .nav-menu a:hover {
+        .nav-menu a:hover,
+        .nav-menu-button:hover,
+        .nav-menu-button:focus-visible {
             background: var(--primary-light);
             color: var(--primary-color);
             transform: translateY(-2px);
+        }
+
+        .nav-menu--admin {
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .nav-dropdown {
+            position: relative;
+        }
+
+        .nav-dropdown-panel {
+            position: absolute;
+            top: calc(100% + 0.65rem);
+            left: 0;
+            width: min(420px, calc(100vw - 32px));
+            padding: 1rem;
+            border-radius: 18px;
+            border: 1px solid rgba(10, 67, 107, 0.12);
+            background: rgba(255, 255, 255, 0.98);
+            box-shadow: 0 24px 50px rgba(10, 67, 107, 0.16);
+            z-index: 250;
+        }
+
+        .nav-dropdown-panel[hidden] {
+            display: none;
+        }
+
+        .admin-site-menu-section + .admin-site-menu-section {
+            margin-top: 0.9rem;
+            padding-top: 0.9rem;
+            border-top: 1px solid rgba(10, 67, 107, 0.08);
+        }
+
+        .admin-site-menu-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.6rem;
+            margin-bottom: 0.65rem;
+        }
+
+        .admin-site-menu-title {
+            font-size: 0.86rem;
+            font-weight: 800;
+            color: var(--primary-dark);
+        }
+
+        .admin-site-menu-link {
+            font-size: 0.76rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .admin-site-menu-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.45rem;
+        }
+
+        .admin-site-menu-item {
+            display: block;
+            padding: 0.55rem 0.7rem;
+            border-radius: 12px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+        }
+
+        .admin-site-menu-item:hover {
+            transform: translateY(-1px);
+            background: var(--primary-light);
+            color: var(--primary-color);
+        }
+
+        .admin-site-menu-subtitle {
+            margin: 0.7rem 0 0.4rem 0;
+            color: var(--text-secondary);
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .admin-site-menu-employees {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+        }
+
+        .admin-site-employee-link {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.35rem 0.58rem;
+            border-radius: 999px;
+            background: rgba(10, 67, 107, 0.08);
+            color: var(--primary-color);
+            text-decoration: none;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .admin-nav-search {
+            position: relative;
+            min-width: 220px;
+            flex: 0 1 260px;
+        }
+
+        .admin-nav-search-input {
+            width: 100%;
+            min-height: 2.55rem;
+            padding: 0.65rem 0.85rem;
+            border: 1px solid rgba(10, 67, 107, 0.14);
+            border-radius: 999px;
+            background: rgba(247, 248, 250, 0.98);
+            color: var(--text-primary);
+            font-size: 0.92rem;
+        }
+
+        .admin-nav-search-input:focus {
+            outline: none;
+            border-color: rgba(10, 67, 107, 0.3);
+            box-shadow: 0 0 0 3px rgba(43, 131, 184, 0.12);
+            background: white;
+        }
+
+        .admin-nav-search-results {
+            position: absolute;
+            top: calc(100% + 0.55rem);
+            left: 0;
+            width: 100%;
+            min-width: 300px;
+            max-width: min(480px, calc(100vw - 32px));
+            border-radius: 18px;
+            border: 1px solid rgba(10, 67, 107, 0.12);
+            background: rgba(255, 255, 255, 0.99);
+            box-shadow: 0 24px 50px rgba(10, 67, 107, 0.16);
+            overflow: hidden;
+            z-index: 260;
+        }
+
+        .admin-nav-search-results[hidden] {
+            display: none;
+        }
+
+        .admin-nav-search-result {
+            display: block;
+            width: 100%;
+            padding: 0.75rem 0.9rem;
+            border: none;
+            border-bottom: 1px solid rgba(10, 67, 107, 0.06);
+            background: transparent;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .admin-nav-search-result:last-child {
+            border-bottom: none;
+        }
+
+        .admin-nav-search-result:hover,
+        .admin-nav-search-result.is-active {
+            background: rgba(10, 67, 107, 0.06);
+        }
+
+        .admin-nav-search-label {
+            display: block;
+            color: var(--text-primary);
+            font-size: 0.88rem;
+            font-weight: 700;
+        }
+
+        .admin-nav-search-meta {
+            display: block;
+            margin-top: 0.18rem;
+            color: var(--text-secondary);
+            font-size: 0.76rem;
+        }
+
+        .admin-nav-search-empty {
+            padding: 0.85rem 0.95rem;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
         }
 
         .nav-badge {
@@ -421,11 +617,44 @@
                 gap: 0.5rem;
             }
 
-            .nav-menu a {
+            .nav-menu--admin {
+                flex-wrap: wrap;
+                overflow: visible;
+            }
+
+            .nav-menu a,
+            .nav-menu-button {
                 white-space: nowrap;
                 flex: 0 0 auto;
                 font-size: 0.9rem;
                 padding: 0.5rem 0.75rem;
+            }
+
+            .nav-dropdown {
+                width: 100%;
+            }
+
+            .nav-dropdown-panel {
+                position: static;
+                width: 100%;
+                margin-top: 0.5rem;
+            }
+
+            .admin-site-menu-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .admin-nav-search {
+                min-width: 100%;
+                flex: 1 1 100%;
+            }
+
+            .admin-nav-search-results {
+                position: static;
+                width: 100%;
+                min-width: 100%;
+                max-width: 100%;
+                margin-top: 0.5rem;
             }
 
             .btn {
@@ -481,8 +710,8 @@
         <div class="header-content">
             <div class="logo">⚡ Shine Congo</div>
             
-            {% if user.is_authenticated %}
-            <nav class="nav-menu">
+        {% if user.is_authenticated %}
+            <nav class="nav-menu{% if show_admin_box %} nav-menu--admin{% endif %}">
                 {% if user.is_superuser %}
                     <a href="{% url 'admin_dashboard' %}">
                         Boite Admin
@@ -490,6 +719,48 @@
                         <span class="nav-badge">{{ admin_inbox_unread_total }}</span>
                         {% endif %}
                     </a>
+                    {% if show_admin_site_nav %}
+                    <div class="nav-dropdown" data-nav-dropdown>
+                        <button type="button" class="nav-menu-button" data-nav-dropdown-toggle aria-expanded="false" aria-haspopup="true">
+                            {{ admin_site_nav_label }} ▾
+                        </button>
+                        <div class="nav-dropdown-panel" data-nav-dropdown-panel hidden>
+                            {% for section in admin_site_nav_sections %}
+                            <div class="admin-site-menu-section">
+                                <div class="admin-site-menu-head">
+                                    <span class="admin-site-menu-title">{{ section.site_name }}</span>
+                                    <a href="{{ section.detail_url }}" class="admin-site-menu-link">Ouvrir</a>
+                                </div>
+                                <div class="admin-site-menu-grid">
+                                    {% for item in section.items %}
+                                    <a href="{{ item.url }}" class="admin-site-menu-item">{{ item.label }}</a>
+                                    {% endfor %}
+                                </div>
+                                {% if section.employee_links %}
+                                <div class="admin-site-menu-subtitle">Employés</div>
+                                <div class="admin-site-menu-employees">
+                                    {% for employee in section.employee_links %}
+                                    <a href="{{ employee.url }}" class="admin-site-employee-link">{{ employee.label }}</a>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="admin-nav-search" data-admin-search>
+                        <input
+                            type="search"
+                            class="admin-nav-search-input"
+                            placeholder="Recherche admin ou site"
+                            data-admin-search-input
+                            autocomplete="off"
+                            aria-label="Recherche rapide admin"
+                        >
+                        <div class="admin-nav-search-results" data-admin-search-results hidden></div>
+                        {{ admin_site_search_items|json_script:"admin-site-search-data" }}
+                    </div>
+                    {% endif %}
                 {% elif user.userprofile.is_employe %}
                     <a href="{% url 'employe_dashboard' %}" class="employee-mobile-hide">Tableau de bord</a>
                     <a href="{% url 'ajouter_lavage' %}" class="employee-mobile-hide">Ajouter lavage</a>
@@ -507,6 +778,48 @@
                         <span class="nav-badge">{{ admin_inbox_unread_total }}</span>
                         {% endif %}
                     </a>
+                    {% if show_admin_site_nav %}
+                    <div class="nav-dropdown" data-nav-dropdown>
+                        <button type="button" class="nav-menu-button" data-nav-dropdown-toggle aria-expanded="false" aria-haspopup="true">
+                            {{ admin_site_nav_label }} ▾
+                        </button>
+                        <div class="nav-dropdown-panel" data-nav-dropdown-panel hidden>
+                            {% for section in admin_site_nav_sections %}
+                            <div class="admin-site-menu-section">
+                                <div class="admin-site-menu-head">
+                                    <span class="admin-site-menu-title">{{ section.site_name }}</span>
+                                    <a href="{{ section.detail_url }}" class="admin-site-menu-link">Ouvrir</a>
+                                </div>
+                                <div class="admin-site-menu-grid">
+                                    {% for item in section.items %}
+                                    <a href="{{ item.url }}" class="admin-site-menu-item">{{ item.label }}</a>
+                                    {% endfor %}
+                                </div>
+                                {% if section.employee_links %}
+                                <div class="admin-site-menu-subtitle">Employés</div>
+                                <div class="admin-site-menu-employees">
+                                    {% for employee in section.employee_links %}
+                                    <a href="{{ employee.url }}" class="admin-site-employee-link">{{ employee.label }}</a>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="admin-nav-search" data-admin-search>
+                        <input
+                            type="search"
+                            class="admin-nav-search-input"
+                            placeholder="Recherche admin ou site"
+                            data-admin-search-input
+                            autocomplete="off"
+                            aria-label="Recherche rapide admin"
+                        >
+                        <div class="admin-nav-search-results" data-admin-search-results hidden></div>
+                        {{ admin_site_search_items|json_script:"admin-site-search-data" }}
+                    </div>
+                    {% endif %}
                 {% endif %}
                 <a href="{% url 'logout' %}">Déconnexion</a>
             </nav>
@@ -569,6 +882,165 @@
 
             updateClocks();
             window.setInterval(updateClocks, 1000);
+        })();
+
+        (() => {
+            const dropdowns = document.querySelectorAll('[data-nav-dropdown]');
+            if (!dropdowns.length) {
+                return;
+            }
+
+            const closeAllDropdowns = () => {
+                dropdowns.forEach((dropdown) => {
+                    const button = dropdown.querySelector('[data-nav-dropdown-toggle]');
+                    const panel = dropdown.querySelector('[data-nav-dropdown-panel]');
+                    if (button && panel) {
+                        button.setAttribute('aria-expanded', 'false');
+                        panel.hidden = true;
+                    }
+                });
+            };
+
+            dropdowns.forEach((dropdown) => {
+                const button = dropdown.querySelector('[data-nav-dropdown-toggle]');
+                const panel = dropdown.querySelector('[data-nav-dropdown-panel]');
+                if (!button || !panel) {
+                    return;
+                }
+
+                button.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    const shouldOpen = panel.hidden;
+                    closeAllDropdowns();
+                    panel.hidden = !shouldOpen;
+                    button.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+                });
+            });
+
+            document.addEventListener('click', (event) => {
+                if (!event.target.closest('[data-nav-dropdown]')) {
+                    closeAllDropdowns();
+                }
+            });
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    closeAllDropdowns();
+                }
+            });
+        })();
+
+        (() => {
+            const searchRoot = document.querySelector('[data-admin-search]');
+            const dataNode = document.getElementById('admin-site-search-data');
+            if (!searchRoot || !dataNode) {
+                return;
+            }
+
+            const input = searchRoot.querySelector('[data-admin-search-input]');
+            const results = searchRoot.querySelector('[data-admin-search-results]');
+            const items = JSON.parse(dataNode.textContent || '[]');
+            let activeIndex = -1;
+            let visibleItems = [];
+
+            const normalize = (value) => String(value || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .trim();
+
+            const render = () => {
+                const query = normalize(input.value);
+                visibleItems = items.filter((item) => normalize(item.search_text).includes(query));
+
+                if (!query) {
+                    visibleItems = items.slice(0, 8);
+                } else {
+                    visibleItems = visibleItems.slice(0, 10);
+                }
+
+                activeIndex = -1;
+
+                if (!visibleItems.length) {
+                    results.innerHTML = '<div class="admin-nav-search-empty">Aucun résultat trouvé.</div>';
+                    results.hidden = false;
+                    return;
+                }
+
+                results.innerHTML = '';
+                visibleItems.forEach((item, index) => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'admin-nav-search-result';
+                    button.dataset.searchIndex = String(index);
+                    button.dataset.searchUrl = item.url;
+
+                    const label = document.createElement('span');
+                    label.className = 'admin-nav-search-label';
+                    label.textContent = item.label;
+
+                    const meta = document.createElement('span');
+                    meta.className = 'admin-nav-search-meta';
+                    meta.textContent = `${item.site_name || 'Navigation admin'}${item.description ? ' • ' + item.description : ''}`;
+
+                    button.appendChild(label);
+                    button.appendChild(meta);
+                    results.appendChild(button);
+                });
+                results.hidden = false;
+            };
+
+            const highlightActive = () => {
+                const nodes = results.querySelectorAll('[data-search-index]');
+                nodes.forEach((node) => {
+                    node.classList.toggle('is-active', Number(node.dataset.searchIndex) === activeIndex);
+                });
+            };
+
+            const openSelected = (index) => {
+                const item = visibleItems[index];
+                if (item && item.url) {
+                    window.location.href = item.url;
+                }
+            };
+
+            input.addEventListener('focus', render);
+            input.addEventListener('input', render);
+
+            input.addEventListener('keydown', (event) => {
+                if (results.hidden || !visibleItems.length) {
+                    return;
+                }
+
+                if (event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    activeIndex = (activeIndex + 1) % visibleItems.length;
+                    highlightActive();
+                } else if (event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    activeIndex = activeIndex <= 0 ? visibleItems.length - 1 : activeIndex - 1;
+                    highlightActive();
+                } else if (event.key === 'Enter') {
+                    event.preventDefault();
+                    openSelected(activeIndex >= 0 ? activeIndex : 0);
+                } else if (event.key === 'Escape') {
+                    results.hidden = true;
+                }
+            });
+
+            results.addEventListener('click', (event) => {
+                const target = event.target.closest('[data-search-url]');
+                if (!target) {
+                    return;
+                }
+                window.location.href = target.dataset.searchUrl;
+            });
+
+            document.addEventListener('click', (event) => {
+                if (!event.target.closest('[data-admin-search]')) {
+                    results.hidden = true;
+                }
+            });
         })();
 
         // Protection stricte contre l'accès non autorisé après déconnexion

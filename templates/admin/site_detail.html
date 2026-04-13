@@ -61,7 +61,7 @@
 </section>
 <p class="site-rate-note">{% fx_rate_label %}</p>
 
-<section class="site-section-card">
+<section class="site-section-card" id="journal-site">
     <div class="site-section-head">
         <div>
             <h2 class="site-section-title">Journal du site</h2>
@@ -1271,7 +1271,7 @@
 {% endif %}
 
 <!-- Statistiques principales -->
-<section class="site-section-card">
+<section class="site-section-card" id="synthese-operationnelle">
     <div class="site-section-head">
         <div>
             <h2 class="site-section-title">Synthèse opérationnelle</h2>
@@ -1326,7 +1326,7 @@
 </section>
 
 <!-- Pilotage hebdomadaire -->
-<div class="card finance-panel mb-4">
+<div class="card finance-panel mb-4" id="pilotage-hebdomadaire">
     <div class="finance-header">
         <div>
             <span class="finance-eyebrow">Pilotage hebdomadaire</span>
@@ -1787,7 +1787,7 @@
 {% endif %}
 
 <!-- Photos des voitures lavées -->
-<details class="site-section-card">
+<details class="site-section-card" id="photos-lavages">
     <summary class="site-section-head">
         <div>
             <h2 class="site-section-title">Photos des voitures lavées</h2>
@@ -1839,7 +1839,7 @@
 </style>
 
 <!-- Problèmes signalés -->
-<details class="site-section-card" {% if problemes_date %}open{% endif %}>
+<details class="site-section-card" id="problemes-signales" {% if problemes_date %}open{% endif %}>
     <summary class="site-section-head">
         <div>
             <h2 class="site-section-title">Problèmes signalés</h2>
@@ -1903,7 +1903,7 @@
 
 <!-- Problèmes ouverts (tous statuts) -->
 {% if problemes_ouverts %}
-<details class="site-section-card">
+<details class="site-section-card" id="problemes-ouverts">
     <summary class="site-section-head">
         <div>
             <h2 class="site-section-title" style="color: var(--warning-color);">Problèmes ouverts</h2>
@@ -1951,7 +1951,7 @@
 {% endif %}
 
 <!-- Liste des lavages -->
-<details class="site-section-card" {% if selected_single_date %}open{% endif %}>
+<details class="site-section-card" id="historique-lavages" {% if selected_single_date %}open{% endif %}>
     <summary class="site-section-head">
         <div>
             <h2 class="site-section-title">Historique des lavages</h2>
@@ -2023,7 +2023,7 @@
 </details>
 
 <!-- Pointages du jour -->
-<details class="site-section-card" {% if selected_single_date %}open{% endif %}>
+<details class="site-section-card" id="pointages-site" {% if selected_single_date %}open{% endif %}>
     <summary class="site-section-head">
         <div>
             <h2 class="site-section-title">Pointages</h2>
