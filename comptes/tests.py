@@ -8,7 +8,7 @@ from decimal import Decimal
 
 from comptes.forms import ApprovalAuthenticationForm
 from comptes.views import _daily_funding_snapshot
-from sites.models import Location, SiteDocument, SiteJournalEntry
+from sites.models import Location, SiteDocument, SiteJournalEntry, SiteWaterPurchase
 from sites.models import DailyBankDeposit, SiteLossEntry
 from pointage.models import ShiftDay
 
@@ -250,6 +250,55 @@ class SiteJournalEntryTests(TestCase):
         self.assertContains(response, "Journal du site")
         self.assertContains(response, "Visite du bailleur")
         self.assertContains(response, reverse("admin_site_journal", args=[self.site.id]))
+
+
+class WaterPurchaseTrackingTests(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            username="water_admin",
+            email="water_admin@example.com",
+            password="AdminPass123!",
+        )
+        self.site = Location.objects.create(
+            nom="Site Eau",
+            adresse="Adresse Eau",
+            ville="Kinshasa",
+            actif=True,
+        )
+        self.client.login(username="water_admin", password="AdminPass123!")
+
+    def test_admin_can_create_water_purchase(self):
+        response = self.client.post(
+            reverse("admin_water_purchases"),
+            data={
+                "site": str(self.site.id),
+                "purchase_date": "2026-04-13",
+                "amount_fc": "24000",
+                "notes": "Remplissage du réservoir",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse("admin_water_purchases"), fetch_redirect_response=False)
+        purchase = SiteWaterPurchase.objects.get(site=self.site)
+        self.assertEqual(purchase.amount_fc, Decimal("24000"))
+        self.assertEqual(purchase.created_by, self.admin_user)
+
+    def test_admin_dashboard_shows_water_purchase_summary(self):
+        SiteWaterPurchase.objects.create(
+            site=self.site,
+            purchase_date=timezone.localdate(),
+            amount_fc=Decimal("24000"),
+            notes="Achat eau du jour",
+            created_by=self.admin_user,
+        )
+
+        response = self.client.get(reverse("admin_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Achats d'eau")
+        self.assertContains(response, "24 000")
+        self.assertContains(response, reverse("admin_water_purchases"))
 
 
 class FundingSnapshotTests(TestCase):

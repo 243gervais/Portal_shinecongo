@@ -359,6 +359,7 @@
         </div>
         <div class="admin-toolbar">
             <a href="{% url 'admin_create_site' %}" class="btn btn-success">Créer un site</a>
+            <a href="{% url 'admin_water_purchases' %}" class="btn btn-info">Suivi eau</a>
             <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">Rafraîchir</a>
         </div>
     </section>
@@ -419,6 +420,73 @@
         <div class="admin-empty">Aucun site disponible.</div>
         {% endif %}
     </section>
+
+    <details class="admin-queue-card" open>
+        <summary class="admin-queue-head">
+            <div>
+                <h3 class="admin-queue-title">Achats d'eau</h3>
+                <p class="admin-queue-copy">Suivi des remplissages du réservoir payés au fil du mois. Le total du mois vous montre ce qui est dû au propriétaire du forage.</p>
+            </div>
+            <span class="admin-badge">{{ water_purchase_summary.month_count }}</span>
+        </summary>
+        <div class="admin-queue-body">
+            <div class="admin-sites-grid" style="margin-bottom: 1rem;">
+                <div class="admin-site-metric">
+                    <div class="admin-site-label">Total du mois</div>
+                    <div class="admin-site-value">{{ water_purchase_summary.month_total|fc_amount }} FC</div>
+                    <div class="admin-site-subvalue">Du {{ month_start|date:"d/m/Y" }} au {{ today|date:"d/m/Y" }}</div>
+                </div>
+                <div class="admin-site-metric">
+                    <div class="admin-site-label">Achats du mois</div>
+                    <div class="admin-site-value">{{ water_purchase_summary.month_count }}</div>
+                    <div class="admin-site-subvalue">Enregistrements d'eau</div>
+                </div>
+                <div class="admin-site-metric">
+                    <div class="admin-site-label">Suivi complet</div>
+                    <div class="admin-site-value">Eau</div>
+                    <div class="admin-site-subvalue">Ajout, historique, correction</div>
+                </div>
+            </div>
+
+            {% if water_purchase_summary.site_breakdown %}
+            <div class="admin-compact-list" style="margin-bottom: 1rem;">
+                {% for item in water_purchase_summary.site_breakdown %}
+                <div class="admin-compact-item">
+                    <div>
+                        <div class="admin-compact-title">{{ item.site__nom }}</div>
+                        <div class="admin-compact-meta">{{ item.count }} achat{{ item.count|pluralize }} ce mois</div>
+                    </div>
+                    <div class="admin-compact-amount">{{ item.total|fc_amount }} FC</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.8rem;">
+                <strong style="color: var(--primary-dark);">Derniers achats</strong>
+                <a href="{% url 'admin_water_purchases' %}" class="btn btn-secondary">Gérer le suivi eau</a>
+            </div>
+
+            {% if recent_water_purchases %}
+            <div class="admin-compact-list">
+                {% for purchase in recent_water_purchases %}
+                <div class="admin-compact-item">
+                    <div>
+                        <div class="admin-compact-title">{{ purchase.site.nom }}</div>
+                        <div class="admin-compact-meta">{{ purchase.purchase_date|date:"d/m/Y" }}</div>
+                        {% if purchase.notes %}
+                        <div class="admin-compact-meta">{{ purchase.notes|truncatechars:120 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="admin-compact-amount">{{ purchase.amount_fc|fc_amount }} FC</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="admin-empty">Aucun achat d'eau enregistré pour le moment.</div>
+            {% endif %}
+        </div>
+    </details>
 
     <details class="admin-queue-card">
         <summary class="admin-queue-head">

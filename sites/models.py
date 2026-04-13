@@ -266,6 +266,51 @@ class SiteJournalEntry(models.Model):
         return f"{self.site.nom} - {self.entry_date} - {self.title}"
 
 
+class SiteWaterPurchase(models.Model):
+    """
+    Suivi des achats d'eau effectués pour un site.
+    Sert à comptabiliser les remplissages payés au cours du mois.
+    """
+
+    site = models.ForeignKey(
+        Location,
+        on_delete=models.CASCADE,
+        related_name="water_purchases",
+        verbose_name="Site",
+    )
+    purchase_date = models.DateField(verbose_name="Date d'achat")
+    amount_fc = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("24000"),
+        validators=[MinValueValidator(0)],
+        verbose_name="Montant (FC)",
+    )
+    notes = models.TextField(blank=True, verbose_name="Notes")
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="site_water_purchases_created",
+        verbose_name="Enregistré par",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")
+
+    class Meta:
+        verbose_name = "Achat d'eau du Site"
+        verbose_name_plural = "Achats d'eau du Site"
+        ordering = ["-purchase_date", "-created_at"]
+        indexes = [
+            models.Index(fields=["site", "purchase_date"]),
+            models.Index(fields=["-created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.site.nom} - {self.purchase_date} - {self.amount_fc} FC"
+
+
 def site_document_path(instance, filename):
     """Chemin de sauvegarde des documents du site"""
     site_id = str(instance.site.id)

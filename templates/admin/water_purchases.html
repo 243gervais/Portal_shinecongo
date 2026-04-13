@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% load currency_tags %}
+
+{% block title %}Suivi eau{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem;">
+    <div>
+        <h1 class="mt-2 mb-2">Suivi eau</h1>
+        <p style="color: var(--text-secondary); margin: 0;">Suivi des achats d'eau pour les remplissages du réservoir, avec total du mois à payer au propriétaire du forage.</p>
+    </div>
+    <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">Retour au dashboard</a>
+</div>
+
+<div class="card mb-4">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
+        <div>
+            <strong style="color: var(--text-secondary);">Total du mois</strong>
+            <div style="font-size: 1.65rem; font-weight: 800; color: var(--primary-color);">{{ month_total|fc_amount }} FC</div>
+            <small style="color: var(--text-secondary);">Du {{ month_start|date:"d/m/Y" }} au {{ today|date:"d/m/Y" }}</small>
+        </div>
+        <div>
+            <strong style="color: var(--text-secondary);">Achats du mois</strong>
+            <div style="font-size: 1.65rem; font-weight: 800; color: var(--primary-dark);">{{ month_count }}</div>
+            <small style="color: var(--text-secondary);">Remplissages enregistrés</small>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <h2 class="mb-3">Enregistrer un achat d'eau</h2>
+    <form method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+            {% for error in form.non_field_errors %}
+            <div>{{ error }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
+            <div class="form-group">
+                <label for="{{ form.site.id_for_label }}">Site</label>
+                {{ form.site }}
+            </div>
+            <div class="form-group">
+                <label for="{{ form.purchase_date.id_for_label }}">Date d'achat</label>
+                {{ form.purchase_date }}
+            </div>
+            <div class="form-group">
+                <label for="{{ form.amount_fc.id_for_label }}">Montant (FC)</label>
+                {{ form.amount_fc }}
+                <small style="color: var(--text-secondary);">{{ form.amount_fc.help_text }}</small>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.notes.id_for_label }}">Notes</label>
+            {{ form.notes }}
+        </div>
+
+        <button type="submit" class="btn btn-primary">Enregistrer l'achat d'eau</button>
+    </form>
+</div>
+
+<div class="card mb-4">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem;">
+        <h2 class="mb-0">Répartition du mois par site</h2>
+        <span style="color: var(--text-secondary);">{{ site_breakdown|length }} site{{ site_breakdown|length|pluralize }}</span>
+    </div>
+
+    {% if site_breakdown %}
+    <div style="display: grid; gap: 0.8rem;">
+        {% for item in site_breakdown %}
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; padding: 0.9rem 1rem; border-radius: 16px; background: var(--bg-secondary);">
+            <div>
+                <strong>{{ item.site__nom }}</strong>
+                <div style="color: var(--text-secondary); font-size: 0.84rem;">{{ item.count }} achat{{ item.count|pluralize }} ce mois</div>
+            </div>
+            <div style="font-weight: 800; color: var(--primary-color);">{{ item.total|fc_amount }} FC</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p style="margin: 0; color: var(--text-secondary);">Aucun achat d'eau enregistré ce mois.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem;">
+        <h2 class="mb-0">Historique récent</h2>
+        <span style="color: var(--text-secondary);">{{ purchases|length }} ligne{{ purchases|length|pluralize }} affichée{{ purchases|length|pluralize }}</span>
+    </div>
+
+    {% if purchases %}
+    <div style="display: grid; gap: 0.8rem;">
+        {% for purchase in purchases %}
+        <article style="padding: 1rem 1.05rem; border: 1px solid rgba(10, 67, 107, 0.08); border-radius: 18px; background: rgba(255, 255, 255, 0.95);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap;">
+                <div style="min-width: 0; flex: 1;">
+                    <div style="font-weight: 700; color: var(--primary-dark);">{{ purchase.site.nom }}</div>
+                    <div style="color: var(--text-secondary); font-size: 0.84rem;">{{ purchase.purchase_date|date:"d/m/Y" }}</div>
+                    {% if purchase.notes %}
+                    <p style="margin: 0.45rem 0 0 0; color: var(--text-secondary); white-space: pre-line;">{{ purchase.notes }}</p>
+                    {% endif %}
+                </div>
+                <div style="min-width: 180px; text-align: right;">
+                    <div style="font-size: 1.05rem; font-weight: 800; color: var(--primary-color);">{{ purchase.amount_fc|fc_amount }} FC</div>
+                    <div style="display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem;">
+                        <a href="{% url 'admin_edit_water_purchase' purchase.id %}" class="btn btn-info">Modifier</a>
+                        <a href="{% url 'admin_delete_water_purchase' purchase.id %}" class="btn btn-danger">Supprimer</a>
+                    </div>
+                </div>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p style="margin: 0; color: var(--text-secondary);">Aucun achat d'eau enregistré pour le moment.</p>
+    {% endif %}
+</div>
+{% endblock %}

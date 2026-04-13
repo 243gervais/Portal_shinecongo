@@ -2,7 +2,8 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.models import User
 from django.utils import timezone
-from sites.models import Location, SiteJournalEntry
+from decimal import Decimal
+from sites.models import Location, SiteJournalEntry, SiteWaterPurchase
 from .models import UserProfile, EmployeePayment
 
 
@@ -406,3 +407,26 @@ class SiteJournalEntryForm(forms.ModelForm):
         help_texts = {
             "amount_fc": "Optionnel. Ce montant reste informatif et n'entre pas automatiquement dans les calculs financiers.",
         }
+
+
+class SiteWaterPurchaseForm(forms.ModelForm):
+    class Meta:
+        model = SiteWaterPurchase
+        fields = ["site", "purchase_date", "amount_fc", "notes"]
+        widgets = {
+            "site": forms.Select(attrs={"class": "form-control"}),
+            "purchase_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "amount_fc": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0"}),
+            "notes": forms.Textarea(
+                attrs={"class": "form-control", "rows": 3, "placeholder": "Optionnel: remarque sur le remplissage ou le transport"}
+            ),
+        }
+        help_texts = {
+            "amount_fc": "Montant par achat. La valeur par défaut est 24 000 FC mais vous pouvez la modifier.",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["site"].queryset = Location.objects.filter(actif=True).order_by("nom")
+        self.fields["purchase_date"].initial = timezone.localdate()
+        self.fields["amount_fc"].initial = Decimal("24000")

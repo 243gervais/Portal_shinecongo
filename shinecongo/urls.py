@@ -24,6 +24,9 @@ from comptes.views import (
     logout_view,
     register_view,
     admin_dashboard,
+    admin_water_purchases,
+    admin_edit_water_purchase,
+    admin_delete_water_purchase,
     admin_approve_account_request,
     admin_reject_account_request,
     admin_site_detail,
@@ -122,6 +125,9 @@ urlpatterns = [
     
     # PORTAIL ADMIN
     path("admin-dashboard/", admin_dashboard, name="admin_dashboard"),
+    path("admin-dashboard/water-purchases/", admin_water_purchases, name="admin_water_purchases"),
+    path("admin-dashboard/water-purchases/<int:purchase_id>/edit/", admin_edit_water_purchase, name="admin_edit_water_purchase"),
+    path("admin-dashboard/water-purchases/<int:purchase_id>/delete/", admin_delete_water_purchase, name="admin_delete_water_purchase"),
     path("admin-dashboard/account-requests/<int:user_id>/approve/", admin_approve_account_request, name="admin_approve_account_request"),
     path("admin-dashboard/account-requests/<int:user_id>/reject/", admin_reject_account_request, name="admin_reject_account_request"),
     path("admin-dashboard/site/create/", admin_create_site, name="admin_create_site"),

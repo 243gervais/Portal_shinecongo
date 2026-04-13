@@ -19,6 +19,7 @@ from .forms import (
     SiteEmployeeForm,
     EmployeePaymentForm,
     SiteJournalEntryForm,
+    SiteWaterPurchaseForm,
 )
 from sites.models import (
     Location,
@@ -26,6 +27,7 @@ from sites.models import (
     SiteDocument,
     SiteLossEntry,
     SiteJournalEntry,
+    SiteWaterPurchase,
 )
 from lavages.models import CarWash, CarWashPhoto
 from problemes.models import IssueReport
@@ -500,6 +502,26 @@ def admin_dashboard(request):
     dashboard_summary['delta_month'] = dashboard_summary['reports_month'] - dashboard_summary['cash_month']
     dashboard_summary['delta_year'] = dashboard_summary['reports_year'] - dashboard_summary['cash_year']
 
+    water_purchases_month_qs = SiteWaterPurchase.objects.filter(
+        site__actif=True,
+        purchase_date__gte=month_start,
+        purchase_date__lte=today,
+    ).select_related("site").order_by("-purchase_date", "-created_at")
+    recent_water_purchases = list(
+        SiteWaterPurchase.objects.filter(site__actif=True)
+        .select_related("site")
+        .order_by("-purchase_date", "-created_at")[:6]
+    )
+    water_purchase_summary = {
+        "month_total": water_purchases_month_qs.aggregate(total=Sum("amount_fc"))["total"] or Decimal("0"),
+        "month_count": water_purchases_month_qs.count(),
+        "site_breakdown": list(
+            water_purchases_month_qs.values("site__nom")
+            .annotate(total=Sum("amount_fc"), count=Count("id"))
+            .order_by("-total", "site__nom")
+        ),
+    }
+
     context = {
         'sites_stats': sites_stats,
         'today': today,
@@ -510,6 +532,8 @@ def admin_dashboard(request):
         'pending_account_requests_count': len(pending_account_requests),
         'recent_daily_reports': recent_daily_reports,
         'recent_daily_reports_count': len(recent_daily_reports),
+        'recent_water_purchases': recent_water_purchases,
+        'water_purchase_summary': water_purchase_summary,
     }
 
     mark_admin_inbox_seen(user)
@@ -566,6 +590,110 @@ def admin_reject_account_request(request, user_id):
     requested_user.delete()
     messages.success(request, f'Demande de compte "{username}" rejetée et supprimée.')
     return redirect("admin_dashboard")
+
+
+@login_required
+@no_cache_view
+def admin_water_purchases(request):
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect("dashboard")
+
+    today = timezone.localdate()
+    month_start = today.replace(day=1)
+    purchases = SiteWaterPurchase.objects.filter(site__actif=True).select_related("site", "created_by").order_by("-purchase_date", "-created_at")
+
+    if request.method == "POST":
+        form = SiteWaterPurchaseForm(request.POST)
+        if form.is_valid():
+            purchase = form.save(commit=False)
+            purchase.created_by = user
+            purchase.save()
+            messages.success(request, "L'achat d'eau a été enregistré.")
+            return redirect("admin_water_purchases")
+    else:
+        form = SiteWaterPurchaseForm()
+
+    month_purchases = purchases.filter(purchase_date__gte=month_start, purchase_date__lte=today)
+    month_total = month_purchases.aggregate(total=Sum("amount_fc"))["total"] or Decimal("0")
+    month_count = month_purchases.count()
+    by_site = list(
+        month_purchases.values("site__nom")
+        .annotate(total=Sum("amount_fc"), count=Count("id"))
+        .order_by("-total", "site__nom")
+    )
+
+    return render(
+        request,
+        "admin/water_purchases.html",
+        {
+            "form": form,
+            "purchases": purchases[:30],
+            "today": today,
+            "month_start": month_start,
+            "month_total": month_total,
+            "month_count": month_count,
+            "site_breakdown": by_site,
+        },
+    )
+
+
+@login_required
+@no_cache_view
+def admin_edit_water_purchase(request, purchase_id):
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect("dashboard")
+
+    purchase = get_object_or_404(SiteWaterPurchase, id=purchase_id)
+    if request.method == "POST":
+        form = SiteWaterPurchaseForm(request.POST, instance=purchase)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "L'achat d'eau a été mis à jour.")
+            return redirect("admin_water_purchases")
+    else:
+        form = SiteWaterPurchaseForm(instance=purchase)
+
+    return render(
+        request,
+        "admin/edit_water_purchase.html",
+        {
+            "purchase": purchase,
+            "form": form,
+        },
+    )
+
+
+@login_required
+@no_cache_view
+def admin_delete_water_purchase(request, purchase_id):
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect("dashboard")
+
+    purchase = get_object_or_404(SiteWaterPurchase, id=purchase_id)
+    if request.method == "POST":
+        purchase.delete()
+        messages.success(request, "L'achat d'eau a été supprimé.")
+        return redirect("admin_water_purchases")
+
+    return render(
+        request,
+        "admin/delete_water_purchase.html",
+        {
+            "purchase": purchase,
+        },
+    )
 
 
 @login_required
