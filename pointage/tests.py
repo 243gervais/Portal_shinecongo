@@ -70,6 +70,14 @@ class EmployeeDailyReportTests(TestCase):
         self.assertIn("Montant déclaré: 15 000 FC", mail.outbox[0].body)
         self.assertIn("Dépenses du jour: 16 000 FC", mail.outbox[0].body)
 
+    def test_employee_dashboard_contains_instant_navigation(self):
+        response = self.client.get(reverse("employe_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "window.instantNavigate")
+        self.assertContains(response, "portal-instant-employee:")
+        self.assertContains(response, reverse("employe_daily_report"))
+
     def test_employee_can_update_same_day_report(self):
         today = timezone.localdate()
         ShiftDay.objects.create(

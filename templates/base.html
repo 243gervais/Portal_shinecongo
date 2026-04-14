@@ -1051,14 +1051,30 @@
             });
         })();
 
-        {% if show_admin_box %}
+        {% if show_admin_box or user.userprofile.is_employe %}
         (() => {
-            const dataNode = document.getElementById('admin-site-search-data');
-            const CACHE_PREFIX = 'portal-instant-admin:';
-            const CACHE_TTL_MS = 90 * 1000;
-            const MAX_CACHE_ENTRIES = 24;
+            const isAdminInstantNav = {% if show_admin_box %}true{% else %}false{% endif %};
+            const isEmployeeInstantNav = {% if user.is_authenticated and user.userprofile.is_employe %}true{% else %}false{% endif %};
+            if (!isAdminInstantNav && !isEmployeeInstantNav) {
+                return;
+            }
+
+            const dataNode = isAdminInstantNav ? document.getElementById('admin-site-search-data') : null;
+            const CACHE_PREFIX = isAdminInstantNav ? 'portal-instant-admin:' : 'portal-instant-employee:';
+            const CACHE_TTL_MS = isAdminInstantNav ? 90 * 1000 : 45 * 1000;
+            const MAX_CACHE_ENTRIES = isAdminInstantNav ? 24 : 18;
+            const MAX_WARMUP_URLS = isAdminInstantNav ? 28 : 16;
             const pendingRequests = new Map();
-            const allowedPrefixes = ['/admin-dashboard/'];
+            const allowedPrefixes = isAdminInstantNav ? ['/admin-dashboard/'] : ['/employe/'];
+            const employeeWarmupUrls = isEmployeeInstantNav ? [
+                '{% url "employe_dashboard" %}',
+                '{% url "ajouter_lavage" %}',
+                '{% url "signaler_probleme" %}',
+                '{% url "employe_historique" %}',
+                '{% url "employe_daily_report" %}',
+                '{% url "mes_lavages" %}',
+                '{% url "mes_problemes" %}',
+            ] : [];
 
             const normalizeUrl = (href) => {
                 const url = new URL(href, window.location.origin);
@@ -1077,7 +1093,9 @@
                         url.pathname.startsWith('/register/') ||
                         url.pathname.startsWith('/media/') ||
                         url.pathname.startsWith('/static/') ||
-                        url.pathname.startsWith('/admin/')
+                        url.pathname.startsWith('/admin/') ||
+                        url.pathname.startsWith('/employe/scan-in/') ||
+                        url.pathname.startsWith('/employe/scan-out/')
                     );
                     const samePageHashOnly = (
                         url.pathname === window.location.pathname &&
@@ -1280,6 +1298,8 @@
                     }
                 };
 
+                employeeWarmupUrls.forEach((value) => pushUrl(value));
+
                 if (dataNode) {
                     try {
                         const searchItems = JSON.parse(dataNode.textContent || '[]');
@@ -1300,7 +1320,7 @@
                     pushUrl(link.href);
                 });
 
-                const queue = urls.slice(0, 28);
+                const queue = urls.slice(0, MAX_WARMUP_URLS);
                 let index = 0;
 
                 const work = () => {
