@@ -247,6 +247,22 @@ class SiteJournalEntry(models.Model):
         blank=True,
         verbose_name="Montant lié (FC)",
     )
+    reminder_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Rappel email prévu pour",
+        help_text="Optionnel. Le système enverra un email de rappel à la date et l'heure choisies.",
+    )
+    reminder_email = models.EmailField(
+        blank=True,
+        verbose_name="Email de rappel",
+        help_text="Défini automatiquement à partir de l'email de l'administrateur connecté.",
+    )
+    reminder_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Rappel envoyé le",
+    )
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -265,6 +281,7 @@ class SiteJournalEntry(models.Model):
         indexes = [
             models.Index(fields=["site", "entry_date"]),
             models.Index(fields=["site", "category"]),
+            models.Index(fields=["reminder_at"]),
             models.Index(fields=["-created_at"]),
         ]
 

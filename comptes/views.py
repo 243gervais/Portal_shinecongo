@@ -1225,7 +1225,7 @@ def admin_site_journal(request, site_id):
     entries = SiteJournalEntry.objects.filter(site=site).select_related("created_by").order_by("-entry_date", "-created_at")
 
     if request.method == "POST":
-        form = SiteJournalEntryForm(request.POST)
+        form = SiteJournalEntryForm(request.POST, reminder_user=request.user)
         if form.is_valid():
             entry = form.save(commit=False)
             entry.site = site
@@ -1234,7 +1234,10 @@ def admin_site_journal(request, site_id):
             messages.success(request, "L'entrée du journal a été enregistrée.")
             return redirect("admin_site_journal", site_id=site.id)
     else:
-        form = SiteJournalEntryForm(initial={"entry_date": timezone.localdate()})
+        form = SiteJournalEntryForm(
+            initial={"entry_date": timezone.localdate()},
+            reminder_user=request.user,
+        )
 
     return render(
         request,
@@ -1259,13 +1262,13 @@ def admin_edit_site_journal_entry(request, site_id, entry_id):
     entry = get_object_or_404(SiteJournalEntry, id=entry_id, site=site)
 
     if request.method == "POST":
-        form = SiteJournalEntryForm(request.POST, instance=entry)
+        form = SiteJournalEntryForm(request.POST, instance=entry, reminder_user=request.user)
         if form.is_valid():
             form.save()
             messages.success(request, "L'entrée du journal a été mise à jour.")
             return redirect("admin_site_journal", site_id=site.id)
     else:
-        form = SiteJournalEntryForm(instance=entry)
+        form = SiteJournalEntryForm(instance=entry, reminder_user=request.user)
 
     return render(
         request,

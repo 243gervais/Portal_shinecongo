@@ -26,26 +26,37 @@
             <div class="form-group">
                 <label for="{{ form.entry_date.id_for_label }}">Date</label>
                 {{ form.entry_date }}
+                {% for error in form.entry_date.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
             </div>
             <div class="form-group">
                 <label for="{{ form.category.id_for_label }}">Catégorie</label>
                 {{ form.category }}
+                {% for error in form.category.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
             </div>
             <div class="form-group">
                 <label for="{{ form.amount_fc.id_for_label }}">Montant lié (FC)</label>
                 {{ form.amount_fc }}
                 <small style="color: var(--text-secondary);">{{ form.amount_fc.help_text }}</small>
+                {% for error in form.amount_fc.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+            </div>
+            <div class="form-group">
+                <label for="{{ form.reminder_at.id_for_label }}">Rappel par email</label>
+                {{ form.reminder_at }}
+                <small style="color: var(--text-secondary);">{{ form.reminder_at.help_text }}</small>
+                {% for error in form.reminder_at.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
             </div>
         </div>
 
         <div class="form-group">
             <label for="{{ form.title.id_for_label }}">Titre</label>
             {{ form.title }}
+            {% for error in form.title.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
         </div>
 
         <div class="form-group">
             <label for="{{ form.description.id_for_label }}">Détails</label>
             {{ form.description }}
+            {% for error in form.description.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
         </div>
 
         <button type="submit" class="btn btn-primary btn-block">Enregistrer les modifications</button>

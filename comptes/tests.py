@@ -3,7 +3,7 @@ from django.urls import reverse
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from comptes.forms import ApprovalAuthenticationForm
@@ -217,6 +217,7 @@ class SiteJournalEntryTests(TestCase):
         self.client.login(username="journal_admin", password="AdminPass123!")
 
     def test_admin_can_create_site_journal_entry(self):
+        reminder_at = timezone.localtime(timezone.now() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M")
         response = self.client.post(
             reverse("admin_site_journal", args=[self.site.id]),
             data={
@@ -225,6 +226,7 @@ class SiteJournalEntryTests(TestCase):
                 "title": "Achat matériel supplémentaire",
                 "description": "Achat urgent de matériel pour le site.",
                 "amount_fc": "25000",
+                "reminder_at": reminder_at,
             },
         )
 
@@ -238,6 +240,9 @@ class SiteJournalEntryTests(TestCase):
         self.assertEqual(entry.title, "Achat matériel supplémentaire")
         self.assertEqual(entry.amount_fc, Decimal("25000"))
         self.assertEqual(entry.created_by, self.admin_user)
+        self.assertEqual(entry.reminder_email, "journal_admin@example.com")
+        self.assertIsNotNone(entry.reminder_at)
+        self.assertIsNone(entry.reminder_sent_at)
 
     def test_site_detail_shows_journal_preview(self):
         SiteJournalEntry.objects.create(

@@ -1,4 +1,5 @@
 from django import forms
+from django.conf import settings
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -390,9 +391,50 @@ class EmployeePaymentForm(forms.Form):
 
 
 class SiteJournalEntryForm(forms.ModelForm):
+    reminder_at = forms.DateTimeField(
+        label="Rappel par email",
+        required=False,
+        input_formats=["%Y-%m-%dT%H:%M"],
+        widget=forms.DateTimeInput(
+            attrs={"class": "form-control", "type": "datetime-local"},
+            format="%Y-%m-%dT%H:%M",
+        ),
+    )
+
+    def __init__(self, *args, reminder_user=None, **kwargs):
+        self.reminder_user = reminder_user
+        super().__init__(*args, **kwargs)
+        self.default_reminder_email = self._resolve_reminder_email()
+
+        if self.instance and self.instance.pk and self.instance.reminder_at:
+            self.initial["reminder_at"] = timezone.localtime(self.instance.reminder_at).strftime("%Y-%m-%dT%H:%M")
+
+        if self.default_reminder_email:
+            self.fields["reminder_at"].help_text = (
+                f"Optionnel. Si vous choisissez une date et une heure, un email sera envoyé à "
+                f"{self.default_reminder_email} (heure de Kinshasa)."
+            )
+        else:
+            self.fields["reminder_at"].help_text = (
+                "Optionnel. Ajoutez un email à votre compte administrateur pour recevoir ce rappel."
+            )
+
+    def _resolve_reminder_email(self):
+        candidates = [
+            getattr(self.reminder_user, "email", ""),
+            getattr(self.instance, "reminder_email", ""),
+            getattr(settings, "FINAL_REPORT_NOTIFICATION_EMAIL", ""),
+            getattr(settings, "EMAIL_HOST_USER", ""),
+        ]
+        for value in candidates:
+            email = str(value or "").strip()
+            if email:
+                return email
+        return ""
+
     class Meta:
         model = SiteJournalEntry
-        fields = ["entry_date", "category", "title", "description", "amount_fc"]
+        fields = ["entry_date", "category", "title", "description", "amount_fc", "reminder_at"]
         widgets = {
             "entry_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
             "category": forms.Select(attrs={"class": "form-control"}),
@@ -407,6 +449,60 @@ class SiteJournalEntryForm(forms.ModelForm):
         help_texts = {
             "amount_fc": "Optionnel. Ce montant reste informatif et n'entre pas automatiquement dans les calculs financiers.",
         }
+
+    def clean_reminder_at(self):
+        reminder_at = self.cleaned_data.get("reminder_at")
+        if reminder_at and timezone.is_naive(reminder_at):
+            reminder_at = timezone.make_aware(reminder_at, timezone.get_current_timezone())
+        return reminder_at
+
+    def clean(self):
+        cleaned_data = super().clean()
+        reminder_at = cleaned_data.get("reminder_at")
+
+        if not reminder_at:
+            return cleaned_data
+
+        if not self._resolve_reminder_email():
+            self.add_error(
+                "reminder_at",
+                "Ajoutez un email valide à votre compte administrateur pour programmer un rappel.",
+            )
+            return cleaned_data
+
+        reminder_is_already_sent = bool(
+            self.instance
+            and self.instance.pk
+            and self.instance.reminder_sent_at
+            and self.instance.reminder_at == reminder_at
+        )
+
+        if reminder_at <= timezone.now() and not reminder_is_already_sent:
+            self.add_error(
+                "reminder_at",
+                "Choisissez une date et une heure futures (heure de Kinshasa).",
+            )
+
+        return cleaned_data
+
+    def save(self, commit=True):
+        entry = super().save(commit=False)
+        reminder_email = self._resolve_reminder_email()
+        previous_reminder_at = self.instance.reminder_at if self.instance and self.instance.pk else None
+        previous_reminder_email = self.instance.reminder_email if self.instance and self.instance.pk else ""
+
+        if entry.reminder_at:
+            entry.reminder_email = reminder_email
+            if previous_reminder_at != entry.reminder_at or previous_reminder_email != entry.reminder_email:
+                entry.reminder_sent_at = None
+        else:
+            entry.reminder_email = ""
+            entry.reminder_sent_at = None
+
+        if commit:
+            entry.save()
+
+        return entry
 
 
 class SiteWaterPurchaseForm(forms.ModelForm):

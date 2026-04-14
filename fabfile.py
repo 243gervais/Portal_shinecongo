@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 from pathlib import Path
 from fabric import Connection, task
 
@@ -19,6 +20,22 @@ def _run_in_venv(conn: Connection, app_dir: str, command: str) -> None:
         "source venv/bin/activate && "
         f"{command}"
         "'"
+    )
+
+
+def _ensure_site_journal_reminder_cron(conn: Connection, app_dir: str) -> None:
+    log_dir = f"{app_dir}/logs"
+    cron_line = (
+        f"* * * * * cd {shlex.quote(app_dir)} && "
+        f". {shlex.quote(f'{app_dir}/venv/bin/activate')} && "
+        f"python manage.py send_site_journal_reminders --quiet >> "
+        f"{shlex.quote(f'{log_dir}/site_journal_reminders.log')} 2>&1"
+    )
+
+    conn.run(f"mkdir -p {shlex.quote(log_dir)}")
+    conn.run(
+        "(crontab -l 2>/dev/null | grep -v 'send_site_journal_reminders' || true; "
+        f"echo {shlex.quote(cron_line)}) | crontab -"
     )
 
 
@@ -44,5 +61,6 @@ def deploy(_c) -> None:
     _run_in_venv(conn, app_dir, "pip install -r requirements.txt")
     _run_in_venv(conn, app_dir, "python manage.py migrate --noinput")
     _run_in_venv(conn, app_dir, "python manage.py collectstatic --noinput")
+    _ensure_site_journal_reminder_cron(conn, app_dir)
 
     conn.sudo(f"systemctl restart {service}")
