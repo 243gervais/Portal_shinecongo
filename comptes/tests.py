@@ -136,6 +136,7 @@ class AdminAccountRequestsDashboardTests(TestCase):
         self.assertContains(response, "Pilotage hebdomadaire")
         self.assertContains(response, "Demandes de comptes en attente")
         self.assertContains(response, "Mini convertisseur")
+        self.assertContains(response, "window.instantNavigate")
         self.assertContains(response, "pending_candidate")
         self.assertContains(response, "Site Pending")
         self.assertContains(response, "Adresse Pending")

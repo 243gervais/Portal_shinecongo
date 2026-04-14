@@ -474,7 +474,7 @@
         {% if sites_stats %}
         <div class="admin-sites-grid">
             {% for stats in sites_stats %}
-            <article class="admin-site-card" onclick="window.location.href='{% url 'admin_site_detail' stats.site.id %}'" tabindex="0" role="link" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); window.location.href='{% url 'admin_site_detail' stats.site.id %}';}">
+            <article class="admin-site-card" onclick="if (window.instantNavigate) { window.instantNavigate('{% url 'admin_site_detail' stats.site.id %}'); } else { window.location.href='{% url 'admin_site_detail' stats.site.id %}'; }" tabindex="0" role="link" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); if (window.instantNavigate) { window.instantNavigate('{% url 'admin_site_detail' stats.site.id %}'); } else { window.location.href='{% url 'admin_site_detail' stats.site.id %}'; }}">
                 <div class="admin-site-head">
                     <div>
                         <h3 class="admin-site-title">{{ stats.site.nom }}</h3>

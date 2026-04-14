@@ -1000,7 +1000,11 @@
             const openSelected = (index) => {
                 const item = visibleItems[index];
                 if (item && item.url) {
-                    window.location.href = item.url;
+                    if (typeof window.instantNavigate === 'function') {
+                        window.instantNavigate(item.url);
+                    } else {
+                        window.location.href = item.url;
+                    }
                 }
             };
 
@@ -1033,7 +1037,11 @@
                 if (!target) {
                     return;
                 }
-                window.location.href = target.dataset.searchUrl;
+                if (typeof window.instantNavigate === 'function') {
+                    window.instantNavigate(target.dataset.searchUrl);
+                } else {
+                    window.location.href = target.dataset.searchUrl;
+                }
             });
 
             document.addEventListener('click', (event) => {
@@ -1042,6 +1050,339 @@
                 }
             });
         })();
+
+        {% if show_admin_box %}
+        (() => {
+            const dataNode = document.getElementById('admin-site-search-data');
+            const CACHE_PREFIX = 'portal-instant-admin:';
+            const CACHE_TTL_MS = 90 * 1000;
+            const MAX_CACHE_ENTRIES = 24;
+            const pendingRequests = new Map();
+            const allowedPrefixes = ['/admin-dashboard/'];
+
+            const normalizeUrl = (href) => {
+                const url = new URL(href, window.location.origin);
+                url.hash = '';
+                return url.toString();
+            };
+
+            const isEligibleUrl = (href) => {
+                try {
+                    const url = new URL(href, window.location.origin);
+                    const sameOrigin = url.origin === window.location.origin;
+                    const allowedPath = allowedPrefixes.some((prefix) => url.pathname.startsWith(prefix));
+                    const isExcluded = (
+                        url.pathname.startsWith('/logout/') ||
+                        url.pathname.startsWith('/login/') ||
+                        url.pathname.startsWith('/register/') ||
+                        url.pathname.startsWith('/media/') ||
+                        url.pathname.startsWith('/static/') ||
+                        url.pathname.startsWith('/admin/')
+                    );
+                    const samePageHashOnly = (
+                        url.pathname === window.location.pathname &&
+                        url.search === window.location.search &&
+                        url.hash
+                    );
+                    return sameOrigin && allowedPath && !isExcluded && !samePageHashOnly;
+                } catch (error) {
+                    return false;
+                }
+            };
+
+            const cacheKey = (href) => `${CACHE_PREFIX}${normalizeUrl(href)}`;
+
+            const clearInstantCache = () => {
+                const keysToRemove = [];
+                for (let index = 0; index < window.sessionStorage.length; index += 1) {
+                    const key = window.sessionStorage.key(index);
+                    if (key && key.startsWith(CACHE_PREFIX)) {
+                        keysToRemove.push(key);
+                    }
+                }
+                keysToRemove.forEach((key) => window.sessionStorage.removeItem(key));
+            };
+
+            const trimCache = () => {
+                const now = Date.now();
+                const entries = [];
+
+                for (let index = 0; index < window.sessionStorage.length; index += 1) {
+                    const key = window.sessionStorage.key(index);
+                    if (!key || !key.startsWith(CACHE_PREFIX)) {
+                        continue;
+                    }
+
+                    try {
+                        const value = JSON.parse(window.sessionStorage.getItem(key) || '{}');
+                        if (!value.savedAt || now - value.savedAt > CACHE_TTL_MS) {
+                            window.sessionStorage.removeItem(key);
+                            continue;
+                        }
+                        entries.push({ key, savedAt: value.savedAt });
+                    } catch (error) {
+                        window.sessionStorage.removeItem(key);
+                    }
+                }
+
+                entries
+                    .sort((a, b) => b.savedAt - a.savedAt)
+                    .slice(MAX_CACHE_ENTRIES)
+                    .forEach((entry) => window.sessionStorage.removeItem(entry.key));
+            };
+
+            const getCachedHtml = (href) => {
+                try {
+                    const payload = JSON.parse(window.sessionStorage.getItem(cacheKey(href)) || '{}');
+                    if (!payload.html || !payload.savedAt) {
+                        return null;
+                    }
+                    if (Date.now() - payload.savedAt > CACHE_TTL_MS) {
+                        window.sessionStorage.removeItem(cacheKey(href));
+                        return null;
+                    }
+                    return payload.html;
+                } catch (error) {
+                    window.sessionStorage.removeItem(cacheKey(href));
+                    return null;
+                }
+            };
+
+            const setCachedHtml = (href, html) => {
+                try {
+                    window.sessionStorage.setItem(
+                        cacheKey(href),
+                        JSON.stringify({
+                            html,
+                            savedAt: Date.now(),
+                        })
+                    );
+                    trimCache();
+                } catch (error) {
+                    clearInstantCache();
+                }
+            };
+
+            const snapshotCurrentPage = () => {
+                if (!isEligibleUrl(window.location.href) || !document.documentElement) {
+                    return;
+                }
+                const html = `<!DOCTYPE html>\n${document.documentElement.outerHTML}`;
+                setCachedHtml(window.location.href, html);
+            };
+
+            const prefetchPage = (href) => {
+                if (!isEligibleUrl(href)) {
+                    return Promise.resolve(null);
+                }
+
+                const normalizedHref = normalizeUrl(href);
+                const cachedHtml = getCachedHtml(normalizedHref);
+                if (cachedHtml) {
+                    return Promise.resolve(cachedHtml);
+                }
+
+                if (pendingRequests.has(normalizedHref)) {
+                    return pendingRequests.get(normalizedHref);
+                }
+
+                const request = window.fetch(normalizedHref, {
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-Instant-Navigation': 'prefetch',
+                    },
+                })
+                    .then((response) => {
+                        if (!response.ok || response.redirected) {
+                            return null;
+                        }
+                        const contentType = response.headers.get('content-type') || '';
+                        if (!contentType.includes('text/html')) {
+                            return null;
+                        }
+                        return response.text();
+                    })
+                    .then((html) => {
+                        if (!html || !html.includes('<main class="container">')) {
+                            return null;
+                        }
+                        setCachedHtml(normalizedHref, html);
+                        return html;
+                    })
+                    .catch(() => null)
+                    .finally(() => {
+                        pendingRequests.delete(normalizedHref);
+                    });
+
+                pendingRequests.set(normalizedHref, request);
+                return request;
+            };
+
+            const renderCachedPage = (href, html, replaceHistory = false) => {
+                snapshotCurrentPage();
+                if (replaceHistory) {
+                    window.history.replaceState(null, '', href);
+                } else {
+                    window.history.pushState(null, '', href);
+                }
+                document.open();
+                document.write(html);
+                document.close();
+            };
+
+            const navigateFromCache = (href, replaceHistory = false) => {
+                const cachedHtml = getCachedHtml(href);
+                if (cachedHtml) {
+                    renderCachedPage(href, cachedHtml, replaceHistory);
+                    return true;
+                }
+                return false;
+            };
+
+            window.instantNavigate = (href, options = {}) => {
+                if (!isEligibleUrl(href)) {
+                    window.location.href = href;
+                    return;
+                }
+
+                if (navigateFromCache(href, Boolean(options.replace))) {
+                    return;
+                }
+
+                const normalizedHref = normalizeUrl(href);
+                const pending = pendingRequests.get(normalizedHref);
+                if (pending) {
+                    Promise.race([
+                        pending,
+                        new Promise((resolve) => window.setTimeout(() => resolve(null), 220)),
+                    ]).then((html) => {
+                        if (html) {
+                            renderCachedPage(href, html, Boolean(options.replace));
+                        } else {
+                            window.location.href = href;
+                        }
+                    });
+                    return;
+                }
+
+                window.location.href = href;
+            };
+
+            const scheduleWarmup = () => {
+                const urls = [];
+                const pushUrl = (value) => {
+                    if (!value || !isEligibleUrl(value)) {
+                        return;
+                    }
+                    const normalized = normalizeUrl(value);
+                    if (!urls.includes(normalized)) {
+                        urls.push(normalized);
+                    }
+                };
+
+                if (dataNode) {
+                    try {
+                        const searchItems = JSON.parse(dataNode.textContent || '[]');
+                        searchItems.forEach((item) => pushUrl(item.url));
+                    } catch (error) {
+                        // Ignore malformed prefetch hints.
+                    }
+                }
+
+                document.querySelectorAll('a[href]').forEach((link) => {
+                    if (
+                        link.target === '_blank' ||
+                        link.hasAttribute('download') ||
+                        link.dataset.noInstantNav !== undefined
+                    ) {
+                        return;
+                    }
+                    pushUrl(link.href);
+                });
+
+                const queue = urls.slice(0, 28);
+                let index = 0;
+
+                const work = () => {
+                    if (index >= queue.length) {
+                        return;
+                    }
+                    prefetchPage(queue[index]);
+                    index += 1;
+
+                    if (window.requestIdleCallback) {
+                        window.requestIdleCallback(work, { timeout: 1000 });
+                    } else {
+                        window.setTimeout(work, 140);
+                    }
+                };
+
+                if (window.requestIdleCallback) {
+                    window.requestIdleCallback(work, { timeout: 1200 });
+                } else {
+                    window.setTimeout(work, 200);
+                }
+            };
+
+            snapshotCurrentPage();
+            scheduleWarmup();
+
+            document.addEventListener('click', (event) => {
+                const link = event.target.closest('a[href]');
+                if (!link || event.defaultPrevented) {
+                    return;
+                }
+                if (
+                    link.target === '_blank' ||
+                    link.hasAttribute('download') ||
+                    event.metaKey ||
+                    event.ctrlKey ||
+                    event.shiftKey ||
+                    event.altKey
+                ) {
+                    return;
+                }
+                if (!isEligibleUrl(link.href)) {
+                    return;
+                }
+
+                event.preventDefault();
+                window.instantNavigate(link.href);
+            });
+
+            document.addEventListener('mouseover', (event) => {
+                const link = event.target.closest('a[href]');
+                if (!link) {
+                    return;
+                }
+                prefetchPage(link.href);
+            }, { passive: true });
+
+            document.addEventListener('focusin', (event) => {
+                const link = event.target.closest('a[href]');
+                if (!link) {
+                    return;
+                }
+                prefetchPage(link.href);
+            });
+
+            document.addEventListener('submit', (event) => {
+                const form = event.target;
+                if (!(form instanceof HTMLFormElement)) {
+                    return;
+                }
+                if ((form.method || 'get').toLowerCase() !== 'get') {
+                    clearInstantCache();
+                }
+            });
+
+            document.querySelectorAll('a[href]').forEach((link) => {
+                if (link.getAttribute('href') === '{% url "logout" %}') {
+                    link.addEventListener('click', clearInstantCache);
+                }
+            });
+        })();
+        {% endif %}
 
         // Protection stricte contre l'accès non autorisé après déconnexion
         // Cette vérification s'exécute immédiatement pour bloquer tout accès sans authentification

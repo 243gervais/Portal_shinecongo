@@ -55,17 +55,17 @@
         📊 Pilotage hebdomadaire ({{ week_range_label }})
     </h2>
     <div class="card-grid">
-        <div class="card stat-card" style="cursor: pointer;" onclick="window.location.href='{% url 'admin_site_losses' site.id %}?date={{ selected_date|date:'Y-m-d' }}&period=week&metric=cashflow'">
+        <div class="card stat-card" style="cursor: pointer;" onclick="if (window.instantNavigate) { window.instantNavigate('{% url 'admin_site_losses' site.id %}?date={{ selected_date|date:'Y-m-d' }}&period=week&metric=cashflow'); } else { window.location.href='{% url 'admin_site_losses' site.id %}?date={{ selected_date|date:'Y-m-d' }}&period=week&metric=cashflow'; }">
             <div class="stat-value" style="color: var(--primary-color);">{{ cash_flow_week|fc_amount }} FC</div>
             <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.1rem;">~ ${{ cash_flow_week|usd_equivalent }} USD</div>
             <div class="stat-label">Cash Flow semaine</div>
         </div>
-        <div class="card stat-card" style="cursor: pointer;" onclick="window.location.href='{% url 'admin_site_losses' site.id %}?date={{ selected_date|date:'Y-m-d' }}&period=week&metric=bank'">
+        <div class="card stat-card" style="cursor: pointer;" onclick="if (window.instantNavigate) { window.instantNavigate('{% url 'admin_site_losses' site.id %}?date={{ selected_date|date:'Y-m-d' }}&period=week&metric=bank'); } else { window.location.href='{% url 'admin_site_losses' site.id %}?date={{ selected_date|date:'Y-m-d' }}&period=week&metric=bank'; }">
             <div class="stat-value" style="color: var(--success-color);">{{ bank_net_week|fc_amount }} FC</div>
             <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.1rem;">~ ${{ bank_net_week|usd_equivalent }} USD</div>
             <div class="stat-label">Banque (net semaine)</div>
         </div>
-        <div class="card stat-card" style="cursor: pointer;" onclick="window.location.href='{% url 'admin_site_losses' site.id %}?date={{ selected_date|date:'Y-m-d' }}&period=week&metric=losses'">
+        <div class="card stat-card" style="cursor: pointer;" onclick="if (window.instantNavigate) { window.instantNavigate('{% url 'admin_site_losses' site.id %}?date={{ selected_date|date:'Y-m-d' }}&period=week&metric=losses'); } else { window.location.href='{% url 'admin_site_losses' site.id %}?date={{ selected_date|date:'Y-m-d' }}&period=week&metric=losses'; }">
             <div class="stat-value" style="color: var(--warning-color);">{{ pertes_week_total|fc_amount }} FC</div>
             <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.1rem;">~ ${{ pertes_week_total|usd_equivalent }} USD</div>
             <div class="stat-label">Pertes semaine</div>
@@ -88,17 +88,17 @@
         📅 Pilotage journalier ({{ selected_date|date:"d/m/Y" }})
     </h2>
     <div class="card-grid">
-        <div class="card stat-card" style="cursor: pointer;" onclick="window.location.href='{% url 'admin_site_losses' site.id %}?date={{ selected_date|date:'Y-m-d' }}&period=day&metric=cashflow'">
+        <div class="card stat-card" style="cursor: pointer;" onclick="if (window.instantNavigate) { window.instantNavigate('{% url 'admin_site_losses' site.id %}?date={{ selected_date|date:'Y-m-d' }}&period=day&metric=cashflow'); } else { window.location.href='{% url 'admin_site_losses' site.id %}?date={{ selected_date|date:'Y-m-d' }}&period=day&metric=cashflow'; }">
             <div class="stat-value" style="color: var(--primary-color);">{{ cash_flow_date|fc_amount }} FC</div>
             <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.1rem;">~ ${{ cash_flow_date|usd_equivalent }} USD</div>
             <div class="stat-label">Cash Flow du jour</div>
         </div>
-        <div class="card stat-card" style="cursor: pointer;" onclick="window.location.href='{% url 'admin_site_losses' site.id %}?date={{ selected_date|date:'Y-m-d' }}&period=day&metric=bank'">
+        <div class="card stat-card" style="cursor: pointer;" onclick="if (window.instantNavigate) { window.instantNavigate('{% url 'admin_site_losses' site.id %}?date={{ selected_date|date:'Y-m-d' }}&period=day&metric=bank'); } else { window.location.href='{% url 'admin_site_losses' site.id %}?date={{ selected_date|date:'Y-m-d' }}&period=day&metric=bank'; }">
             <div class="stat-value" style="color: var(--success-color);">{{ bank_deposit_date|fc_amount }} FC</div>
             <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.1rem;">~ ${{ bank_deposit_date|usd_equivalent }} USD</div>
             <div class="stat-label">Dépôt banque du jour</div>
         </div>
-        <div class="card stat-card" style="cursor: pointer;" onclick="window.location.href='{% url 'admin_site_losses' site.id %}?date={{ selected_date|date:'Y-m-d' }}&period=day&metric=losses'">
+        <div class="card stat-card" style="cursor: pointer;" onclick="if (window.instantNavigate) { window.instantNavigate('{% url 'admin_site_losses' site.id %}?date={{ selected_date|date:'Y-m-d' }}&period=day&metric=losses'); } else { window.location.href='{% url 'admin_site_losses' site.id %}?date={{ selected_date|date:'Y-m-d' }}&period=day&metric=losses'; }">
             <div class="stat-value" style="color: var(--warning-color);">{{ pertes_total|fc_amount }} FC</div>
             <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.1rem;">~ ${{ pertes_total|usd_equivalent }} USD</div>
             <div class="stat-label">Pertes du jour</div>
