@@ -75,6 +75,12 @@ def _build_admin_site_navigation(request):
             keywords="eau achats eau forage reservoir mois concerné",
         ),
         build_search_item(
+            "Mots de passe",
+            reverse("admin_password_management"),
+            description="Changer les mots de passe des comptes admin, managers et employés",
+            keywords="mot de passe password comptes admin manager employe site",
+        ),
+        build_search_item(
             "Convertisseur USD/FC",
             f"{reverse('admin_dashboard')}#admin-fx-tools",
             description="Taux et conversion devise",

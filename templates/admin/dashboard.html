@@ -437,6 +437,7 @@
         </div>
         <div class="admin-toolbar">
             <a href="{% url 'admin_create_site' %}" class="btn btn-success">Créer un site</a>
+            <a href="{% url 'admin_password_management' %}" class="btn btn-secondary">Mots de passe</a>
             <a href="{% url 'admin_water_purchases' %}" class="btn btn-info">Suivi eau</a>
             <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">Rafraîchir</a>
         </div>
@@ -582,6 +583,43 @@
             {% else %}
             <div class="admin-empty">Aucun achat d'eau enregistré pour le moment.</div>
             {% endif %}
+        </div>
+    </details>
+
+    <details class="admin-queue-card">
+        <summary class="admin-queue-head">
+            <div>
+                <h3 class="admin-queue-title">Gestion des mots de passe</h3>
+                <p class="admin-queue-copy">Changez votre mot de passe et redéfinissez celui des comptes administrateurs, managers et employés sans passer par Django admin.</p>
+            </div>
+            <span class="admin-badge">{{ password_summary.total_accounts }}</span>
+        </summary>
+        <div class="admin-queue-body">
+            <div class="admin-sites-grid" style="margin-bottom: 1rem;">
+                <div class="admin-site-metric">
+                    <div class="admin-site-label">Comptes gérés</div>
+                    <div class="admin-site-value">{{ password_summary.total_accounts }}</div>
+                    <div class="admin-site-subvalue">Tous les accès du portail</div>
+                </div>
+                <div class="admin-site-metric">
+                    <div class="admin-site-label">Employés</div>
+                    <div class="admin-site-value">{{ password_summary.employee_accounts }}</div>
+                    <div class="admin-site-subvalue">Comptes employés du portail</div>
+                </div>
+                <div class="admin-site-metric">
+                    <div class="admin-site-label">Admins + managers</div>
+                    <div class="admin-site-value">{{ password_summary.admin_accounts|add:password_summary.manager_accounts }}</div>
+                    <div class="admin-site-subvalue">Comptes de supervision</div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                <div style="color: var(--text-secondary);">
+                    {{ password_summary.active_accounts }} compte{{ password_summary.active_accounts|pluralize }} actif{{ password_summary.active_accounts|pluralize }}
+                    • {{ password_summary.pending_accounts }} en attente
+                </div>
+                <a href="{% url 'admin_password_management' %}" class="btn btn-secondary">Ouvrir la gestion des mots de passe</a>
+            </div>
         </div>
     </details>
 

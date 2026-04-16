@@ -161,6 +161,94 @@ class AdminAccountRequestsDashboardTests(TestCase):
         self.assertFalse(User.objects.filter(id=self.pending_user.id).exists())
 
 
+class AdminPasswordManagementTests(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            username="password_admin",
+            email="password_admin@example.com",
+            password="AdminPass123!",
+        )
+        self.site = Location.objects.create(
+            nom="Site Passwords",
+            adresse="Adresse Passwords",
+            ville="Kinshasa",
+            actif=True,
+        )
+        self.manager_user = User.objects.create_user(
+            username="manager_portal",
+            email="manager@example.com",
+            password="ManagerPass123!",
+            is_active=True,
+        )
+        self.manager_user.userprofile.role = "MANAGER"
+        self.manager_user.userprofile.site = self.site
+        self.manager_user.userprofile.actif = True
+        self.manager_user.userprofile.save()
+        self.employee_user = User.objects.create_user(
+            username="employee_portal",
+            email="employee_portal@example.com",
+            password="EmployeePass123!",
+            is_active=True,
+        )
+        self.employee_user.userprofile.role = "EMPLOYE"
+        self.employee_user.userprofile.site = self.site
+        self.employee_user.userprofile.actif = True
+        self.employee_user.userprofile.save()
+        self.client.login(username="password_admin", password="AdminPass123!")
+
+    def test_admin_dashboard_links_to_password_management(self):
+        response = self.client.get(reverse("admin_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Gestion des mots de passe")
+        self.assertContains(response, reverse("admin_password_management"))
+
+    def test_admin_can_open_password_management_page(self):
+        response = self.client.get(reverse("admin_password_management"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Gestion des mots de passe")
+        self.assertContains(response, "Mon compte")
+        self.assertContains(response, "employee_portal")
+        self.assertContains(response, "manager_portal")
+        self.assertContains(response, "Site Passwords")
+
+    def test_admin_can_change_employee_password(self):
+        response = self.client.post(
+            reverse("admin_change_user_password", args=[self.employee_user.id]),
+            data={
+                "new_password1": "FreshEmployeePass456!",
+                "new_password2": "FreshEmployeePass456!",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse("admin_password_management"), fetch_redirect_response=False)
+        self.employee_user.refresh_from_db()
+        self.assertTrue(self.employee_user.check_password("FreshEmployeePass456!"))
+
+        self.client.logout()
+        self.assertTrue(self.client.login(username="employee_portal", password="FreshEmployeePass456!"))
+
+    def test_admin_can_change_own_password_and_stay_logged_in(self):
+        response = self.client.post(
+            reverse("admin_change_user_password", args=[self.admin_user.id]),
+            data={
+                "new_password1": "FreshAdminPass456!",
+                "new_password2": "FreshAdminPass456!",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse("admin_password_management"), fetch_redirect_response=False)
+        self.admin_user.refresh_from_db()
+        self.assertTrue(self.admin_user.check_password("FreshAdminPass456!"))
+
+        follow_up = self.client.get(reverse("admin_password_management"))
+        self.assertEqual(follow_up.status_code, 200)
+        self.assertContains(follow_up, "Gestion des mots de passe")
+
+
 class SiteDocumentUploadTests(TestCase):
     def setUp(self):
         self.admin_user = User.objects.create_superuser(

@@ -1,6 +1,6 @@
 import calendar
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth import logout, login
+from django.contrib.auth import logout, login, update_session_auth_hash
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
@@ -17,6 +17,7 @@ from .forms import (
     UserRegistrationForm,
     SiteCreationForm,
     SiteEmployeeForm,
+    AdminPasswordManagementForm,
     EmployeePaymentForm,
     SiteJournalEntryForm,
     SiteWaterPurchaseForm,
@@ -361,6 +362,126 @@ def _render_site_loss_form(request, site, mode, date_value, next_url='', loss_en
     })
 
 
+def _build_admin_password_overview(current_user):
+    """
+    Prépare la liste des comptes dont le mot de passe peut être géré depuis le portail admin.
+    """
+    managed_users = (
+        User.objects.filter(Q(is_superuser=True) | Q(userprofile__isnull=False))
+        .select_related("userprofile", "userprofile__site")
+        .distinct()
+    )
+
+    role_order = {"ADMIN": 0, "MANAGER": 1, "EMPLOYE": 2, "AUTRE": 3}
+    grouped_accounts = {"ADMIN": [], "MANAGER": [], "EMPLOYE": [], "AUTRE": []}
+    summary = {
+        "total_accounts": 0,
+        "admin_accounts": 0,
+        "manager_accounts": 0,
+        "employee_accounts": 0,
+        "active_accounts": 0,
+        "pending_accounts": 0,
+    }
+    current_account = None
+
+    for managed_user in managed_users:
+        profile = getattr(managed_user, "userprofile", None)
+        if managed_user.is_superuser or (profile and profile.role == "ADMIN"):
+            role_code = "ADMIN"
+            role_label = "Administrateur"
+        elif profile and profile.role == "MANAGER":
+            role_code = "MANAGER"
+            role_label = "Manager"
+        elif profile and profile.role == "EMPLOYE":
+            role_code = "EMPLOYE"
+            role_label = "Employé"
+        else:
+            role_code = "AUTRE"
+            role_label = "Compte"
+
+        full_name = managed_user.get_full_name().strip() or managed_user.username
+        site_name = profile.site.nom if profile and profile.site else "Compte global"
+        status_label = "Actif" if managed_user.is_active else "En attente"
+
+        account = {
+            "user": managed_user,
+            "profile": profile,
+            "display_name": full_name,
+            "username": managed_user.username,
+            "email": managed_user.email,
+            "role_code": role_code,
+            "role_label": role_label,
+            "site_name": site_name,
+            "site_id": str(profile.site_id) if profile and profile.site_id else "",
+            "status_label": status_label,
+            "is_active": managed_user.is_active,
+            "last_login": managed_user.last_login,
+            "is_current_user": current_user and managed_user.id == current_user.id,
+            "change_password_url": reverse("admin_change_user_password", kwargs={"user_id": managed_user.id}),
+        }
+
+        summary["total_accounts"] += 1
+        if managed_user.is_active:
+            summary["active_accounts"] += 1
+        else:
+            summary["pending_accounts"] += 1
+
+        if role_code == "ADMIN":
+            summary["admin_accounts"] += 1
+        elif role_code == "MANAGER":
+            summary["manager_accounts"] += 1
+        elif role_code == "EMPLOYE":
+            summary["employee_accounts"] += 1
+
+        if account["is_current_user"]:
+            current_account = account
+            continue
+
+        grouped_accounts[role_code].append(account)
+
+    for role_code, accounts in grouped_accounts.items():
+        accounts.sort(
+            key=lambda item: (
+                item["site_name"].lower(),
+                item["display_name"].lower(),
+                item["username"].lower(),
+            )
+        )
+
+    sections = [
+        {
+            "title": "Administrateurs",
+            "accounts": grouped_accounts["ADMIN"],
+            "empty_label": "Aucun autre administrateur n'est enregistré.",
+        },
+        {
+            "title": "Managers",
+            "accounts": grouped_accounts["MANAGER"],
+            "empty_label": "Aucun manager n'est enregistré.",
+        },
+        {
+            "title": "Employés",
+            "accounts": grouped_accounts["EMPLOYE"],
+            "empty_label": "Aucun employé n'est enregistré.",
+        },
+    ]
+
+    if grouped_accounts["AUTRE"]:
+        sections.append(
+            {
+                "title": "Autres comptes",
+                "accounts": grouped_accounts["AUTRE"],
+                "empty_label": "Aucun autre compte n'est enregistré.",
+            }
+        )
+
+    return {
+        "summary": summary,
+        "current_account": current_account,
+        "sections": sections,
+    }
+
+
 @login_required
 @no_cache_view
 def admin_dashboard(request):
@@ -544,6 +665,7 @@ def admin_dashboard(request):
             .order_by("-total", "site__nom")
         ),
     }
+    password_overview = _build_admin_password_overview(user)
 
     context = {
         'sites_stats': sites_stats,
@@ -557,6 +679,7 @@ def admin_dashboard(request):
         'recent_daily_reports_count': len(recent_daily_reports),
         'recent_water_purchases': recent_water_purchases,
         'water_purchase_summary': water_purchase_summary,
+        'password_summary': password_overview["summary"],
     }
 
     mark_admin_inbox_seen(user)
@@ -613,6 +736,99 @@ def admin_reject_account_request(request, user_id):
     requested_user.delete()
     messages.success(request, f'Demande de compte "{username}" rejetée et supprimée.')
     return redirect("admin_dashboard")
+
+
+@login_required
+@no_cache_view
+def admin_password_management(request):
+    """
+    Vue centrale de gestion des mots de passe des comptes du portail.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect("dashboard")
+
+    password_overview = _build_admin_password_overview(user)
+
+    return render(
+        request,
+        "admin/password_management.html",
+        {
+            "password_summary": password_overview["summary"],
+            "current_account": password_overview["current_account"],
+            "password_sections": password_overview["sections"],
+        },
+    )
+
+
+@login_required
+@no_cache_view
+def admin_change_user_password(request, user_id):
+    """
+    Permet à un administrateur de redéfinir son propre mot de passe ou celui d'un autre compte.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect("dashboard")
+
+    target_user = get_object_or_404(
+        User.objects.filter(Q(is_superuser=True) | Q(userprofile__isnull=False)).distinct(),
+        id=user_id,
+    )
+    target_profile = getattr(target_user, "userprofile", None)
+    target_site = target_profile.site if target_profile else None
+
+    if request.method == "POST":
+        form = AdminPasswordManagementForm(request.POST)
+        if form.is_valid():
+            form.save(target_user)
+            if target_user.id == user.id:
+                update_session_auth_hash(request, target_user)
+
+            AuditLog.log(
+                user=request.user,
+                action="MODIFIER",
+                description=f"Mot de passe modifié pour le compte {target_user.username}",
+                content_object=target_user,
+                donnees_apres={
+                    "username": target_user.username,
+                    "role": target_profile.role if target_profile else "ADMIN",
+                    "site": target_site.nom if target_site else "",
+                },
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request),
+            )
+
+            messages.success(
+                request,
+                f'Mot de passe mis à jour pour "{target_user.get_full_name() or target_user.username}".',
+            )
+            return redirect("admin_password_management")
+    else:
+        form = AdminPasswordManagementForm()
+
+    target_role_label = "Administrateur"
+    if target_profile and not target_user.is_superuser:
+        target_role_label = target_profile.get_role_display()
+
+    return render(
+        request,
+        "admin/change_user_password.html",
+        {
+            "form": form,
+            "target_user": target_user,
+            "target_profile": target_profile,
+            "target_site": target_site,
+            "target_role_label": target_role_label,
+            "is_self_change": target_user.id == user.id,
+        },
+    )
 
 
 @login_required

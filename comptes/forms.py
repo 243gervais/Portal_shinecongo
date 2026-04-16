@@ -316,6 +316,54 @@ class SiteEmployeeForm(forms.Form):
         return profile
 
 
+class AdminPasswordManagementForm(forms.Form):
+    """
+    Formulaire simple pour permettre à un admin de redéfinir un mot de passe.
+    """
+
+    new_password1 = forms.CharField(
+        label="Nouveau mot de passe",
+        widget=forms.PasswordInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Nouveau mot de passe",
+                "autocomplete": "new-password",
+                "minlength": "4",
+            }
+        ),
+        help_text="Minimum 4 caractères.",
+    )
+    new_password2 = forms.CharField(
+        label="Confirmer le mot de passe",
+        widget=forms.PasswordInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Confirmez le mot de passe",
+                "autocomplete": "new-password",
+                "minlength": "4",
+            }
+        ),
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        password1 = cleaned_data.get("new_password1")
+        password2 = cleaned_data.get("new_password2")
+
+        if password1 and len(password1) < 4:
+            self.add_error("new_password1", "Le mot de passe doit contenir au moins 4 caractères.")
+
+        if password1 and password2 and password1 != password2:
+            self.add_error("new_password2", "Les mots de passe ne correspondent pas.")
+
+        return cleaned_data
+
+    def save(self, user):
+        user.set_password(self.cleaned_data["new_password1"])
+        user.save(update_fields=["password"])
+        return user
+
+
 class EmployeePaymentForm(forms.Form):
     """
     Enregistrer un paiement employé et générer la fiche de paiement.
