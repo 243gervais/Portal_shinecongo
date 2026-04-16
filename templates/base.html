@@ -1062,8 +1062,8 @@
             const dataNode = isAdminInstantNav ? document.getElementById('admin-site-search-data') : null;
             const CACHE_PREFIX = isAdminInstantNav ? 'portal-instant-admin:' : 'portal-instant-employee:';
             const CACHE_TTL_MS = isAdminInstantNav ? 90 * 1000 : 45 * 1000;
-            const MAX_CACHE_ENTRIES = isAdminInstantNav ? 24 : 18;
-            const MAX_WARMUP_URLS = isAdminInstantNav ? 28 : 16;
+            const MAX_CACHE_ENTRIES = isAdminInstantNav ? 24 : 20;
+            const MAX_WARMUP_URLS = isAdminInstantNav ? 28 : 20;
             const pendingRequests = new Map();
             const allowedPrefixes = isAdminInstantNav ? ['/admin-dashboard/'] : ['/employe/'];
             const employeeWarmupUrls = isEmployeeInstantNav ? [
@@ -1298,17 +1298,7 @@
                     }
                 };
 
-                employeeWarmupUrls.forEach((value) => pushUrl(value));
-
-                if (dataNode) {
-                    try {
-                        const searchItems = JSON.parse(dataNode.textContent || '[]');
-                        searchItems.forEach((item) => pushUrl(item.url));
-                    } catch (error) {
-                        // Ignore malformed prefetch hints.
-                    }
-                }
-
+                const visibleAnchors = [];
                 document.querySelectorAll('a[href]').forEach((link) => {
                     if (
                         link.target === '_blank' ||
@@ -1317,8 +1307,26 @@
                     ) {
                         return;
                     }
-                    pushUrl(link.href);
+                    visibleAnchors.push(link.href);
                 });
+
+                if (isEmployeeInstantNav) {
+                    visibleAnchors.forEach((value) => pushUrl(value));
+                    employeeWarmupUrls.forEach((value) => pushUrl(value));
+                } else {
+                    employeeWarmupUrls.forEach((value) => pushUrl(value));
+
+                    if (dataNode) {
+                        try {
+                            const searchItems = JSON.parse(dataNode.textContent || '[]');
+                            searchItems.forEach((item) => pushUrl(item.url));
+                        } catch (error) {
+                            // Ignore malformed prefetch hints.
+                        }
+                    }
+
+                    visibleAnchors.forEach((value) => pushUrl(value));
+                }
 
                 const queue = urls.slice(0, MAX_WARMUP_URLS);
                 let index = 0;
@@ -1371,6 +1379,14 @@
             });
 
             document.addEventListener('mouseover', (event) => {
+                const link = event.target.closest('a[href]');
+                if (!link) {
+                    return;
+                }
+                prefetchPage(link.href);
+            }, { passive: true });
+
+            document.addEventListener('touchstart', (event) => {
                 const link = event.target.closest('a[href]');
                 if (!link) {
                     return;

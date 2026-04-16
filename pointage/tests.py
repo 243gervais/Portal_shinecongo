@@ -77,6 +77,18 @@ class EmployeeDailyReportTests(TestCase):
         self.assertContains(response, "window.instantNavigate")
         self.assertContains(response, "portal-instant-employee:")
         self.assertContains(response, reverse("employe_daily_report"))
+        self.assertContains(response, "data-employee-route-card")
+        self.assertContains(response, reverse("ajouter_lavage"))
+
+    def test_employee_history_contains_mobile_friendly_instant_navigation_hooks(self):
+        response = self.client.get(reverse("employe_historique"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "window.instantNavigate")
+        self.assertContains(response, "portal-instant-employee:")
+        self.assertContains(response, "touchstart")
+        self.assertContains(response, reverse("mes_lavages"))
+        self.assertContains(response, reverse("mes_problemes"))
 
     def test_employee_can_update_same_day_report(self):
         today = timezone.localdate()
