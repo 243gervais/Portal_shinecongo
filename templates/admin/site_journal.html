@@ -3,11 +3,63 @@
 
 {% block title %}Journal du site - {{ site.nom }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    .journal-month-chip {
+        display: block;
+        padding: 0.95rem 1rem;
+        border-radius: 16px;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        background: rgba(255, 255, 255, 0.96);
+        color: inherit;
+        text-decoration: none;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+
+    .journal-month-chip:hover,
+    .journal-month-chip:focus-visible {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-hover);
+        border-color: rgba(10, 67, 107, 0.18);
+        outline: none;
+    }
+
+    .journal-month-chip.is-active {
+        border-color: rgba(10, 67, 107, 0.24);
+        background: linear-gradient(180deg, rgba(232, 241, 247, 0.92), rgba(255, 255, 255, 0.98));
+    }
+
+    .journal-category-card {
+        padding: 1rem;
+        border-radius: 18px;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        background: rgba(255, 255, 255, 0.96);
+    }
+
+    .journal-entry-list {
+        display: grid;
+        gap: 0.85rem;
+    }
+
+    .journal-entry-item {
+        padding: 1rem 1.05rem;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.95);
+    }
+
+    .journal-entry-meta {
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem;">
     <div>
         <h1 class="mt-2 mb-2">Journal du site</h1>
-        <p style="color: var(--text-secondary); margin: 0;">{{ site.nom }} • Registre opérationnel et informations de suivi</p>
+        <p style="color: var(--text-secondary); margin: 0;">{{ site.nom }} • Registre opérationnel et suivi mensuel des dépenses, informations et interventions.</p>
     </div>
     <a href="{% url 'admin_site_detail' site.id %}" class="btn btn-secondary">Retour au site</a>
 </div>
@@ -16,7 +68,7 @@
     <h2 class="mb-3">Nouvelle entrée</h2>
     <p style="margin-top: -0.5rem; color: var(--text-secondary);">
         Utilisez ce journal pour consigner les actions, informations, avances et dépenses exceptionnelles.
-        Le montant est optionnel et reste informatif.
+        Les montants saisis ici servent au suivi administratif mensuel des dépenses hors banque/caisse du système.
     </p>
     <form method="post">
         {% csrf_token %}
@@ -69,57 +121,170 @@
     </form>
 </div>
 
-<div class="card">
+<div class="card mb-4">
     <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem;">
-        <h2 class="mb-0">Historique du journal</h2>
-        <span style="color: var(--text-secondary);">{{ entries|length }} entrée{{ entries|length|pluralize }}</span>
+        <div>
+            <h2 class="mb-0">Lecture mensuelle</h2>
+            <p style="margin: 0.3rem 0 0 0; color: var(--text-secondary);">
+                Sélectionnez un mois pour voir clairement les dépenses, informations, interventions, suivis et autres notes enregistrées.
+            </p>
+        </div>
+        <form method="get" style="display: flex; align-items: end; gap: 0.75rem; flex-wrap: wrap;">
+            <div class="form-group" style="min-width: 200px; margin-bottom: 0;">
+                <label for="journal-month-filter">Mois à afficher</label>
+                <input id="journal-month-filter" type="month" name="month" value="{{ selected_month_input }}" class="form-control">
+            </div>
+            <button type="submit" class="btn btn-info">Afficher</button>
+            <a href="{% url 'admin_site_journal' site.id %}" class="btn btn-secondary">Mois courant</a>
+        </form>
     </div>
 
-    {% if entries %}
-    <div style="display: grid; gap: 0.9rem;">
-        {% for entry in entries %}
-        <article style="padding: 1rem 1.05rem; border: 1px solid rgba(10, 67, 107, 0.08); border-radius: 18px; background: rgba(255, 255, 255, 0.95);">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap;">
-                <div style="min-width: 0; flex: 1;">
-                    <div style="display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap;">
-                        <span class="site-chip" style="background: rgba(10, 67, 107, 0.08); color: var(--primary-color);">{{ entry.get_category_display }}</span>
-                        <span style="color: var(--text-secondary); font-size: 0.85rem;">{{ entry.entry_date|date:"d/m/Y" }}</span>
-                    </div>
-                    <h3 style="margin: 0.55rem 0 0.3rem 0; color: var(--primary-dark); font-size: 1.04rem;">{{ entry.title }}</h3>
-                    {% if entry.description %}
-                    <p style="margin: 0; color: var(--text-secondary); white-space: pre-line;">{{ entry.description }}</p>
-                    {% endif %}
-                    {% if entry.reminder_at %}
-                    <div style="margin-top: 0.65rem; padding: 0.65rem 0.8rem; border-radius: 12px; background: rgba(10, 67, 107, 0.06); color: var(--text-secondary); font-size: 0.84rem;">
-                        {% if entry.reminder_sent_at %}
-                            Rappel envoyé le {{ entry.reminder_sent_at|date:"d/m/Y H:i" }} à {{ entry.reminder_email }}.
-                        {% else %}
-                            Rappel prévu le {{ entry.reminder_at|date:"d/m/Y H:i" }} (heure de Kinshasa) à {{ entry.reminder_email }}.
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                    <div style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.82rem;">
-                        Ajouté le {{ entry.created_at|date:"d/m/Y H:i" }}
-                        {% if entry.created_by %} • {{ entry.created_by.get_full_name|default:entry.created_by.username }}{% endif %}
-                    </div>
+    {% if month_summaries %}
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 0.85rem;">
+        {% for month_item in month_summaries %}
+        <a href="{% url 'admin_site_journal' site.id %}?month={{ month_item.month_input }}" class="journal-month-chip{% if month_item.month_input == selected_month_input %} is-active{% endif %}">
+            <div style="display: flex; justify-content: space-between; gap: 0.75rem; align-items: flex-start;">
+                <div>
+                    <div style="font-weight: 800; color: var(--primary-dark);">{{ month_item.month|date:"F Y" }}</div>
+                    <div style="color: var(--text-secondary); font-size: 0.83rem;">{{ month_item.entries_count }} entrée{{ month_item.entries_count|pluralize }}</div>
                 </div>
-                <div style="min-width: 180px; text-align: right;">
-                    {% if entry.amount_fc %}
-                    <div style="font-size: 1.1rem; font-weight: 800; color: var(--primary-color);">{{ entry.amount_fc|fc_amount }} FC</div>
-                    {% else %}
-                    <div style="font-size: 0.86rem; font-weight: 700; color: var(--text-secondary);">Sans montant</div>
-                    {% endif %}
-                    <div style="display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.85rem;">
-                        <a href="{% url 'admin_edit_site_journal_entry' site.id entry.id %}" class="btn btn-info">Modifier</a>
-                        <a href="{% url 'admin_delete_site_journal_entry' site.id entry.id %}" class="btn btn-danger">Supprimer</a>
-                    </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary);">Dépenses</div>
+                    <div style="font-weight: 800; color: var(--primary-color);">{{ month_item.expense_total|fc_amount }} FC</div>
                 </div>
             </div>
-        </article>
+        </a>
         {% endfor %}
     </div>
     {% else %}
-    <p style="margin: 0; color: var(--text-secondary);">Aucune entrée pour ce site.</p>
+    <p style="margin: 0; color: var(--text-secondary);">Aucune entrée du journal pour ce site.</p>
+    {% endif %}
+</div>
+
+<div class="card mb-4">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem;">
+        <div>
+            <h2 class="mb-0">Synthèse de {{ selected_month|date:"F Y" }}</h2>
+            <p style="margin: 0.3rem 0 0 0; color: var(--text-secondary);">
+                Les dépenses ici représentent les avances ou dépenses administratives saisies hors flux banque/caisse du système.
+            </p>
+        </div>
+        <span style="color: var(--text-secondary);">{{ selected_month_data.entries_count }} entrée{{ selected_month_data.entries_count|pluralize }} sur ce mois</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.9rem; margin-bottom: 1rem;">
+        <div class="journal-category-card">
+            <div style="color: var(--text-secondary); font-size: 0.78rem; font-weight: 700; text-transform: uppercase;">Dépenses / avances</div>
+            <div style="font-size: 1.55rem; font-weight: 800; color: var(--primary-color);">{{ selected_month_data.expense_total|fc_amount }} FC</div>
+            <div class="journal-entry-meta">{{ selected_month_data.expense_count }} entrée{{ selected_month_data.expense_count|pluralize }} de dépense</div>
+        </div>
+        <div class="journal-category-card">
+            <div style="color: var(--text-secondary); font-size: 0.78rem; font-weight: 700; text-transform: uppercase;">Autres notes</div>
+            <div style="font-size: 1.55rem; font-weight: 800; color: var(--primary-dark);">{{ selected_month_data.non_expense_count }}</div>
+            <div class="journal-entry-meta">Informations, suivis, interventions, incidents et autres</div>
+        </div>
+        <div class="journal-category-card">
+            <div style="color: var(--text-secondary); font-size: 0.78rem; font-weight: 700; text-transform: uppercase;">Entrées du mois</div>
+            <div style="font-size: 1.55rem; font-weight: 800; color: var(--primary-dark);">{{ selected_month_data.entries_count }}</div>
+            <div class="journal-entry-meta">Toutes catégories confondues</div>
+        </div>
+        <div class="journal-category-card">
+            <div style="color: var(--text-secondary); font-size: 0.78rem; font-weight: 700; text-transform: uppercase;">Montants documentés</div>
+            <div style="font-size: 1.55rem; font-weight: 800; color: var(--primary-dark);">{{ selected_month_data.amount_total|fc_amount }} FC</div>
+            <div class="journal-entry-meta">Total des montants saisis dans le journal</div>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.85rem;">
+        {% for category in selected_month_data.categories %}
+        <div class="journal-category-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.6rem;">
+                <div style="font-weight: 800; color: var(--primary-dark);">{{ category.label }}</div>
+                <span class="site-chip" style="background: rgba(10, 67, 107, 0.08); color: var(--primary-color);">{{ category.entries_count }}</span>
+            </div>
+            <div class="journal-entry-meta" style="margin-top: 0.45rem;">
+                {% if category.amount_total %}
+                    Montants documentés: {{ category.amount_total|fc_amount }} FC
+                {% else %}
+                    Aucun montant saisi pour cette catégorie
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem;">
+        <div>
+            <h2 class="mb-0">Détail de {{ selected_month|date:"F Y" }}</h2>
+            <p style="margin: 0.3rem 0 0 0; color: var(--text-secondary);">
+                Chaque catégorie est séparée pour distinguer clairement les dépenses du mois des informations, suivis et interventions.
+            </p>
+        </div>
+    </div>
+
+    {% if selected_month_data.active_categories %}
+    <div style="display: grid; gap: 1.1rem;">
+        {% for category in selected_month_data.active_categories %}
+        <section style="padding-top: 0.2rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.85rem;">
+                <div>
+                    <h3 style="margin: 0; color: var(--primary-dark);">{{ category.label }}</h3>
+                    <div class="journal-entry-meta">
+                        {{ category.entries_count }} entrée{{ category.entries_count|pluralize }}
+                        {% if category.amount_total %}• {{ category.amount_total|fc_amount }} FC documentés{% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="journal-entry-list">
+                {% for entry in category.entries %}
+                <article class="journal-entry-item">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap;">
+                        <div style="min-width: 0; flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap;">
+                                <span class="site-chip" style="background: rgba(10, 67, 107, 0.08); color: var(--primary-color);">{{ entry.get_category_display }}</span>
+                                <span class="journal-entry-meta">{{ entry.entry_date|date:"d/m/Y" }}</span>
+                            </div>
+                            <h4 style="margin: 0.55rem 0 0.3rem 0; color: var(--primary-dark); font-size: 1.02rem;">{{ entry.title }}</h4>
+                            {% if entry.description %}
+                            <p style="margin: 0; color: var(--text-secondary); white-space: pre-line;">{{ entry.description }}</p>
+                            {% endif %}
+                            {% if entry.reminder_at %}
+                            <div style="margin-top: 0.65rem; padding: 0.65rem 0.8rem; border-radius: 12px; background: rgba(10, 67, 107, 0.06); color: var(--text-secondary); font-size: 0.84rem;">
+                                {% if entry.reminder_sent_at %}
+                                    Rappel envoyé le {{ entry.reminder_sent_at|date:"d/m/Y H:i" }} à {{ entry.reminder_email }}.
+                                {% else %}
+                                    Rappel prévu le {{ entry.reminder_at|date:"d/m/Y H:i" }} (heure de Kinshasa) à {{ entry.reminder_email }}.
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            <div style="margin-top: 0.5rem;" class="journal-entry-meta">
+                                Ajouté le {{ entry.created_at|date:"d/m/Y H:i" }}
+                                {% if entry.created_by %}• {{ entry.created_by.get_full_name|default:entry.created_by.username }}{% endif %}
+                            </div>
+                        </div>
+                        <div style="min-width: 180px; text-align: right;">
+                            {% if entry.amount_fc %}
+                            <div style="font-size: 1.05rem; font-weight: 800; color: var(--primary-color);">{{ entry.amount_fc|fc_amount }} FC</div>
+                            {% else %}
+                            <div style="font-size: 0.86rem; font-weight: 700; color: var(--text-secondary);">Sans montant</div>
+                            {% endif %}
+                            <div style="display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.85rem;">
+                                <a href="{% url 'admin_edit_site_journal_entry' site.id entry.id %}?month={{ selected_month_input }}" class="btn btn-info">Modifier</a>
+                                <a href="{% url 'admin_delete_site_journal_entry' site.id entry.id %}?month={{ selected_month_input }}" class="btn btn-danger">Supprimer</a>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p style="margin: 0; color: var(--text-secondary);">Aucune entrée enregistrée pour {{ selected_month|date:"F Y" }}.</p>
     {% endif %}
 </div>
 {% endblock %}

@@ -9,7 +9,7 @@
         <h1 class="mt-2 mb-2">Supprimer l'entrée du journal</h1>
         <p style="color: var(--text-secondary); margin: 0;">{{ site.nom }}</p>
     </div>
-    <a href="{% url 'admin_site_journal' site.id %}" class="btn btn-secondary">Retour au journal</a>
+    <a href="{% url 'admin_site_journal' site.id %}?month={{ month_query }}" class="btn btn-secondary">Retour au journal</a>
 </div>
 
 <div class="card">
@@ -28,7 +28,7 @@
     <form method="post" style="margin-top: 1.5rem;">
         {% csrf_token %}
         <button type="submit" class="btn btn-danger" style="width: 100%;">Supprimer l'entrée</button>
-        <a href="{% url 'admin_site_journal' site.id %}" class="btn btn-secondary btn-block mt-2">Annuler</a>
+        <a href="{% url 'admin_site_journal' site.id %}?month={{ month_query }}" class="btn btn-secondary btn-block mt-2">Annuler</a>
     </form>
 </div>
 {% endblock %}

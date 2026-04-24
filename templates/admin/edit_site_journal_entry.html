@@ -8,7 +8,7 @@
         <h1 class="mt-2 mb-2">Modifier l'entrée du journal</h1>
         <p style="color: var(--text-secondary); margin: 0;">{{ site.nom }} • {{ entry.title }}</p>
     </div>
-    <a href="{% url 'admin_site_journal' site.id %}" class="btn btn-secondary">Retour au journal</a>
+    <a href="{% url 'admin_site_journal' site.id %}?month={{ month_query }}" class="btn btn-secondary">Retour au journal</a>
 </div>
 
 <div class="card">
@@ -60,7 +60,7 @@
         </div>
 
         <button type="submit" class="btn btn-primary btn-block">Enregistrer les modifications</button>
-        <a href="{% url 'admin_site_journal' site.id %}" class="btn btn-secondary btn-block mt-2">Annuler</a>
+        <a href="{% url 'admin_site_journal' site.id %}?month={{ month_query }}" class="btn btn-secondary btn-block mt-2">Annuler</a>
     </form>
 </div>
 {% endblock %}

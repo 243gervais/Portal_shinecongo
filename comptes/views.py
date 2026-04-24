@@ -225,6 +225,72 @@ def _parse_month_filter(raw_value):
     return parsed.replace(day=1)
 
 
+def _build_site_journal_month_bucket(month_start):
+    categories = []
+    category_map = {}
+    for code, label in SiteJournalEntry.CATEGORY_CHOICES:
+        bucket = {
+            "code": code,
+            "label": label,
+            "entries": [],
+            "entries_count": 0,
+            "amount_total": Decimal("0"),
+        }
+        categories.append(bucket)
+        category_map[code] = bucket
+
+    return {
+        "month": month_start,
+        "month_input": month_start.strftime("%Y-%m"),
+        "entries_count": 0,
+        "amount_total": Decimal("0"),
+        "expense_total": Decimal("0"),
+        "expense_count": 0,
+        "categories": categories,
+        "category_map": category_map,
+    }
+
+
+def _build_site_journal_overview(entries, selected_month):
+    month_buckets = {}
+
+    for entry in entries:
+        month_start = entry.entry_date.replace(day=1)
+        bucket = month_buckets.setdefault(month_start, _build_site_journal_month_bucket(month_start))
+        bucket["entries_count"] += 1
+
+        if entry.amount_fc:
+            bucket["amount_total"] += entry.amount_fc
+            bucket["category_map"][entry.category]["amount_total"] += entry.amount_fc
+
+        if entry.category == "DEPENSE":
+            bucket["expense_count"] += 1
+            if entry.amount_fc:
+                bucket["expense_total"] += entry.amount_fc
+
+        category_bucket = bucket["category_map"][entry.category]
+        category_bucket["entries"].append(entry)
+        category_bucket["entries_count"] += 1
+
+    selected_bucket = month_buckets.get(selected_month)
+    if selected_bucket is None:
+        selected_bucket = _build_site_journal_month_bucket(selected_month)
+        month_buckets[selected_month] = selected_bucket
+
+    month_summaries = sorted(month_buckets.values(), key=lambda item: item["month"], reverse=True)
+    for bucket in month_summaries:
+        bucket["non_expense_count"] = bucket["entries_count"] - bucket["expense_count"]
+        bucket["active_categories"] = [
+            category for category in bucket["categories"]
+            if category["entries_count"] > 0
+        ]
+
+    return {
+        "month_summaries": month_summaries,
+        "selected_month_data": selected_bucket,
+    }
+
+
 def _daily_funding_snapshot(site, date_obj, exclude_loss_id=None, exclude_deposit_id=None):
     """
     Calcule les soldes disponibles du jour pour la caisse et la banque.
@@ -1438,7 +1504,13 @@ def admin_site_journal(request, site_id):
         return redirect("dashboard")
 
     site = get_object_or_404(Location, id=site_id)
-    entries = SiteJournalEntry.objects.filter(site=site).select_related("created_by").order_by("-entry_date", "-created_at")
+    selected_month = _parse_month_filter(request.GET.get("month"))
+    entries = list(
+        SiteJournalEntry.objects.filter(site=site)
+        .select_related("created_by")
+        .order_by("-entry_date", "-created_at")
+    )
+    journal_overview = _build_site_journal_overview(entries, selected_month)
 
     if request.method == "POST":
         form = SiteJournalEntryForm(request.POST, reminder_user=request.user)
@@ -1448,7 +1520,8 @@ def admin_site_journal(request, site_id):
             entry.created_by = request.user
             entry.save()
             messages.success(request, "L'entrée du journal a été enregistrée.")
-            return redirect("admin_site_journal", site_id=site.id)
+            month_query = entry.entry_date.replace(day=1).strftime("%Y-%m")
+            return redirect(f"{reverse('admin_site_journal', kwargs={'site_id': site.id})}?month={month_query}")
     else:
         form = SiteJournalEntryForm(
             initial={"entry_date": timezone.localdate()},
@@ -1461,7 +1534,10 @@ def admin_site_journal(request, site_id):
         {
             "site": site,
             "form": form,
-            "entries": entries,
+            "selected_month": selected_month,
+            "selected_month_input": selected_month.strftime("%Y-%m"),
+            "month_summaries": journal_overview["month_summaries"],
+            "selected_month_data": journal_overview["selected_month_data"],
         },
     )
 
@@ -1476,13 +1552,15 @@ def admin_edit_site_journal_entry(request, site_id, entry_id):
 
     site = get_object_or_404(Location, id=site_id)
     entry = get_object_or_404(SiteJournalEntry, id=entry_id, site=site)
+    month_query = request.GET.get("month") or entry.entry_date.replace(day=1).strftime("%Y-%m")
 
     if request.method == "POST":
         form = SiteJournalEntryForm(request.POST, instance=entry, reminder_user=request.user)
         if form.is_valid():
-            form.save()
+            updated_entry = form.save()
             messages.success(request, "L'entrée du journal a été mise à jour.")
-            return redirect("admin_site_journal", site_id=site.id)
+            month_query = updated_entry.entry_date.replace(day=1).strftime("%Y-%m")
+            return redirect(f"{reverse('admin_site_journal', kwargs={'site_id': site.id})}?month={month_query}")
     else:
         form = SiteJournalEntryForm(instance=entry, reminder_user=request.user)
 
@@ -1493,6 +1571,7 @@ def admin_edit_site_journal_entry(request, site_id, entry_id):
             "site": site,
             "entry": entry,
             "form": form,
+            "month_query": month_query,
         },
     )
 
@@ -1507,11 +1586,13 @@ def admin_delete_site_journal_entry(request, site_id, entry_id):
 
     site = get_object_or_404(Location, id=site_id)
     entry = get_object_or_404(SiteJournalEntry, id=entry_id, site=site)
+    month_query = request.GET.get("month") or entry.entry_date.replace(day=1).strftime("%Y-%m")
 
     if request.method == "POST":
+        redirect_month = entry.entry_date.replace(day=1).strftime("%Y-%m")
         entry.delete()
         messages.success(request, "L'entrée du journal a été supprimée.")
-        return redirect("admin_site_journal", site_id=site.id)
+        return redirect(f"{reverse('admin_site_journal', kwargs={'site_id': site.id})}?month={redirect_month}")
 
     return render(
         request,
@@ -1519,6 +1600,7 @@ def admin_delete_site_journal_entry(request, site_id, entry_id):
         {
             "site": site,
             "entry": entry,
+            "month_query": month_query,
         },
     )
 

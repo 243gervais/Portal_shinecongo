@@ -321,7 +321,7 @@ class SiteJournalEntryTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertRedirects(
             response,
-            reverse("admin_site_journal", args=[self.site.id]),
+            f"{reverse('admin_site_journal', args=[self.site.id])}?month=2026-04",
             fetch_redirect_response=False,
         )
         entry = SiteJournalEntry.objects.get(site=self.site)
@@ -348,6 +348,53 @@ class SiteJournalEntryTests(TestCase):
         self.assertContains(response, "Journal du site")
         self.assertContains(response, "Visite du bailleur")
         self.assertContains(response, reverse("admin_site_journal", args=[self.site.id]))
+
+    def test_site_journal_breaks_down_selected_month_by_category(self):
+        SiteJournalEntry.objects.create(
+            site=self.site,
+            entry_date=date(2026, 4, 11),
+            category="DEPENSE",
+            title="Achat matériel supplémentaire",
+            description="Achat urgent de matériel pour le site.",
+            amount_fc=Decimal("25000"),
+            created_by=self.admin_user,
+        )
+        SiteJournalEntry.objects.create(
+            site=self.site,
+            entry_date=date(2026, 4, 14),
+            category="INFO",
+            title="Visite du bailleur",
+            description="Passage sur site pour validation.",
+            created_by=self.admin_user,
+        )
+        SiteJournalEntry.objects.create(
+            site=self.site,
+            entry_date=date(2026, 3, 28),
+            category="INTERVENTION",
+            title="Intervention mars",
+            description="Réparation antérieure.",
+            amount_fc=Decimal("12000"),
+            created_by=self.admin_user,
+        )
+
+        response = self.client.get(
+            reverse("admin_site_journal", args=[self.site.id]),
+            data={"month": "2026-04"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["selected_month_input"], "2026-04")
+        self.assertContains(response, "Dépenses / avances")
+        self.assertContains(response, "Achat matériel supplémentaire")
+        self.assertContains(response, "Visite du bailleur")
+        self.assertNotContains(response, "Intervention mars")
+
+        selected_month_data = response.context["selected_month_data"]
+        self.assertEqual(selected_month_data["expense_total"], Decimal("25000"))
+        categories = {item["code"]: item for item in selected_month_data["categories"]}
+        self.assertEqual(categories["DEPENSE"]["entries_count"], 1)
+        self.assertEqual(categories["INFO"]["entries_count"], 1)
+        self.assertEqual(categories["INTERVENTION"]["entries_count"], 0)
 
 
 class WaterPurchaseTrackingTests(TestCase):
