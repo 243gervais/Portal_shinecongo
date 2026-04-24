@@ -388,6 +388,10 @@ class SiteJournalEntryTests(TestCase):
         self.assertContains(response, "Achat matériel supplémentaire")
         self.assertContains(response, "Visite du bailleur")
         self.assertNotContains(response, "Intervention mars")
+        self.assertContains(response, 'href="#journal-category-depense"', html=False)
+        self.assertContains(response, 'href="#journal-category-info"', html=False)
+        self.assertContains(response, 'id="journal-category-depense"', html=False)
+        self.assertContains(response, 'id="journal-category-info"', html=False)
 
         selected_month_data = response.context["selected_month_data"]
         self.assertEqual(selected_month_data["expense_total"], Decimal("25000"))

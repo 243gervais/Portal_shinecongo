@@ -36,6 +36,28 @@
         background: rgba(255, 255, 255, 0.96);
     }
 
+    .journal-summary-link {
+        display: block;
+        color: inherit;
+        text-decoration: none;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+
+    .journal-summary-link:hover,
+    .journal-summary-link:focus-visible {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-hover);
+        border-color: rgba(10, 67, 107, 0.18);
+        outline: none;
+    }
+
+    .journal-summary-link.is-disabled {
+        cursor: default;
+        pointer-events: none;
+        opacity: 0.72;
+        box-shadow: none;
+    }
+
     .journal-entry-list {
         display: grid;
         gap: 0.85rem;
@@ -51,6 +73,19 @@
     .journal-entry-meta {
         color: var(--text-secondary);
         font-size: 0.82rem;
+    }
+
+    .journal-category-section {
+        scroll-margin-top: 120px;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    .journal-category-section:target {
+        padding: 0.85rem 1rem 1rem 1rem;
+        border-radius: 20px;
+        border: 1px solid rgba(10, 67, 107, 0.18);
+        background: rgba(232, 241, 247, 0.46);
+        box-shadow: 0 18px 36px rgba(10, 67, 107, 0.08);
     }
 </style>
 {% endblock %}
@@ -173,11 +208,19 @@
     </div>
 
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.9rem; margin-bottom: 1rem;">
-        <div class="journal-category-card">
+        {% if selected_month_data.expense_count %}
+        <a href="#journal-category-depense" class="journal-category-card journal-summary-link">
+        {% else %}
+        <div class="journal-category-card journal-summary-link is-disabled">
+        {% endif %}
             <div style="color: var(--text-secondary); font-size: 0.78rem; font-weight: 700; text-transform: uppercase;">Dépenses / avances</div>
             <div style="font-size: 1.55rem; font-weight: 800; color: var(--primary-color);">{{ selected_month_data.expense_total|fc_amount }} FC</div>
-            <div class="journal-entry-meta">{{ selected_month_data.expense_count }} entrée{{ selected_month_data.expense_count|pluralize }} de dépense</div>
+            <div class="journal-entry-meta">{{ selected_month_data.expense_count }} entrée{{ selected_month_data.expense_count|pluralize }} de dépense{% if selected_month_data.expense_count %} • cliquer pour voir{% endif %}</div>
+        {% if selected_month_data.expense_count %}
+        </a>
+        {% else %}
         </div>
+        {% endif %}
         <div class="journal-category-card">
             <div style="color: var(--text-secondary); font-size: 0.78rem; font-weight: 700; text-transform: uppercase;">Autres notes</div>
             <div style="font-size: 1.55rem; font-weight: 800; color: var(--primary-dark);">{{ selected_month_data.non_expense_count }}</div>
@@ -197,19 +240,27 @@
 
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.85rem;">
         {% for category in selected_month_data.categories %}
-        <div class="journal-category-card">
+        {% if category.entries_count %}
+        <a href="#journal-category-{{ category.code|lower }}" class="journal-category-card journal-summary-link">
+        {% else %}
+        <div class="journal-category-card journal-summary-link is-disabled">
+        {% endif %}
             <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.6rem;">
                 <div style="font-weight: 800; color: var(--primary-dark);">{{ category.label }}</div>
                 <span class="site-chip" style="background: rgba(10, 67, 107, 0.08); color: var(--primary-color);">{{ category.entries_count }}</span>
             </div>
             <div class="journal-entry-meta" style="margin-top: 0.45rem;">
                 {% if category.amount_total %}
-                    Montants documentés: {{ category.amount_total|fc_amount }} FC
+                    Montants documentés: {{ category.amount_total|fc_amount }} FC{% if category.entries_count %} • cliquer pour voir{% endif %}
                 {% else %}
                     Aucun montant saisi pour cette catégorie
                 {% endif %}
             </div>
+        {% if category.entries_count %}
+        </a>
+        {% else %}
         </div>
+        {% endif %}
         {% endfor %}
     </div>
 </div>
@@ -227,7 +278,7 @@
     {% if selected_month_data.active_categories %}
     <div style="display: grid; gap: 1.1rem;">
         {% for category in selected_month_data.active_categories %}
-        <section style="padding-top: 0.2rem;">
+        <section id="journal-category-{{ category.code|lower }}" class="journal-category-section" style="padding-top: 0.2rem;">
             <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.85rem;">
                 <div>
                     <h3 style="margin: 0; color: var(--primary-dark);">{{ category.label }}</h3>
