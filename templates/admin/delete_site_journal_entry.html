@@ -23,7 +23,7 @@
     {% if entry.description %}
     <p><strong>Détails :</strong> {{ entry.description }}</p>
     {% endif %}
-    <p><strong>Montant :</strong> {% if entry.amount_fc %}{{ entry.amount_fc|fc_amount }} FC{% else %}Sans montant{% endif %}</p>
+    <p><strong>Montant :</strong> {% if entry.amount_fc %}{{ entry.amount_fc|fc_amount }} FC <span style="color: var(--text-secondary); font-size: 0.88rem;">(~ ${{ entry.amount_fc|usd_equivalent }} USD)</span>{% else %}Sans montant{% endif %}</p>
 
     <form method="post" style="margin-top: 1.5rem;">
         {% csrf_token %}

@@ -1,6 +1,7 @@
 from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from datetime import date, timedelta
@@ -291,6 +292,13 @@ class SiteDocumentUploadTests(TestCase):
 
 class SiteJournalEntryTests(TestCase):
     def setUp(self):
+        rate_data = {
+            "usd_to_cdf": "2300",
+            "source_date": timezone.localdate().isoformat(),
+            "provider": "test-suite",
+        }
+        cache.set(f"fx:usd_to_cdf:{timezone.localdate().isoformat()}", rate_data, 3600)
+        cache.set("fx:usd_to_cdf:last", rate_data, 3600)
         self.admin_user = User.objects.create_superuser(
             username="journal_admin",
             email="journal_admin@example.com",
@@ -303,6 +311,14 @@ class SiteJournalEntryTests(TestCase):
             actif=True,
         )
         self.client.login(username="journal_admin", password="AdminPass123!")
+
+    def test_site_journal_form_displays_fc_and_usd_amount_fields(self):
+        response = self.client.get(reverse("admin_site_journal", args=[self.site.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Montant lié (FC)")
+        self.assertContains(response, "Montant lié (USD)")
+        self.assertContains(response, "1 USD = 2 300 FC")
 
     def test_admin_can_create_site_journal_entry(self):
         reminder_at = timezone.localtime(timezone.now() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M")
@@ -331,6 +347,24 @@ class SiteJournalEntryTests(TestCase):
         self.assertEqual(entry.reminder_email, "journal_admin@example.com")
         self.assertIsNotNone(entry.reminder_at)
         self.assertIsNone(entry.reminder_sent_at)
+
+    def test_admin_can_create_site_journal_entry_from_usd_amount(self):
+        response = self.client.post(
+            reverse("admin_site_journal", args=[self.site.id]),
+            data={
+                "entry_date": "2026-04-12",
+                "category": "DEPENSE",
+                "title": "Achat payé en dollars",
+                "description": "Paiement saisi directement en USD.",
+                "amount_fc": "",
+                "amount_usd": "10",
+                "reminder_at": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        entry = SiteJournalEntry.objects.get(site=self.site, title="Achat payé en dollars")
+        self.assertEqual(entry.amount_fc, Decimal("23000.00"))
 
     def test_site_detail_shows_journal_preview(self):
         SiteJournalEntry.objects.create(

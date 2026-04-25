@@ -1,11 +1,15 @@
+from decimal import Decimal, ROUND_HALF_UP
+
 from django import forms
 from django.conf import settings
-from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
+from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.contrib.auth.models import User
 from django.utils import timezone
-from decimal import Decimal
+
+from shinecongo.currency import convert_cdf_to_usd, get_usd_to_cdf_rate
 from sites.models import Location, SiteJournalEntry, SiteWaterPurchase
-from .models import UserProfile, EmployeePayment
+
+from .models import EmployeePayment, UserProfile
 
 
 class ApprovalAuthenticationForm(AuthenticationForm):
@@ -439,6 +443,14 @@ class EmployeePaymentForm(forms.Form):
 
 
 class SiteJournalEntryForm(forms.ModelForm):
+    amount_usd = forms.DecimalField(
+        label="Montant lié (USD)",
+        required=False,
+        min_value=Decimal("0"),
+        max_digits=10,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0"}),
+    )
     reminder_at = forms.DateTimeField(
         label="Rappel par email",
         required=False,
@@ -453,9 +465,17 @@ class SiteJournalEntryForm(forms.ModelForm):
         self.reminder_user = reminder_user
         super().__init__(*args, **kwargs)
         self.default_reminder_email = self._resolve_reminder_email()
+        rate_data = get_usd_to_cdf_rate()
+        self.usd_to_cdf_rate = Decimal(str(rate_data.get("usd_to_cdf") or "0"))
+        if self.usd_to_cdf_rate <= 0:
+            self.usd_to_cdf_rate = Decimal("1")
+        self.fx_rate_label = f"1 USD = {self.usd_to_cdf_rate.quantize(Decimal('1'), rounding=ROUND_HALF_UP):,.0f} FC".replace(",", " ")
 
         if self.instance and self.instance.pk and self.instance.reminder_at:
             self.initial["reminder_at"] = timezone.localtime(self.instance.reminder_at).strftime("%Y-%m-%dT%H:%M")
+        if self.instance and self.instance.pk and self.instance.amount_fc:
+            conversion = convert_cdf_to_usd(self.instance.amount_fc)
+            self.initial["amount_usd"] = conversion["amount_usd"].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
         if self.default_reminder_email:
             self.fields["reminder_at"].help_text = (
@@ -466,6 +486,15 @@ class SiteJournalEntryForm(forms.ModelForm):
             self.fields["reminder_at"].help_text = (
                 "Optionnel. Ajoutez un email à votre compte administrateur pour recevoir ce rappel."
             )
+
+        amount_help_text = (
+            "Optionnel. Entrez le montant en FC ou en USD. Le portail convertit automatiquement avec le taux du jour "
+            f"({self.fx_rate_label})."
+        )
+        self.fields["amount_fc"].help_text = amount_help_text
+        self.fields["amount_usd"].help_text = amount_help_text
+        self.fields["amount_fc"].widget.attrs["data-journal-fx"] = "fc"
+        self.fields["amount_usd"].widget.attrs["data-journal-fx"] = "usd"
 
     def _resolve_reminder_email(self):
         candidates = [
@@ -506,7 +535,17 @@ class SiteJournalEntryForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        amount_fc = cleaned_data.get("amount_fc")
+        amount_usd = cleaned_data.get("amount_usd")
         reminder_at = cleaned_data.get("reminder_at")
+
+        if amount_fc is None and amount_usd is not None:
+            cleaned_data["amount_fc"] = (amount_usd * self.usd_to_cdf_rate).quantize(Decimal("0.01"))
+        elif amount_fc is not None:
+            cleaned_data["amount_usd"] = (amount_fc / self.usd_to_cdf_rate).quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP,
+            )
 
         if not reminder_at:
             return cleaned_data

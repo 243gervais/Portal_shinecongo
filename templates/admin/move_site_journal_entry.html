@@ -54,7 +54,7 @@
         {% if entry.description %}
         <p><strong>Détails :</strong> {{ entry.description }}</p>
         {% endif %}
-        <p><strong>Montant :</strong> {% if entry.amount_fc %}{{ entry.amount_fc|fc_amount }} FC{% else %}Sans montant{% endif %}</p>
+        <p><strong>Montant :</strong> {% if entry.amount_fc %}{{ entry.amount_fc|fc_amount }} FC <span style="color: var(--text-secondary); font-size: 0.88rem;">(~ ${{ entry.amount_fc|usd_equivalent }} USD)</span>{% else %}Sans montant{% endif %}</p>
         {% if entry.reminder_at %}
         <p><strong>Rappel :</strong> {{ entry.reminder_at|date:"d/m/Y H:i" }} {% if entry.reminder_email %}• {{ entry.reminder_email }}{% endif %}</p>
         {% endif %}
