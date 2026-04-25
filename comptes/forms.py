@@ -553,6 +553,36 @@ class SiteJournalEntryForm(forms.ModelForm):
         return entry
 
 
+class SiteJournalEntryMoveForm(forms.Form):
+    """
+    Formulaire dédié à la migration d'une entrée du journal vers une autre catégorie/date.
+    """
+
+    entry_date = forms.DateField(
+        label="Nouvelle date",
+        widget=forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+    )
+    category = forms.ChoiceField(
+        label="Nouvelle catégorie",
+        choices=SiteJournalEntry.CATEGORY_CHOICES,
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+
+    def __init__(self, *args, entry_instance=None, **kwargs):
+        self.entry_instance = entry_instance
+        super().__init__(*args, **kwargs)
+
+        if self.entry_instance:
+            self.fields["entry_date"].initial = self.entry_instance.entry_date
+            self.fields["category"].initial = self.entry_instance.category
+
+    def save(self, entry):
+        entry.entry_date = self.cleaned_data["entry_date"]
+        entry.category = self.cleaned_data["category"]
+        entry.save(update_fields=["entry_date", "category", "updated_at"])
+        return entry
+
+
 class SiteWaterPurchaseForm(forms.ModelForm):
     billing_month = forms.DateField(
         label="Mois concerné",

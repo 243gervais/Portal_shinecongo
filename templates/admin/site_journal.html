@@ -323,6 +323,7 @@
                             <div style="font-size: 0.86rem; font-weight: 700; color: var(--text-secondary);">Sans montant</div>
                             {% endif %}
                             <div style="display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.85rem;">
+                                <a href="{% url 'admin_move_site_journal_entry' site.id entry.id %}?month={{ selected_month_input }}" class="btn btn-secondary">Migrer</a>
                                 <a href="{% url 'admin_edit_site_journal_entry' site.id entry.id %}?month={{ selected_month_input }}" class="btn btn-info">Modifier</a>
                                 <a href="{% url 'admin_delete_site_journal_entry' site.id entry.id %}?month={{ selected_month_input }}" class="btn btn-danger">Supprimer</a>
                             </div>

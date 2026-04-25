@@ -400,6 +400,43 @@ class SiteJournalEntryTests(TestCase):
         self.assertEqual(categories["INFO"]["entries_count"], 1)
         self.assertEqual(categories["INTERVENTION"]["entries_count"], 0)
 
+    def test_admin_can_move_site_journal_entry_to_new_category_and_month(self):
+        entry = SiteJournalEntry.objects.create(
+            site=self.site,
+            entry_date=date(2026, 4, 18),
+            category="INFO",
+            title="Information mal classée",
+            description="Cette note devait être en dépense.",
+            amount_fc=Decimal("18000"),
+            created_by=self.admin_user,
+        )
+
+        response = self.client.post(
+            f"{reverse('admin_move_site_journal_entry', args=[self.site.id, entry.id])}?month=2026-04",
+            data={
+                "entry_date": "2026-05-02",
+                "category": "DEPENSE",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(
+            response,
+            f"{reverse('admin_site_journal', args=[self.site.id])}?month=2026-05#journal-category-depense",
+            fetch_redirect_response=False,
+        )
+
+        entry.refresh_from_db()
+        self.assertEqual(entry.entry_date, date(2026, 5, 2))
+        self.assertEqual(entry.category, "DEPENSE")
+
+        moved_response = self.client.get(
+            reverse("admin_site_journal", args=[self.site.id]),
+            data={"month": "2026-05"},
+        )
+        self.assertContains(moved_response, "Information mal classée")
+        self.assertContains(moved_response, "Migrer")
+
 
 class WaterPurchaseTrackingTests(TestCase):
     def setUp(self):

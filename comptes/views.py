@@ -20,6 +20,7 @@ from .forms import (
     AdminPasswordManagementForm,
     EmployeePaymentForm,
     SiteJournalEntryForm,
+    SiteJournalEntryMoveForm,
     SiteWaterPurchaseForm,
 )
 from sites.models import (
@@ -1567,6 +1568,63 @@ def admin_edit_site_journal_entry(request, site_id, entry_id):
     return render(
         request,
         "admin/edit_site_journal_entry.html",
+        {
+            "site": site,
+            "entry": entry,
+            "form": form,
+            "month_query": month_query,
+        },
+    )
+
+
+@login_required
+@no_cache_view
+def admin_move_site_journal_entry(request, site_id, entry_id):
+    ensure_superuser_admin_profile(request.user)
+    if not is_admin_user(request.user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect("dashboard")
+
+    site = get_object_or_404(Location, id=site_id)
+    entry = get_object_or_404(SiteJournalEntry, id=entry_id, site=site)
+    month_query = request.GET.get("month") or entry.entry_date.replace(day=1).strftime("%Y-%m")
+
+    if request.method == "POST":
+        form = SiteJournalEntryMoveForm(request.POST, entry_instance=entry)
+        if form.is_valid():
+            previous_date = entry.entry_date
+            previous_category = entry.category
+            moved_entry = form.save(entry)
+            destination_month = moved_entry.entry_date.replace(day=1).strftime("%Y-%m")
+            destination_anchor = f"journal-category-{moved_entry.category.lower()}"
+
+            AuditLog.log(
+                user=request.user,
+                action="MODIFIER",
+                description=f"Entrée du journal migrée pour {site.nom}: {moved_entry.title}",
+                content_object=moved_entry,
+                donnees_avant={
+                    "entry_date": previous_date.strftime("%Y-%m-%d"),
+                    "category": previous_category,
+                },
+                donnees_apres={
+                    "entry_date": moved_entry.entry_date.strftime("%Y-%m-%d"),
+                    "category": moved_entry.category,
+                },
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request),
+            )
+
+            messages.success(request, "L'entrée du journal a été migrée vers la nouvelle catégorie/date.")
+            return redirect(
+                f"{reverse('admin_site_journal', kwargs={'site_id': site.id})}?month={destination_month}#{destination_anchor}"
+            )
+    else:
+        form = SiteJournalEntryMoveForm(entry_instance=entry)
+
+    return render(
+        request,
+        "admin/move_site_journal_entry.html",
         {
             "site": site,
             "entry": entry,

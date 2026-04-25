@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load currency_tags %}
+
+{% block title %}Migrer une entrée - {{ site.nom }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem;">
+    <div>
+        <h1 class="mt-2 mb-2">Migrer l'entrée du journal</h1>
+        <p style="color: var(--text-secondary); margin: 0;">{{ site.nom }} • {{ entry.title }}</p>
+    </div>
+    <a href="{% url 'admin_site_journal' site.id %}?month={{ month_query }}" class="btn btn-secondary">Retour au journal</a>
+</div>
+
+<div style="display: grid; grid-template-columns: minmax(0, 0.95fr) minmax(280px, 0.75fr); gap: 1.25rem;">
+    <div class="card">
+        <div style="padding: 1rem; border-radius: 14px; background: rgba(10, 67, 107, 0.06); border: 1px solid rgba(10, 67, 107, 0.08); margin-bottom: 1rem;">
+            <strong style="color: var(--primary-dark);">Utilisez cette action pour déplacer une entrée vers la bonne catégorie ou le bon mois.</strong>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {% for error in form.non_field_errors %}
+                <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
+                <div class="form-group">
+                    <label for="{{ form.entry_date.id_for_label }}">Nouvelle date</label>
+                    {{ form.entry_date }}
+                    {% for error in form.entry_date.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+                </div>
+                <div class="form-group">
+                    <label for="{{ form.category.id_for_label }}">Nouvelle catégorie</label>
+                    {{ form.category }}
+                    {% for error in form.category.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">Migrer l'entrée</button>
+            <a href="{% url 'admin_site_journal' site.id %}?month={{ month_query }}" class="btn btn-secondary btn-block mt-2">Annuler</a>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3 style="margin-top: 0;">Entrée actuelle</h3>
+        <p><strong>Date actuelle :</strong> {{ entry.entry_date|date:"d/m/Y" }}</p>
+        <p><strong>Catégorie actuelle :</strong> {{ entry.get_category_display }}</p>
+        <p><strong>Titre :</strong> {{ entry.title }}</p>
+        {% if entry.description %}
+        <p><strong>Détails :</strong> {{ entry.description }}</p>
+        {% endif %}
+        <p><strong>Montant :</strong> {% if entry.amount_fc %}{{ entry.amount_fc|fc_amount }} FC{% else %}Sans montant{% endif %}</p>
+        {% if entry.reminder_at %}
+        <p><strong>Rappel :</strong> {{ entry.reminder_at|date:"d/m/Y H:i" }} {% if entry.reminder_email %}• {{ entry.reminder_email }}{% endif %}</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
