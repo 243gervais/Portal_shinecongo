@@ -1493,6 +1493,9 @@
                 <span class="finance-disclosure-state" data-history-state-display>Hebdomadaire</span>
             </summary>
             <div class="finance-disclosure-body">
+                <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+                    <a href="{% url 'admin_site_history_comparison' site.id %}?scope=week&date={{ detail_date|date:'Y-m-d' }}" class="btn btn-secondary">Ouvrir la page complète</a>
+                </div>
                 <div class="history-switcher" data-history-switcher>
                     <div class="history-switcher-buttons">
                         {% for period in comparison_periods %}

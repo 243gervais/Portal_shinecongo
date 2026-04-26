@@ -108,6 +108,12 @@ def _build_admin_site_navigation(request):
                 "keywords": "pilotage hebdomadaire cash flow banque pertes",
             },
             {
+                "label": "Historique comparatif",
+                "url": reverse("admin_site_history_comparison", kwargs={"site_id": site.id}),
+                "description": "Comparaison semaine, mois et année",
+                "keywords": "historique comparatif hebdomadaire mensuel annuel graphes banque pertes cash flow",
+            },
+            {
                 "label": "Synthèse opérationnelle",
                 "url": f"{site_detail_url}#synthese-operationnelle",
                 "description": "Résumé du site",

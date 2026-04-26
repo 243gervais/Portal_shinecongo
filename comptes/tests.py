@@ -9,6 +9,7 @@ from decimal import Decimal
 
 from comptes.forms import ApprovalAuthenticationForm
 from comptes.views import _daily_funding_snapshot
+from lavages.models import CarWash
 from sites.models import Location, SiteDocument, SiteJournalEntry, SiteWaterPurchase
 from sites.models import DailyBankDeposit, SiteLossEntry
 from pointage.models import ShiftDay
@@ -596,6 +597,96 @@ class FundingSnapshotTests(TestCase):
         self.assertEqual(snapshot["bank_available"], Decimal("-5000"))
         self.assertEqual(snapshot["bank_week_available"], 65000)
         self.assertEqual(snapshot["bank_total_available"], 65000)
+
+
+class SiteHistoryComparisonTests(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            username="history_admin",
+            email="history_admin@example.com",
+            password="AdminPass123!",
+        )
+        self.site = Location.objects.create(
+            nom="Site Historique",
+            adresse="Adresse Historique",
+            ville="Kinshasa",
+            actif=True,
+        )
+        self.client.login(username="history_admin", password="AdminPass123!")
+
+        CarWash.objects.create(
+            employe=self.admin_user,
+            site=self.site,
+            date=date(2026, 4, 21),
+            type_service="COMPLET",
+            montant=Decimal("10000"),
+        )
+        DailyBankDeposit.objects.create(site=self.site, date=date(2026, 4, 21), amount=Decimal("7000"))
+        SiteLossEntry.objects.create(
+            site=self.site,
+            date=date(2026, 4, 21),
+            funding_source="CAISSE",
+            category="AUTRE",
+            amount=Decimal("2000"),
+            title="Transport semaine active",
+        )
+        ShiftDay.objects.create(
+            employe=self.admin_user,
+            site=self.site,
+            date=date(2026, 4, 21),
+            daily_report_confirmed=True,
+            total_amount_reported_fc=Decimal("9500"),
+        )
+
+        CarWash.objects.create(
+            employe=self.admin_user,
+            site=self.site,
+            date=date(2026, 3, 10),
+            type_service="COMPLET",
+            montant=Decimal("25000"),
+        )
+        DailyBankDeposit.objects.create(site=self.site, date=date(2026, 3, 10), amount=Decimal("16000"))
+        SiteLossEntry.objects.create(
+            site=self.site,
+            date=date(2026, 3, 10),
+            funding_source="BANQUE",
+            category="AUTRE",
+            amount=Decimal("3000"),
+            title="Achat banque mars",
+        )
+
+        CarWash.objects.create(
+            employe=self.admin_user,
+            site=self.site,
+            date=date(2025, 12, 15),
+            type_service="COMPLET",
+            montant=Decimal("40000"),
+        )
+        DailyBankDeposit.objects.create(site=self.site, date=date(2025, 12, 15), amount=Decimal("30000"))
+
+    def test_history_comparison_page_renders_selected_scope(self):
+        response = self.client.get(
+            reverse("admin_site_history_comparison", args=[self.site.id]),
+            data={"scope": "month", "date": "2026-04-21"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Historique comparatif")
+        self.assertContains(response, "Hebdomadaire")
+        self.assertContains(response, "Mensuel")
+        self.assertContains(response, "Annuel")
+        self.assertContains(response, "Historique mensuel")
+        self.assertContains(response, "Avril 2026")
+        self.assertContains(response, "Mars 2026")
+        self.assertEqual(response.context["current_scope"], "month")
+        self.assertEqual(response.context["selected_period"]["key"], "month")
+
+    def test_site_detail_links_to_history_comparison_page(self):
+        response = self.client.get(reverse("admin_site_detail", args=[self.site.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Ouvrir la page complète")
+        self.assertContains(response, reverse("admin_site_history_comparison", args=[self.site.id]))
 
 
 class SiteCorrectionsViewTests(TestCase):

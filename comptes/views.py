@@ -58,6 +58,199 @@ def no_cache_view(view_func):
     return _wrapped_view
 
 
+MONTH_NAMES = [
+    "Janvier",
+    "Fevrier",
+    "Mars",
+    "Avril",
+    "Mai",
+    "Juin",
+    "Juillet",
+    "Aout",
+    "Septembre",
+    "Octobre",
+    "Novembre",
+    "Decembre",
+]
+
+
+def _build_site_comparison_periods(site, detail_date, selected_scope="week"):
+    week_start = detail_date - timedelta(days=detail_date.weekday())
+
+    earliest_activity_candidates = [
+        CarWash.objects.filter(site=site).aggregate(value=Min("date"))["value"],
+        DailyBankDeposit.objects.filter(site=site).aggregate(value=Min("date"))["value"],
+        SiteLossEntry.objects.filter(site=site).aggregate(value=Min("date"))["value"],
+        ShiftDay.objects.filter(site=site, daily_report_confirmed=True).aggregate(value=Min("date"))["value"],
+    ]
+    earliest_activity_date = min(
+        (date_value for date_value in earliest_activity_candidates if date_value),
+        default=week_start,
+    )
+
+    def build_period_history(period_key, current_start, history_limit):
+        entries = []
+        cursor = current_start
+
+        while len(entries) < history_limit:
+            if period_key == "week":
+                period_end = cursor + timedelta(days=6)
+                label = f"{cursor.strftime('%d/%m/%Y')} - {period_end.strftime('%d/%m/%Y')}"
+                detail_query = (
+                    f"date_debut={cursor.strftime('%Y-%m-%d')}"
+                    f"&date_fin={period_end.strftime('%Y-%m-%d')}"
+                    f"&week_anchor={cursor.strftime('%Y-%m-%d')}"
+                )
+                previous_cursor = cursor - timedelta(days=7)
+            elif period_key == "month":
+                period_end = cursor.replace(day=calendar.monthrange(cursor.year, cursor.month)[1])
+                label = f"{MONTH_NAMES[cursor.month - 1]} {cursor.year}"
+                detail_query = (
+                    f"date_debut={cursor.strftime('%Y-%m-%d')}"
+                    f"&date_fin={period_end.strftime('%Y-%m-%d')}"
+                )
+                previous_cursor = (cursor - timedelta(days=1)).replace(day=1)
+            else:
+                period_end = cursor.replace(month=12, day=31)
+                label = str(cursor.year)
+                detail_query = (
+                    f"date_debut={cursor.strftime('%Y-%m-%d')}"
+                    f"&date_fin={period_end.strftime('%Y-%m-%d')}"
+                )
+                previous_cursor = cursor.replace(year=cursor.year - 1, month=1, day=1)
+
+            if period_end < earliest_activity_date:
+                break
+
+            history_cash = CarWash.objects.filter(
+                site=site,
+                date__gte=cursor,
+                date__lte=period_end,
+            ).aggregate(total=Sum("montant"))["total"] or 0
+            history_bank = DailyBankDeposit.objects.filter(
+                site=site,
+                date__gte=cursor,
+                date__lte=period_end,
+            ).aggregate(total=Sum("amount"))["total"] or 0
+            history_losses = SiteLossEntry.objects.filter(
+                site=site,
+                date__gte=cursor,
+                date__lte=period_end,
+            )
+            history_pertes_total = history_losses.aggregate(total=Sum("amount"))["total"] or 0
+            history_pertes_caisse = history_losses.filter(funding_source="CAISSE").aggregate(total=Sum("amount"))["total"] or 0
+            history_pertes_banque = history_losses.filter(funding_source="BANQUE").aggregate(total=Sum("amount"))["total"] or 0
+
+            if history_cash or history_bank or history_pertes_total or cursor == current_start:
+                history_reports = ShiftDay.objects.filter(
+                    site=site,
+                    date__gte=cursor,
+                    date__lte=period_end,
+                    daily_report_confirmed=True,
+                )
+                history_report_total = history_reports.aggregate(total=Sum("total_amount_reported_fc"))["total"] or 0
+                ecart_caisse = history_cash - history_bank - history_pertes_caisse
+                bank_net = history_bank - history_pertes_banque
+                entries.append(
+                    {
+                        "period_start": cursor,
+                        "period_end": period_end,
+                        "label": label,
+                        "cash_flow": history_cash,
+                        "reported_cash": history_report_total,
+                        "bank_deposit": history_bank,
+                        "bank_net": bank_net,
+                        "pertes_total": history_pertes_total,
+                        "pertes_caisse": history_pertes_caisse,
+                        "pertes_banque": history_pertes_banque,
+                        "ecart_caisse": ecart_caisse,
+                        "abs_ecart_caisse": abs(ecart_caisse),
+                        "detail_query": detail_query,
+                        "is_selected": cursor == current_start,
+                    }
+                )
+
+            cursor = previous_cursor
+
+        for index, item in enumerate(entries):
+            previous_item = entries[index + 1] if index + 1 < len(entries) else None
+            item["cash_flow_delta"] = item["cash_flow"] - previous_item["cash_flow"] if previous_item else None
+            item["reported_cash_delta"] = item["reported_cash"] - previous_item["reported_cash"] if previous_item else None
+            item["bank_deposit_delta"] = item["bank_deposit"] - previous_item["bank_deposit"] if previous_item else None
+            item["bank_net_delta"] = item["bank_net"] - previous_item["bank_net"] if previous_item else None
+            item["pertes_total_delta"] = item["pertes_total"] - previous_item["pertes_total"] if previous_item else None
+            item["ecart_caisse_delta"] = item["ecart_caisse"] - previous_item["ecart_caisse"] if previous_item else None
+
+        return entries
+
+    weekly_history = build_period_history("week", week_start, 8)
+    monthly_history = build_period_history("month", detail_date.replace(day=1), 6)
+    yearly_history = build_period_history("year", detail_date.replace(month=1, day=1), 5)
+
+    period_definitions = [
+        {
+            "key": "week",
+            "toggle_label": "Hebdomadaire",
+            "title": "Historique hebdomadaire",
+            "copy": "Comparer les 8 dernieres semaines actives et rouvrir rapidement une semaine precise.",
+            "row_label": "Semaine",
+            "items": weekly_history,
+            "empty_message": "Aucune semaine historique disponible pour ce site.",
+            "show_correction_link": True,
+        },
+        {
+            "key": "month",
+            "toggle_label": "Mensuel",
+            "title": "Historique mensuel",
+            "copy": "Comparer les derniers mois actifs pour repérer rapidement les variations de rythme et de charges.",
+            "row_label": "Mois",
+            "items": monthly_history,
+            "empty_message": "Aucun mois historique disponible pour ce site.",
+            "show_correction_link": False,
+        },
+        {
+            "key": "year",
+            "toggle_label": "Annuel",
+            "title": "Historique annuel",
+            "copy": "Voir la trajectoire annuelle du site sans empiler toutes les semaines sur un seul ecran.",
+            "row_label": "Annee",
+            "items": yearly_history,
+            "empty_message": "Aucune annee historique disponible pour ce site.",
+            "show_correction_link": False,
+        },
+    ]
+
+    comparison_periods = []
+    for definition in period_definitions:
+        items = definition["items"]
+        best_cash_item = max(items, key=lambda item: item["cash_flow"], default=None)
+        highest_loss_item = max(items, key=lambda item: item["pertes_total"], default=None)
+        strongest_bank_item = max(items, key=lambda item: item["bank_net"], default=None)
+        closest_gap_item = min(items, key=lambda item: abs(item["ecart_caisse"]), default=None)
+        current_item = items[0] if items else None
+        previous_item = items[1] if len(items) > 1 else None
+
+        comparison_periods.append(
+            {
+                **definition,
+                "item_count": len(items),
+                "max_cash_flow": max((item["cash_flow"] for item in items), default=0) or 1,
+                "max_bank_deposit": max((item["bank_deposit"] for item in items), default=0) or 1,
+                "max_pertes_total": max((item["pertes_total"] for item in items), default=0) or 1,
+                "max_ecart_caisse": max((item["abs_ecart_caisse"] for item in items), default=0) or 1,
+                "default_open": definition["key"] == selected_scope,
+                "current_item": current_item,
+                "previous_item": previous_item,
+                "best_cash_item": best_cash_item,
+                "highest_loss_item": highest_loss_item,
+                "strongest_bank_item": strongest_bank_item,
+                "closest_gap_item": closest_gap_item,
+            }
+        )
+
+    return comparison_periods
+
+
 @login_required
 @no_cache_view
 def dashboard(request):
@@ -1249,168 +1442,7 @@ def admin_site_detail(request, site_id):
     bank_net_week = bank_deposit_week - pertes_week_banque
     caisse_balance_week = chiffre_week - bank_deposit_week - pertes_week_caisse
 
-    earliest_activity_candidates = [
-        CarWash.objects.filter(site=site).aggregate(value=Min('date'))['value'],
-        DailyBankDeposit.objects.filter(site=site).aggregate(value=Min('date'))['value'],
-        SiteLossEntry.objects.filter(site=site).aggregate(value=Min('date'))['value'],
-    ]
-    earliest_activity_date = min(
-        (date_value for date_value in earliest_activity_candidates if date_value),
-        default=week_start,
-    )
-
-    month_names = [
-        "Janvier",
-        "Fevrier",
-        "Mars",
-        "Avril",
-        "Mai",
-        "Juin",
-        "Juillet",
-        "Aout",
-        "Septembre",
-        "Octobre",
-        "Novembre",
-        "Decembre",
-    ]
-
-    def build_period_history(period_key, current_start, history_limit):
-        entries = []
-        cursor = current_start
-
-        while len(entries) < history_limit:
-            if period_key == 'week':
-                period_end = cursor + timedelta(days=6)
-                label = f"{cursor.strftime('%d/%m/%Y')} - {period_end.strftime('%d/%m/%Y')}"
-                detail_query = (
-                    f"date_debut={cursor.strftime('%Y-%m-%d')}"
-                    f"&date_fin={period_end.strftime('%Y-%m-%d')}"
-                    f"&week_anchor={cursor.strftime('%Y-%m-%d')}"
-                )
-                previous_cursor = cursor - timedelta(days=7)
-            elif period_key == 'month':
-                period_end = cursor.replace(day=calendar.monthrange(cursor.year, cursor.month)[1])
-                label = f"{month_names[cursor.month - 1]} {cursor.year}"
-                detail_query = (
-                    f"date_debut={cursor.strftime('%Y-%m-%d')}"
-                    f"&date_fin={period_end.strftime('%Y-%m-%d')}"
-                )
-                previous_cursor = (cursor - timedelta(days=1)).replace(day=1)
-            else:
-                period_end = cursor.replace(month=12, day=31)
-                label = str(cursor.year)
-                detail_query = (
-                    f"date_debut={cursor.strftime('%Y-%m-%d')}"
-                    f"&date_fin={period_end.strftime('%Y-%m-%d')}"
-                )
-                previous_cursor = cursor.replace(year=cursor.year - 1, month=1, day=1)
-
-            if period_end < earliest_activity_date:
-                break
-
-            history_cash = CarWash.objects.filter(
-                site=site,
-                date__gte=cursor,
-                date__lte=period_end,
-            ).aggregate(total=Sum('montant'))['total'] or 0
-            history_bank = DailyBankDeposit.objects.filter(
-                site=site,
-                date__gte=cursor,
-                date__lte=period_end,
-            ).aggregate(total=Sum('amount'))['total'] or 0
-            history_losses = SiteLossEntry.objects.filter(
-                site=site,
-                date__gte=cursor,
-                date__lte=period_end,
-            )
-            history_pertes_total = history_losses.aggregate(total=Sum('amount'))['total'] or 0
-            history_pertes_caisse = history_losses.filter(funding_source='CAISSE').aggregate(total=Sum('amount'))['total'] or 0
-            history_pertes_banque = history_losses.filter(funding_source='BANQUE').aggregate(total=Sum('amount'))['total'] or 0
-
-            if (
-                history_cash
-                or history_bank
-                or history_pertes_total
-                or cursor == current_start
-            ):
-                history_reports = ShiftDay.objects.filter(
-                    site=site,
-                    date__gte=cursor,
-                    date__lte=period_end,
-                    daily_report_confirmed=True,
-                )
-                history_report_total = history_reports.aggregate(total=Sum('total_amount_reported_fc'))['total'] or 0
-                entries.append({
-                    'period_start': cursor,
-                    'period_end': period_end,
-                    'label': label,
-                    'cash_flow': history_cash,
-                    'reported_cash': history_report_total,
-                    'bank_deposit': history_bank,
-                    'bank_net': history_bank - history_pertes_banque,
-                    'pertes_total': history_pertes_total,
-                    'pertes_caisse': history_pertes_caisse,
-                    'pertes_banque': history_pertes_banque,
-                    'ecart_caisse': history_cash - history_bank - history_pertes_caisse,
-                    'is_selected': cursor == current_start,
-                    'detail_query': detail_query,
-                })
-
-            cursor = previous_cursor
-
-        return entries
-
-    weekly_history = build_period_history('week', week_start, 8)
-    monthly_history = build_period_history('month', detail_date.replace(day=1), 6)
-    yearly_history = build_period_history('year', detail_date.replace(month=1, day=1), 5)
-
-    comparison_periods = [
-        {
-            'key': 'week',
-            'toggle_label': 'Hebdomadaire',
-            'title': 'Historique hebdomadaire',
-            'copy': 'Comparer les 8 dernieres semaines actives et rouvrir rapidement une semaine precise.',
-            'row_label': 'Semaine',
-            'items': weekly_history,
-            'item_count': len(weekly_history),
-            'max_cash_flow': max((item['cash_flow'] for item in weekly_history), default=0) or 1,
-            'max_bank_deposit': max((item['bank_deposit'] for item in weekly_history), default=0) or 1,
-            'max_pertes_total': max((item['pertes_total'] for item in weekly_history), default=0) or 1,
-            'empty_message': 'Aucune semaine historique disponible pour ce site.',
-            'default_open': True,
-            'show_correction_link': True,
-        },
-        {
-            'key': 'month',
-            'toggle_label': 'Mensuel',
-            'title': 'Historique mensuel',
-            'copy': 'Comparer les derniers mois actifs pour repérer rapidement les variations de rythme et de charges.',
-            'row_label': 'Mois',
-            'items': monthly_history,
-            'item_count': len(monthly_history),
-            'max_cash_flow': max((item['cash_flow'] for item in monthly_history), default=0) or 1,
-            'max_bank_deposit': max((item['bank_deposit'] for item in monthly_history), default=0) or 1,
-            'max_pertes_total': max((item['pertes_total'] for item in monthly_history), default=0) or 1,
-            'empty_message': 'Aucun mois historique disponible pour ce site.',
-            'default_open': False,
-            'show_correction_link': False,
-        },
-        {
-            'key': 'year',
-            'toggle_label': 'Annuel',
-            'title': 'Historique annuel',
-            'copy': 'Voir la trajectoire annuelle du site sans empiler toutes les semaines sur un seul ecran.',
-            'row_label': 'Annee',
-            'items': yearly_history,
-            'item_count': len(yearly_history),
-            'max_cash_flow': max((item['cash_flow'] for item in yearly_history), default=0) or 1,
-            'max_bank_deposit': max((item['bank_deposit'] for item in yearly_history), default=0) or 1,
-            'max_pertes_total': max((item['pertes_total'] for item in yearly_history), default=0) or 1,
-            'empty_message': 'Aucune annee historique disponible pour ce site.',
-            'default_open': False,
-            'show_correction_link': False,
-        },
-    ]
+    comparison_periods = _build_site_comparison_periods(site, detail_date, selected_scope="week")
 
     previous_week_start = week_start - timedelta(days=7)
     previous_week_end = previous_week_start + timedelta(days=6)
@@ -1494,6 +1526,71 @@ def admin_site_detail(request, site_id):
     context['journal_entries_count'] = journal_entries_count
     
     return render(request, 'admin/site_detail.html', context)
+
+
+@login_required
+@no_cache_view
+def admin_site_history_comparison(request, site_id):
+    """
+    Page dédiée au comparatif historique du site.
+    Affiche une lecture claire entre semaines, mois et années.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect("dashboard")
+
+    site = get_object_or_404(Location, id=site_id)
+    today = timezone.localdate()
+    detail_date = today
+    date_param = request.GET.get("date")
+    if date_param:
+        try:
+            detail_date = datetime.strptime(date_param, "%Y-%m-%d").date()
+        except ValueError:
+            detail_date = today
+
+    current_scope = request.GET.get("scope", "week")
+    if current_scope not in {"week", "month", "year"}:
+        current_scope = "week"
+
+    comparison_periods = _build_site_comparison_periods(site, detail_date, selected_scope=current_scope)
+    selected_period = next(
+        (period for period in comparison_periods if period["key"] == current_scope),
+        comparison_periods[0] if comparison_periods else None,
+    )
+
+    scope_snapshots = []
+    for period in comparison_periods:
+        current_item = period.get("current_item")
+        scope_snapshots.append(
+            {
+                "key": period["key"],
+                "label": period["toggle_label"],
+                "anchor_label": current_item["label"] if current_item else "Aucune donnée",
+                "cash_flow": current_item["cash_flow"] if current_item else 0,
+                "bank_net": current_item["bank_net"] if current_item else 0,
+                "pertes_total": current_item["pertes_total"] if current_item else 0,
+                "url": (
+                    f"{reverse('admin_site_history_comparison', kwargs={'site_id': site.id})}"
+                    f"?scope={period['key']}&date={detail_date.strftime('%Y-%m-%d')}"
+                ),
+                "is_active": period["key"] == current_scope,
+            }
+        )
+
+    context = {
+        "site": site,
+        "today": today,
+        "detail_date": detail_date,
+        "current_scope": current_scope,
+        "comparison_periods": comparison_periods,
+        "selected_period": selected_period,
+        "scope_snapshots": scope_snapshots,
+    }
+    return render(request, "admin/site_history_comparison.html", context)
 
 
 @login_required
