@@ -1,0 +1,824 @@
+{% extends "base.html" %}
+{% load currency_tags %}
+
+{% block title %}Historique des rapports de fin de journée{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-history-shell {
+        display: grid;
+        gap: 1.35rem;
+    }
+
+    .report-history-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.95fr);
+        gap: 1rem;
+        padding: 1.8rem;
+        border-radius: 28px;
+        background:
+            radial-gradient(circle at top right, rgba(244, 163, 64, 0.16), transparent 26%),
+            linear-gradient(135deg, #081a28 0%, #0A436B 58%, #0f6797 100%);
+        color: #fff;
+        box-shadow: 0 22px 58px rgba(8, 26, 40, 0.22);
+    }
+
+    .report-history-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.34rem 0.82rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        color: rgba(255, 255, 255, 0.94);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+
+    .report-history-title {
+        margin: 0.7rem 0 0 0;
+        font-size: clamp(1.9rem, 3vw, 2.6rem);
+        line-height: 1.05;
+    }
+
+    .report-history-copy {
+        margin: 0.85rem 0 0 0;
+        max-width: 760px;
+        color: rgba(255, 255, 255, 0.84);
+        font-size: 0.98rem;
+        line-height: 1.58;
+    }
+
+    .report-history-meta {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+
+    .report-history-meta-pill {
+        min-width: 150px;
+        padding: 0.55rem 0.8rem;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .report-history-meta-label {
+        color: rgba(255, 255, 255, 0.68);
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .report-history-meta-value {
+        margin-top: 0.24rem;
+        color: #fff;
+        font-size: 1rem;
+        font-weight: 800;
+    }
+
+    .report-history-hero-side {
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .report-history-hero-card {
+        padding: 1rem 1.05rem;
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(6px);
+    }
+
+    .report-history-hero-label {
+        color: rgba(255, 255, 255, 0.72);
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .report-history-hero-value {
+        margin-top: 0.65rem;
+        font-size: 2rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    .report-history-hero-copy {
+        margin-top: 0.45rem;
+        color: rgba(255, 255, 255, 0.78);
+        font-size: 0.86rem;
+        line-height: 1.45;
+    }
+
+    .report-history-toolbar {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .report-history-grid-4,
+    .report-history-grid-3,
+    .report-history-split,
+    .report-history-chart-grid {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .report-history-grid-4 {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .report-history-grid-3 {
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    }
+
+    .report-history-split {
+        grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.9fr);
+    }
+
+    .report-history-chart-grid {
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    }
+
+    .report-history-card,
+    .report-history-chart-card,
+    .report-history-list-card {
+        padding: 1.05rem 1.1rem;
+        border-radius: 22px;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        background: rgba(255, 255, 255, 0.97);
+    }
+
+    .report-history-card-label {
+        color: var(--text-secondary);
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .report-history-card-title {
+        margin: 0.18rem 0 0 0;
+        color: var(--primary-dark);
+        font-size: 1.04rem;
+        font-weight: 800;
+    }
+
+    .report-history-card-value {
+        margin-top: 0.55rem;
+        font-size: 1.72rem;
+        font-weight: 800;
+        color: var(--primary-color);
+        line-height: 1.02;
+    }
+
+    .report-history-card-copy,
+    .report-history-card-subvalue {
+        margin-top: 0.28rem;
+        color: var(--text-secondary);
+        font-size: 0.86rem;
+        line-height: 1.45;
+    }
+
+    .report-history-section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+    }
+
+    .report-history-section-title {
+        margin: 0;
+        color: var(--primary-dark);
+        font-size: 1.2rem;
+    }
+
+    .report-history-section-copy {
+        margin: 0.35rem 0 0 0;
+        color: var(--text-secondary);
+        max-width: 820px;
+    }
+
+    .report-history-section-state {
+        color: var(--text-secondary);
+        font-weight: 700;
+    }
+
+    .report-history-chip-row {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-top: 0.8rem;
+    }
+
+    .report-history-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.4rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .report-history-month-nav {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+    }
+
+    .report-history-month-tab {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 132px;
+        padding: 0.78rem 1rem;
+        border-radius: 18px;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        background: rgba(255, 255, 255, 0.97);
+        color: var(--text-primary);
+        text-decoration: none;
+        font-weight: 800;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+
+    .report-history-month-tab:hover,
+    .report-history-month-tab:focus-visible {
+        transform: translateY(-1px);
+        border-color: rgba(10, 67, 107, 0.18);
+        box-shadow: var(--shadow-hover);
+        outline: none;
+    }
+
+    .report-history-month-tab.is-active {
+        background: linear-gradient(180deg, rgba(232, 241, 247, 0.96), rgba(255, 255, 255, 0.98));
+        border-color: rgba(10, 67, 107, 0.22);
+        color: var(--primary-dark);
+    }
+
+    .report-history-chart-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.7rem;
+        align-items: flex-start;
+        margin-bottom: 0.9rem;
+    }
+
+    .report-history-chart-title {
+        margin: 0;
+        font-size: 1rem;
+        color: var(--primary-dark);
+    }
+
+    .report-history-chart-note {
+        margin: 0.2rem 0 0 0;
+        font-size: 0.82rem;
+        color: var(--text-secondary);
+    }
+
+    .report-history-chart-stack {
+        display: grid;
+        gap: 0.72rem;
+    }
+
+    .report-history-chart-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(0, 2.4fr) auto;
+        gap: 0.7rem;
+        align-items: center;
+    }
+
+    .report-history-chart-row.is-selected {
+        padding: 0.45rem 0.55rem;
+        border-radius: 16px;
+        background: rgba(10, 67, 107, 0.05);
+    }
+
+    .report-history-chart-label {
+        font-size: 0.83rem;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .report-history-chart-track {
+        position: relative;
+        height: 11px;
+        border-radius: 999px;
+        background: rgba(10, 67, 107, 0.09);
+        overflow: hidden;
+    }
+
+    .report-history-chart-fill {
+        height: 100%;
+        border-radius: inherit;
+    }
+
+    .report-history-chart-fill--amount {
+        background: linear-gradient(90deg, #0A436B 0%, #2E86AB 100%);
+    }
+
+    .report-history-chart-fill--count {
+        background: linear-gradient(90deg, #1D8A4C 0%, #3CB371 100%);
+    }
+
+    .report-history-chart-fill--expenses {
+        background: linear-gradient(90deg, #C97A1E 0%, #F4A340 100%);
+    }
+
+    .report-history-chart-value {
+        min-width: 92px;
+        text-align: right;
+        font-size: 0.82rem;
+        font-weight: 800;
+        color: var(--primary-dark);
+    }
+
+    .report-history-mini-list {
+        display: grid;
+        gap: 0.8rem;
+    }
+
+    .report-history-mini-item {
+        padding: 0.9rem 1rem;
+        border-radius: 18px;
+        background: var(--bg-secondary);
+    }
+
+    .report-history-mini-title {
+        color: var(--primary-dark);
+        font-weight: 800;
+    }
+
+    .report-history-mini-meta {
+        margin-top: 0.25rem;
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+    }
+
+    .report-history-mini-amount {
+        margin-top: 0.45rem;
+        color: var(--primary-color);
+        font-size: 1.02rem;
+        font-weight: 800;
+    }
+
+    .report-history-day {
+        border-radius: 24px;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        background: rgba(255, 255, 255, 0.98);
+        overflow: hidden;
+    }
+
+    .report-history-day summary {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: flex-start;
+        padding: 1rem 1.1rem;
+        cursor: pointer;
+        list-style: none;
+    }
+
+    .report-history-day summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .report-history-day-body {
+        padding: 0 1.1rem 1.1rem 1.1rem;
+        display: grid;
+        gap: 0.85rem;
+    }
+
+    .report-history-day-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .report-history-day-metric {
+        padding: 0.8rem 0.9rem;
+        border-radius: 18px;
+        background: var(--bg-secondary);
+    }
+
+    .report-history-day-metric strong {
+        display: block;
+        color: var(--text-secondary);
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .report-history-day-metric span {
+        display: block;
+        margin-top: 0.35rem;
+        color: var(--primary-dark);
+        font-size: 1rem;
+        font-weight: 800;
+    }
+
+    .report-history-entry {
+        padding: 0.95rem 1rem;
+        border-radius: 18px;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        background: rgba(255, 255, 255, 0.95);
+    }
+
+    .report-history-entry-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .report-history-entry-title {
+        color: var(--primary-dark);
+        font-weight: 800;
+    }
+
+    .report-history-entry-meta {
+        margin-top: 0.28rem;
+        color: var(--text-secondary);
+        font-size: 0.84rem;
+    }
+
+    .report-history-entry-amount {
+        text-align: right;
+    }
+
+    .report-history-entry-amount strong {
+        display: block;
+        color: var(--primary-color);
+        font-size: 1.05rem;
+    }
+
+    .report-history-entry-amount span {
+        display: block;
+        margin-top: 0.18rem;
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+    }
+
+    .report-history-entry-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-top: 0.8rem;
+    }
+
+    .report-history-empty {
+        padding: 1rem 1.05rem;
+        border-radius: 18px;
+        background: var(--bg-secondary);
+        color: var(--text-secondary);
+    }
+
+    @media (max-width: 980px) {
+        .report-history-hero,
+        .report-history-split {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 720px) {
+        .report-history-chart-row {
+            grid-template-columns: 1fr;
+        }
+
+        .report-history-chart-value {
+            min-width: 0;
+            text-align: left;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="report-history-shell">
+    <section class="report-history-hero">
+        <div>
+            <span class="report-history-kicker">Messages - Rapports de fin de journée</span>
+            <h1 class="report-history-title">Historique des rapports</h1>
+            <p class="report-history-copy">
+                Lecture centralisée des rapports employés. Cette page montre combien de rapports sont arrivés, pour quels jours, avec quels montants et quelles dépenses, afin de suivre la journée, le mois et le cumul global sans rester sur la boîte admin compacte.
+            </p>
+            <div class="report-history-meta">
+                <div class="report-history-meta-pill">
+                    <div class="report-history-meta-label">Mois analysé</div>
+                    <div class="report-history-meta-value">{{ selected_month_label }}</div>
+                </div>
+                <div class="report-history-meta-pill">
+                    <div class="report-history-meta-label">Filtre site</div>
+                    <div class="report-history-meta-value">{% if selected_site %}{{ selected_site.nom }}{% else %}Tous les sites{% endif %}</div>
+                </div>
+                <div class="report-history-meta-pill">
+                    <div class="report-history-meta-label">Rapports cumulés</div>
+                    <div class="report-history-meta-value">{{ all_time_summary.report_count }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="report-history-hero-side">
+            <div class="report-history-hero-card">
+                <div class="report-history-hero-label">Montant cumulé déclaré</div>
+                <div class="report-history-hero-value">{{ all_time_summary.amount_total|fc_amount }} FC</div>
+                <div class="report-history-hero-copy">Toutes les déclarations confirmées depuis le début, net des filtres appliqués.</div>
+            </div>
+            <div class="report-history-hero-card">
+                <div class="report-history-hero-label">{{ selected_month_label }}</div>
+                <div class="report-history-hero-value">{{ month_summary.report_count }} rapport{{ month_summary.report_count|pluralize }}</div>
+                <div class="report-history-hero-copy">Montant du mois: {{ month_summary.amount_total|fc_amount }} FC • Dépenses: {{ month_summary.expenses_total|fc_amount }} FC</div>
+            </div>
+            {% if latest_report_item %}
+            <div class="report-history-hero-card">
+                <div class="report-history-hero-label">Dernier rapport reçu</div>
+                <div class="report-history-hero-copy">
+                    {{ latest_report_item.employee_name }} • {{ latest_report_item.site_name }} • {{ latest_report_item.shift.date|date:"d/m/Y" }} • {{ latest_report_item.shift.updated_at|date:"H:i" }}
+                </div>
+                <div class="report-history-chip-row">
+                    <span class="report-history-chip">{{ latest_report_item.shift.total_amount_reported_fc|fc_amount }} FC</span>
+                    <span class="report-history-chip">{{ latest_report_item.shift.daily_expenses_total_fc|fc_amount }} FC dépenses</span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="report-history-toolbar">
+            <form method="get" style="display: flex; align-items: end; gap: 0.9rem; flex-wrap: wrap;">
+                <div class="form-group" style="min-width: 220px; margin-bottom: 0;">
+                    <label for="report-history-month">Mois</label>
+                    <input id="report-history-month" type="month" name="month" value="{{ selected_month_input }}" class="form-control">
+                </div>
+                <div class="form-group" style="min-width: 240px; margin-bottom: 0;">
+                    <label for="report-history-site">Site</label>
+                    <select id="report-history-site" name="site" class="form-control">
+                        <option value="">Tous les sites</option>
+                        {% for site in active_sites %}
+                        <option value="{{ site.id }}" {% if selected_site_id == site.id|stringformat:"s" %}selected{% endif %}>{{ site.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Afficher</button>
+                <a href="{% url 'admin_daily_report_history' %}" class="btn btn-secondary">Réinitialiser</a>
+            </form>
+
+            <div class="report-history-month-nav">
+                <a href="{% url 'admin_daily_report_history' %}?month={{ previous_month_input }}{% if selected_site_id %}&site={{ selected_site_id }}{% endif %}" class="report-history-month-tab">Mois précédent</a>
+                <a href="{% url 'admin_daily_report_history' %}?month={{ selected_month_input }}{% if selected_site_id %}&site={{ selected_site_id }}{% endif %}" class="report-history-month-tab is-active">{{ selected_month_label }}</a>
+                <a href="{% url 'admin_daily_report_history' %}?month={{ next_month_input }}{% if selected_site_id %}&site={{ selected_site_id }}{% endif %}" class="report-history-month-tab">Mois suivant</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="report-history-section-head">
+            <div>
+                <h2 class="report-history-section-title">Vue d'ensemble</h2>
+                <p class="report-history-section-copy">La page compare immédiatement ce qui est tombé aujourd'hui, ce mois-ci, cette année et sur l'historique complet.</p>
+            </div>
+        </div>
+
+        <div class="report-history-grid-4">
+            <article class="report-history-card">
+                <div class="report-history-card-label">Aujourd'hui</div>
+                <div class="report-history-card-title">{{ today|date:"d/m/Y" }}</div>
+                <div class="report-history-card-value">{{ today_summary.report_count }}</div>
+                <div class="report-history-card-subvalue">rapport{{ today_summary.report_count|pluralize }}</div>
+                <div class="report-history-card-copy">Montant: {{ today_summary.amount_total|fc_amount }} FC</div>
+                <div class="report-history-card-copy">Dépenses: {{ today_summary.expenses_total|fc_amount }} FC</div>
+            </article>
+            <article class="report-history-card">
+                <div class="report-history-card-label">Mois</div>
+                <div class="report-history-card-title">{{ selected_month_label }}</div>
+                <div class="report-history-card-value">{{ month_summary.amount_total|fc_amount }} FC</div>
+                <div class="report-history-card-subvalue">{{ month_summary.report_count }} rapport{{ month_summary.report_count|pluralize }} • {{ month_summary.days_count }} jour{{ month_summary.days_count|pluralize }}</div>
+                <div class="report-history-card-copy">Dépenses: {{ month_summary.expenses_total|fc_amount }} FC</div>
+                <div class="report-history-card-copy">Net déclaré: {{ month_summary.net_total|fc_amount }} FC</div>
+            </article>
+            <article class="report-history-card">
+                <div class="report-history-card-label">Année</div>
+                <div class="report-history-card-title">{{ today|date:"Y" }}</div>
+                <div class="report-history-card-value">{{ year_summary.amount_total|fc_amount }} FC</div>
+                <div class="report-history-card-subvalue">{{ year_summary.report_count }} rapport{{ year_summary.report_count|pluralize }}</div>
+                <div class="report-history-card-copy">Dépenses: {{ year_summary.expenses_total|fc_amount }} FC</div>
+                <div class="report-history-card-copy">Moyenne / rapport: {{ year_summary.average_amount|fc_amount }} FC</div>
+            </article>
+            <article class="report-history-card">
+                <div class="report-history-card-label">Depuis le début</div>
+                <div class="report-history-card-title">Cumul historique</div>
+                <div class="report-history-card-value">{{ all_time_summary.amount_total|fc_amount }} FC</div>
+                <div class="report-history-card-subvalue">{{ all_time_summary.report_count }} rapport{{ all_time_summary.report_count|pluralize }} • {{ all_time_summary.days_count }} jour{{ all_time_summary.days_count|pluralize }}</div>
+                <div class="report-history-card-copy">{{ all_time_summary.sites_count }} site{{ all_time_summary.sites_count|pluralize }} • {{ all_time_summary.employees_count }} employé{{ all_time_summary.employees_count|pluralize }}</div>
+            </article>
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="report-history-section-head">
+            <div>
+                <h2 class="report-history-section-title">Tendance mensuelle</h2>
+                <p class="report-history-section-copy">Les six derniers mois visibles permettent de voir rapidement si les rapports montent, baissent, ou portent plus de dépenses.</p>
+            </div>
+            <div class="report-history-section-state">{{ monthly_trend|length }} mois comparés</div>
+        </div>
+
+        {% if monthly_trend %}
+        <div class="report-history-chart-grid">
+            <article class="report-history-chart-card">
+                <div class="report-history-chart-head">
+                    <div>
+                        <h3 class="report-history-chart-title">Montants déclarés</h3>
+                        <p class="report-history-chart-note">Cash déclaré par mois</p>
+                    </div>
+                </div>
+                <div class="report-history-chart-stack">
+                    {% for item in monthly_trend %}
+                    <a href="{{ item.url }}" class="report-history-chart-row {% if item.is_selected %}is-selected{% endif %}" style="text-decoration: none;">
+                        <div class="report-history-chart-label">{{ item.label }}</div>
+                        <div class="report-history-chart-track"><div class="report-history-chart-fill report-history-chart-fill--amount" style="width: {% widthratio item.amount_total monthly_trend_max_amount 100 %}%;"></div></div>
+                        <div class="report-history-chart-value">{{ item.amount_total|fc_amount }} FC</div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </article>
+
+            <article class="report-history-chart-card">
+                <div class="report-history-chart-head">
+                    <div>
+                        <h3 class="report-history-chart-title">Nombre de rapports</h3>
+                        <p class="report-history-chart-note">Volume de messages reçus</p>
+                    </div>
+                </div>
+                <div class="report-history-chart-stack">
+                    {% for item in monthly_trend %}
+                    <a href="{{ item.url }}" class="report-history-chart-row {% if item.is_selected %}is-selected{% endif %}" style="text-decoration: none;">
+                        <div class="report-history-chart-label">{{ item.label }}</div>
+                        <div class="report-history-chart-track"><div class="report-history-chart-fill report-history-chart-fill--count" style="width: {% widthratio item.report_count monthly_trend_max_reports 100 %}%;"></div></div>
+                        <div class="report-history-chart-value">{{ item.report_count }}</div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </article>
+
+            <article class="report-history-chart-card">
+                <div class="report-history-chart-head">
+                    <div>
+                        <h3 class="report-history-chart-title">Dépenses déclarées</h3>
+                        <p class="report-history-chart-note">Poids des dépenses par mois</p>
+                    </div>
+                </div>
+                <div class="report-history-chart-stack">
+                    {% for item in monthly_trend %}
+                    <a href="{{ item.url }}" class="report-history-chart-row {% if item.is_selected %}is-selected{% endif %}" style="text-decoration: none;">
+                        <div class="report-history-chart-label">{{ item.label }}</div>
+                        <div class="report-history-chart-track"><div class="report-history-chart-fill report-history-chart-fill--expenses" style="width: {% widthratio item.expenses_total monthly_trend_max_expenses 100 %}%;"></div></div>
+                        <div class="report-history-chart-value">{{ item.expenses_total|fc_amount }} FC</div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </article>
+        </div>
+        {% else %}
+        <div class="report-history-empty">Aucun historique mensuel n'est disponible pour le moment.</div>
+        {% endif %}
+    </section>
+
+    <section class="report-history-split">
+        <div class="report-history-list-card">
+            <div class="report-history-section-head">
+                <div>
+                    <h2 class="report-history-section-title">Répartition par site</h2>
+                    <p class="report-history-section-copy">Lecture rapide du mois sélectionné pour savoir quel site remonte le plus de rapports et de montants.</p>
+                </div>
+            </div>
+
+            {% if site_breakdown %}
+            <div class="report-history-mini-list">
+                {% for item in site_breakdown %}
+                <div class="report-history-mini-item">
+                    <div class="report-history-mini-title">{{ item.site_name }}</div>
+                    <div class="report-history-mini-meta">{{ item.report_count }} rapport{{ item.report_count|pluralize }} • Net {{ item.net_total|fc_amount }} FC</div>
+                    <div class="report-history-mini-amount">{{ item.amount_total|fc_amount }} FC</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="report-history-empty">Aucun rapport enregistré pour {{ selected_month_label }}.</div>
+            {% endif %}
+        </div>
+
+        <div class="report-history-list-card">
+            <div class="report-history-section-head">
+                <div>
+                    <h2 class="report-history-section-title">Top employés du mois</h2>
+                    <p class="report-history-section-copy">Les rapports les plus visibles sur le mois actuellement filtré.</p>
+                </div>
+            </div>
+
+            {% if employee_breakdown %}
+            <div class="report-history-mini-list">
+                {% for item in employee_breakdown %}
+                <div class="report-history-mini-item">
+                    <div class="report-history-mini-title">{{ item.employee_name }}</div>
+                    <div class="report-history-mini-meta">{{ item.site_name }} • {{ item.report_count }} rapport{{ item.report_count|pluralize }}</div>
+                    <div class="report-history-mini-amount">{{ item.amount_total|fc_amount }} FC</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="report-history-empty">Aucun employé n'a encore envoyé de rapport sur ce mois.</div>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="report-history-section-head">
+            <div>
+                <h2 class="report-history-section-title">Historique journalier de {{ selected_month_label }}</h2>
+                <p class="report-history-section-copy">Chaque journée affiche les rapports reçus, le montant total déclaré, les dépenses, puis chaque entrée individuelle avec ses actions admin.</p>
+            </div>
+            <div class="report-history-section-state">{{ daily_groups|length }} jour{{ daily_groups|length|pluralize }} avec rapport</div>
+        </div>
+
+        {% if daily_groups %}
+        <div style="display: grid; gap: 0.9rem;">
+            {% for group in daily_groups %}
+            <details class="report-history-day" {% if forloop.first or forloop.counter <= 3 %}open{% endif %}>
+                <summary>
+                    <div>
+                        <div class="report-history-card-label">{{ group.label }}</div>
+                        <div class="report-history-card-title">{{ group.report_count }} rapport{{ group.report_count|pluralize }} • {{ group.employee_names }}</div>
+                        <div class="report-history-card-copy">{{ group.site_names }}</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div class="report-history-card-value" style="font-size: 1.2rem; margin-top: 0;">{{ group.amount_total|fc_amount }} FC</div>
+                        <div class="report-history-card-copy">Dépenses {{ group.expenses_total|fc_amount }} FC</div>
+                    </div>
+                </summary>
+                <div class="report-history-day-body">
+                    <div class="report-history-day-grid">
+                        <div class="report-history-day-metric">
+                            <strong>Rapports</strong>
+                            <span>{{ group.report_count }}</span>
+                        </div>
+                        <div class="report-history-day-metric">
+                            <strong>Montant déclaré</strong>
+                            <span>{{ group.amount_total|fc_amount }} FC</span>
+                        </div>
+                        <div class="report-history-day-metric">
+                            <strong>Dépenses</strong>
+                            <span>{{ group.expenses_total|fc_amount }} FC</span>
+                        </div>
+                        <div class="report-history-day-metric">
+                            <strong>Net déclaré</strong>
+                            <span>{{ group.net_total|fc_amount }} FC</span>
+                        </div>
+                    </div>
+
+                    {% for entry in group.entries %}
+                    <article class="report-history-entry">
+                        <div class="report-history-entry-head">
+                            <div>
+                                <div class="report-history-entry-title">{{ entry.employee_name }}</div>
+                                <div class="report-history-entry-meta">{{ entry.site_name }} • {{ entry.shift.updated_at|date:"d/m/Y H:i" }}</div>
+                                <div class="report-history-entry-meta">{{ entry.shift.daily_expense_summary }}</div>
+                            </div>
+                            <div class="report-history-entry-amount">
+                                <strong>{{ entry.shift.total_amount_reported_fc|fc_amount }} FC</strong>
+                                <span>Dépenses {{ entry.shift.daily_expenses_total_fc|fc_amount }} FC</span>
+                            </div>
+                        </div>
+                        <div class="report-history-entry-actions">
+                            {% if entry.detail_url %}
+                            <a href="{{ entry.detail_url }}" class="btn btn-secondary">Voir le jour</a>
+                            {% endif %}
+                            {% if entry.employee_url %}
+                            <a href="{{ entry.employee_url }}" class="btn btn-light">Profil employé</a>
+                            {% endif %}
+                            <a href="{{ entry.edit_url }}" class="btn btn-primary">Modifier</a>
+                            <a href="{{ entry.delete_report_url }}" class="btn btn-danger">Supprimer</a>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+            </details>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="report-history-empty">Aucun rapport de fin de journée enregistré pour {{ selected_month_label }} avec les filtres actuels.</div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

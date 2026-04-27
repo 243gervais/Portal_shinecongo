@@ -24,6 +24,7 @@ from comptes.views import (
     logout_view,
     register_view,
     admin_dashboard,
+    admin_daily_report_history,
     admin_password_management,
     admin_change_user_password,
     admin_water_purchases,
@@ -129,6 +130,7 @@ urlpatterns = [
     
     # PORTAIL ADMIN
     path("admin-dashboard/", admin_dashboard, name="admin_dashboard"),
+    path("admin-dashboard/daily-reports/history/", admin_daily_report_history, name="admin_daily_report_history"),
     path("admin-dashboard/passwords/", admin_password_management, name="admin_password_management"),
     path("admin-dashboard/passwords/<int:user_id>/", admin_change_user_password, name="admin_change_user_password"),
     path("admin-dashboard/water-purchases/", admin_water_purchases, name="admin_water_purchases"),

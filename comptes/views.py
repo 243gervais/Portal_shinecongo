@@ -518,6 +518,251 @@ def _parse_month_filter(raw_value):
     return parsed.replace(day=1)
 
 
+def _previous_month_start(month_start):
+    """
+    Retourne le premier jour du mois précédent.
+    """
+    return (month_start - timedelta(days=1)).replace(day=1)
+
+
+def _next_month_start(month_start):
+    """
+    Retourne le premier jour du mois suivant.
+    """
+    if month_start.month == 12:
+        return month_start.replace(year=month_start.year + 1, month=1, day=1)
+    return month_start.replace(month=month_start.month + 1, day=1)
+
+
+def _month_label(month_start):
+    """
+    Libellé mois/année cohérent pour les vues historiques.
+    """
+    return f"{MONTH_NAMES[month_start.month - 1]} {month_start.year}"
+
+
+def _summarize_daily_reports(queryset):
+    """
+    Agrégation standard des rapports de fin de journée.
+    """
+    summary = queryset.aggregate(
+        report_count=Count("id"),
+        days_count=Count("date", distinct=True),
+        sites_count=Count("site", distinct=True),
+        employees_count=Count("employe", distinct=True),
+        amount_total=Sum("total_amount_reported_fc"),
+        expenses_total=Sum("daily_expenses_total_fc"),
+    )
+    amount_total = _to_decimal_amount(summary["amount_total"])
+    expenses_total = _to_decimal_amount(summary["expenses_total"])
+    report_count = summary["report_count"] or 0
+
+    average_amount = Decimal("0")
+    if report_count:
+        average_amount = (amount_total / Decimal(str(report_count))).quantize(Decimal("0.01"))
+
+    return {
+        "report_count": report_count,
+        "days_count": summary["days_count"] or 0,
+        "sites_count": summary["sites_count"] or 0,
+        "employees_count": summary["employees_count"] or 0,
+        "amount_total": amount_total,
+        "expenses_total": expenses_total,
+        "net_total": amount_total - expenses_total,
+        "average_amount": average_amount,
+    }
+
+
+def _build_admin_daily_report_history(selected_month, selected_site=None):
+    """
+    Construit la vue historique des rapports de fin de journée pour l'admin.
+    """
+    today = timezone.localdate()
+    month_start = _normalize_month_start(selected_month)
+    month_end = month_start.replace(day=calendar.monthrange(month_start.year, month_start.month)[1])
+    year_start = today.replace(month=1, day=1)
+
+    reports_qs = ShiftDay.objects.filter(
+        daily_report_confirmed=True,
+        site__actif=True,
+    ).select_related("employe", "site", "employe__userprofile")
+
+    if selected_site:
+        reports_qs = reports_qs.filter(site=selected_site)
+
+    reports_qs = reports_qs.order_by("-date", "-updated_at", "-id")
+    month_reports_qs = reports_qs.filter(date__gte=month_start, date__lte=month_end)
+    today_reports_qs = reports_qs.filter(date=today)
+    year_reports_qs = reports_qs.filter(date__gte=year_start, date__lte=today)
+
+    all_time_summary = _summarize_daily_reports(reports_qs)
+    today_summary = _summarize_daily_reports(today_reports_qs)
+    month_summary = _summarize_daily_reports(month_reports_qs)
+    year_summary = _summarize_daily_reports(year_reports_qs)
+
+    dashboard_url = reverse("admin_dashboard")
+    selected_site_query = f"&site={selected_site.id}" if selected_site else ""
+
+    latest_report = reports_qs.first()
+    latest_report_item = None
+    if latest_report:
+        latest_report_item = {
+            "shift": latest_report,
+            "employee_name": latest_report.employe.get_full_name() or latest_report.employe.username,
+            "site_name": latest_report.site.nom if latest_report.site else "Site inconnu",
+            "detail_url": (
+                reverse("admin_site_detail", kwargs={"site_id": latest_report.site.id})
+                + f"?date_debut={latest_report.date:%Y-%m-%d}&date_fin={latest_report.date:%Y-%m-%d}"
+            ) if latest_report.site else "",
+            "edit_url": (
+                reverse("admin_edit_pointage", kwargs={"site_id": latest_report.site.id, "pointage_id": latest_report.id})
+                + f"?next={reverse('admin_daily_report_history')}%3Fmonth%3D{month_start:%Y-%m}{selected_site_query.replace('&', '%26')}"
+            ) if latest_report.site else "",
+        }
+
+    daily_groups = []
+    current_group = None
+    for shift in month_reports_qs:
+        if current_group is None or current_group["date"] != shift.date:
+            current_group = {
+                "date": shift.date,
+                "label": shift.date.strftime("%A %d/%m/%Y").capitalize(),
+                "report_count": 0,
+                "amount_total": Decimal("0"),
+                "expenses_total": Decimal("0"),
+                "net_total": Decimal("0"),
+                "employee_names": set(),
+                "site_names": set(),
+                "entries": [],
+            }
+            daily_groups.append(current_group)
+
+        employee_name = shift.employe.get_full_name() or shift.employe.username
+        amount_total = _to_decimal_amount(shift.total_amount_reported_fc)
+        expenses_total = _to_decimal_amount(shift.daily_expenses_total_fc)
+        next_query = f"{reverse('admin_daily_report_history')}?month={month_start:%Y-%m}{selected_site_query}"
+
+        current_group["report_count"] += 1
+        current_group["amount_total"] += amount_total
+        current_group["expenses_total"] += expenses_total
+        current_group["net_total"] += amount_total - expenses_total
+        current_group["employee_names"].add(employee_name)
+        current_group["site_names"].add(shift.site.nom if shift.site else "Site inconnu")
+        current_group["entries"].append(
+            {
+                "shift": shift,
+                "employee_name": employee_name,
+                "site_name": shift.site.nom if shift.site else "Site inconnu",
+                "detail_url": (
+                    reverse("admin_site_detail", kwargs={"site_id": shift.site.id})
+                    + f"?date_debut={shift.date:%Y-%m-%d}&date_fin={shift.date:%Y-%m-%d}"
+                ) if shift.site else "",
+                "employee_url": (
+                    reverse("admin_site_employee_portal", kwargs={"site_id": shift.site.id, "profile_id": shift.employe.userprofile.id})
+                ) if shift.site and hasattr(shift.employe, "userprofile") else "",
+                "edit_url": (
+                    reverse("admin_edit_pointage", kwargs={"site_id": shift.site.id, "pointage_id": shift.id})
+                    + f"?next={next_query}"
+                ) if shift.site else "",
+                "delete_report_url": (
+                    reverse("admin_delete_daily_report", kwargs={"site_id": shift.site.id, "pointage_id": shift.id})
+                    + f"?next={next_query}"
+                ) if shift.site else "",
+            }
+        )
+
+    for group in daily_groups:
+        group["employee_names"] = ", ".join(sorted(group["employee_names"]))
+        group["site_names"] = ", ".join(sorted(group["site_names"]))
+
+    monthly_trend = []
+    cursor = month_start
+    for _ in range(6):
+        cursor_end = cursor.replace(day=calendar.monthrange(cursor.year, cursor.month)[1])
+        period_summary = _summarize_daily_reports(
+            reports_qs.filter(date__gte=cursor, date__lte=cursor_end)
+        )
+        monthly_trend.append(
+            {
+                "month_start": cursor,
+                "month_end": cursor_end,
+                "label": _month_label(cursor),
+                "url": f"{reverse('admin_daily_report_history')}?month={cursor:%Y-%m}{selected_site_query}",
+                "is_selected": cursor == month_start,
+                **period_summary,
+            }
+        )
+        cursor = _previous_month_start(cursor)
+
+    site_breakdown = []
+    for item in (
+        month_reports_qs.values("site__id", "site__nom")
+        .annotate(
+            report_count=Count("id"),
+            amount_total=Sum("total_amount_reported_fc"),
+            expenses_total=Sum("daily_expenses_total_fc"),
+        )
+        .order_by("-amount_total", "site__nom")
+    ):
+        amount_total = _to_decimal_amount(item["amount_total"])
+        expenses_total = _to_decimal_amount(item["expenses_total"])
+        site_breakdown.append(
+            {
+                "site_id": item["site__id"],
+                "site_name": item["site__nom"],
+                "report_count": item["report_count"] or 0,
+                "amount_total": amount_total,
+                "expenses_total": expenses_total,
+                "net_total": amount_total - expenses_total,
+            }
+        )
+
+    employee_breakdown = []
+    for item in (
+        month_reports_qs.values("employe__first_name", "employe__last_name", "employe__username", "site__nom")
+        .annotate(
+            report_count=Count("id"),
+            amount_total=Sum("total_amount_reported_fc"),
+            expenses_total=Sum("daily_expenses_total_fc"),
+        )
+        .order_by("-amount_total", "employe__username")[:8]
+    ):
+        amount_total = _to_decimal_amount(item["amount_total"])
+        expenses_total = _to_decimal_amount(item["expenses_total"])
+        display_name = " ".join(
+            part for part in [item["employe__first_name"], item["employe__last_name"]] if part
+        ).strip() or item["employe__username"]
+        employee_breakdown.append(
+            {
+                "employee_name": display_name,
+                "site_name": item["site__nom"],
+                "report_count": item["report_count"] or 0,
+                "amount_total": amount_total,
+                "expenses_total": expenses_total,
+                "net_total": amount_total - expenses_total,
+            }
+        )
+
+    return {
+        "selected_month": month_start,
+        "selected_month_label": _month_label(month_start),
+        "selected_month_input": month_start.strftime("%Y-%m"),
+        "selected_month_end": month_end,
+        "today_summary": today_summary,
+        "month_summary": month_summary,
+        "year_summary": year_summary,
+        "all_time_summary": all_time_summary,
+        "daily_groups": daily_groups,
+        "monthly_trend": monthly_trend,
+        "monthly_trend_max_amount": max((item["amount_total"] for item in monthly_trend), default=Decimal("1")) or Decimal("1"),
+        "monthly_trend_max_reports": max((item["report_count"] for item in monthly_trend), default=1) or 1,
+        "monthly_trend_max_expenses": max((item["expenses_total"] for item in monthly_trend), default=Decimal("1")) or Decimal("1"),
+        "site_breakdown": site_breakdown,
+        "employee_breakdown": employee_breakdown,
+        "latest_report_item": latest_report_item,
+    }
+
+
 def _build_site_journal_month_bucket(month_start):
     categories = []
     category_map = {}
@@ -1044,6 +1289,45 @@ def admin_dashboard(request):
     mark_admin_inbox_seen(user)
 
     return render(request, 'admin/dashboard.html', context)
+
+
+@login_required
+@no_cache_view
+def admin_daily_report_history(request):
+    """
+    Historique complet des rapports de fin de journée pour l'admin.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect("dashboard")
+
+    today = timezone.localdate()
+    selected_month = _parse_month_filter(request.GET.get("month"))
+    active_sites = list(Location.objects.filter(actif=True).order_by("nom"))
+    site_param = (request.GET.get("site") or "").strip()
+    selected_site = next((site for site in active_sites if str(site.id) == site_param), None)
+
+    history = _build_admin_daily_report_history(selected_month, selected_site=selected_site)
+    previous_month = _previous_month_start(selected_month)
+    next_month = _next_month_start(selected_month)
+
+    context = {
+        "today": today,
+        "active_sites": active_sites,
+        "selected_site": selected_site,
+        "selected_site_id": str(selected_site.id) if selected_site else "",
+        "previous_month_input": previous_month.strftime("%Y-%m"),
+        "next_month_input": next_month.strftime("%Y-%m"),
+        "is_current_month": selected_month == _normalize_month_start(today),
+        **history,
+    }
+
+    mark_admin_inbox_seen(user)
+
+    return render(request, "admin/daily_report_history.html", context)
 
 
 @login_required

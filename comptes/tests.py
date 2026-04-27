@@ -689,6 +689,124 @@ class SiteHistoryComparisonTests(TestCase):
         self.assertContains(response, reverse("admin_site_history_comparison", args=[self.site.id]))
 
 
+class AdminDailyReportHistoryTests(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            username="report_admin",
+            email="report_admin@example.com",
+            password="AdminPass123!",
+        )
+        self.site_a = Location.objects.create(
+            nom="Ngolomingo",
+            adresse="Avenue A",
+            ville="Kinshasa",
+            actif=True,
+        )
+        self.site_b = Location.objects.create(
+            nom="Bandal",
+            adresse="Avenue B",
+            ville="Kinshasa",
+            actif=True,
+        )
+        self.employee_a = User.objects.create_user(
+            username="mike_history",
+            email="mike_history@example.com",
+            password="EmployeePass123!",
+        )
+        self.employee_b = User.objects.create_user(
+            username="jules_history",
+            email="jules_history@example.com",
+            password="EmployeePass123!",
+        )
+        self.employee_a.userprofile.role = "EMPLOYE"
+        self.employee_a.userprofile.site = self.site_a
+        self.employee_a.userprofile.save()
+        self.employee_b.userprofile.role = "EMPLOYE"
+        self.employee_b.userprofile.site = self.site_b
+        self.employee_b.userprofile.save()
+        self.client.login(username="report_admin", password="AdminPass123!")
+
+        ShiftDay.objects.create(
+            employe=self.employee_a,
+            site=self.site_a,
+            date=date(2026, 4, 24),
+            daily_report_confirmed=True,
+            total_amount_reported_fc=Decimal("25000.00"),
+            total_lavages_reported=3,
+            daily_expenses=[
+                {
+                    "key": "transport_personnels",
+                    "label": "Transport de Personnels",
+                    "amount_fc": "14000.00",
+                    "is_known": True,
+                }
+            ],
+            daily_expenses_total_fc=Decimal("14000.00"),
+        )
+        ShiftDay.objects.create(
+            employe=self.employee_b,
+            site=self.site_b,
+            date=date(2026, 4, 25),
+            daily_report_confirmed=True,
+            total_amount_reported_fc=Decimal("18000.00"),
+            total_lavages_reported=2,
+            daily_expenses=[
+                {
+                    "key": "transport_personnels",
+                    "label": "Transport de Personnels",
+                    "amount_fc": "9000.00",
+                    "is_known": True,
+                }
+            ],
+            daily_expenses_total_fc=Decimal("9000.00"),
+        )
+        ShiftDay.objects.create(
+            employe=self.employee_a,
+            site=self.site_a,
+            date=date(2026, 3, 18),
+            daily_report_confirmed=True,
+            total_amount_reported_fc=Decimal("30000.00"),
+            total_lavages_reported=4,
+            daily_expenses_total_fc=Decimal("11000.00"),
+        )
+
+    def test_daily_report_history_page_renders_selected_month(self):
+        response = self.client.get(
+            reverse("admin_daily_report_history"),
+            data={"month": "2026-04"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Historique des rapports")
+        self.assertContains(response, "Avril 2026")
+        self.assertContains(response, "mike_history")
+        self.assertContains(response, "jules_history")
+        self.assertContains(response, "25 000")
+        self.assertContains(response, "18 000")
+        self.assertEqual(response.context["selected_month_input"], "2026-04")
+        self.assertEqual(response.context["month_summary"]["report_count"], 2)
+
+    def test_daily_report_history_page_filters_by_site(self):
+        response = self.client.get(
+            reverse("admin_daily_report_history"),
+            data={"month": "2026-04", "site": str(self.site_a.id)},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "mike_history")
+        self.assertEqual(response.context["selected_site"], self.site_a)
+        self.assertEqual(response.context["month_summary"]["report_count"], 1)
+        self.assertEqual(len(response.context["daily_groups"]), 1)
+        self.assertEqual(response.context["daily_groups"][0]["entries"][0]["employee_name"], "mike_history")
+
+    def test_admin_dashboard_links_to_daily_report_history_page(self):
+        response = self.client.get(reverse("admin_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Voir l'historique complet")
+        self.assertContains(response, reverse("admin_daily_report_history"))
+
+
 class SiteCorrectionsViewTests(TestCase):
     def setUp(self):
         self.admin_user = User.objects.create_superuser(

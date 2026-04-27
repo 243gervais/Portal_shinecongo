@@ -69,6 +69,12 @@ def _build_admin_site_navigation(request):
             keywords="dashboard admin demandes rapports compte pending",
         ),
         build_search_item(
+            "Historique rapports fin de journée",
+            reverse("admin_daily_report_history"),
+            description="Historique quotidien et mensuel des messages employés",
+            keywords="rapports fin de journée historique messages employes journalier mensuel",
+        ),
+        build_search_item(
             "Suivi eau",
             reverse("admin_water_purchases"),
             description="Achats d'eau et mois concerné",

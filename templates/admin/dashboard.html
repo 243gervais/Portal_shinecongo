@@ -669,6 +669,9 @@
             <span class="admin-badge">{{ recent_daily_reports_count }}</span>
         </summary>
         <div class="admin-queue-body">
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 0.85rem;">
+                <a href="{% url 'admin_daily_report_history' %}" class="btn btn-secondary">Voir l'historique complet</a>
+            </div>
             {% if recent_daily_reports %}
             <div class="admin-compact-list">
                 {% for item in recent_daily_reports|slice:":6" %}
