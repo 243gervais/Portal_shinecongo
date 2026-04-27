@@ -5,52 +5,135 @@
 
 {% block extra_css %}
 <style>
-    .history-page {
+    .compare-shell {
         display: grid;
-        gap: 1.5rem;
+        gap: 1.35rem;
     }
 
-    .history-hero {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
+    .compare-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.9fr);
         gap: 1rem;
-        flex-wrap: wrap;
-        padding: 1.7rem;
+        padding: 1.8rem;
         border-radius: 28px;
         background:
             radial-gradient(circle at top right, rgba(244, 163, 64, 0.16), transparent 24%),
-            linear-gradient(135deg, #0b2438 0%, #0A436B 100%);
-        color: white;
-        box-shadow: 0 20px 48px rgba(10, 67, 107, 0.18);
+            linear-gradient(135deg, #081a28 0%, #0A436B 58%, #0e5a86 100%);
+        color: #fff;
+        box-shadow: 0 22px 58px rgba(8, 26, 40, 0.22);
     }
 
-    .history-hero-copy {
-        max-width: 780px;
-        color: rgba(255, 255, 255, 0.86);
-        margin: 0.55rem 0 0 0;
-    }
-
-    .history-hero-badge {
+    .compare-kicker {
         display: inline-flex;
         align-items: center;
-        padding: 0.35rem 0.8rem;
+        gap: 0.45rem;
+        padding: 0.34rem 0.82rem;
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.14);
-        color: rgba(255, 255, 255, 0.95);
-        font-size: 0.8rem;
+        background: rgba(255, 255, 255, 0.12);
+        color: rgba(255, 255, 255, 0.94);
+        font-size: 0.78rem;
         font-weight: 700;
-        letter-spacing: 0.04em;
+        letter-spacing: 0.06em;
         text-transform: uppercase;
     }
 
-    .history-hero-actions {
+    .compare-title {
+        margin: 0.7rem 0 0 0;
+        font-size: clamp(1.9rem, 3vw, 2.7rem);
+        line-height: 1.05;
+    }
+
+    .compare-copy {
+        margin: 0.85rem 0 0 0;
+        max-width: 760px;
+        color: rgba(255, 255, 255, 0.84);
+        font-size: 0.98rem;
+        line-height: 1.58;
+    }
+
+    .compare-meta-strip {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+
+    .compare-meta-pill {
+        padding: 0.55rem 0.8rem;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.1);
+        min-width: 150px;
+    }
+
+    .compare-meta-label {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .compare-meta-value {
+        margin-top: 0.25rem;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #fff;
+    }
+
+    .compare-hero-side {
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .compare-hero-card {
+        padding: 1rem 1.05rem;
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(6px);
+    }
+
+    .compare-hero-card--forecast {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.08));
+    }
+
+    .compare-hero-label {
+        color: rgba(255, 255, 255, 0.72);
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .compare-hero-card-title {
+        margin-top: 0.2rem;
+        font-size: 1.1rem;
+        font-weight: 800;
+        color: #fff;
+    }
+
+    .compare-hero-amount {
+        margin-top: 0.7rem;
+        font-size: 2rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    .compare-hero-subcopy {
+        margin-top: 0.45rem;
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 0.86rem;
+        line-height: 1.45;
+    }
+
+    .compare-hero-actions {
         display: flex;
         gap: 0.65rem;
         flex-wrap: wrap;
+        margin-top: 0.9rem;
     }
 
-    .history-toolbar {
+    .compare-toolbar {
         display: flex;
         justify-content: space-between;
         align-items: flex-end;
@@ -58,139 +141,77 @@
         flex-wrap: wrap;
     }
 
-    .history-scope-switch {
+    .compare-tabs {
         display: inline-flex;
         flex-wrap: wrap;
         gap: 0.55rem;
     }
 
-    .history-scope-link {
+    .compare-tab {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-width: 138px;
-        padding: 0.75rem 0.95rem;
-        border-radius: 16px;
+        min-width: 148px;
+        padding: 0.8rem 1rem;
+        border-radius: 18px;
         border: 1px solid rgba(10, 67, 107, 0.08);
-        background: rgba(255, 255, 255, 0.92);
+        background: rgba(255, 255, 255, 0.96);
         color: var(--text-primary);
         text-decoration: none;
-        font-weight: 700;
+        font-weight: 800;
         transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
     }
 
-    .history-scope-link:hover,
-    .history-scope-link:focus-visible {
+    .compare-tab:hover,
+    .compare-tab:focus-visible {
         transform: translateY(-1px);
         border-color: rgba(10, 67, 107, 0.18);
         box-shadow: var(--shadow-hover);
         outline: none;
     }
 
-    .history-scope-link.is-active {
-        background: rgba(10, 67, 107, 0.08);
-        border-color: rgba(10, 67, 107, 0.2);
+    .compare-tab.is-active {
+        background: linear-gradient(180deg, rgba(232, 241, 247, 0.96), rgba(255, 255, 255, 0.98));
+        border-color: rgba(10, 67, 107, 0.22);
         color: var(--primary-dark);
     }
 
-    .history-snapshot-grid,
-    .history-kpi-grid,
-    .history-highlight-grid,
-    .history-chart-grid {
+    .compare-grid-3,
+    .compare-grid-4,
+    .compare-chart-grid,
+    .compare-insight-grid,
+    .compare-forecast-grid,
+    .compare-snapshot-grid {
         display: grid;
         gap: 1rem;
     }
 
-    .history-snapshot-grid,
-    .history-kpi-grid,
-    .history-highlight-grid {
+    .compare-grid-3 {
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     }
 
-    .history-chart-grid {
+    .compare-grid-4,
+    .compare-forecast-grid,
+    .compare-insight-grid,
+    .compare-snapshot-grid {
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    }
+
+    .compare-chart-grid {
         grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     }
 
-    .history-snapshot-card,
-    .history-kpi-card,
-    .history-highlight-card,
-    .history-chart-card {
-        padding: 1rem 1.05rem;
-        border-radius: 20px;
+    .compare-card,
+    .compare-snapshot-card,
+    .compare-chart-card,
+    .compare-insight-card {
+        padding: 1.05rem 1.1rem;
+        border-radius: 22px;
         border: 1px solid rgba(10, 67, 107, 0.08);
-        background: rgba(255, 255, 255, 0.96);
+        background: rgba(255, 255, 255, 0.97);
     }
 
-    .history-snapshot-card {
-        text-decoration: none;
-        color: inherit;
-        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-    }
-
-    .history-snapshot-card:hover,
-    .history-snapshot-card:focus-visible {
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-hover);
-        border-color: rgba(10, 67, 107, 0.18);
-        outline: none;
-    }
-
-    .history-snapshot-card.is-active {
-        border-color: rgba(10, 67, 107, 0.22);
-        background: linear-gradient(180deg, rgba(232, 241, 247, 0.92), rgba(255, 255, 255, 0.98));
-    }
-
-    .history-card-label {
-        color: var(--text-secondary);
-        font-size: 0.78rem;
-        font-weight: 700;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-    }
-
-    .history-card-title {
-        margin: 0.2rem 0 0 0;
-        color: var(--primary-dark);
-        font-weight: 800;
-        font-size: 1.1rem;
-    }
-
-    .history-card-value {
-        margin-top: 0.5rem;
-        font-size: 1.55rem;
-        font-weight: 800;
-        color: var(--primary-color);
-    }
-
-    .history-card-subvalue,
-    .history-card-copy {
-        color: var(--text-secondary);
-        font-size: 0.86rem;
-    }
-
-    .history-card-copy {
-        margin-top: 0.35rem;
-    }
-
-    .history-delta {
-        margin-top: 0.6rem;
-        font-weight: 700;
-        font-size: 0.9rem;
-    }
-
-    .history-delta.is-up {
-        color: var(--success-color);
-    }
-
-    .history-delta.is-down {
-        color: var(--error-color);
-    }
-
-    .history-delta.is-flat {
-        color: var(--text-secondary);
-    }
-
-    .history-section-head {
+    .compare-section-head {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
@@ -199,66 +220,177 @@
         margin-bottom: 1rem;
     }
 
-    .history-section-title {
+    .compare-section-title {
         margin: 0;
         color: var(--primary-dark);
+        font-size: 1.2rem;
     }
 
-    .history-section-copy {
+    .compare-section-copy {
         margin: 0.35rem 0 0 0;
         color: var(--text-secondary);
+        max-width: 780px;
     }
 
-    .history-section-state {
+    .compare-section-state {
         color: var(--text-secondary);
         font-weight: 700;
     }
 
-    .history-chart-head {
+    .compare-card-label {
+        color: var(--text-secondary);
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .compare-card-title {
+        margin: 0.2rem 0 0 0;
+        color: var(--primary-dark);
+        font-size: 1.02rem;
+        font-weight: 800;
+    }
+
+    .compare-card-value {
+        margin-top: 0.55rem;
+        font-size: 1.7rem;
+        font-weight: 800;
+        color: var(--primary-color);
+        line-height: 1.02;
+    }
+
+    .compare-card-subvalue,
+    .compare-card-copy {
+        margin-top: 0.3rem;
+        color: var(--text-secondary);
+        font-size: 0.86rem;
+        line-height: 1.45;
+    }
+
+    .compare-delta {
+        margin-top: 0.65rem;
+        font-size: 0.9rem;
+        font-weight: 800;
+    }
+
+    .compare-delta.is-up {
+        color: var(--success-color);
+    }
+
+    .compare-delta.is-down {
+        color: var(--error-color);
+    }
+
+    .compare-delta.is-flat {
+        color: var(--text-secondary);
+    }
+
+    .compare-snapshot-card {
+        text-decoration: none;
+        color: inherit;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+
+    .compare-snapshot-card:hover,
+    .compare-snapshot-card:focus-visible {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-hover);
+        border-color: rgba(10, 67, 107, 0.18);
+        outline: none;
+    }
+
+    .compare-snapshot-card.is-active {
+        background: linear-gradient(180deg, rgba(232, 241, 247, 0.96), rgba(255, 255, 255, 0.98));
+        border-color: rgba(10, 67, 107, 0.22);
+    }
+
+    .compare-snapshot-card .compare-card-value {
+        font-size: 1.4rem;
+    }
+
+    .compare-forecast-banner {
+        padding: 1.05rem 1.1rem;
+        border-radius: 22px;
+        background: linear-gradient(135deg, rgba(8, 26, 40, 0.98), rgba(10, 67, 107, 0.92));
+        color: white;
+        box-shadow: 0 16px 34px rgba(8, 26, 40, 0.16);
+    }
+
+    .compare-forecast-banner .compare-card-label,
+    .compare-forecast-banner .compare-card-subvalue,
+    .compare-forecast-banner .compare-card-copy {
+        color: rgba(255, 255, 255, 0.78);
+    }
+
+    .compare-forecast-banner .compare-card-title,
+    .compare-forecast-banner .compare-card-value {
+        color: #fff;
+    }
+
+    .compare-chip-row {
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+        margin-top: 0.7rem;
+    }
+
+    .compare-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.4rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .compare-chart-head {
         display: flex;
         justify-content: space-between;
         gap: 0.7rem;
         align-items: flex-start;
-        margin-bottom: 0.85rem;
+        margin-bottom: 0.9rem;
     }
 
-    .history-chart-title {
+    .compare-chart-title {
         margin: 0;
-        color: var(--primary-dark);
         font-size: 1rem;
+        color: var(--primary-dark);
     }
 
-    .history-chart-note {
+    .compare-chart-note {
         margin: 0.2rem 0 0 0;
-        color: var(--text-secondary);
         font-size: 0.82rem;
+        color: var(--text-secondary);
     }
 
-    .history-chart-stack {
+    .compare-chart-stack {
         display: grid;
-        gap: 0.7rem;
+        gap: 0.72rem;
     }
 
-    .history-chart-row {
+    .compare-chart-row {
         display: grid;
-        grid-template-columns: minmax(0, 1.3fr) minmax(0, 2.4fr) auto;
+        grid-template-columns: minmax(0, 1.3fr) minmax(0, 2.35fr) auto;
         gap: 0.7rem;
         align-items: center;
     }
 
-    .history-chart-row.is-selected {
+    .compare-chart-row.is-selected {
         padding: 0.45rem 0.55rem;
-        border-radius: 14px;
+        border-radius: 16px;
         background: rgba(10, 67, 107, 0.05);
     }
 
-    .history-chart-label {
-        color: var(--text-primary);
+    .compare-chart-label {
         font-size: 0.83rem;
-        font-weight: 600;
+        font-weight: 700;
+        color: var(--text-primary);
     }
 
-    .history-chart-track {
+    .compare-chart-track {
         position: relative;
         height: 11px;
         border-radius: 999px;
@@ -266,61 +398,61 @@
         overflow: hidden;
     }
 
-    .history-chart-fill {
+    .compare-chart-fill {
         height: 100%;
         border-radius: inherit;
     }
 
-    .history-chart-fill--cash {
+    .compare-chart-fill--cash {
         background: linear-gradient(90deg, #0A436B 0%, #2E86AB 100%);
     }
 
-    .history-chart-fill--bank {
+    .compare-chart-fill--bank {
         background: linear-gradient(90deg, #1D8A4C 0%, #3CB371 100%);
     }
 
-    .history-chart-fill--loss {
+    .compare-chart-fill--loss {
         background: linear-gradient(90deg, #C97A1E 0%, #F4A340 100%);
     }
 
-    .history-chart-fill--gap {
+    .compare-chart-fill--gap {
         background: linear-gradient(90deg, #7C3AED 0%, #9F67FF 100%);
     }
 
-    .history-chart-fill.is-negative {
+    .compare-chart-fill.is-negative {
         background: linear-gradient(90deg, #B42318 0%, #F04438 100%);
     }
 
-    .history-chart-value {
-        min-width: 90px;
+    .compare-chart-value {
+        min-width: 92px;
         text-align: right;
         font-size: 0.82rem;
-        font-weight: 700;
+        font-weight: 800;
         color: var(--primary-dark);
     }
 
-    .history-compare-table td,
-    .history-compare-table th {
+    .compare-table td,
+    .compare-table th {
         vertical-align: top;
     }
 
-    .history-compare-table tbody tr.is-selected {
+    .compare-table tbody tr.is-selected {
         background: rgba(10, 67, 107, 0.04);
     }
 
-    .history-money {
+    .compare-money {
         text-align: right;
-        font-weight: 700;
+        font-weight: 800;
         white-space: nowrap;
     }
 
-    .history-action-row {
+    .compare-action-row {
         display: flex;
         gap: 0.45rem;
         flex-wrap: wrap;
     }
 
-    .history-mini-btn {
+    .compare-mini-btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -328,64 +460,106 @@
         border-radius: 999px;
         text-decoration: none;
         font-size: 0.78rem;
-        font-weight: 700;
+        font-weight: 800;
         border: 1px solid rgba(10, 67, 107, 0.08);
         color: var(--primary-dark);
         background: rgba(255, 255, 255, 0.98);
     }
 
-    .history-mini-btn--warning {
+    .compare-mini-btn--warning {
         background: rgba(244, 163, 64, 0.12);
         color: #9a5b10;
         border-color: rgba(244, 163, 64, 0.18);
     }
 
+    .compare-assumption {
+        padding: 0.9rem 1rem;
+        border-radius: 18px;
+        background: rgba(10, 67, 107, 0.05);
+        color: var(--text-secondary);
+        line-height: 1.55;
+    }
+
+    @media (max-width: 980px) {
+        .compare-hero {
+            grid-template-columns: 1fr;
+        }
+    }
+
     @media (max-width: 720px) {
-        .history-chart-row {
+        .compare-chart-row {
             grid-template-columns: 1fr;
         }
 
-        .history-chart-value {
-            text-align: left;
+        .compare-chart-value {
             min-width: 0;
+            text-align: left;
         }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="history-page">
-    <section class="history-hero">
+<div class="compare-shell">
+    <section class="compare-hero">
         <div>
-            <span class="history-hero-badge">Historique comparatif</span>
-            <h1 style="margin: 0.65rem 0 0 0;">{{ site.nom }}</h1>
-            <p class="history-hero-copy">
-                Vue dédiée pour comparer clairement les semaines, les mois et les années. Les graphiques, repères et tableaux ci-dessous servent à lire rapidement le cash flow, la banque, les pertes et l'écart de caisse.
+            <span class="compare-kicker">Historique comparatif</span>
+            <h1 class="compare-title">{{ site.nom }}</h1>
+            <p class="compare-copy">
+                Lecture exécutive du site: ce que le site a réellement produit, ce qui est allé en banque, ce qui a été consommé en pertes, et la projection de clôture pour le mois prochain.
             </p>
+            <div class="compare-meta-strip">
+                <div class="compare-meta-pill">
+                    <div class="compare-meta-label">Vue active</div>
+                    <div class="compare-meta-value">{{ selected_period.toggle_label }}</div>
+                </div>
+                <div class="compare-meta-pill">
+                    <div class="compare-meta-label">Période analysée</div>
+                    <div class="compare-meta-value">{{ selected_period.current_item.label }}</div>
+                </div>
+                <div class="compare-meta-pill">
+                    <div class="compare-meta-label">Date de référence</div>
+                    <div class="compare-meta-value">{{ detail_date|date:"d/m/Y" }}</div>
+                </div>
+            </div>
         </div>
-        <div class="history-hero-actions">
-            <a href="{% url 'admin_site_detail' site.id %}?date_debut={{ detail_date|date:'Y-m-d' }}&date_fin={{ detail_date|date:'Y-m-d' }}" class="btn btn-light">Ouvrir le site</a>
-            <a href="{% url 'admin_site_losses' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-warning">Corrections & finance</a>
+        <div class="compare-hero-side">
+            <div class="compare-hero-card compare-hero-card--forecast">
+                <div class="compare-hero-label">Projection mois prochain</div>
+                <div class="compare-hero-card-title">{{ next_month_forecast.label }}</div>
+                <div class="compare-hero-amount">{{ next_month_forecast.metrics.cash_flow|fc_amount }} FC</div>
+                <div class="compare-hero-subcopy">Cash flow attendu si le rythme actuel et les derniers mois restent cohérents.</div>
+                <div class="compare-chip-row">
+                    <span class="compare-chip">Banque nette: {{ next_month_forecast.metrics.bank_net|fc_amount }} FC</span>
+                    <span class="compare-chip">Pertes: {{ next_month_forecast.metrics.pertes_total|fc_amount }} FC</span>
+                </div>
+            </div>
+            <div class="compare-hero-card">
+                <div class="compare-hero-label">Base de calcul</div>
+                <div class="compare-hero-card-title">{{ next_month_forecast.baseline_count }} période{{ next_month_forecast.baseline_count|pluralize }}</div>
+                <div class="compare-hero-subcopy">{{ next_month_forecast.assumption }}</div>
+            </div>
+            <div class="compare-hero-actions">
+                <a href="{% url 'admin_site_detail' site.id %}?date_debut={{ detail_date|date:'Y-m-d' }}&date_fin={{ detail_date|date:'Y-m-d' }}" class="btn btn-light">Ouvrir le site</a>
+                <a href="{% url 'admin_site_losses' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-warning">Corrections & finance</a>
+            </div>
         </div>
     </section>
 
     <section class="card">
-        <div class="history-toolbar">
+        <div class="compare-toolbar">
             <form method="get" style="display: flex; gap: 0.75rem; align-items: end; flex-wrap: wrap;">
                 <input type="hidden" name="scope" value="{{ current_scope }}">
-                <div class="form-group" style="margin-bottom: 0; min-width: 210px;">
+                <div class="form-group" style="margin-bottom: 0; min-width: 220px;">
                     <label for="history-reference-date">Date de référence</label>
                     <input id="history-reference-date" type="date" name="date" value="{{ detail_date|date:'Y-m-d' }}" class="form-control">
                 </div>
                 <button type="submit" class="btn btn-primary">Actualiser</button>
             </form>
 
-            <div class="history-scope-switch">
+            <div class="compare-tabs">
                 {% for period in comparison_periods %}
-                <a
-                    href="{% url 'admin_site_history_comparison' site.id %}?scope={{ period.key }}&date={{ detail_date|date:'Y-m-d' }}"
-                    class="history-scope-link {% if period.key == current_scope %}is-active{% endif %}"
-                >
+                <a href="{% url 'admin_site_history_comparison' site.id %}?scope={{ period.key }}&date={{ detail_date|date:'Y-m-d' }}" class="compare-tab {% if period.key == current_scope %}is-active{% endif %}">
                     {{ period.toggle_label }}
                 </a>
                 {% endfor %}
@@ -394,196 +568,256 @@
     </section>
 
     <section class="card">
-        <div class="history-section-head">
+        <div class="compare-section-head">
             <div>
-                <h2 class="history-section-title">Lecture rapide par niveau</h2>
-                <p class="history-section-copy">Chaque carte donne l'état actuel du site pour la semaine, le mois et l'année autour de la date de référence.</p>
+                <h2 class="compare-section-title">Cadres de lecture</h2>
+                <p class="compare-section-copy">Chaque carte résume l’état actuel du site par semaine, mois et année. Vous pouvez changer de niveau de lecture sans perdre la même date de référence.</p>
             </div>
         </div>
-        <div class="history-snapshot-grid">
+        <div class="compare-snapshot-grid">
             {% for snapshot in scope_snapshots %}
-            <a href="{{ snapshot.url }}" class="history-snapshot-card {% if snapshot.is_active %}is-active{% endif %}">
-                <div class="history-card-label">{{ snapshot.label }}</div>
-                <div class="history-card-title">{{ snapshot.anchor_label }}</div>
-                <div class="history-card-value">{{ snapshot.cash_flow|fc_amount }} FC</div>
-                <div class="history-card-subvalue">Cash flow</div>
-                <div class="history-card-copy">Banque nette: {{ snapshot.bank_net|fc_amount }} FC</div>
-                <div class="history-card-copy">Pertes: {{ snapshot.pertes_total|fc_amount }} FC</div>
+            <a href="{{ snapshot.url }}" class="compare-snapshot-card {% if snapshot.is_active %}is-active{% endif %}">
+                <div class="compare-card-label">{{ snapshot.label }}</div>
+                <div class="compare-card-title">{{ snapshot.anchor_label }}</div>
+                <div class="compare-card-value">{{ snapshot.cash_flow|fc_amount }} FC</div>
+                <div class="compare-card-subvalue">Cash flow observé</div>
+                <div class="compare-card-copy">Banque nette: {{ snapshot.bank_net|fc_amount }} FC</div>
+                <div class="compare-card-copy">Pertes: {{ snapshot.pertes_total|fc_amount }} FC</div>
             </a>
             {% endfor %}
         </div>
     </section>
 
     <section class="card">
-        <div class="history-section-head">
+        <div class="compare-section-head">
             <div>
-                <h2 class="history-section-title">{{ selected_period.title }}</h2>
-                <p class="history-section-copy">{{ selected_period.copy }}</p>
+                <h2 class="compare-section-title">Prévision {{ next_month_forecast.label }}</h2>
+                <p class="compare-section-copy">Cette projection est une estimation. Elle combine le rythme actuel du mois en cours avec les derniers mois connus pour donner un budget réaliste pour le mois suivant.</p>
             </div>
-            <div class="history-section-state">{{ selected_period.item_count }} période{{ selected_period.item_count|pluralize }}</div>
+            <div class="compare-section-state">{{ next_month_forecast.period_start|date:"d/m/Y" }} → {{ next_month_forecast.period_end|date:"d/m/Y" }}</div>
         </div>
 
-        {% if selected_period.current_item %}
-        <div class="history-kpi-grid" style="margin-bottom: 1rem;">
-            <article class="history-kpi-card">
-                <div class="history-card-label">Période active</div>
-                <div class="history-card-title">{{ selected_period.current_item.label }}</div>
-                <div class="history-card-value">{{ selected_period.current_item.cash_flow|fc_amount }} FC</div>
-                <div class="history-card-subvalue">Cash flow • ~ ${{ selected_period.current_item.cash_flow|usd_equivalent }} USD</div>
-            </article>
-            <article class="history-kpi-card">
-                <div class="history-card-label">Banque nette</div>
-                <div class="history-card-value">{{ selected_period.current_item.bank_net|fc_amount }} FC</div>
-                <div class="history-card-subvalue">Dépôts moins pertes banque</div>
-                {% if selected_period.previous_item %}
-                <div class="history-delta {% if selected_period.current_item.bank_net_delta > 0 %}is-up{% elif selected_period.current_item.bank_net_delta < 0 %}is-down{% else %}is-flat{% endif %}">
-                    {% if selected_period.current_item.bank_net_delta > 0 %}+{% endif %}{{ selected_period.current_item.bank_net_delta|fc_amount }} FC vs {{ selected_period.previous_item.label }}
+        <div class="compare-forecast-grid" style="margin-bottom: 1rem;">
+            <article class="compare-forecast-banner">
+                <div class="compare-card-label">Cash flow projeté</div>
+                <div class="compare-card-title">{{ next_month_forecast.label }}</div>
+                <div class="compare-card-value">{{ next_month_forecast.metrics.cash_flow|fc_amount }} FC</div>
+                <div class="compare-card-subvalue">~ ${{ next_month_forecast.metrics.cash_flow|usd_equivalent }} USD</div>
+                {% if next_month_forecast.forecast_vs_previous_month_pct is not None %}
+                <div class="compare-delta {% if next_month_forecast.forecast_vs_previous_month_pct > 0 %}is-up{% elif next_month_forecast.forecast_vs_previous_month_pct < 0 %}is-down{% else %}is-flat{% endif %}">
+                    {% if next_month_forecast.forecast_vs_previous_month_pct > 0 %}+{% endif %}{{ next_month_forecast.forecast_vs_previous_month_pct }}% vs {{ next_month_forecast.previous_month_label|default:"mois précédent" }}
                 </div>
                 {% endif %}
             </article>
-            <article class="history-kpi-card">
-                <div class="history-card-label">Pertes</div>
-                <div class="history-card-value">{{ selected_period.current_item.pertes_total|fc_amount }} FC</div>
-                <div class="history-card-subvalue">Toutes les charges de la période</div>
-                {% if selected_period.previous_item %}
-                <div class="history-delta {% if selected_period.current_item.pertes_total_delta < 0 %}is-up{% elif selected_period.current_item.pertes_total_delta > 0 %}is-down{% else %}is-flat{% endif %}">
-                    {% if selected_period.current_item.pertes_total_delta > 0 %}+{% endif %}{{ selected_period.current_item.pertes_total_delta|fc_amount }} FC vs {{ selected_period.previous_item.label }}
-                </div>
-                {% endif %}
+            <article class="compare-card">
+                <div class="compare-card-label">Dépôts projetés</div>
+                <div class="compare-card-value">{{ next_month_forecast.metrics.bank_deposit|fc_amount }} FC</div>
+                <div class="compare-card-copy">Ce que le site devrait pouvoir déposer si le rythme reste constant.</div>
             </article>
-            <article class="history-kpi-card">
-                <div class="history-card-label">Écart de caisse</div>
-                <div class="history-card-value">{{ selected_period.current_item.ecart_caisse|fc_amount }} FC</div>
-                <div class="history-card-subvalue">Cash flow moins dépôts moins pertes caisse</div>
-                {% if selected_period.previous_item %}
-                <div class="history-delta {% if selected_period.current_item.ecart_caisse_delta < 0 %}is-down{% elif selected_period.current_item.ecart_caisse_delta > 0 %}is-up{% else %}is-flat{% endif %}">
-                    {% if selected_period.current_item.ecart_caisse_delta > 0 %}+{% endif %}{{ selected_period.current_item.ecart_caisse_delta|fc_amount }} FC vs {{ selected_period.previous_item.label }}
-                </div>
-                {% endif %}
+            <article class="compare-card">
+                <div class="compare-card-label">Banque nette projetée</div>
+                <div class="compare-card-value">{{ next_month_forecast.metrics.bank_net|fc_amount }} FC</div>
+                <div class="compare-card-copy">Après retrait des pertes financées par banque.</div>
+            </article>
+            <article class="compare-card">
+                <div class="compare-card-label">Pertes projetées</div>
+                <div class="compare-card-value">{{ next_month_forecast.metrics.pertes_total|fc_amount }} FC</div>
+                <div class="compare-card-copy">Charge totale probable du mois prochain.</div>
+            </article>
+            <article class="compare-card">
+                <div class="compare-card-label">Écart de caisse projeté</div>
+                <div class="compare-card-value">{{ next_month_forecast.metrics.ecart_caisse|fc_amount }} FC</div>
+                <div class="compare-card-copy">Lecture attendue si le même équilibre de caisse est maintenu.</div>
+            </article>
+            <article class="compare-card">
+                <div class="compare-card-label">Taux de pertes</div>
+                <div class="compare-card-value">{{ next_month_forecast.loss_rate_pct }}%</div>
+                <div class="compare-card-copy">Part du cash flow qui risque d’être absorbée par les pertes.</div>
+            </article>
+            <article class="compare-card">
+                <div class="compare-card-label">Capture banque</div>
+                <div class="compare-card-value">{{ next_month_forecast.bank_capture_pct }}%</div>
+                <div class="compare-card-copy">Part du cash flow qui devrait finir en banque nette.</div>
+            </article>
+            <article class="compare-card">
+                <div class="compare-card-label">Clôture probable du mois en cours</div>
+                <div class="compare-card-title">{{ next_month_forecast.current_month_label }}</div>
+                <div class="compare-card-value">{{ next_month_forecast.current_month_projected.cash_flow|default:0|fc_amount }} FC</div>
+                <div class="compare-card-copy">Projection linéaire de la fin du mois actuel à partir du rythme observé.</div>
             </article>
         </div>
 
-        <div class="history-highlight-grid" style="margin-bottom: 1rem;">
-            <article class="history-highlight-card">
-                <div class="history-card-label">Meilleure production</div>
-                {% if selected_period.best_cash_item %}
-                <div class="history-card-title">{{ selected_period.best_cash_item.label }}</div>
-                <div class="history-card-value">{{ selected_period.best_cash_item.cash_flow|fc_amount }} FC</div>
-                <div class="history-card-subvalue">Pic de cash flow sur cette vue</div>
-                {% else %}
-                <div class="history-card-copy">Aucune donnée disponible.</div>
+        <div class="compare-assumption">
+            <strong>Méthode utilisée:</strong> {{ next_month_forecast.assumption }}
+            {% if next_month_forecast.baseline_labels %}
+            <br><strong>Périodes de base:</strong> {{ next_month_forecast.baseline_labels|join:", " }}.
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="compare-section-head">
+            <div>
+                <h2 class="compare-section-title">Exécution réelle de {{ selected_period.current_item.label }}</h2>
+                <p class="compare-section-copy">Cette section montre exactement ce que le site a fait sur la période active, puis le compare à la période juste avant.</p>
+            </div>
+            <div class="compare-section-state">{{ selected_period.item_count }} période{{ selected_period.item_count|pluralize }} disponibles</div>
+        </div>
+
+        <div class="compare-grid-4" style="margin-bottom: 1rem;">
+            <article class="compare-card">
+                <div class="compare-card-label">Cash flow réel</div>
+                <div class="compare-card-value">{{ selected_period.current_item.cash_flow|fc_amount }} FC</div>
+                <div class="compare-card-subvalue">~ ${{ selected_period.current_item.cash_flow|usd_equivalent }} USD</div>
+                {% if selected_period.previous_item %}
+                <div class="compare-delta {% if selected_period.current_item.cash_flow_delta > 0 %}is-up{% elif selected_period.current_item.cash_flow_delta < 0 %}is-down{% else %}is-flat{% endif %}">
+                    {% if selected_period.current_item.cash_flow_delta > 0 %}+{% endif %}{{ selected_period.current_item.cash_flow_delta|fc_amount }} FC vs {{ selected_period.previous_item.label }}
+                </div>
                 {% endif %}
             </article>
-            <article class="history-highlight-card">
-                <div class="history-card-label">Banque la plus forte</div>
-                {% if selected_period.strongest_bank_item %}
-                <div class="history-card-title">{{ selected_period.strongest_bank_item.label }}</div>
-                <div class="history-card-value">{{ selected_period.strongest_bank_item.bank_net|fc_amount }} FC</div>
-                <div class="history-card-subvalue">Niveau de banque nette le plus élevé</div>
-                {% else %}
-                <div class="history-card-copy">Aucune donnée disponible.</div>
-                {% endif %}
+            <article class="compare-card">
+                <div class="compare-card-label">Rapports employés</div>
+                <div class="compare-card-value">{{ selected_period.current_item.reported_cash|fc_amount }} FC</div>
+                <div class="compare-card-copy">Montant confirmé par les employés sur cette période.</div>
             </article>
-            <article class="history-highlight-card">
-                <div class="history-card-label">Période la plus chargée</div>
-                {% if selected_period.highest_loss_item %}
-                <div class="history-card-title">{{ selected_period.highest_loss_item.label }}</div>
-                <div class="history-card-value">{{ selected_period.highest_loss_item.pertes_total|fc_amount }} FC</div>
-                <div class="history-card-subvalue">Somme des pertes la plus haute</div>
-                {% else %}
-                <div class="history-card-copy">Aucune donnée disponible.</div>
-                {% endif %}
+            <article class="compare-card">
+                <div class="compare-card-label">Banque nette</div>
+                <div class="compare-card-value">{{ selected_period.current_item.bank_net|fc_amount }} FC</div>
+                <div class="compare-card-copy">Dépôts moins pertes banque.</div>
             </article>
-            <article class="history-highlight-card">
-                <div class="history-card-label">Caisse la plus propre</div>
-                {% if selected_period.closest_gap_item %}
-                <div class="history-card-title">{{ selected_period.closest_gap_item.label }}</div>
-                <div class="history-card-value">{{ selected_period.closest_gap_item.ecart_caisse|fc_amount }} FC</div>
-                <div class="history-card-subvalue">Écart de caisse le plus proche de zéro</div>
-                {% else %}
-                <div class="history-card-copy">Aucune donnée disponible.</div>
-                {% endif %}
+            <article class="compare-card">
+                <div class="compare-card-label">Écart de caisse</div>
+                <div class="compare-card-value">{{ selected_period.current_item.ecart_caisse|fc_amount }} FC</div>
+                <div class="compare-card-copy">Plus proche de zéro signifie plus propre.</div>
             </article>
         </div>
-        {% endif %}
+
+        <div class="compare-insight-grid">
+            <article class="compare-insight-card">
+                <div class="compare-card-label">Meilleure production</div>
+                <div class="compare-card-title">{{ selected_period.best_cash_item.label }}</div>
+                <div class="compare-card-value">{{ selected_period.best_cash_item.cash_flow|fc_amount }} FC</div>
+                <div class="compare-card-copy">Point haut de production sur la vue active.</div>
+            </article>
+            <article class="compare-insight-card">
+                <div class="compare-card-label">Banque la plus forte</div>
+                <div class="compare-card-title">{{ selected_period.strongest_bank_item.label }}</div>
+                <div class="compare-card-value">{{ selected_period.strongest_bank_item.bank_net|fc_amount }} FC</div>
+                <div class="compare-card-copy">Période où la banque nette a été la plus solide.</div>
+            </article>
+            <article class="compare-insight-card">
+                <div class="compare-card-label">Période la plus coûteuse</div>
+                <div class="compare-card-title">{{ selected_period.highest_loss_item.label }}</div>
+                <div class="compare-card-value">{{ selected_period.highest_loss_item.pertes_total|fc_amount }} FC</div>
+                <div class="compare-card-copy">Période où les pertes ont le plus pesé.</div>
+            </article>
+            <article class="compare-insight-card">
+                <div class="compare-card-label">Caisse la plus équilibrée</div>
+                <div class="compare-card-title">{{ selected_period.closest_gap_item.label }}</div>
+                <div class="compare-card-value">{{ selected_period.closest_gap_item.ecart_caisse|fc_amount }} FC</div>
+                <div class="compare-card-copy">La lecture la plus proche d’une caisse bien justifiée.</div>
+            </article>
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="compare-section-head">
+            <div>
+                <h2 class="compare-section-title">Graphes de tendance</h2>
+                <p class="compare-section-copy">Les quatre graphes montrent le volume, la banque, les pertes et le niveau d’écart pour les périodes visibles dans la vue active.</p>
+            </div>
+        </div>
 
         {% if selected_period.items %}
-        <div class="history-chart-grid" style="margin-bottom: 1rem;">
-            <article class="history-chart-card">
-                <div class="history-chart-head">
+        <div class="compare-chart-grid" style="margin-bottom: 1rem;">
+            <article class="compare-chart-card">
+                <div class="compare-chart-head">
                     <div>
-                        <h3 class="history-chart-title">Cash flow</h3>
-                        <p class="history-chart-note">Comparaison directe des encaissements</p>
+                        <h3 class="compare-chart-title">Cash flow</h3>
+                        <p class="compare-chart-note">Comparaison des encaissements</p>
                     </div>
                 </div>
-                <div class="history-chart-stack">
+                <div class="compare-chart-stack">
                     {% for item in selected_period.items %}
-                    <div class="history-chart-row {% if item.is_selected %}is-selected{% endif %}">
-                        <div class="history-chart-label">{{ item.label }}</div>
-                        <div class="history-chart-track"><div class="history-chart-fill history-chart-fill--cash" style="width: {% widthratio item.cash_flow selected_period.max_cash_flow 100 %}%;"></div></div>
-                        <div class="history-chart-value">{{ item.cash_flow|fc_amount }} FC</div>
+                    <div class="compare-chart-row {% if item.is_selected %}is-selected{% endif %}">
+                        <div class="compare-chart-label">{{ item.label }}</div>
+                        <div class="compare-chart-track"><div class="compare-chart-fill compare-chart-fill--cash" style="width: {% widthratio item.cash_flow selected_period.max_cash_flow 100 %}%;"></div></div>
+                        <div class="compare-chart-value">{{ item.cash_flow|fc_amount }} FC</div>
                     </div>
                     {% endfor %}
                 </div>
             </article>
 
-            <article class="history-chart-card">
-                <div class="history-chart-head">
+            <article class="compare-chart-card">
+                <div class="compare-chart-head">
                     <div>
-                        <h3 class="history-chart-title">Dépôts banque</h3>
-                        <p class="history-chart-note">Montant réellement déposé</p>
+                        <h3 class="compare-chart-title">Dépôts banque</h3>
+                        <p class="compare-chart-note">Montants versés en banque</p>
                     </div>
                 </div>
-                <div class="history-chart-stack">
+                <div class="compare-chart-stack">
                     {% for item in selected_period.items %}
-                    <div class="history-chart-row {% if item.is_selected %}is-selected{% endif %}">
-                        <div class="history-chart-label">{{ item.label }}</div>
-                        <div class="history-chart-track"><div class="history-chart-fill history-chart-fill--bank" style="width: {% widthratio item.bank_deposit selected_period.max_bank_deposit 100 %}%;"></div></div>
-                        <div class="history-chart-value">{{ item.bank_deposit|fc_amount }} FC</div>
+                    <div class="compare-chart-row {% if item.is_selected %}is-selected{% endif %}">
+                        <div class="compare-chart-label">{{ item.label }}</div>
+                        <div class="compare-chart-track"><div class="compare-chart-fill compare-chart-fill--bank" style="width: {% widthratio item.bank_deposit selected_period.max_bank_deposit 100 %}%;"></div></div>
+                        <div class="compare-chart-value">{{ item.bank_deposit|fc_amount }} FC</div>
                     </div>
                     {% endfor %}
                 </div>
             </article>
 
-            <article class="history-chart-card">
-                <div class="history-chart-head">
+            <article class="compare-chart-card">
+                <div class="compare-chart-head">
                     <div>
-                        <h3 class="history-chart-title">Pertes</h3>
-                        <p class="history-chart-note">Toutes les sorties et charges</p>
+                        <h3 class="compare-chart-title">Pertes</h3>
+                        <p class="compare-chart-note">Charge totale par période</p>
                     </div>
                 </div>
-                <div class="history-chart-stack">
+                <div class="compare-chart-stack">
                     {% for item in selected_period.items %}
-                    <div class="history-chart-row {% if item.is_selected %}is-selected{% endif %}">
-                        <div class="history-chart-label">{{ item.label }}</div>
-                        <div class="history-chart-track"><div class="history-chart-fill history-chart-fill--loss" style="width: {% widthratio item.pertes_total selected_period.max_pertes_total 100 %}%;"></div></div>
-                        <div class="history-chart-value">{{ item.pertes_total|fc_amount }} FC</div>
+                    <div class="compare-chart-row {% if item.is_selected %}is-selected{% endif %}">
+                        <div class="compare-chart-label">{{ item.label }}</div>
+                        <div class="compare-chart-track"><div class="compare-chart-fill compare-chart-fill--loss" style="width: {% widthratio item.pertes_total selected_period.max_pertes_total 100 %}%;"></div></div>
+                        <div class="compare-chart-value">{{ item.pertes_total|fc_amount }} FC</div>
                     </div>
                     {% endfor %}
                 </div>
             </article>
 
-            <article class="history-chart-card">
-                <div class="history-chart-head">
+            <article class="compare-chart-card">
+                <div class="compare-chart-head">
                     <div>
-                        <h3 class="history-chart-title">Écart de caisse</h3>
-                        <p class="history-chart-note">Lecture de l'écart, qu'il soit positif ou négatif</p>
+                        <h3 class="compare-chart-title">Écart de caisse</h3>
+                        <p class="compare-chart-note">Plus la barre est petite, plus la caisse est propre</p>
                     </div>
                 </div>
-                <div class="history-chart-stack">
+                <div class="compare-chart-stack">
                     {% for item in selected_period.items %}
-                    <div class="history-chart-row {% if item.is_selected %}is-selected{% endif %}">
-                        <div class="history-chart-label">{{ item.label }}</div>
-                        <div class="history-chart-track"><div class="history-chart-fill history-chart-fill--gap {% if item.ecart_caisse < 0 %}is-negative{% endif %}" style="width: {% widthratio item.abs_ecart_caisse selected_period.max_ecart_caisse 100 %}%;"></div></div>
-                        <div class="history-chart-value">{{ item.ecart_caisse|fc_amount }} FC</div>
+                    <div class="compare-chart-row {% if item.is_selected %}is-selected{% endif %}">
+                        <div class="compare-chart-label">{{ item.label }}</div>
+                        <div class="compare-chart-track"><div class="compare-chart-fill compare-chart-fill--gap {% if item.ecart_caisse < 0 %}is-negative{% endif %}" style="width: {% widthratio item.abs_ecart_caisse selected_period.max_ecart_caisse 100 %}%;"></div></div>
+                        <div class="compare-chart-value">{{ item.ecart_caisse|fc_amount }} FC</div>
                     </div>
                     {% endfor %}
                 </div>
             </article>
         </div>
+        {% else %}
+        <p style="margin: 0; color: var(--text-secondary);">{{ selected_period.empty_message }}</p>
+        {% endif %}
+    </section>
 
+    <section class="card">
+        <div class="compare-section-head">
+            <div>
+                <h2 class="compare-section-title">Tableau comparatif détaillé</h2>
+                <p class="compare-section-copy">Chaque ligne reprend une période complète avec ses montants réels et l’accès direct vers le détail ou les corrections.</p>
+            </div>
+        </div>
+
+        {% if selected_period.items %}
         <div class="table-container">
-            <table class="history-compare-table">
+            <table class="compare-table">
                 <thead>
                     <tr>
                         <th>{{ selected_period.row_label }}</th>
@@ -603,17 +837,17 @@
                             <strong>{{ item.label }}</strong><br>
                             <small style="color: var(--text-secondary);">{{ item.period_start|date:"d/m/Y" }} → {{ item.period_end|date:"d/m/Y" }}</small>
                         </td>
-                        <td class="history-money">{{ item.cash_flow|fc_amount }} FC</td>
-                        <td class="history-money">{{ item.reported_cash|fc_amount }} FC</td>
-                        <td class="history-money">{{ item.bank_deposit|fc_amount }} FC</td>
-                        <td class="history-money">{{ item.bank_net|fc_amount }} FC</td>
-                        <td class="history-money">{{ item.pertes_total|fc_amount }} FC</td>
-                        <td class="history-money">{{ item.ecart_caisse|fc_amount }} FC</td>
+                        <td class="compare-money">{{ item.cash_flow|fc_amount }} FC</td>
+                        <td class="compare-money">{{ item.reported_cash|fc_amount }} FC</td>
+                        <td class="compare-money">{{ item.bank_deposit|fc_amount }} FC</td>
+                        <td class="compare-money">{{ item.bank_net|fc_amount }} FC</td>
+                        <td class="compare-money">{{ item.pertes_total|fc_amount }} FC</td>
+                        <td class="compare-money">{{ item.ecart_caisse|fc_amount }} FC</td>
                         <td>
-                            <div class="history-action-row">
-                                <a href="{% url 'admin_site_detail' site.id %}?{{ item.detail_query }}" class="history-mini-btn">Ouvrir</a>
+                            <div class="compare-action-row">
+                                <a href="{% url 'admin_site_detail' site.id %}?{{ item.detail_query }}" class="compare-mini-btn">Ouvrir</a>
                                 {% if selected_period.show_correction_link %}
-                                <a href="{% url 'admin_site_losses' site.id %}?date={{ item.period_start|date:'Y-m-d' }}&period=week&metric=cashflow" class="history-mini-btn history-mini-btn--warning">Corrections</a>
+                                <a href="{% url 'admin_site_losses' site.id %}?date={{ item.period_start|date:'Y-m-d' }}&period=week&metric=cashflow" class="compare-mini-btn compare-mini-btn--warning">Corrections</a>
                                 {% endif %}
                             </div>
                         </td>
@@ -622,8 +856,6 @@
                 </tbody>
             </table>
         </div>
-        {% else %}
-        <p style="margin: 0; color: var(--text-secondary);">{{ selected_period.empty_message }}</p>
         {% endif %}
     </section>
 </div>

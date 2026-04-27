@@ -74,6 +74,13 @@ MONTH_NAMES = [
 ]
 
 
+def _to_decimal_amount(value):
+    try:
+        return Decimal(str(value or 0))
+    except (ArithmeticError, TypeError, ValueError):
+        return Decimal("0")
+
+
 def _build_site_comparison_periods(site, detail_date, selected_scope="week"):
     week_start = detail_date - timedelta(days=detail_date.weekday())
 
@@ -249,6 +256,98 @@ def _build_site_comparison_periods(site, detail_date, selected_scope="week"):
         )
 
     return comparison_periods
+
+
+def _build_next_month_forecast(detail_date, comparison_periods):
+    monthly_period = next((period for period in comparison_periods if period["key"] == "month"), None)
+    monthly_items = monthly_period["items"] if monthly_period else []
+    current_month_item = monthly_items[0] if monthly_items else None
+
+    current_month_days = calendar.monthrange(detail_date.year, detail_date.month)[1]
+    elapsed_days = max(1, min(detail_date.day, current_month_days))
+    current_month_factor = Decimal(str(current_month_days)) / Decimal(str(elapsed_days))
+
+    month_cursor = detail_date.replace(day=1)
+    if month_cursor.month == 12:
+        next_month_start = month_cursor.replace(year=month_cursor.year + 1, month=1)
+    else:
+        next_month_start = month_cursor.replace(month=month_cursor.month + 1)
+    next_month_end = next_month_start.replace(day=calendar.monthrange(next_month_start.year, next_month_start.month)[1])
+
+    metric_keys = [
+        "cash_flow",
+        "reported_cash",
+        "bank_deposit",
+        "bank_net",
+        "pertes_total",
+        "ecart_caisse",
+    ]
+
+    projected_current_month = {}
+    if current_month_item:
+        for metric in metric_keys:
+            projected_current_month[metric] = (_to_decimal_amount(current_month_item[metric]) * current_month_factor).quantize(
+                Decimal("0.01")
+            )
+
+    baseline_items = []
+    if projected_current_month:
+        baseline_items.append(projected_current_month)
+    for item in monthly_items[1:4]:
+        baseline_items.append({metric: _to_decimal_amount(item[metric]) for metric in metric_keys})
+
+    forecast_metrics = {metric: Decimal("0") for metric in metric_keys}
+    if baseline_items:
+        for metric in metric_keys:
+            values = [_to_decimal_amount(item.get(metric)) for item in baseline_items]
+            forecast_metrics[metric] = (sum(values, Decimal("0")) / Decimal(str(len(values)))).quantize(Decimal("0.01"))
+
+    prior_full_month = monthly_items[1] if len(monthly_items) > 1 else None
+    current_projected_cash = projected_current_month.get("cash_flow", Decimal("0"))
+    prior_cash = _to_decimal_amount(prior_full_month["cash_flow"]) if prior_full_month else Decimal("0")
+    forecast_cash = forecast_metrics["cash_flow"]
+    forecast_loss = forecast_metrics["pertes_total"]
+    forecast_bank_net = forecast_metrics["bank_net"]
+
+    def percent_change(current_value, previous_value):
+        current_decimal = _to_decimal_amount(current_value)
+        previous_decimal = _to_decimal_amount(previous_value)
+        if previous_decimal == 0:
+            return None
+        return ((current_decimal - previous_decimal) / previous_decimal * Decimal("100")).quantize(Decimal("0.1"))
+
+    projected_loss_rate = Decimal("0")
+    if forecast_cash > 0:
+        projected_loss_rate = ((forecast_loss / forecast_cash) * Decimal("100")).quantize(Decimal("0.1"))
+
+    projected_bank_capture = Decimal("0")
+    if forecast_cash > 0:
+        projected_bank_capture = ((forecast_bank_net / forecast_cash) * Decimal("100")).quantize(Decimal("0.1"))
+
+    return {
+        "label": f"{MONTH_NAMES[next_month_start.month - 1]} {next_month_start.year}",
+        "period_start": next_month_start,
+        "period_end": next_month_end,
+        "metrics": forecast_metrics,
+        "current_month_label": current_month_item["label"] if current_month_item else "",
+        "previous_month_label": prior_full_month["label"] if prior_full_month else "",
+        "baseline_count": len(baseline_items),
+        "baseline_labels": [
+            current_month_item["label"] + " (rythme projeté)" if index == 0 and current_month_item else item["label"]
+            for index, item in enumerate(([current_month_item] if current_month_item else []) + monthly_items[1:4])
+            if item
+        ],
+        "current_month_projected": projected_current_month,
+        "forecast_vs_current_projection_pct": percent_change(forecast_cash, current_projected_cash),
+        "forecast_vs_previous_month_pct": percent_change(forecast_cash, prior_cash),
+        "loss_rate_pct": projected_loss_rate,
+        "bank_capture_pct": projected_bank_capture,
+        "assumption": (
+            "Estimation basée sur le rythme du mois en cours et les trois derniers mois disponibles."
+            if baseline_items
+            else "Aucune base historique suffisante pour établir une estimation fiable."
+        ),
+    }
 
 
 @login_required
@@ -1561,6 +1660,7 @@ def admin_site_history_comparison(request, site_id):
         (period for period in comparison_periods if period["key"] == current_scope),
         comparison_periods[0] if comparison_periods else None,
     )
+    next_month_forecast = _build_next_month_forecast(detail_date, comparison_periods)
 
     scope_snapshots = []
     for period in comparison_periods:
@@ -1589,6 +1689,7 @@ def admin_site_history_comparison(request, site_id):
         "comparison_periods": comparison_periods,
         "selected_period": selected_period,
         "scope_snapshots": scope_snapshots,
+        "next_month_forecast": next_month_forecast,
     }
     return render(request, "admin/site_history_comparison.html", context)
 

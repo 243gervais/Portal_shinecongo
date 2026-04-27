@@ -675,7 +675,7 @@ class SiteHistoryComparisonTests(TestCase):
         self.assertContains(response, "Hebdomadaire")
         self.assertContains(response, "Mensuel")
         self.assertContains(response, "Annuel")
-        self.assertContains(response, "Historique mensuel")
+        self.assertContains(response, "Prévision")
         self.assertContains(response, "Avril 2026")
         self.assertContains(response, "Mars 2026")
         self.assertEqual(response.context["current_scope"], "month")
