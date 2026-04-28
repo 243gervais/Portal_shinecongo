@@ -417,6 +417,7 @@
 
             if (whatsappTrigger) {
                 whatsappTrigger.addEventListener('click', async () => {
+                    const whatsappWindow = whatsappUrl ? window.open(whatsappUrl, '_blank', 'noopener') : null;
                     try {
                         const file = await fetchPdfFile();
                         if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
@@ -430,16 +431,16 @@
                         }
 
                         downloadBlob(file, shareFilename);
-                        if (whatsappUrl) {
+                        if (!whatsappWindow && whatsappUrl) {
                             window.open(whatsappUrl, '_blank', 'noopener');
                         }
-                        showFeedback('PDF téléchargé. WhatsApp Web a été ouvert. Joignez maintenant ce PDF dans la conversation.');
+                        showFeedback('PDF téléchargé. WhatsApp Web est ouvert. Joignez maintenant ce PDF dans la conversation.');
                     } catch (error) {
                         window.open(`${sharePdfUrl}?download=1`, '_blank', 'noopener');
-                        if (whatsappUrl) {
+                        if (!whatsappWindow && whatsappUrl) {
                             window.open(whatsappUrl, '_blank', 'noopener');
                         }
-                        showFeedback('Téléchargez le PDF puis joignez-le dans WhatsApp Web.');
+                        showFeedback('Le PDF est prêt à être téléchargé. Joignez-le ensuite dans WhatsApp Web.');
                     }
                 });
             }

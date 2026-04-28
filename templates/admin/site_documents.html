@@ -362,6 +362,7 @@
                 const shareTitle = button.dataset.shareTitle || '';
                 const shareText = button.dataset.shareText || '';
                 const whatsappUrl = button.dataset.whatsappUrl || '';
+                const whatsappWindow = whatsappUrl ? window.open(whatsappUrl, '_blank', 'noopener') : null;
 
                 try {
                     const { file, filename } = await fetchPdfFile(button);
@@ -375,7 +376,7 @@
                     }
 
                     downloadBlob(file, filename);
-                    if (whatsappUrl) {
+                    if (!whatsappWindow && whatsappUrl) {
                         window.open(whatsappUrl, '_blank', 'noopener');
                     }
                     button.textContent = 'PDF prêt';
@@ -384,7 +385,7 @@
                     }, 2200);
                 } catch (error) {
                     window.open(`${button.dataset.sharePdfUrl}?download=1`, '_blank', 'noopener');
-                    if (whatsappUrl) {
+                    if (!whatsappWindow && whatsappUrl) {
                         window.open(whatsappUrl, '_blank', 'noopener');
                     }
                 }
