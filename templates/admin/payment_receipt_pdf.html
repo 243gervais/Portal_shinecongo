@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {
+            size: A4;
+            margin: 18mm 14mm;
+        }
+
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 11pt;
+            color: #1f2933;
+        }
+
+        .header {
+            border-bottom: 2px solid #0A436B;
+            padding-bottom: 10px;
+            margin-bottom: 16px;
+        }
+
+        .header-table,
+        .grid-table,
+        .signature-table {
+            width: 100%;
+            border-spacing: 0;
+            border-collapse: separate;
+        }
+
+        .logo-cell {
+            width: 60%;
+            vertical-align: top;
+        }
+
+        .title-cell {
+            width: 40%;
+            text-align: right;
+            vertical-align: top;
+        }
+
+        .company-wrap {
+            display: block;
+        }
+
+        .logo {
+            width: 42px;
+            height: 42px;
+        }
+
+        .company-name {
+            font-size: 18pt;
+            font-weight: bold;
+            color: #0A436B;
+            margin-top: 4px;
+        }
+
+        .company-copy,
+        .title-copy,
+        .footer-copy,
+        .muted {
+            color: #5b6875;
+            font-size: 9pt;
+        }
+
+        .doc-title {
+            font-size: 16pt;
+            font-weight: bold;
+            color: #0A436B;
+        }
+
+        .grid-table td {
+            width: 50%;
+            vertical-align: top;
+            padding: 6px;
+        }
+
+        .item {
+            border: 1px solid #d6dee6;
+            border-radius: 6px;
+            padding: 8px;
+            min-height: 48px;
+        }
+
+        .label {
+            color: #5b6875;
+            font-size: 8.5pt;
+            margin-bottom: 3px;
+        }
+
+        .value {
+            font-size: 11pt;
+            font-weight: bold;
+        }
+
+        .amount-box {
+            margin-top: 14px;
+            border: 2px solid #0A436B;
+            border-radius: 8px;
+            background: #eef5fb;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .amount-value {
+            font-size: 20pt;
+            font-weight: bold;
+            color: #0A436B;
+        }
+
+        .notes {
+            margin-top: 14px;
+            border: 1px solid #d6dee6;
+            border-radius: 6px;
+            padding: 10px;
+            min-height: 65px;
+        }
+
+        .section-title {
+            font-weight: bold;
+            color: #0A436B;
+        }
+
+        .signature-table td {
+            width: 50%;
+            vertical-align: top;
+            padding-top: 28px;
+            padding-right: 10px;
+        }
+
+        .signature-box {
+            border-top: 1px solid #999999;
+            padding-top: 8px;
+            min-height: 58px;
+        }
+
+        .footer-copy {
+            margin-top: 18px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <table class="header-table">
+            <tr>
+                <td class="logo-cell">
+                    <div class="company-wrap">
+                        {% if logo_path %}
+                        <img src="{{ logo_path }}" alt="Logo Shine Congo" class="logo">
+                        {% endif %}
+                        <div class="company-name">{{ company_name }}</div>
+                        <div class="company-copy">Portail de gestion des opérations</div>
+                    </div>
+                </td>
+                <td class="title-cell">
+                    <div class="doc-title">FICHE DE PAIEMENT</div>
+                    <div class="title-copy">N° {{ payment.id }} • {{ payment.payment_date|date:"d/m/Y" }}</div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <table class="grid-table">
+        <tr>
+            <td>
+                <div class="item">
+                    <div class="label">Employé</div>
+                    <div class="value">{{ payment.employee_profile.user.get_full_name|default:payment.employee_profile.user.username }}</div>
+                </div>
+            </td>
+            <td>
+                <div class="item">
+                    <div class="label">Site</div>
+                    <div class="value">{{ site.nom }}</div>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div class="item">
+                    <div class="label">Période</div>
+                    <div class="value">{{ payment.period_start|date:"d/m/Y" }} au {{ payment.period_end|date:"d/m/Y" }}</div>
+                </div>
+            </td>
+            <td>
+                <div class="item">
+                    <div class="label">Mode de paiement</div>
+                    <div class="value">{{ payment.get_payment_method_display }}</div>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div class="item">
+                    <div class="label">Salaire de base</div>
+                    <div class="value">${{ payment.salary_base_usd|floatformat:2 }} USD</div>
+                </div>
+            </td>
+            <td>
+                <div class="item">
+                    <div class="label">Référence M-Pesa</div>
+                    <div class="value">{{ payment.mpesa_reference|default:"-" }}</div>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <div class="amount-box">
+        <div class="label">Montant payé</div>
+        <div class="amount-value">${{ payment.amount_paid_usd|floatformat:2 }} USD</div>
+    </div>
+
+    <div class="notes">
+        <div class="section-title">Notes</div>
+        <div>{{ payment.notes|default:"Aucune note." }}</div>
+    </div>
+
+    <table class="signature-table">
+        <tr>
+            <td>
+                <div class="signature-box">
+                    <div class="muted">Signature de l'employé</div>
+                    <div class="value">{{ payment.employee_signature_name }}</div>
+                    <div class="muted">Signé le {{ payment.signed_at|date:"d/m/Y à H:i" }}</div>
+                </div>
+            </td>
+            <td>
+                <div class="signature-box">
+                    <div class="muted">Signature de l'administrateur</div>
+                    <div class="value">{{ payment.admin_signature_name }}</div>
+                    <div class="muted">Validé le {{ payment.created_at|date:"d/m/Y à H:i" }}</div>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <div class="footer-copy">Document généré automatiquement par {{ company_name }}.</div>
+</body>
+</html>

@@ -338,11 +338,11 @@ class EmployeePaymentShareTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Partager la fiche")
-        self.assertContains(response, "WhatsApp Web")
-        self.assertContains(response, "Copier le lien")
-        self.assertIn("share_url", response.context)
-        self.assertContains(response, response.context["share_url"])
+        self.assertContains(response, "Partager le PDF")
+        self.assertContains(response, "WhatsApp Web (PDF)")
+        self.assertContains(response, "Télécharger le PDF")
+        self.assertIn("share_pdf_url", response.context)
+        self.assertContains(response, response.context["share_pdf_url"])
 
     def test_shared_payment_receipt_view_is_accessible_without_login(self):
         response = self.client.get(
@@ -356,15 +356,27 @@ class EmployeePaymentShareTests(TestCase):
         self.assertEqual(shared_response.status_code, 200)
         self.assertContains(shared_response, "FICHE DE PAIEMENT")
         self.assertContains(shared_response, "Jules Mbadu")
-        self.assertContains(shared_response, "WhatsApp Web")
+        self.assertContains(shared_response, "WhatsApp Web (PDF)")
+
+    def test_shared_payment_receipt_pdf_view_returns_pdf(self):
+        response = self.client.get(
+            reverse("admin_employee_payment_receipt", args=[self.site.id, self.payment.id])
+        )
+        share_path = urlparse(response.context["share_pdf_url"]).path
+
+        self.client.logout()
+        shared_pdf_response = self.client.get(share_path)
+
+        self.assertEqual(shared_pdf_response.status_code, 200)
+        self.assertEqual(shared_pdf_response["Content-Type"], "application/pdf")
 
     def test_site_documents_page_shows_payment_share_actions(self):
         response = self.client.get(reverse("admin_site_documents", args=[self.site.id]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Partager")
-        self.assertContains(response, "WhatsApp Web")
-        self.assertContains(response, "data-share-url")
+        self.assertContains(response, "Partager PDF")
+        self.assertContains(response, "WhatsApp Web (PDF)")
+        self.assertContains(response, "data-share-pdf-url")
 
 
 class SiteJournalEntryTests(TestCase):

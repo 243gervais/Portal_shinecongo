@@ -145,20 +145,24 @@
                                 style="padding: 0.35rem 0.7rem; font-size: 0.82rem;"
                                 data-share-title="{{ payment.share_title }}"
                                 data-share-text="{{ payment.share_text }}"
-                                data-share-url="{{ payment.share_url }}"
+                                data-share-pdf-url="{{ payment.share_pdf_url }}"
+                                data-share-filename="{{ payment.share_filename }}"
                                 data-whatsapp-url="{{ payment.whatsapp_share_url }}"
                             >
-                                Partager
+                                Partager PDF
                             </button>
-                            <a
-                                href="{{ payment.whatsapp_share_url }}"
-                                target="_blank"
-                                rel="noopener"
-                                class="btn btn-light"
+                            <button
+                                type="button"
+                                class="btn btn-light js-payment-whatsapp"
                                 style="padding: 0.35rem 0.7rem; font-size: 0.82rem;"
+                                data-share-title="{{ payment.share_title }}"
+                                data-share-text="{{ payment.share_text }}"
+                                data-share-pdf-url="{{ payment.share_pdf_url }}"
+                                data-share-filename="{{ payment.share_filename }}"
+                                data-whatsapp-url="{{ payment.whatsapp_share_url }}"
                             >
-                                WhatsApp Web
-                            </a>
+                                WhatsApp Web (PDF)
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -276,59 +280,114 @@
 {% block extra_js %}
 <script>
     (() => {
-        const buttons = Array.from(document.querySelectorAll('.js-payment-share'));
-        if (!buttons.length) {
+        const shareButtons = Array.from(document.querySelectorAll('.js-payment-share'));
+        const whatsappButtons = Array.from(document.querySelectorAll('.js-payment-whatsapp'));
+        if (!shareButtons.length && !whatsappButtons.length) {
             return;
         }
 
-        const copyToClipboard = async (value) => {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(value);
-                return true;
-            }
-            return false;
+        const downloadBlob = (blob, filename) => {
+            const objectUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = objectUrl;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
         };
 
-        buttons.forEach((button) => {
+        const fetchPdfFile = async (button) => {
+            const sharePdfUrl = button.dataset.sharePdfUrl || '';
+            const shareFilename = button.dataset.shareFilename || 'fiche-paiement.pdf';
+            const response = await fetch(sharePdfUrl, { credentials: 'same-origin' });
+            if (!response.ok) {
+                throw new Error('pdf_fetch_failed');
+            }
+            const blob = await response.blob();
+            return {
+                file: new File([blob], shareFilename, { type: 'application/pdf' }),
+                url: sharePdfUrl,
+                filename: shareFilename,
+            };
+        };
+
+        shareButtons.forEach((button) => {
             button.addEventListener('click', async () => {
                 const shareTitle = button.dataset.shareTitle || '';
                 const shareText = button.dataset.shareText || '';
-                const shareUrl = button.dataset.shareUrl || '';
-                const whatsappUrl = button.dataset.whatsappUrl || '';
-
                 if (navigator.share) {
                     try {
+                        const { file, url, filename } = await fetchPdfFile(button);
+                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                            await navigator.share({
+                                title: shareTitle,
+                                text: shareText,
+                                files: [file],
+                            });
+                            return;
+                        }
+
+                        downloadBlob(file, filename);
+                        button.textContent = 'PDF téléchargé';
+                        window.setTimeout(() => {
+                            button.textContent = 'Partager PDF';
+                        }, 2200);
+                        return;
+                    } catch (error) {
+                        try {
+                            window.open(`${button.dataset.sharePdfUrl}?download=1`, '_blank', 'noopener');
+                        } catch (fallbackError) {
+                            window.prompt('Ouvrez cette URL PDF :', `${button.dataset.sharePdfUrl}?download=1`);
+                        }
+                    }
+                } else {
+                    try {
+                        const { file, filename } = await fetchPdfFile(button);
+                        downloadBlob(file, filename);
+                        button.textContent = 'PDF téléchargé';
+                        window.setTimeout(() => {
+                            button.textContent = 'Partager PDF';
+                        }, 2200);
+                        return;
+                    } catch (error) {
+                        window.open(`${button.dataset.sharePdfUrl}?download=1`, '_blank', 'noopener');
+                    }
+                }
+            });
+        });
+
+        whatsappButtons.forEach((button) => {
+            button.addEventListener('click', async () => {
+                const shareTitle = button.dataset.shareTitle || '';
+                const shareText = button.dataset.shareText || '';
+                const whatsappUrl = button.dataset.whatsappUrl || '';
+
+                try {
+                    const { file, filename } = await fetchPdfFile(button);
+                    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
                         await navigator.share({
                             title: shareTitle,
                             text: shareText,
-                            url: shareUrl,
+                            files: [file],
                         });
                         return;
-                    } catch (error) {
-                        if (error && error.name === 'AbortError') {
-                            return;
-                        }
                     }
-                }
 
-                if (whatsappUrl) {
-                    window.open(whatsappUrl, '_blank', 'noopener');
-                    return;
-                }
-
-                try {
-                    if (await copyToClipboard(shareUrl)) {
-                        button.textContent = 'Lien copié';
-                        window.setTimeout(() => {
-                            button.textContent = 'Partager';
-                        }, 2200);
-                        return;
+                    downloadBlob(file, filename);
+                    if (whatsappUrl) {
+                        window.open(whatsappUrl, '_blank', 'noopener');
                     }
+                    button.textContent = 'PDF prêt';
+                    window.setTimeout(() => {
+                        button.textContent = 'WhatsApp Web (PDF)';
+                    }, 2200);
                 } catch (error) {
-                    // Prompt fallback below.
+                    window.open(`${button.dataset.sharePdfUrl}?download=1`, '_blank', 'noopener');
+                    if (whatsappUrl) {
+                        window.open(whatsappUrl, '_blank', 'noopener');
+                    }
                 }
-
-                window.prompt('Copiez ce lien de partage :', shareUrl);
             });
         });
     })();

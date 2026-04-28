@@ -254,13 +254,14 @@
         data-share-title="{{ share_title }}"
         data-share-text="{{ share_text }}"
         data-share-url="{{ share_url }}"
+        data-share-pdf-url="{{ share_pdf_url }}"
+        data-share-filename="{{ share_filename }}"
         data-whatsapp-url="{{ whatsapp_share_url }}"
     >
         <button class="btn btn-primary" onclick="window.print()">🖨️ Imprimer la fiche</button>
-        <button type="button" class="btn btn-light" data-share-trigger>📤 Partager la fiche</button>
-        <a class="btn btn-secondary" href="{{ whatsapp_share_url }}" target="_blank" rel="noopener">WhatsApp Web</a>
-        <button type="button" class="btn btn-secondary" data-copy-link>🔗 Copier le lien</button>
-        <a class="btn btn-secondary" href="{{ email_share_url }}">✉️ Email</a>
+        <a class="btn btn-secondary" href="{{ share_pdf_url }}?download=1">⬇️ Télécharger le PDF</a>
+        <button type="button" class="btn btn-light" data-share-trigger>📤 Partager le PDF</button>
+        <button type="button" class="btn btn-secondary" data-whatsapp-share>WhatsApp Web (PDF)</button>
         {% if not is_shared_view %}
         <a class="btn btn-secondary" href="{% url 'admin_site_documents' site.id %}">← Retour aux documents</a>
         {% endif %}
@@ -347,9 +348,11 @@
             const shareTitle = toolbar.dataset.shareTitle || '';
             const shareText = toolbar.dataset.shareText || '';
             const shareUrl = toolbar.dataset.shareUrl || window.location.href;
+            const sharePdfUrl = toolbar.dataset.sharePdfUrl || '';
+            const shareFilename = toolbar.dataset.shareFilename || 'fiche-paiement.pdf';
             const whatsappUrl = toolbar.dataset.whatsappUrl || '';
             const shareTrigger = toolbar.querySelector('[data-share-trigger]');
-            const copyTrigger = toolbar.querySelector('[data-copy-link]');
+            const whatsappTrigger = toolbar.querySelector('[data-whatsapp-share]');
 
             const showFeedback = (message) => {
                 if (!feedback) {
@@ -363,49 +366,81 @@
                 }, 3200);
             };
 
+            const downloadBlob = (blob, filename) => {
+                const objectUrl = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = objectUrl;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+            };
+
+            const fetchPdfFile = async () => {
+                const response = await fetch(sharePdfUrl, { credentials: 'same-origin' });
+                if (!response.ok) {
+                    throw new Error('pdf_fetch_failed');
+                }
+                const blob = await response.blob();
+                return new File([blob], shareFilename, { type: 'application/pdf' });
+            };
+
             if (shareTrigger) {
                 shareTrigger.addEventListener('click', async () => {
-                    const payload = {
-                        title: shareTitle,
-                        text: shareText,
-                        url: shareUrl,
-                    };
+                    try {
+                        const file = await fetchPdfFile();
+                        const payload = {
+                            title: shareTitle,
+                            text: shareText,
+                            files: [file],
+                        };
 
-                    if (navigator.share) {
-                        try {
+                        if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
                             await navigator.share(payload);
-                            showFeedback('Fiche prête à être partagée.');
+                            showFeedback('PDF prêt à être partagé.');
                             return;
-                        } catch (error) {
-                            if (error && error.name === 'AbortError') {
-                                return;
-                            }
+                        }
+
+                        downloadBlob(file, shareFilename);
+                        showFeedback('PDF téléchargé. Vous pouvez maintenant le joindre dans l’application de votre choix.');
+                    } catch (error) {
+                        try {
+                            window.open(`${sharePdfUrl}?download=1`, '_blank', 'noopener');
+                            showFeedback('Téléchargement du PDF lancé.');
+                        } catch (fallbackError) {
+                            window.prompt('Ouvrez ou copiez cette URL PDF :', `${sharePdfUrl}?download=1`);
                         }
                     }
-
-                    if (whatsappUrl) {
-                        window.open(whatsappUrl, '_blank', 'noopener');
-                        showFeedback('Ouverture de WhatsApp Web.');
-                        return;
-                    }
-
-                    window.prompt('Copiez ce lien de partage :', shareUrl);
                 });
             }
 
-            if (copyTrigger) {
-                copyTrigger.addEventListener('click', async () => {
+            if (whatsappTrigger) {
+                whatsappTrigger.addEventListener('click', async () => {
                     try {
-                        if (navigator.clipboard && navigator.clipboard.writeText) {
-                            await navigator.clipboard.writeText(shareUrl);
-                            showFeedback('Lien de partage copié.');
+                        const file = await fetchPdfFile();
+                        if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+                            await navigator.share({
+                                title: shareTitle,
+                                text: shareText,
+                                files: [file],
+                            });
+                            showFeedback('PDF prêt à être partagé vers WhatsApp si votre appareil le propose.');
                             return;
                         }
-                    } catch (error) {
-                        // Fallback below.
-                    }
 
-                    window.prompt('Copiez ce lien de partage :', shareUrl);
+                        downloadBlob(file, shareFilename);
+                        if (whatsappUrl) {
+                            window.open(whatsappUrl, '_blank', 'noopener');
+                        }
+                        showFeedback('PDF téléchargé. WhatsApp Web a été ouvert. Joignez maintenant ce PDF dans la conversation.');
+                    } catch (error) {
+                        window.open(`${sharePdfUrl}?download=1`, '_blank', 'noopener');
+                        if (whatsappUrl) {
+                            window.open(whatsappUrl, '_blank', 'noopener');
+                        }
+                        showFeedback('Téléchargez le PDF puis joignez-le dans WhatsApp Web.');
+                    }
                 });
             }
         })();

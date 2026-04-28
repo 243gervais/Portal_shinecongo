@@ -1,8 +1,11 @@
 import calendar
+from io import BytesIO
 from urllib.parse import quote
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout, login, update_session_auth_hash
+from django.contrib.staticfiles import finders
 from django.shortcuts import render, redirect, get_object_or_404
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -15,6 +18,7 @@ from django.contrib.auth.models import User
 from django.core import signing
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
+from xhtml2pdf import pisa
 from .forms import (
     UserRegistrationForm,
     SiteCreationForm,
@@ -3473,6 +3477,10 @@ def _build_payment_receipt_share_meta(request, payment):
     share_url = request.build_absolute_uri(
         reverse("shared_employee_payment_receipt", kwargs={"token": share_token})
     )
+    share_pdf_url = request.build_absolute_uri(
+        reverse("shared_employee_payment_receipt_pdf", kwargs={"token": share_token})
+    )
+    share_filename = f"fiche-paiement-{employee_name.lower().replace(' ', '-')}-{payment.payment_date:%Y%m%d}.pdf"
     share_title = f"Fiche de paiement - {employee_name}"
     share_text = (
         f"Bonjour, voici la fiche de paiement de {employee_name} pour {payment.site.nom} "
@@ -3482,10 +3490,12 @@ def _build_payment_receipt_share_meta(request, payment):
     share_body = f"{share_text}\n{share_url}"
     return {
         "share_url": share_url,
+        "share_pdf_url": share_pdf_url,
+        "share_filename": share_filename,
         "share_title": share_title,
         "share_text": share_text,
         "share_body": share_body,
-        "whatsapp_share_url": f"https://web.whatsapp.com/send?text={quote(share_body)}",
+        "whatsapp_share_url": "https://web.whatsapp.com/",
         "email_share_url": f"mailto:?subject={quote(share_title)}&body={quote(share_body)}",
     }
 
@@ -3509,6 +3519,40 @@ def _get_shared_payment_from_token(token):
         id=payment_id,
         site__id=site_id,
     )
+
+
+def _build_payment_receipt_pdf(payment):
+    """
+    Génère un PDF de la fiche de paiement.
+    """
+    logo_path = finders.find("favicon.png") or ""
+    html = render_to_string(
+        "admin/payment_receipt_pdf.html",
+        {
+            "site": payment.site,
+            "payment": payment,
+            "company_name": "Shine Congo",
+            "logo_path": logo_path,
+        },
+    )
+    result = BytesIO()
+    pdf = pisa.CreatePDF(src=html, dest=result, encoding="utf-8")
+    if pdf.err:
+        raise ValueError("Impossible de générer le PDF de la fiche de paiement.")
+    return result.getvalue()
+
+
+def _build_payment_receipt_pdf_response(payment, download=False):
+    """
+    Retourne la réponse HTTP PDF de la fiche de paiement.
+    """
+    employee_name = payment.employee_profile.user.get_full_name() or payment.employee_profile.user.username
+    filename = f"fiche-paiement-{employee_name.lower().replace(' ', '-')}-{payment.payment_date:%Y%m%d}.pdf"
+    pdf_bytes = _build_payment_receipt_pdf(payment)
+    disposition = "attachment" if download else "inline"
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
+    response["Content-Disposition"] = f'{disposition}; filename="{filename}"'
+    return response
 
 
 @login_required
@@ -4047,6 +4091,27 @@ def admin_employee_payment_receipt(request, site_id, payment_id):
     return render(request, 'admin/payment_receipt.html', context)
 
 
+@login_required
+@no_cache_view
+def admin_employee_payment_receipt_pdf(request, site_id, payment_id):
+    """
+    Génère la fiche de paiement en PDF pour téléchargement ou partage.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    site = get_object_or_404(Location, id=site_id)
+    payment = get_object_or_404(
+        EmployeePayment.objects.select_related('employee_profile', 'employee_profile__user', 'created_by'),
+        id=payment_id,
+        site=site,
+    )
+    return _build_payment_receipt_pdf_response(payment, download=request.GET.get("download") == "1")
+
+
 @no_cache_view
 def shared_employee_payment_receipt(request, token):
     """
@@ -4063,6 +4128,15 @@ def shared_employee_payment_receipt(request, token):
         **share_meta,
     }
     return render(request, 'admin/payment_receipt.html', context)
+
+
+@no_cache_view
+def shared_employee_payment_receipt_pdf(request, token):
+    """
+    Sert la version PDF d'une fiche de paiement via lien signé.
+    """
+    payment = _get_shared_payment_from_token(token)
+    return _build_payment_receipt_pdf_response(payment, download=request.GET.get("download") == "1")
 
 
 @login_required
