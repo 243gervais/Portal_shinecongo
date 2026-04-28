@@ -6,9 +6,11 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from datetime import date, timedelta
 from decimal import Decimal
+from urllib.parse import urlparse
 
 from comptes.forms import ApprovalAuthenticationForm
 from comptes.views import _daily_funding_snapshot
+from comptes.models import EmployeePayment
 from lavages.models import CarWash
 from sites.models import Location, SiteDocument, SiteJournalEntry, SiteWaterPurchase
 from sites.models import DailyBankDeposit, SiteLossEntry
@@ -289,6 +291,80 @@ class SiteDocumentUploadTests(TestCase):
         self.assertEqual(SiteDocument.objects.filter(site=self.site).count(), 2)
         self.assertTrue(SiteDocument.objects.filter(site=self.site, title="Photos chantier (1)").exists())
         self.assertTrue(SiteDocument.objects.filter(site=self.site, title="Photos chantier (2)").exists())
+
+
+class EmployeePaymentShareTests(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            username="payment_admin",
+            email="payment_admin@example.com",
+            password="AdminPass123!",
+        )
+        self.site = Location.objects.create(
+            nom="Site Paiement",
+            adresse="Adresse Paiement",
+            ville="Kinshasa",
+            actif=True,
+        )
+        self.employee = User.objects.create_user(
+            username="employee_payment",
+            email="employee_payment@example.com",
+            password="EmployeePass123!",
+            first_name="Jules",
+            last_name="Mbadu",
+        )
+        self.employee.userprofile.role = "EMPLOYE"
+        self.employee.userprofile.site = self.site
+        self.employee.userprofile.save()
+        self.payment = EmployeePayment.objects.create(
+            employee_profile=self.employee.userprofile,
+            site=self.site,
+            payment_date=date(2026, 4, 20),
+            period_start=date(2026, 4, 1),
+            period_end=date(2026, 4, 15),
+            salary_base_usd=Decimal("110.00"),
+            amount_paid_usd=Decimal("110.00"),
+            payment_method="MPESA",
+            mpesa_reference="MPESA-123",
+            employee_signature_name="Jules Mbadu",
+            admin_signature_name="Gervais",
+            created_by=self.admin_user,
+        )
+        self.client.login(username="payment_admin", password="AdminPass123!")
+
+    def test_payment_receipt_view_displays_share_actions(self):
+        response = self.client.get(
+            reverse("admin_employee_payment_receipt", args=[self.site.id, self.payment.id])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Partager la fiche")
+        self.assertContains(response, "WhatsApp Web")
+        self.assertContains(response, "Copier le lien")
+        self.assertIn("share_url", response.context)
+        self.assertContains(response, response.context["share_url"])
+
+    def test_shared_payment_receipt_view_is_accessible_without_login(self):
+        response = self.client.get(
+            reverse("admin_employee_payment_receipt", args=[self.site.id, self.payment.id])
+        )
+        share_path = urlparse(response.context["share_url"]).path
+
+        self.client.logout()
+        shared_response = self.client.get(share_path)
+
+        self.assertEqual(shared_response.status_code, 200)
+        self.assertContains(shared_response, "FICHE DE PAIEMENT")
+        self.assertContains(shared_response, "Jules Mbadu")
+        self.assertContains(shared_response, "WhatsApp Web")
+
+    def test_site_documents_page_shows_payment_share_actions(self):
+        response = self.client.get(reverse("admin_site_documents", args=[self.site.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Partager")
+        self.assertContains(response, "WhatsApp Web")
+        self.assertContains(response, "data-share-url")
 
 
 class SiteJournalEntryTests(TestCase):

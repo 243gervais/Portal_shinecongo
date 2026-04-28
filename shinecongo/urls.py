@@ -59,6 +59,7 @@ from comptes.views import (
     admin_remove_site_employee,
     admin_create_employee_payment,
     admin_employee_payment_receipt,
+    shared_employee_payment_receipt,
     admin_upload_site_document,
     admin_delete_site_document,
 )
@@ -167,6 +168,7 @@ urlpatterns = [
     path("admin-dashboard/site/<uuid:site_id>/payments/<int:payment_id>/fiche/", admin_employee_payment_receipt, name="admin_employee_payment_receipt"),
     path("admin-dashboard/site/<uuid:site_id>/documents/upload/", admin_upload_site_document, name="admin_upload_site_document"),
     path("admin-dashboard/site/<uuid:site_id>/documents/<int:document_id>/delete/", admin_delete_site_document, name="admin_delete_site_document"),
+    path("shared/payment-receipts/<str:token>/", shared_employee_payment_receipt, name="shared_employee_payment_receipt"),
 ]
 
 # Servir les fichiers media en développement

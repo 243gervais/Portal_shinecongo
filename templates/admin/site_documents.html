@@ -113,7 +113,7 @@
                     <th>Montant payé (USD)</th>
                     <th>Mode</th>
                     <th>Signature employé</th>
-                    <th>Fiche</th>
+                    <th>Actions fiche</th>
                 </tr>
             </thead>
             <tbody>
@@ -135,9 +135,31 @@
                         <br><small style="color: var(--text-secondary);">{{ payment.signed_at|date:"d/m/Y H:i" }}</small>
                     </td>
                     <td>
-                        <a href="{% url 'admin_employee_payment_receipt' site.id payment.id %}" class="btn btn-info" style="padding: 0.35rem 0.7rem; font-size: 0.82rem;">
-                            Fiche
-                        </a>
+                        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                            <a href="{% url 'admin_employee_payment_receipt' site.id payment.id %}" class="btn btn-info" style="padding: 0.35rem 0.7rem; font-size: 0.82rem;">
+                                Fiche
+                            </a>
+                            <button
+                                type="button"
+                                class="btn btn-secondary js-payment-share"
+                                style="padding: 0.35rem 0.7rem; font-size: 0.82rem;"
+                                data-share-title="{{ payment.share_title }}"
+                                data-share-text="{{ payment.share_text }}"
+                                data-share-url="{{ payment.share_url }}"
+                                data-whatsapp-url="{{ payment.whatsapp_share_url }}"
+                            >
+                                Partager
+                            </button>
+                            <a
+                                href="{{ payment.whatsapp_share_url }}"
+                                target="_blank"
+                                rel="noopener"
+                                class="btn btn-light"
+                                style="padding: 0.35rem 0.7rem; font-size: 0.82rem;"
+                            >
+                                WhatsApp Web
+                            </a>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
@@ -249,4 +271,66 @@
     </div>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    (() => {
+        const buttons = Array.from(document.querySelectorAll('.js-payment-share'));
+        if (!buttons.length) {
+            return;
+        }
+
+        const copyToClipboard = async (value) => {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(value);
+                return true;
+            }
+            return false;
+        };
+
+        buttons.forEach((button) => {
+            button.addEventListener('click', async () => {
+                const shareTitle = button.dataset.shareTitle || '';
+                const shareText = button.dataset.shareText || '';
+                const shareUrl = button.dataset.shareUrl || '';
+                const whatsappUrl = button.dataset.whatsappUrl || '';
+
+                if (navigator.share) {
+                    try {
+                        await navigator.share({
+                            title: shareTitle,
+                            text: shareText,
+                            url: shareUrl,
+                        });
+                        return;
+                    } catch (error) {
+                        if (error && error.name === 'AbortError') {
+                            return;
+                        }
+                    }
+                }
+
+                if (whatsappUrl) {
+                    window.open(whatsappUrl, '_blank', 'noopener');
+                    return;
+                }
+
+                try {
+                    if (await copyToClipboard(shareUrl)) {
+                        button.textContent = 'Lien copié';
+                        window.setTimeout(() => {
+                            button.textContent = 'Partager';
+                        }, 2200);
+                        return;
+                    }
+                } catch (error) {
+                    // Prompt fallback below.
+                }
+
+                window.prompt('Copiez ce lien de partage :', shareUrl);
+            });
+        });
+    })();
+</script>
 {% endblock %}

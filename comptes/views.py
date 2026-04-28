@@ -1,4 +1,5 @@
 import calendar
+from urllib.parse import quote
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout, login, update_session_auth_hash
 from django.shortcuts import render, redirect, get_object_or_404
@@ -7,10 +8,11 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods
 from functools import wraps
-from django.http import HttpResponse
+from django.http import HttpResponse, Http404
 from django.contrib import messages
 from django.db.models import Sum, Count, Q, Min
 from django.contrib.auth.models import User
+from django.core import signing
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from .forms import (
@@ -3445,6 +3447,70 @@ def admin_delete_site_loss(request, site_id, loss_id):
     })
 
 
+PAYMENT_RECEIPT_SHARE_SALT = "shinecongo-payment-receipt-share"
+
+
+def _build_payment_receipt_share_token(payment):
+    """
+    Génère un jeton signé pour exposer la fiche de paiement en lecture seule.
+    """
+    return signing.dumps(
+        {
+            "payment_id": payment.id,
+            "site_id": str(payment.site_id),
+        },
+        salt=PAYMENT_RECEIPT_SHARE_SALT,
+        compress=True,
+    )
+
+
+def _build_payment_receipt_share_meta(request, payment):
+    """
+    Prépare les liens et textes de partage pour une fiche de paiement.
+    """
+    employee_name = payment.employee_profile.user.get_full_name() or payment.employee_profile.user.username
+    share_token = _build_payment_receipt_share_token(payment)
+    share_url = request.build_absolute_uri(
+        reverse("shared_employee_payment_receipt", kwargs={"token": share_token})
+    )
+    share_title = f"Fiche de paiement - {employee_name}"
+    share_text = (
+        f"Bonjour, voici la fiche de paiement de {employee_name} pour {payment.site.nom} "
+        f"({payment.period_start.strftime('%d/%m/%Y')} au {payment.period_end.strftime('%d/%m/%Y')}) "
+        f"pour un montant de ${payment.amount_paid_usd:.2f} USD."
+    )
+    share_body = f"{share_text}\n{share_url}"
+    return {
+        "share_url": share_url,
+        "share_title": share_title,
+        "share_text": share_text,
+        "share_body": share_body,
+        "whatsapp_share_url": f"https://web.whatsapp.com/send?text={quote(share_body)}",
+        "email_share_url": f"mailto:?subject={quote(share_title)}&body={quote(share_body)}",
+    }
+
+
+def _get_shared_payment_from_token(token):
+    """
+    Résout une fiche de paiement depuis un jeton signé.
+    """
+    try:
+        payload = signing.loads(token, salt=PAYMENT_RECEIPT_SHARE_SALT)
+    except signing.BadSignature as exc:
+        raise Http404("Lien de partage invalide.") from exc
+
+    site_id = payload.get("site_id")
+    payment_id = payload.get("payment_id")
+    if not site_id or not payment_id:
+        raise Http404("Lien de partage invalide.")
+
+    return get_object_or_404(
+        EmployeePayment.objects.select_related("site", "employee_profile", "employee_profile__user", "created_by"),
+        id=payment_id,
+        site__id=site_id,
+    )
+
+
 @login_required
 @no_cache_view
 def admin_site_documents(request, site_id):
@@ -3497,7 +3563,15 @@ def admin_site_documents(request, site_id):
     )
     if selected_employee:
         payment_records = payment_records.filter(employee_profile_id=selected_employee)
-    payment_records = payment_records.order_by('-payment_date', '-created_at')
+    payment_records = list(payment_records.order_by('-payment_date', '-created_at'))
+    for payment in payment_records:
+        share_meta = _build_payment_receipt_share_meta(request, payment)
+        payment.share_url = share_meta["share_url"]
+        payment.share_title = share_meta["share_title"]
+        payment.share_text = share_meta["share_text"]
+        payment.share_body = share_meta["share_body"]
+        payment.whatsapp_share_url = share_meta["whatsapp_share_url"]
+        payment.email_share_url = share_meta["email_share_url"]
     
     context = {
         'site': site,
@@ -3961,11 +4035,32 @@ def admin_employee_payment_receipt(request, site_id, payment_id):
         id=payment_id,
         site=site,
     )
+    share_meta = _build_payment_receipt_share_meta(request, payment)
 
     context = {
         'site': site,
         'payment': payment,
         'company_name': "Shine Congo",
+        'is_shared_view': False,
+        **share_meta,
+    }
+    return render(request, 'admin/payment_receipt.html', context)
+
+
+@no_cache_view
+def shared_employee_payment_receipt(request, token):
+    """
+    Afficher une fiche de paiement via un lien signé, sans connexion.
+    """
+    payment = _get_shared_payment_from_token(token)
+    share_meta = _build_payment_receipt_share_meta(request, payment)
+
+    context = {
+        'site': payment.site,
+        'payment': payment,
+        'company_name': "Shine Congo",
+        'is_shared_view': True,
+        **share_meta,
     }
     return render(request, 'admin/payment_receipt.html', context)
 
