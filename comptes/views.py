@@ -28,6 +28,10 @@ from .forms import (
     SiteJournalEntryForm,
     SiteJournalEntryMoveForm,
     SiteWaterPurchaseForm,
+    WATER_RATE_CHANGE_MONTH,
+    WATER_DEFAULT_AMOUNT_BEFORE_CHANGE,
+    WATER_DEFAULT_AMOUNT_AFTER_CHANGE,
+    get_water_purchase_default_amount,
 )
 from sites.models import (
     Location,
@@ -1517,6 +1521,41 @@ def admin_water_purchases(request):
         .annotate(total=Sum("amount_fc"), count=Count("id"))
         .order_by("-total", "site__nom")
     )
+    average_purchase = (month_total / month_count) if month_count else Decimal("0")
+    default_amount = get_water_purchase_default_amount(selected_month)
+    selected_sites_count = len(by_site)
+    previous_month = _previous_month_start(selected_month)
+    previous_month_total = (
+        SiteWaterPurchase.objects.filter(site__actif=True, billing_month=previous_month)
+        .aggregate(total=Sum("amount_fc"))["total"]
+        or Decimal("0")
+    )
+    previous_month_count = SiteWaterPurchase.objects.filter(
+        site__actif=True,
+        billing_month=previous_month,
+    ).count()
+    month_total_delta = month_total - previous_month_total
+    monthly_history = list(
+        SiteWaterPurchase.objects.filter(site__actif=True)
+        .values("billing_month")
+        .annotate(
+            total=Sum("amount_fc"),
+            count=Count("id"),
+            site_count=Count("site", distinct=True),
+        )
+        .order_by("-billing_month")[:6]
+    )
+    max_history_total = max((item["total"] or Decimal("0") for item in monthly_history), default=Decimal("0"))
+    for item in monthly_history:
+        item_total = item["total"] or Decimal("0")
+        item["label"] = _month_label(item["billing_month"])
+        item["average_amount"] = (item_total / item["count"]) if item["count"] else Decimal("0")
+        item["bar_width"] = int((item_total / max_history_total) * 100) if max_history_total else 0
+        item["is_selected"] = item["billing_month"] == selected_month
+    for item in by_site:
+        item_total = item["total"] or Decimal("0")
+        item["bar_width"] = int((item_total / month_total) * 100) if month_total else 0
+    site_leader = by_site[0] if by_site else None
 
     return render(
         request,
@@ -1530,6 +1569,18 @@ def admin_water_purchases(request):
             "month_total": month_total,
             "month_count": month_count,
             "site_breakdown": by_site,
+            "average_purchase": average_purchase,
+            "default_amount": default_amount,
+            "selected_sites_count": selected_sites_count,
+            "previous_month": previous_month,
+            "previous_month_total": previous_month_total,
+            "previous_month_count": previous_month_count,
+            "month_total_delta": month_total_delta,
+            "monthly_history": monthly_history,
+            "site_leader": site_leader,
+            "rate_change_month": WATER_RATE_CHANGE_MONTH,
+            "amount_before_change": WATER_DEFAULT_AMOUNT_BEFORE_CHANGE,
+            "amount_after_change": WATER_DEFAULT_AMOUNT_AFTER_CHANGE,
         },
     )
 

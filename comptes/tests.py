@@ -616,13 +616,30 @@ class WaterPurchaseTrackingTests(TestCase):
         self.assertContains(response, "24 000")
         self.assertContains(response, reverse("admin_water_purchases"))
 
+    def test_water_purchase_page_uses_new_rate_for_may_2026(self):
+        response = self.client.get(reverse("admin_water_purchases"), data={"month": "2026-05"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["default_amount"], Decimal("22000"))
+        self.assertEqual(response.context["form"].fields["amount_fc"].initial, Decimal("22000"))
+        self.assertContains(response, "Depuis le 01/05/2026")
+        self.assertContains(response, "22 000 FC")
+
+    def test_water_purchase_page_keeps_old_rate_for_april_2026(self):
+        response = self.client.get(reverse("admin_water_purchases"), data={"month": "2026-04"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["default_amount"], Decimal("24000"))
+        self.assertEqual(response.context["form"].fields["amount_fc"].initial, Decimal("24000"))
+        self.assertContains(response, "24 000 FC")
+
     def test_water_purchase_view_filters_by_selected_billing_month(self):
         SiteWaterPurchase.objects.create(
             site=self.site,
             billing_month=date(2026, 3, 1),
             purchase_date=date(2026, 4, 2),
             amount_fc=Decimal("24000"),
-            notes="Mars",
+            notes="Note Mars spéciale",
             created_by=self.admin_user,
         )
         SiteWaterPurchase.objects.create(
@@ -630,15 +647,15 @@ class WaterPurchaseTrackingTests(TestCase):
             billing_month=date(2026, 4, 1),
             purchase_date=date(2026, 4, 13),
             amount_fc=Decimal("48000"),
-            notes="Avril",
+            notes="Note Avril spéciale",
             created_by=self.admin_user,
         )
 
         response = self.client.get(reverse("admin_water_purchases"), data={"month": "2026-03"})
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Mars")
-        self.assertNotContains(response, "Avril")
+        self.assertContains(response, "Note Mars spéciale")
+        self.assertNotContains(response, "Note Avril spéciale")
         self.assertContains(response, "24 000")
 
 

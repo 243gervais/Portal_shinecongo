@@ -3,137 +3,761 @@
 
 {% block title %}Suivi eau{% endblock %}
 
+{% block extra_css %}
+<style>
+    .water-shell {
+        display: grid;
+        gap: 1.5rem;
+    }
+
+    .water-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 28px;
+        padding: 1.8rem;
+        background:
+            radial-gradient(circle at top left, rgba(72, 187, 255, 0.34), transparent 34%),
+            linear-gradient(135deg, #072d4f 0%, #0a436b 55%, #1481c4 100%);
+        color: #f8fbff;
+        box-shadow: 0 28px 70px rgba(7, 45, 79, 0.24);
+    }
+
+    .water-hero::after {
+        content: "";
+        position: absolute;
+        inset: auto -6rem -6rem auto;
+        width: 16rem;
+        height: 16rem;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.08);
+        filter: blur(2px);
+    }
+
+    .water-hero-top,
+    .water-hero-bottom,
+    .water-panel-header,
+    .water-kpi-copy,
+    .water-rate-grid,
+    .water-breakdown-item,
+    .water-history-item,
+    .water-ledger-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .water-hero-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.45rem 0.85rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        color: rgba(248, 251, 255, 0.9);
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .water-hero h1 {
+        margin: 0.9rem 0 0.45rem;
+        font-size: clamp(2rem, 3vw, 2.9rem);
+        line-height: 1.05;
+        color: #ffffff;
+    }
+
+    .water-hero-copy {
+        max-width: 54rem;
+        margin: 0;
+        color: rgba(248, 251, 255, 0.82);
+        font-size: 1rem;
+        line-height: 1.6;
+    }
+
+    .water-hero-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+        margin-top: 1.2rem;
+    }
+
+    .water-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.55rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        color: #ffffff;
+        font-size: 0.86rem;
+        font-weight: 600;
+    }
+
+    .water-chip strong {
+        font-weight: 800;
+    }
+
+    .water-hero-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .water-kpis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+    }
+
+    .water-kpi {
+        border-radius: 24px;
+        padding: 1.2rem 1.25rem;
+        background: rgba(255, 255, 255, 0.96);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        box-shadow: 0 18px 40px rgba(11, 31, 53, 0.08);
+    }
+
+    .water-kpi-label {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .water-kpi-value {
+        margin-top: 0.4rem;
+        font-size: 1.7rem;
+        font-weight: 800;
+        color: var(--primary-dark);
+    }
+
+    .water-kpi-subvalue {
+        margin-top: 0.18rem;
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+    }
+
+    .water-grid {
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 1.2rem;
+    }
+
+    .water-panel {
+        border-radius: 26px;
+        padding: 1.35rem;
+        background: rgba(255, 255, 255, 0.97);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        box-shadow: 0 18px 45px rgba(11, 31, 53, 0.08);
+    }
+
+    .water-panel-title {
+        margin: 0;
+        color: var(--primary-dark);
+        font-size: 1.2rem;
+    }
+
+    .water-panel-copy {
+        margin: 0.35rem 0 0;
+        color: var(--text-secondary);
+        line-height: 1.55;
+    }
+
+    .water-panel-meta {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.45rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(10, 67, 107, 0.06);
+        color: var(--primary-dark);
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
+    .water-rate-grid {
+        margin-top: 1rem;
+    }
+
+    .water-rate-card {
+        flex: 1 1 220px;
+        min-width: 220px;
+        border-radius: 20px;
+        padding: 1rem;
+        background: linear-gradient(180deg, rgba(10, 67, 107, 0.03), rgba(10, 67, 107, 0.08));
+        border: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .water-rate-label {
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .water-rate-value {
+        margin-top: 0.4rem;
+        font-size: 1.45rem;
+        font-weight: 800;
+        color: var(--primary-dark);
+    }
+
+    .water-rate-note {
+        margin-top: 0.2rem;
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        line-height: 1.5;
+    }
+
+    .water-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .water-form-grid .form-group,
+    .water-form-grid .form-group--full {
+        margin-bottom: 0;
+    }
+
+    .water-form-grid .form-group--full {
+        grid-column: 1 / -1;
+    }
+
+    .water-form-grid label {
+        display: block;
+        margin-bottom: 0.4rem;
+        font-weight: 700;
+        color: var(--primary-dark);
+    }
+
+    .water-hint {
+        margin-top: 0.4rem;
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+        line-height: 1.5;
+    }
+
+    .water-form-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 1.1rem;
+    }
+
+    .water-breakdown-list,
+    .water-history-list {
+        display: grid;
+        gap: 0.85rem;
+        margin-top: 1rem;
+    }
+
+    .water-breakdown-item,
+    .water-history-item {
+        padding: 0.95rem 1rem;
+        border-radius: 18px;
+        background: rgba(7, 45, 79, 0.03);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .water-breakdown-name,
+    .water-history-name {
+        margin: 0;
+        font-weight: 700;
+        color: var(--primary-dark);
+    }
+
+    .water-breakdown-meta,
+    .water-history-meta {
+        margin-top: 0.18rem;
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+    }
+
+    .water-breakdown-amount,
+    .water-history-amount {
+        font-size: 1.1rem;
+        font-weight: 800;
+        color: var(--primary-color);
+        text-align: right;
+    }
+
+    .water-bar {
+        margin-top: 0.85rem;
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(10, 67, 107, 0.08);
+        overflow: hidden;
+    }
+
+    .water-bar-fill {
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #0a436b 0%, #1da7ff 100%);
+    }
+
+    .water-ledger-table-wrap {
+        margin-top: 1rem;
+        overflow-x: auto;
+        border-radius: 18px;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        background: #ffffff;
+    }
+
+    .water-ledger-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 780px;
+    }
+
+    .water-ledger-table th,
+    .water-ledger-table td {
+        padding: 0.95rem 1rem;
+        border-bottom: 1px solid rgba(10, 67, 107, 0.08);
+        text-align: left;
+        vertical-align: top;
+    }
+
+    .water-ledger-table th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: #f4f8fb;
+        color: var(--text-secondary);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+    }
+
+    .water-ledger-table tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .water-ledger-site {
+        font-weight: 700;
+        color: var(--primary-dark);
+    }
+
+    .water-ledger-subtext {
+        margin-top: 0.15rem;
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+        line-height: 1.45;
+    }
+
+    .water-ledger-amount {
+        font-weight: 800;
+        color: var(--primary-color);
+        white-space: nowrap;
+    }
+
+    .water-ledger-amount small {
+        display: block;
+        margin-top: 0.2rem;
+        color: var(--text-secondary);
+        font-size: 0.72rem;
+        font-weight: 600;
+    }
+
+    .water-ledger-actions {
+        justify-content: flex-start;
+    }
+
+    .water-empty {
+        margin-top: 1rem;
+        padding: 1rem 1.1rem;
+        border-radius: 18px;
+        border: 1px dashed rgba(10, 67, 107, 0.16);
+        color: var(--text-secondary);
+        background: rgba(7, 45, 79, 0.03);
+    }
+
+    .water-delta-positive {
+        color: #0f9d58;
+    }
+
+    .water-delta-negative {
+        color: #b42318;
+    }
+
+    @media (max-width: 980px) {
+        .water-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 720px) {
+        .water-hero,
+        .water-panel,
+        .water-kpi {
+            border-radius: 22px;
+        }
+
+        .water-form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .water-hero {
+            padding: 1.35rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem;">
-    <div>
-        <h1 class="mt-2 mb-2">Suivi eau</h1>
-        <p style="color: var(--text-secondary); margin: 0;">Suivi des achats d'eau pour les remplissages du réservoir, avec un mois concerné explicite pour la facturation de fin de mois.</p>
-    </div>
-    <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">Retour au dashboard</a>
-</div>
-
-<div class="card mb-4">
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
-        <div>
-            <strong style="color: var(--text-secondary);">Total du mois {{ selected_month|date:"m/Y" }}</strong>
-            <div style="font-size: 1.65rem; font-weight: 800; color: var(--primary-color);">{{ month_total|fc_amount }} FC</div>
-            <small style="color: var(--text-secondary);">Montant rattaché au mois concerné sélectionné</small>
-        </div>
-        <div>
-            <strong style="color: var(--text-secondary);">Achats du mois {{ selected_month|date:"m/Y" }}</strong>
-            <div style="font-size: 1.65rem; font-weight: 800; color: var(--primary-dark);">{{ month_count }}</div>
-            <small style="color: var(--text-secondary);">Remplissages enregistrés</small>
-        </div>
-    </div>
-</div>
-
-<div class="card mb-4">
-    <form method="get" style="display: flex; align-items: end; gap: 1rem; flex-wrap: wrap;">
-        <div class="form-group" style="min-width: 220px; margin-bottom: 0;">
-            <label for="month-filter">Mois à afficher</label>
-            <input id="month-filter" type="month" name="month" value="{{ selected_month_input }}" class="form-control">
-        </div>
-        <button type="submit" class="btn btn-info">Afficher</button>
-        <a href="{% url 'admin_water_purchases' %}" class="btn btn-secondary">Mois actuel</a>
-    </form>
-</div>
-
-<div class="card mb-4">
-    <h2 class="mb-3">Enregistrer un achat d'eau</h2>
-    <form method="post">
-        {% csrf_token %}
-        {% if form.non_field_errors %}
-        <div class="alert alert-danger">
-            {% for error in form.non_field_errors %}
-            <div>{{ error }}</div>
-            {% endfor %}
-        </div>
-        {% endif %}
-
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
-            <div class="form-group">
-                <label for="{{ form.site.id_for_label }}">Site</label>
-                {{ form.site }}
-            </div>
-            <div class="form-group">
-                <label for="{{ form.billing_month.id_for_label }}">Mois concerné</label>
-                {{ form.billing_month }}
-                <small style="color: var(--text-secondary);">{{ form.billing_month.help_text }}</small>
-            </div>
-            <div class="form-group">
-                <label for="{{ form.purchase_date.id_for_label }}">Date d'achat</label>
-                {{ form.purchase_date }}
-            </div>
-            <div class="form-group">
-                <label for="{{ form.amount_fc.id_for_label }}">Montant (FC)</label>
-                {{ form.amount_fc }}
-                <small style="color: var(--text-secondary);">{{ form.amount_fc.help_text }}</small>
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label for="{{ form.notes.id_for_label }}">Notes</label>
-            {{ form.notes }}
-        </div>
-
-        <button type="submit" class="btn btn-primary">Enregistrer l'achat d'eau</button>
-    </form>
-</div>
-
-<div class="card mb-4">
-    <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem;">
-        <h2 class="mb-0">Répartition de {{ selected_month|date:"m/Y" }} par site</h2>
-        <span style="color: var(--text-secondary);">{{ site_breakdown|length }} site{{ site_breakdown|length|pluralize }}</span>
-    </div>
-
-    {% if site_breakdown %}
-    <div style="display: grid; gap: 0.8rem;">
-        {% for item in site_breakdown %}
-        <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; padding: 0.9rem 1rem; border-radius: 16px; background: var(--bg-secondary);">
+<div
+    class="water-shell"
+    data-water-rate-change-month="{{ rate_change_month|date:'Y-m' }}"
+    data-water-amount-before="{{ amount_before_change|floatformat:'0' }}"
+    data-water-amount-after="{{ amount_after_change|floatformat:'0' }}"
+>
+    <section class="water-hero">
+        <div class="water-hero-top">
             <div>
-                <strong>{{ item.site__nom }}</strong>
-                <div style="color: var(--text-secondary); font-size: 0.84rem;">{{ item.count }} achat{{ item.count|pluralize }} pour {{ selected_month|date:"m/Y" }}</div>
-            </div>
-            <div style="font-weight: 800; color: var(--primary-color);">{{ item.total|fc_amount }} FC</div>
-        </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <p style="margin: 0; color: var(--text-secondary);">Aucun achat d'eau enregistré pour {{ selected_month|date:"m/Y" }}.</p>
-    {% endif %}
-</div>
-
-<div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem;">
-        <h2 class="mb-0">Historique du mois {{ selected_month|date:"m/Y" }}</h2>
-        <span style="color: var(--text-secondary);">{{ purchases|length }} ligne{{ purchases|length|pluralize }} affichée{{ purchases|length|pluralize }}</span>
-    </div>
-
-    {% if purchases %}
-    <div style="display: grid; gap: 0.8rem;">
-        {% for purchase in purchases %}
-        <article style="padding: 1rem 1.05rem; border: 1px solid rgba(10, 67, 107, 0.08); border-radius: 18px; background: rgba(255, 255, 255, 0.95);">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap;">
-                <div style="min-width: 0; flex: 1;">
-                    <div style="font-weight: 700; color: var(--primary-dark);">{{ purchase.site.nom }}</div>
-                    <div style="color: var(--text-secondary); font-size: 0.84rem;">Mois concerné: {{ purchase.billing_month|date:"m/Y" }} • Achat: {{ purchase.purchase_date|date:"d/m/Y" }}</div>
-                    {% if purchase.notes %}
-                    <p style="margin: 0.45rem 0 0 0; color: var(--text-secondary); white-space: pre-line;">{{ purchase.notes }}</p>
-                    {% endif %}
+                <span class="water-hero-eyebrow">Operations eau</span>
+                <h1>Suivi eau</h1>
+                <p class="water-hero-copy">
+                    Suivi mensuel des achats d'eau, du mois facturé au propriétaire du forage, et de l'évolution du tarif appliqué.
+                    Cette page garde une lecture claire du coût par mois, du site concerné et du volume d'achats déjà enregistrés.
+                </p>
+                <div class="water-hero-chips">
+                    <span class="water-chip">Mois affiché <strong>{{ selected_month|date:"m/Y" }}</strong></span>
+                    <span class="water-chip">Tarif avant 01/05/2026 <strong>{{ amount_before_change|fc_amount }} FC</strong></span>
+                    <span class="water-chip">Tarif depuis 01/05/2026 <strong>{{ amount_after_change|fc_amount }} FC</strong></span>
                 </div>
-                <div style="min-width: 180px; text-align: right;">
-                    <div style="font-size: 1.05rem; font-weight: 800; color: var(--primary-color);">{{ purchase.amount_fc|fc_amount }} FC</div>
-                    <div style="display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem;">
-                        <a href="{% url 'admin_edit_water_purchase' purchase.id %}?month={{ selected_month_input }}" class="btn btn-info">Modifier</a>
-                        <a href="{% url 'admin_delete_water_purchase' purchase.id %}?month={{ selected_month_input }}" class="btn btn-danger">Supprimer</a>
+            </div>
+            <div class="water-hero-actions">
+                <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">Retour au dashboard</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="water-kpis">
+        <article class="water-kpi">
+            <p class="water-kpi-label">Total du mois</p>
+            <div class="water-kpi-value">{{ month_total|fc_amount }} FC</div>
+            <div class="water-kpi-subvalue">~ ${{ month_total|usd_equivalent }} USD documentés pour {{ selected_month|date:"m/Y" }}</div>
+        </article>
+        <article class="water-kpi">
+            <p class="water-kpi-label">Achats enregistrés</p>
+            <div class="water-kpi-value">{{ month_count }}</div>
+            <div class="water-kpi-subvalue">Remplissages rattachés au mois affiché</div>
+        </article>
+        <article class="water-kpi">
+            <p class="water-kpi-label">Ticket moyen</p>
+            <div class="water-kpi-value">{{ average_purchase|fc_amount }} FC</div>
+            <div class="water-kpi-subvalue">Référence par achat pour ce mois</div>
+        </article>
+        <article class="water-kpi">
+            <p class="water-kpi-label">Sites concernés</p>
+            <div class="water-kpi-value">{{ selected_sites_count }}</div>
+            <div class="water-kpi-subvalue">
+                {% if month_total_delta >= 0 %}<span class="water-delta-positive">+{{ month_total_delta|fc_amount }} FC</span>{% else %}<span class="water-delta-negative">{{ month_total_delta|fc_amount }} FC</span>{% endif %}
+                vs {{ previous_month|date:"m/Y" }}
+            </div>
+        </article>
+    </section>
+
+    <section class="water-grid">
+        <article class="water-panel">
+            <div class="water-panel-header">
+                <div>
+                    <h2 class="water-panel-title">Cadre tarifaire et lecture du mois</h2>
+                    <p class="water-panel-copy">Le système applique maintenant un montant conseillé par mois concerné, pour éviter les erreurs quand le prix change en cours d'année.</p>
+                </div>
+                <span class="water-panel-meta">Mise à jour tarifaire</span>
+            </div>
+
+            <div class="water-rate-grid">
+                <div class="water-rate-card">
+                    <div class="water-rate-label">Avant le 01/05/2026</div>
+                    <div class="water-rate-value">{{ amount_before_change|fc_amount }} FC</div>
+                    <div class="water-rate-note">Ancien prix standard par achat d'eau pour les mois d'avant mai 2026.</div>
+                </div>
+                <div class="water-rate-card">
+                    <div class="water-rate-label">À partir du 01/05/2026</div>
+                    <div class="water-rate-value">{{ amount_after_change|fc_amount }} FC</div>
+                    <div class="water-rate-note">Nouveau prix standard convenu pour les achats d'eau à compter du 1er mai 2026.</div>
+                </div>
+                <div class="water-rate-card">
+                    <div class="water-rate-label">Tarif conseillé pour {{ selected_month|date:"m/Y" }}</div>
+                    <div class="water-rate-value" data-water-selected-rate>{{ default_amount|fc_amount }} FC</div>
+                    <div class="water-rate-note">Ce montant est proposé automatiquement dans le formulaire mais reste modifiable si un achat diffère.</div>
+                </div>
+            </div>
+
+            <div class="water-rate-grid">
+                <div class="water-rate-card">
+                    <div class="water-rate-label">Comparaison avec {{ previous_month|date:"m/Y" }}</div>
+                    <div class="water-rate-value {% if month_total_delta < 0 %}water-delta-negative{% else %}water-delta-positive{% endif %}">
+                        {% if month_total_delta >= 0 %}+{% endif %}{{ month_total_delta|fc_amount }} FC
                     </div>
+                    <div class="water-rate-note">Mois précédent: {{ previous_month_total|fc_amount }} FC pour {{ previous_month_count }} achat{{ previous_month_count|pluralize }}.</div>
+                </div>
+                <div class="water-rate-card">
+                    <div class="water-rate-label">Site le plus actif</div>
+                    {% if site_leader %}
+                    <div class="water-rate-value">{{ site_leader.site__nom }}</div>
+                    <div class="water-rate-note">{{ site_leader.total|fc_amount }} FC sur {{ site_leader.count }} achat{{ site_leader.count|pluralize }} pour {{ selected_month|date:"m/Y" }}.</div>
+                    {% else %}
+                    <div class="water-rate-value">Aucun site</div>
+                    <div class="water-rate-note">Aucun achat d'eau enregistré pour le mois affiché.</div>
+                    {% endif %}
                 </div>
             </div>
         </article>
-        {% endfor %}
-    </div>
-    {% else %}
-    <p style="margin: 0; color: var(--text-secondary);">Aucun achat d'eau enregistré pour {{ selected_month|date:"m/Y" }}.</p>
-    {% endif %}
+
+        <article class="water-panel">
+            <div class="water-panel-header">
+                <div>
+                    <h2 class="water-panel-title">Filtre et nouvel achat</h2>
+                    <p class="water-panel-copy">Choisissez d'abord le mois à superviser, puis enregistrez le remplissage avec le site, la date exacte et le montant appliqué.</p>
+                </div>
+                <span class="water-panel-meta">Saisie admin</span>
+            </div>
+
+            <form method="get" style="margin-top: 1rem;">
+                <div class="water-form-grid">
+                    <div class="form-group">
+                        <label for="month-filter">Mois à afficher</label>
+                        <input id="month-filter" type="month" name="month" value="{{ selected_month_input }}" class="form-control">
+                    </div>
+                    <div class="form-group" style="align-self: end; display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                        <button type="submit" class="btn btn-info">Afficher</button>
+                        <a href="{% url 'admin_water_purchases' %}" class="btn btn-secondary">Mois actuel</a>
+                    </div>
+                </div>
+            </form>
+
+            <form method="post" style="margin-top: 1.2rem;">
+                {% csrf_token %}
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger" style="margin-bottom: 1rem;">
+                    {% for error in form.non_field_errors %}
+                    <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <div class="water-form-grid">
+                    <div class="form-group">
+                        <label for="{{ form.site.id_for_label }}">Site</label>
+                        {{ form.site }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.billing_month.id_for_label }}">Mois concerné</label>
+                        {{ form.billing_month }}
+                        <div class="water-hint">{{ form.billing_month.help_text }}</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.purchase_date.id_for_label }}">Date d'achat</label>
+                        {{ form.purchase_date }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.amount_fc.id_for_label }}">Montant (FC)</label>
+                        {{ form.amount_fc }}
+                        <div class="water-hint" data-water-amount-hint>{{ form.amount_fc.help_text }}</div>
+                    </div>
+                    <div class="form-group form-group--full">
+                        <label for="{{ form.notes.id_for_label }}">Notes</label>
+                        {{ form.notes }}
+                    </div>
+                </div>
+
+                <div class="water-form-actions">
+                    <button type="submit" class="btn btn-primary">Enregistrer l'achat d'eau</button>
+                </div>
+            </form>
+        </article>
+    </section>
+
+    <section class="water-grid">
+        <article class="water-panel">
+            <div class="water-panel-header">
+                <div>
+                    <h2 class="water-panel-title">Répartition par site</h2>
+                    <p class="water-panel-copy">Lecture immédiate du coût d'eau par site pour le mois actuellement sélectionné.</p>
+                </div>
+                <span class="water-panel-meta">{{ site_breakdown|length }} site{{ site_breakdown|length|pluralize }}</span>
+            </div>
+
+            {% if site_breakdown %}
+            <div class="water-breakdown-list">
+                {% for item in site_breakdown %}
+                <div class="water-breakdown-item">
+                    <div style="flex: 1 1 280px; min-width: 0;">
+                        <p class="water-breakdown-name">{{ item.site__nom }}</p>
+                        <div class="water-breakdown-meta">{{ item.count }} achat{{ item.count|pluralize }} sur {{ selected_month|date:"m/Y" }}</div>
+                        <div class="water-bar">
+                            <div class="water-bar-fill" style="width: {{ item.bar_width }}%;"></div>
+                        </div>
+                    </div>
+                    <div class="water-breakdown-amount">
+                        {{ item.total|fc_amount }} FC
+                        <div class="water-breakdown-meta">~ ${{ item.total|usd_equivalent }} USD</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="water-empty">Aucun achat d'eau enregistré pour {{ selected_month|date:"m/Y" }}.</div>
+            {% endif %}
+        </article>
+
+        <article class="water-panel">
+            <div class="water-panel-header">
+                <div>
+                    <h2 class="water-panel-title">Historique mensuel récent</h2>
+                    <p class="water-panel-copy">Vue compacte des six derniers mois pour suivre l'évolution du coût d'eau et du nombre d'achats.</p>
+                </div>
+                <span class="water-panel-meta">6 mois glissants</span>
+            </div>
+
+            {% if monthly_history %}
+            <div class="water-history-list">
+                {% for item in monthly_history %}
+                <a href="{% url 'admin_water_purchases' %}?month={{ item.billing_month|date:'Y-m' }}" class="water-history-item" style="text-decoration: none; color: inherit; {% if item.is_selected %}box-shadow: inset 0 0 0 2px rgba(29, 167, 255, 0.35);{% endif %}">
+                    <div style="flex: 1 1 280px; min-width: 0;">
+                        <p class="water-history-name">{{ item.label }}</p>
+                        <div class="water-history-meta">{{ item.count }} achat{{ item.count|pluralize }} • {{ item.site_count }} site{{ item.site_count|pluralize }} • moyenne {{ item.average_amount|fc_amount }} FC</div>
+                        <div class="water-bar">
+                            <div class="water-bar-fill" style="width: {{ item.bar_width }}%;"></div>
+                        </div>
+                    </div>
+                    <div class="water-history-amount">
+                        {{ item.total|fc_amount }} FC
+                        <div class="water-history-meta">Cliquer pour ouvrir ce mois</div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="water-empty">Aucun historique d'achat d'eau disponible pour le moment.</div>
+            {% endif %}
+        </article>
+    </section>
+
+    <section class="water-panel">
+        <div class="water-panel-header">
+            <div>
+                <h2 class="water-panel-title">Journal détaillé du mois {{ selected_month|date:"m/Y" }}</h2>
+                <p class="water-panel-copy">Chaque ligne garde le site, la date d'achat, le mois facturé et le montant exact pour pouvoir corriger ou supprimer rapidement.</p>
+            </div>
+            <span class="water-panel-meta">{{ purchases|length }} ligne{{ purchases|length|pluralize }} affichée{{ purchases|length|pluralize }}</span>
+        </div>
+
+        {% if purchases %}
+        <div class="water-ledger-table-wrap">
+            <table class="water-ledger-table">
+                <thead>
+                    <tr>
+                        <th>Site</th>
+                        <th>Mois concerné</th>
+                        <th>Date d'achat</th>
+                        <th>Notes</th>
+                        <th>Montant</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for purchase in purchases %}
+                    <tr>
+                        <td>
+                            <div class="water-ledger-site">{{ purchase.site.nom }}</div>
+                            <div class="water-ledger-subtext">Saisi le {{ purchase.created_at|date:"d/m/Y H:i" }}</div>
+                        </td>
+                        <td>
+                            <div>{{ purchase.billing_month|date:"m/Y" }}</div>
+                            <div class="water-ledger-subtext">Facturation rattachée</div>
+                        </td>
+                        <td>
+                            <div>{{ purchase.purchase_date|date:"d/m/Y" }}</div>
+                            <div class="water-ledger-subtext">Date réelle du remplissage</div>
+                        </td>
+                        <td>
+                            <div class="water-ledger-subtext">{% if purchase.notes %}{{ purchase.notes|linebreaksbr }}{% else %}Aucune note{% endif %}</div>
+                        </td>
+                        <td>
+                            <div class="water-ledger-amount">
+                                {{ purchase.amount_fc|fc_amount }} FC
+                                <small>~ ${{ purchase.amount_fc|usd_equivalent }} USD</small>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="water-ledger-actions">
+                                <a href="{% url 'admin_edit_water_purchase' purchase.id %}?month={{ selected_month_input }}" class="btn btn-info">Modifier</a>
+                                <a href="{% url 'admin_delete_water_purchase' purchase.id %}?month={{ selected_month_input }}" class="btn btn-danger">Supprimer</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="water-empty">Aucun achat d'eau enregistré pour {{ selected_month|date:"m/Y" }}.</div>
+        {% endif %}
+    </section>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    (() => {
+        const root = document.querySelector('[data-water-rate-change-month]');
+        if (!root) {
+            return;
+        }
+
+        const billingMonthInput = document.getElementById('id_billing_month');
+        const amountInput = document.getElementById('id_amount_fc');
+        const amountHint = document.querySelector('[data-water-amount-hint]');
+        const selectedRate = document.querySelector('[data-water-selected-rate]');
+        const rateChangeMonth = root.dataset.waterRateChangeMonth || '2026-05';
+        const amountBefore = Number(root.dataset.waterAmountBefore || '24000');
+        const amountAfter = Number(root.dataset.waterAmountAfter || '22000');
+
+        if (!billingMonthInput || !amountInput) {
+            return;
+        }
+
+        const formatFc = (value) => new Intl.NumberFormat('fr-FR').format(value) + ' FC';
+        const normalizeValue = (value) => Number(String(value || '').replace(/[^0-9.]/g, ''));
+        const getSuggestedAmount = (monthValue) => (monthValue && monthValue >= rateChangeMonth ? amountAfter : amountBefore);
+
+        amountInput.dataset.currentSuggestion = String(getSuggestedAmount(billingMonthInput.value));
+        amountInput.addEventListener('input', () => {
+            amountInput.dataset.userEdited = 'true';
+        });
+
+        billingMonthInput.addEventListener('change', () => {
+            const previousSuggestion = Number(amountInput.dataset.currentSuggestion || '0');
+            const nextSuggestion = getSuggestedAmount(billingMonthInput.value);
+            const currentAmount = normalizeValue(amountInput.value);
+            const userEdited = amountInput.dataset.userEdited === 'true';
+
+            if (!userEdited || !currentAmount || currentAmount === previousSuggestion) {
+                amountInput.value = nextSuggestion;
+                amountInput.dataset.userEdited = 'false';
+            }
+
+            amountInput.dataset.currentSuggestion = String(nextSuggestion);
+
+            if (amountHint) {
+                if (billingMonthInput.value && billingMonthInput.value >= rateChangeMonth) {
+                    amountHint.textContent = 'Montant suggéré pour ce mois : ' + formatFc(nextSuggestion) + '. Depuis le 01/05/2026, le tarif d\'eau est passé de 24 000 FC à 22 000 FC. Vous pouvez toujours le modifier si nécessaire.';
+                } else {
+                    amountHint.textContent = 'Montant suggéré pour ce mois : ' + formatFc(nextSuggestion) + '. À partir du 01/05/2026, le tarif conseillé passera à 22 000 FC. Vous pouvez toujours le modifier si nécessaire.';
+                }
+            }
+
+            if (selectedRate) {
+                selectedRate.textContent = formatFc(nextSuggestion);
+            }
+        });
+    })();
+</script>
 {% endblock %}

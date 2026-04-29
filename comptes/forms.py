@@ -1,3 +1,4 @@
+from datetime import date, datetime
 from decimal import Decimal, ROUND_HALF_UP
 
 from django import forms
@@ -10,6 +11,36 @@ from shinecongo.currency import convert_cdf_to_usd, get_usd_to_cdf_rate
 from sites.models import Location, SiteJournalEntry, SiteWaterPurchase
 
 from .models import EmployeePayment, UserProfile
+
+
+WATER_RATE_CHANGE_MONTH = date(2026, 5, 1)
+WATER_DEFAULT_AMOUNT_BEFORE_CHANGE = Decimal("24000")
+WATER_DEFAULT_AMOUNT_AFTER_CHANGE = Decimal("22000")
+
+
+def get_water_purchase_default_amount(target_month=None):
+    if target_month is None:
+        target_month = timezone.localdate()
+    month_start = target_month.replace(day=1)
+    if month_start >= WATER_RATE_CHANGE_MONTH:
+        return WATER_DEFAULT_AMOUNT_AFTER_CHANGE
+    return WATER_DEFAULT_AMOUNT_BEFORE_CHANGE
+
+
+def get_water_purchase_amount_help_text(target_month=None):
+    month_start = (target_month or timezone.localdate()).replace(day=1)
+    suggested_amount = get_water_purchase_default_amount(month_start)
+    if month_start >= WATER_RATE_CHANGE_MONTH:
+        return (
+            f"Montant suggéré pour ce mois : {suggested_amount:,.0f} FC. "
+            "Depuis le 01/05/2026, le tarif d'eau est passé de 24 000 FC à 22 000 FC. "
+            "Vous pouvez toujours le modifier si nécessaire."
+        ).replace(",", " ")
+    return (
+        f"Montant suggéré pour ce mois : {suggested_amount:,.0f} FC. "
+        "À partir du 01/05/2026, le tarif conseillé passera à 22 000 FC. "
+        "Vous pouvez toujours le modifier si nécessaire."
+    ).replace(",", " ")
 
 
 class ApprovalAuthenticationForm(AuthenticationForm):
@@ -645,16 +676,23 @@ class SiteWaterPurchaseForm(forms.ModelForm):
             ),
         }
         help_texts = {
-            "amount_fc": "Montant par achat. La valeur par défaut est 24 000 FC mais vous pouvez la modifier.",
+            "amount_fc": "",
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         current_month = timezone.localdate().replace(day=1)
+        selected_month = self._resolve_selected_month(current_month)
         self.fields["site"].queryset = Location.objects.filter(actif=True).order_by("nom")
-        self.fields["billing_month"].initial = current_month
-        self.fields["purchase_date"].initial = timezone.localdate()
-        self.fields["amount_fc"].initial = Decimal("24000")
+        if not self.is_bound:
+            self.fields["billing_month"].initial = selected_month
+            self.fields["purchase_date"].initial = self.initial.get("purchase_date") or timezone.localdate()
+            if self.instance and self.instance.pk:
+                self.fields["amount_fc"].initial = self.instance.amount_fc
+            else:
+                self.fields["amount_fc"].initial = get_water_purchase_default_amount(selected_month)
+
+        self.fields["amount_fc"].help_text = get_water_purchase_amount_help_text(selected_month)
 
         if self.instance and self.instance.pk and self.instance.billing_month:
             self.initial["billing_month"] = self.instance.billing_month
@@ -662,3 +700,20 @@ class SiteWaterPurchaseForm(forms.ModelForm):
     def clean_billing_month(self):
         billing_month = self.cleaned_data["billing_month"]
         return billing_month.replace(day=1)
+
+    def _resolve_selected_month(self, fallback_month):
+        if self.instance and self.instance.pk and self.instance.billing_month:
+            return self.instance.billing_month.replace(day=1)
+
+        raw_month = self.data.get("billing_month") if self.is_bound else self.initial.get("billing_month")
+        if hasattr(raw_month, "replace") and not isinstance(raw_month, str):
+            return raw_month.replace(day=1)
+        if isinstance(raw_month, str) and raw_month:
+            try:
+                return datetime.strptime(raw_month, "%Y-%m").date().replace(day=1)
+            except ValueError:
+                try:
+                    return datetime.strptime(raw_month, "%Y-%m-%d").date().replace(day=1)
+                except ValueError:
+                    return fallback_month
+        return fallback_month
