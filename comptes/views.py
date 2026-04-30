@@ -3638,6 +3638,15 @@ def admin_site_documents(request, site_id):
         if file_type not in documents_by_type:
             documents_by_type[file_type] = []
         documents_by_type[file_type].append(doc)
+    document_type_summaries = []
+    for value, label in SiteDocument.FILE_TYPE_CHOICES:
+        docs_for_type = documents_by_type.get(value, [])
+        document_type_summaries.append({
+            "value": value,
+            "label": label,
+            "count": len(docs_for_type),
+            "documents": docs_for_type,
+        })
     
     filter_type = request.GET.get('type')
     if filter_type:
@@ -3648,6 +3657,8 @@ def admin_site_documents(request, site_id):
         site=site,
         role='EMPLOYE'
     ).select_related('user').order_by('-actif', 'user__first_name', 'user__last_name', 'user__username')
+    active_employee_count = site_employees.filter(actif=True, user__is_active=True).count()
+    inactive_employee_count = site_employees.count() - active_employee_count
 
     # Historique des paiements
     selected_employee = request.GET.get('employee')
@@ -3659,6 +3670,8 @@ def admin_site_documents(request, site_id):
     if selected_employee:
         payment_records = payment_records.filter(employee_profile_id=selected_employee)
     payment_records = list(payment_records.order_by('-payment_date', '-created_at'))
+    payment_total_usd = sum((payment.amount_paid_usd for payment in payment_records), Decimal("0"))
+    unique_paid_employee_count = len({payment.employee_profile_id for payment in payment_records})
     for payment in payment_records:
         share_meta = _build_payment_receipt_share_meta(request, payment)
         payment.share_url = share_meta["share_url"]
@@ -3667,17 +3680,27 @@ def admin_site_documents(request, site_id):
         payment.share_body = share_meta["share_body"]
         payment.whatsapp_share_url = share_meta["whatsapp_share_url"]
         payment.email_share_url = share_meta["email_share_url"]
+    latest_document = all_documents.first()
+    latest_payment = payment_records[0] if payment_records else None
     
     context = {
         'site': site,
         'all_documents': all_documents,
         'documents_by_type': documents_by_type,
         'file_types': SiteDocument.FILE_TYPE_CHOICES,
+        'document_type_summaries': document_type_summaries,
         'filter_type': filter_type,
         'documents_total_count': documents_total_count,
         'site_employees': site_employees,
+        'active_employee_count': active_employee_count,
+        'inactive_employee_count': inactive_employee_count,
         'payment_records': payment_records,
+        'payment_total_usd': payment_total_usd,
+        'payment_records_count': len(payment_records),
+        'unique_paid_employee_count': unique_paid_employee_count,
         'selected_employee': str(selected_employee) if selected_employee else '',
+        'latest_document': latest_document,
+        'latest_payment': latest_payment,
     }
     
     return render(request, 'admin/site_documents.html', context)

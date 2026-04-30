@@ -374,6 +374,7 @@ class EmployeePaymentShareTests(TestCase):
         response = self.client.get(reverse("admin_site_documents", args=[self.site.id]))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Bibliothèque documentaire")
         self.assertContains(response, "Partager PDF")
         self.assertContains(response, "WhatsApp Web (PDF)")
         self.assertContains(response, "data-share-pdf-url")
