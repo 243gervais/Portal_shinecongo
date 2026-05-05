@@ -10,6 +10,7 @@
     <link rel="icon" type="image/png" href="{% static 'favicon.png' %}">
     <link rel="shortcut icon" type="image/png" href="{% static 'favicon.png' %}">
     <link rel="apple-touch-icon" href="{% static 'favicon.png' %}">
+    <meta name="portal-activity-revision" content="{{ portal_activity_revision|default:'' }}">
     
     <style>
         /* Import Google Fonts */
@@ -1454,14 +1455,17 @@
             const CACHE_TTL_MS = isAdminInstantNav ? 90 * 1000 : 45 * 1000;
             const MAX_CACHE_ENTRIES = isAdminInstantNav ? 24 : 20;
             const MAX_WARMUP_URLS = isAdminInstantNav ? 28 : 20;
+            const CACHED_RENDER_KEY = `${CACHE_PREFIX}__cached-render__`;
             const pendingRequests = new Map();
             const allowedPrefixes = isAdminInstantNav ? ['/admin-dashboard/'] : ['/employe/'];
+            const currentPageRevision = document.querySelector('meta[name="portal-activity-revision"]')?.content || '';
             const employeeWarmupUrls = isEmployeeInstantNav ? [
                 '{% url "employe_dashboard" %}',
                 '{% url "ajouter_lavage" %}',
                 '{% url "signaler_probleme" %}',
                 '{% url "employe_historique" %}',
                 '{% url "employe_daily_report" %}',
+                '{% url "employe_water_purchase" %}',
                 '{% url "mes_lavages" %}',
                 '{% url "mes_problemes" %}',
             ] : [];
@@ -1500,6 +1504,47 @@
 
             const cacheKey = (href) => `${CACHE_PREFIX}${normalizeUrl(href)}`;
 
+            const extractActivityRevision = (html) => {
+                const match = html.match(/<meta\s+name=["']portal-activity-revision["']\s+content=["']([^"']*)["']/i);
+                return match ? match[1] : '';
+            };
+
+            const setCachedRenderFlag = (href) => {
+                try {
+                    window.sessionStorage.setItem(
+                        CACHED_RENDER_KEY,
+                        JSON.stringify({
+                            href: normalizeUrl(href),
+                            savedAt: Date.now(),
+                        })
+                    );
+                } catch (error) {
+                    // Ignore transient sessionStorage errors.
+                }
+            };
+
+            const clearCachedRenderFlag = () => {
+                window.sessionStorage.removeItem(CACHED_RENDER_KEY);
+            };
+
+            const getCachedRenderFlag = () => {
+                try {
+                    const payload = JSON.parse(window.sessionStorage.getItem(CACHED_RENDER_KEY) || '{}');
+                    if (!payload.href || !payload.savedAt) {
+                        return null;
+                    }
+                    if (payload.href !== normalizeUrl(window.location.href)) {
+                        return null;
+                    }
+                    if (Date.now() - payload.savedAt > CACHE_TTL_MS) {
+                        return null;
+                    }
+                    return payload;
+                } catch (error) {
+                    return null;
+                }
+            };
+
             const clearInstantCache = () => {
                 const keysToRemove = [];
                 for (let index = 0; index < window.sessionStorage.length; index += 1) {
@@ -1523,7 +1568,7 @@
 
                     try {
                         const value = JSON.parse(window.sessionStorage.getItem(key) || '{}');
-                        if (!value.savedAt || now - value.savedAt > CACHE_TTL_MS) {
+                        if (!value.savedAt || !value.html || now - value.savedAt > CACHE_TTL_MS) {
                             window.sessionStorage.removeItem(key);
                             continue;
                         }
@@ -1539,7 +1584,7 @@
                     .forEach((entry) => window.sessionStorage.removeItem(entry.key));
             };
 
-            const getCachedHtml = (href) => {
+            const getCachedPage = (href) => {
                 try {
                     const payload = JSON.parse(window.sessionStorage.getItem(cacheKey(href)) || '{}');
                     if (!payload.html || !payload.savedAt) {
@@ -1549,20 +1594,21 @@
                         window.sessionStorage.removeItem(cacheKey(href));
                         return null;
                     }
-                    return payload.html;
+                    return payload;
                 } catch (error) {
                     window.sessionStorage.removeItem(cacheKey(href));
                     return null;
                 }
             };
 
-            const setCachedHtml = (href, html) => {
+            const setCachedHtml = (href, html, revisionOverride = '') => {
                 try {
                     window.sessionStorage.setItem(
                         cacheKey(href),
                         JSON.stringify({
                             html,
                             savedAt: Date.now(),
+                            revision: revisionOverride || extractActivityRevision(html) || currentPageRevision,
                         })
                     );
                     trimCache();
@@ -1576,28 +1622,29 @@
                     return;
                 }
                 const html = `<!DOCTYPE html>\n${document.documentElement.outerHTML}`;
-                setCachedHtml(window.location.href, html);
+                setCachedHtml(window.location.href, html, currentPageRevision);
             };
 
-            const prefetchPage = (href) => {
+            const prefetchPage = (href, options = {}) => {
                 if (!isEligibleUrl(href)) {
                     return Promise.resolve(null);
                 }
 
                 const normalizedHref = normalizeUrl(href);
-                const cachedHtml = getCachedHtml(normalizedHref);
-                if (cachedHtml) {
-                    return Promise.resolve(cachedHtml);
+                const bypassCache = Boolean(options.bypassCache);
+                const cachedPage = bypassCache ? null : getCachedPage(normalizedHref);
+                if (cachedPage) {
+                    return Promise.resolve(cachedPage);
                 }
 
-                if (pendingRequests.has(normalizedHref)) {
+                if (!bypassCache && pendingRequests.has(normalizedHref)) {
                     return pendingRequests.get(normalizedHref);
                 }
 
                 const request = window.fetch(normalizedHref, {
                     credentials: 'same-origin',
                     headers: {
-                        'X-Instant-Navigation': 'prefetch',
+                        'X-Instant-Navigation': options.purpose || 'prefetch',
                     },
                 })
                     .then((response) => {
@@ -1614,24 +1661,41 @@
                         if (!html || !html.includes('<main class="container">')) {
                             return null;
                         }
-                        setCachedHtml(normalizedHref, html);
-                        return html;
+                        const page = {
+                            html,
+                            savedAt: Date.now(),
+                            revision: extractActivityRevision(html),
+                        };
+                        setCachedHtml(normalizedHref, html, page.revision);
+                        return page;
                     })
                     .catch(() => null)
                     .finally(() => {
-                        pendingRequests.delete(normalizedHref);
+                        if (!bypassCache) {
+                            pendingRequests.delete(normalizedHref);
+                        }
                     });
 
-                pendingRequests.set(normalizedHref, request);
+                if (!bypassCache) {
+                    pendingRequests.set(normalizedHref, request);
+                }
                 return request;
             };
 
-            const renderCachedPage = (href, html, replaceHistory = false) => {
-                snapshotCurrentPage();
+            const renderCachedPage = (href, html, replaceHistory = false, fromCache = false) => {
+                const targetUrl = normalizeUrl(href);
+                if (targetUrl !== normalizeUrl(window.location.href)) {
+                    snapshotCurrentPage();
+                }
                 if (replaceHistory) {
                     window.history.replaceState(null, '', href);
                 } else {
                     window.history.pushState(null, '', href);
+                }
+                if (fromCache) {
+                    setCachedRenderFlag(href);
+                } else {
+                    clearCachedRenderFlag();
                 }
                 document.open();
                 document.write(html);
@@ -1639,9 +1703,9 @@
             };
 
             const navigateFromCache = (href, replaceHistory = false) => {
-                const cachedHtml = getCachedHtml(href);
-                if (cachedHtml) {
-                    renderCachedPage(href, cachedHtml, replaceHistory);
+                const cachedPage = getCachedPage(href);
+                if (cachedPage) {
+                    renderCachedPage(href, cachedPage.html, replaceHistory, true);
                     return true;
                 }
                 return false;
@@ -1663,9 +1727,9 @@
                     Promise.race([
                         pending,
                         new Promise((resolve) => window.setTimeout(() => resolve(null), 220)),
-                    ]).then((html) => {
-                        if (html) {
-                            renderCachedPage(href, html, Boolean(options.replace));
+                    ]).then((page) => {
+                        if (page && page.html) {
+                            renderCachedPage(href, page.html, Boolean(options.replace));
                         } else {
                             window.location.href = href;
                         }
@@ -1742,7 +1806,40 @@
                 }
             };
 
-            snapshotCurrentPage();
+            const revalidateCurrentPageIfNeeded = () => {
+                if (!isEmployeeInstantNav) {
+                    snapshotCurrentPage();
+                    return;
+                }
+
+                const cachedRender = getCachedRenderFlag();
+                if (!cachedRender) {
+                    snapshotCurrentPage();
+                    return;
+                }
+
+                const currentUrl = normalizeUrl(window.location.href);
+                const cachedPage = getCachedPage(currentUrl);
+                clearCachedRenderFlag();
+
+                if (!cachedPage || !cachedPage.revision) {
+                    snapshotCurrentPage();
+                    return;
+                }
+
+                prefetchPage(currentUrl, { bypassCache: true, purpose: 'revalidate' })
+                    .then((page) => {
+                        if (!page || !page.html) {
+                            return;
+                        }
+
+                        if (page.revision && page.revision !== cachedPage.revision) {
+                            renderCachedPage(currentUrl, page.html, true, false);
+                        }
+                    });
+            };
+
+            revalidateCurrentPageIfNeeded();
             scheduleWarmup();
 
             document.addEventListener('click', (event) => {

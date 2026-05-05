@@ -1,9 +1,13 @@
+from django.db.models import Count, Max
 from django.urls import reverse
 from django.utils import timezone
 
 from comptes.admin_inbox import ensure_admin_profile, get_admin_inbox_counts
 from comptes.models import UserProfile
-from sites.models import Location
+from lavages.models import CarWash
+from pointage.models import ShiftDay
+from problemes.models import IssueReport
+from sites.models import Location, SiteWaterPurchase
 
 
 def _is_admin_user(user):
@@ -251,7 +255,33 @@ def _build_admin_site_navigation(request):
     }
 
 
+def _build_employee_portal_revision(user):
+    if not user.is_authenticated:
+        return ""
+
+    profile = getattr(user, "userprofile", None)
+    site = getattr(profile, "site", None)
+    if not profile or not profile.is_employe() or not site:
+        return ""
+
+    def summarize(queryset, timestamp_field="updated_at"):
+        summary = queryset.aggregate(total=Count("id"), latest=Max(timestamp_field))
+        latest = summary["latest"].isoformat() if summary["latest"] else "none"
+        return f"{summary['total']}:{latest}"
+
+    today_month = timezone.localdate().replace(day=1)
+    parts = [
+        f"site:{site.id}",
+        f"shift:{summarize(ShiftDay.objects.filter(employe=user))}",
+        f"wash:{summarize(CarWash.objects.filter(employe=user))}",
+        f"issue:{summarize(IssueReport.objects.filter(employe=user))}",
+        f"water:{summarize(SiteWaterPurchase.objects.filter(site=site, billing_month=today_month))}",
+    ]
+    return "|".join(parts)
+
+
 def admin_inbox_badge(request):
     context = get_admin_inbox_counts(request.user)
     context.update(_build_admin_site_navigation(request))
+    context["portal_activity_revision"] = _build_employee_portal_revision(request.user)
     return context

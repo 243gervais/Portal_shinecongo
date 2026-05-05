@@ -77,6 +77,8 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "window.instantNavigate")
         self.assertContains(response, "portal-instant-employee:")
+        self.assertContains(response, "portal-activity-revision")
+        self.assertContains(response, "revalidate")
         self.assertContains(response, reverse("employe_daily_report"))
         self.assertContains(response, "data-employee-route-card")
         self.assertContains(response, reverse("ajouter_lavage"))
@@ -186,6 +188,53 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(SiteWaterPurchase.objects.filter(site=self.site, purchase_date=today).count(), 1)
         self.assertContains(response, "déjà été signalé")
+
+    def test_employee_water_page_reflects_admin_edit_and_delete(self):
+        today = timezone.localdate()
+        purchase = SiteWaterPurchase.objects.create(
+            site=self.site,
+            billing_month=today.replace(day=1),
+            purchase_date=today,
+            amount_fc=get_water_purchase_default_amount(today),
+            notes="Signalé via portail employé par jules.",
+            created_by=self.user,
+        )
+
+        response = self.client.get(reverse("employe_water_purchase"))
+        self.assertContains(response, "22000 FC")
+        self.assertContains(response, "Déjà signalé aujourd'hui")
+
+        admin_user = User.objects.create_superuser(
+            username="admin_water_sync",
+            email="admin_water_sync@example.com",
+            password="AdminPass123!",
+        )
+        admin_client = self.client_class()
+        admin_client.login(username="admin_water_sync", password="AdminPass123!")
+
+        edit_response = admin_client.post(
+            reverse("admin_edit_water_purchase", kwargs={"purchase_id": purchase.id}),
+            data={
+                "site": str(self.site.id),
+                "billing_month": today.strftime("%Y-%m"),
+                "purchase_date": today.strftime("%Y-%m-%d"),
+                "amount_fc": "25000",
+                "notes": "Montant corrigé par admin",
+            },
+        )
+        self.assertEqual(edit_response.status_code, 302)
+
+        response = self.client.get(reverse("employe_water_purchase"))
+        self.assertContains(response, "25000 FC")
+
+        delete_response = admin_client.post(
+            reverse("admin_delete_water_purchase", kwargs={"purchase_id": purchase.id})
+        )
+        self.assertEqual(delete_response.status_code, 302)
+
+        response = self.client.get(reverse("employe_water_purchase"))
+        self.assertNotContains(response, "25000 FC")
+        self.assertContains(response, "Confirmer que l'eau a été achetée aujourd'hui")
 
 
 class AdminDashboardDailyReportMessagesTests(TestCase):
