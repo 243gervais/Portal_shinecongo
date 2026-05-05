@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block title %}Gestion de l'eau{% endblock %}
+
+{% block extra_css %}
+<style>
+    .employee-water-shell {
+        display: grid;
+        gap: 1.25rem;
+    }
+
+    .employee-water-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.85fr);
+        gap: 1rem;
+        padding: 1.5rem;
+        border-radius: 24px;
+        background:
+            radial-gradient(circle at top left, rgba(72, 187, 255, 0.18), transparent 28%),
+            linear-gradient(135deg, #08263c 0%, #0A436B 62%, #1379b4 100%);
+        color: white;
+        box-shadow: 0 20px 48px rgba(8, 38, 60, 0.2);
+    }
+
+    .employee-water-kicker {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.34rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+
+    .employee-water-title {
+        margin: 0.8rem 0 0.35rem 0;
+        font-size: clamp(1.8rem, 3vw, 2.5rem);
+        line-height: 1.02;
+    }
+
+    .employee-water-copy {
+        margin: 0;
+        color: rgba(255, 255, 255, 0.84);
+        max-width: 46rem;
+    }
+
+    .employee-water-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        margin-top: 1rem;
+    }
+
+    .employee-water-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.42rem 0.72rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
+    .employee-water-side {
+        display: grid;
+        gap: 0.85rem;
+    }
+
+    .employee-water-side-card {
+        padding: 1rem 1.05rem;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .employee-water-side-label {
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.72);
+    }
+
+    .employee-water-side-value {
+        margin-top: 0.28rem;
+        font-size: 1.55rem;
+        font-weight: 800;
+        line-height: 1.05;
+    }
+
+    .employee-water-side-copy {
+        margin-top: 0.3rem;
+        color: rgba(255, 255, 255, 0.78);
+        font-size: 0.85rem;
+    }
+
+    .employee-water-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+    }
+
+    .employee-water-stat {
+        padding: 1.1rem 1.15rem;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.98);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        box-shadow: 0 14px 30px rgba(10, 67, 107, 0.08);
+    }
+
+    .employee-water-stat-label {
+        color: var(--text-secondary);
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .employee-water-stat-value {
+        margin-top: 0.35rem;
+        color: var(--primary-dark);
+        font-size: 1.55rem;
+        font-weight: 800;
+        line-height: 1.05;
+    }
+
+    .employee-water-stat-copy {
+        margin-top: 0.22rem;
+        color: var(--text-secondary);
+        font-size: 0.84rem;
+    }
+
+    .employee-water-actions,
+    .employee-water-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.9rem;
+        flex-wrap: wrap;
+    }
+
+    .employee-water-row {
+        padding: 0.95rem 1rem;
+        border-radius: 18px;
+        background: rgba(10, 67, 107, 0.04);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .employee-water-row-title {
+        margin: 0;
+        color: var(--primary-dark);
+        font-size: 1rem;
+    }
+
+    .employee-water-row-meta {
+        margin-top: 0.2rem;
+        color: var(--text-secondary);
+        font-size: 0.84rem;
+    }
+
+    .employee-water-row-value {
+        color: var(--primary-color);
+        font-size: 1rem;
+        font-weight: 800;
+        text-align: right;
+    }
+
+    .employee-water-status {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.42rem 0.72rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 800;
+    }
+
+    .employee-water-status--done {
+        background: rgba(12, 166, 120, 0.12);
+        color: #0c7d59;
+    }
+
+    .employee-water-status--waiting {
+        background: rgba(244, 163, 64, 0.14);
+        color: #8a5600;
+    }
+
+    .employee-water-list {
+        display: grid;
+        gap: 0.85rem;
+    }
+
+    @media (max-width: 760px) {
+        .employee-water-hero {
+            grid-template-columns: 1fr;
+        }
+
+        .employee-water-actions,
+        .employee-water-row {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .employee-water-row-value {
+            text-align: left;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="employee-water-shell">
+    <section class="employee-water-hero">
+        <div>
+            <span class="employee-water-kicker">Opérations eau</span>
+            <h1 class="employee-water-title">Gestion de l'eau du site</h1>
+            <p class="employee-water-copy">
+                Quand le site achète de l'eau, l'équipe peut le signaler ici en un seul clic. Le système enregistre directement l'achat dans votre back office admin pour le mois en cours.
+            </p>
+            <div class="employee-water-chip-row">
+                <span class="employee-water-chip">{{ site.nom }}</span>
+                <span class="employee-water-chip">Date du jour: {{ today|date:"d/m/Y" }}</span>
+                <span class="employee-water-chip">Mois rattaché: {{ billing_month|date:"m/Y" }}</span>
+            </div>
+        </div>
+        <div class="employee-water-side">
+            <div class="employee-water-side-card">
+                <div class="employee-water-side-label">Tarif appliqué</div>
+                <div class="employee-water-side-value">{{ default_amount|floatformat:0 }} FC</div>
+                <div class="employee-water-side-copy">Le montant est appliqué automatiquement lors du signalement.</div>
+            </div>
+            <div class="employee-water-side-card">
+                <div class="employee-water-side-label">Statut du jour</div>
+                <div class="employee-water-side-value">
+                    {% if today_purchase %}Signalé{% else %}En attente{% endif %}
+                </div>
+                <div class="employee-water-side-copy">
+                    {% if today_purchase %}
+                    Enregistré à {{ today_purchase.created_at|date:"H:i" }}.
+                    {% else %}
+                    Aucun achat d'eau encore enregistré pour aujourd'hui.
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="employee-water-stats">
+        <article class="employee-water-stat">
+            <div class="employee-water-stat-label">Achat du jour</div>
+            <div class="employee-water-stat-value">
+                {% if today_purchase %}Oui{% else %}Non{% endif %}
+            </div>
+            <div class="employee-water-stat-copy">
+                {% if today_purchase %}
+                Déjà transmis à l'admin.
+                {% else %}
+                À signaler si l'eau a été achetée.
+                {% endif %}
+            </div>
+        </article>
+        <article class="employee-water-stat">
+            <div class="employee-water-stat-label">Signalements du mois</div>
+            <div class="employee-water-stat-value">{{ month_purchase_count }}</div>
+            <div class="employee-water-stat-copy">Achats d'eau déjà enregistrés pour {{ billing_month|date:"m/Y" }}.</div>
+        </article>
+        <article class="employee-water-stat">
+            <div class="employee-water-stat-label">Dernier signalement</div>
+            <div class="employee-water-stat-value">
+                {% if last_purchase %}{{ last_purchase.purchase_date|date:"d/m" }}{% else %}—{% endif %}
+            </div>
+            <div class="employee-water-stat-copy">
+                {% if last_purchase %}
+                Saisi le {{ last_purchase.created_at|date:"d/m à H:i" }}.
+                {% else %}
+                Aucun achat d'eau encore déclaré ce mois-ci.
+                {% endif %}
+            </div>
+        </article>
+    </section>
+
+    <section class="card">
+        <div class="employee-water-actions">
+            <div>
+                <h2 class="mb-2">Signaler l'achat d'eau</h2>
+                <p style="margin: 0; color: var(--text-secondary);">
+                    L'équipe n'a rien à saisir. Un clic enregistre automatiquement l'achat du jour à {{ default_amount|floatformat:0 }} FC pour {{ billing_month|date:"m/Y" }}.
+                </p>
+            </div>
+            <a href="{% url 'employe_dashboard' %}" class="btn btn-secondary">Retour</a>
+        </div>
+
+        <div style="margin-top: 1rem;">
+            {% if today_purchase %}
+            <div class="employee-water-row">
+                <div>
+                    <div class="employee-water-status employee-water-status--done">Déjà signalé aujourd'hui</div>
+                    <h3 class="employee-water-row-title" style="margin-top: 0.75rem;">Achat enregistré pour {{ today_purchase.purchase_date|date:"d/m/Y" }}</h3>
+                    <p class="employee-water-row-meta">
+                        Déclaré par {% if today_purchase.created_by %}{{ today_purchase.created_by.get_full_name|default:today_purchase.created_by.username }}{% else %}un employé{% endif %}
+                        à {{ today_purchase.created_at|date:"H:i" }}. Si le montant ou la date est faux, l'administrateur peut le modifier dans le suivi eau.
+                    </p>
+                </div>
+                <div class="employee-water-row-value">{{ today_purchase.amount_fc|floatformat:0 }} FC</div>
+            </div>
+            {% else %}
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-info btn-block">Confirmer que l'eau a été achetée aujourd'hui</button>
+            </form>
+            <p style="margin: 0.85rem 0 0 0; color: var(--text-secondary); font-size: 0.88rem;">
+                Utilisez ce bouton uniquement quand l'eau a réellement été achetée. Pour éviter les doublons, le système n'accepte qu'un signalement par site et par jour.
+            </p>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="employee-water-actions">
+            <div>
+                <h2 class="mb-2">Historique récent du mois</h2>
+                <p style="margin: 0; color: var(--text-secondary);">
+                    Aperçu des derniers achats d'eau déjà transmis pour {{ billing_month|date:"m/Y" }}.
+                </p>
+            </div>
+        </div>
+
+        {% if month_purchases %}
+        <div class="employee-water-list" style="margin-top: 1rem;">
+            {% for purchase in month_purchases %}
+            <article class="employee-water-row">
+                <div>
+                    <h3 class="employee-water-row-title">Achat du {{ purchase.purchase_date|date:"d/m/Y" }}</h3>
+                    <div class="employee-water-row-meta">
+                        Saisi le {{ purchase.created_at|date:"d/m/Y à H:i" }}
+                        {% if purchase.created_by %}
+                        • {{ purchase.created_by.get_full_name|default:purchase.created_by.username }}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="employee-water-row-value">{{ purchase.amount_fc|floatformat:0 }} FC</div>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="margin: 1rem 0 0 0; color: var(--text-secondary);">Aucun achat d'eau enregistré pour ce mois.</p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

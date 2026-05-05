@@ -668,6 +668,13 @@
                         <td>
                             <div class="water-ledger-site">{{ purchase.site.nom }}</div>
                             <div class="water-ledger-subtext">Saisi le {{ purchase.created_at|date:"d/m/Y H:i" }}</div>
+                            <div class="water-ledger-subtext">
+                                {% if purchase.created_by %}
+                                Déclaré par {{ purchase.created_by.get_full_name|default:purchase.created_by.username }}
+                                {% else %}
+                                Déclarant non renseigné
+                                {% endif %}
+                            </div>
                         </td>
                         <td>
                             <div>{{ purchase.billing_month|date:"m/Y" }}</div>

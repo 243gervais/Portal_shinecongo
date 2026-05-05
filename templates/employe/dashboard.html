@@ -83,6 +83,20 @@
             {% if shift_today and shift_today.daily_report_confirmed %}Modifier{% else %}Ouvrir{% endif %}
         </span>
     </a>
+
+    <a href="{% url 'employe_water_purchase' %}" class="card employee-route-card" data-employee-route-card>
+        <h3>Gestion de l'eau</h3>
+        <p style="color: var(--text-secondary)">
+            {% if water_purchase_today %}
+            Achat d'eau déjà signalé aujourd'hui. {{ water_purchase_month_count }} signalement{{ water_purchase_month_count|pluralize }} ce mois-ci.
+            {% else %}
+            Signaler en un clic que l'eau a été achetée pour le site.
+            {% endif %}
+        </p>
+        <span class="btn btn-info btn-block mt-3">
+            {% if water_purchase_today %}Voir le suivi{% else %}Signaler l'achat d'eau{% endif %}
+        </span>
+    </a>
 </div>
 
 {% endblock %}

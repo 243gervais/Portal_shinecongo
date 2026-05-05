@@ -10,12 +10,13 @@ from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
 from django.db.models import Sum
 from .models import ShiftDay
-from sites.models import Location
+from sites.models import Location, SiteWaterPurchase
 from lavages.models import CarWash
 from problemes.models import IssueReport
 from .utils import get_client_ip, get_user_agent
 from audit.models import AuditLog
 from decimal import Decimal, InvalidOperation
+from comptes.forms import get_water_purchase_default_amount
 
 logger = logging.getLogger(__name__)
 
@@ -218,6 +219,20 @@ def employe_dashboard(request):
     # Problèmes ouverts de l'employé
     problemes_ouverts = user.problemes_signales.filter(statut="OUVERT").count()
     shift_today = ShiftDay.objects.filter(employe=user, date=today).first()
+    site = getattr(getattr(user, "userprofile", None), "site", None)
+    water_purchase_today = None
+    water_purchase_month_count = 0
+    if site:
+        water_purchase_today = (
+            SiteWaterPurchase.objects.filter(site=site, purchase_date=today)
+            .select_related("created_by")
+            .order_by("-created_at")
+            .first()
+        )
+        water_purchase_month_count = SiteWaterPurchase.objects.filter(
+            site=site,
+            billing_month=today.replace(day=1),
+        ).count()
     
     context = {
         'lavages_today': lavages_today,
@@ -225,9 +240,93 @@ def employe_dashboard(request):
         'problemes_ouverts': problemes_ouverts,
         'shift_today': shift_today,
         'show_live_amount': not (shift_today and shift_today.daily_report_confirmed),
+        'water_purchase_today': water_purchase_today,
+        'water_purchase_month_count': water_purchase_month_count,
     }
     
     return render(request, 'employe/dashboard.html', context)
+
+
+@login_required
+@never_cache
+def employe_water_purchase(request):
+    """
+    Déclaration simple d'un achat d'eau depuis le portail employé.
+    Un seul achat par site et par jour est accepté pour éviter les doublons.
+    """
+    user = request.user
+    today = timezone.localdate()
+    profile = getattr(user, "userprofile", None)
+    site = getattr(profile, "site", None)
+
+    if not site:
+        messages.error(request, "Aucun site n'est associé à votre profil.")
+        return redirect("employe_dashboard")
+
+    billing_month = today.replace(day=1)
+    default_amount = get_water_purchase_default_amount(billing_month)
+    today_purchase = (
+        SiteWaterPurchase.objects.filter(site=site, purchase_date=today)
+        .select_related("created_by")
+        .order_by("-created_at")
+        .first()
+    )
+
+    if request.method == "POST":
+        if today_purchase:
+            messages.info(
+                request,
+                "L'achat d'eau du jour a déjà été signalé. L'administrateur peut le corriger si nécessaire.",
+            )
+            return redirect("employe_water_purchase")
+
+        reporter_name = user.get_full_name() or user.username
+        purchase = SiteWaterPurchase.objects.create(
+            site=site,
+            billing_month=billing_month,
+            purchase_date=today,
+            amount_fc=default_amount,
+            notes=f"Signalé via portail employé par {reporter_name}.",
+            created_by=user,
+        )
+
+        AuditLog.log(
+            user=user,
+            action="AUTRE",
+            description=(
+                f"Achat d'eau signalé via portail employé: "
+                f"{site.nom} - {purchase.purchase_date} - {purchase.amount_fc:,.0f} FC"
+            ).replace(",", " "),
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request),
+        )
+
+        messages.success(
+            request,
+            f"Achat d'eau enregistré à {default_amount:,.0f} FC pour aujourd'hui.".replace(",", " "),
+        )
+        return redirect("employe_water_purchase")
+
+    month_purchases_qs = (
+        SiteWaterPurchase.objects.filter(site=site, billing_month=billing_month)
+        .select_related("created_by")
+        .order_by("-purchase_date", "-created_at")
+    )
+    month_purchase_count = month_purchases_qs.count()
+    month_purchases = list(month_purchases_qs[:8])
+    last_purchase = month_purchases[0] if month_purchases else None
+
+    context = {
+        "site": site,
+        "today": today,
+        "billing_month": billing_month,
+        "default_amount": default_amount,
+        "today_purchase": today_purchase,
+        "month_purchases": month_purchases,
+        "month_purchase_count": month_purchase_count,
+        "last_purchase": last_purchase,
+    }
+    return render(request, "employe/water_purchase.html", context)
 
 
 @login_required

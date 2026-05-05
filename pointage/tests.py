@@ -7,9 +7,10 @@ from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from comptes.forms import get_water_purchase_default_amount
 from lavages.models import CarWash
 from pointage.models import ShiftDay
-from sites.models import Location
+from sites.models import Location, SiteWaterPurchase
 
 
 @override_settings(
@@ -79,6 +80,8 @@ class EmployeeDailyReportTests(TestCase):
         self.assertContains(response, reverse("employe_daily_report"))
         self.assertContains(response, "data-employee-route-card")
         self.assertContains(response, reverse("ajouter_lavage"))
+        self.assertContains(response, reverse("employe_water_purchase"))
+        self.assertContains(response, "Gestion de l'eau")
 
     def test_employee_history_contains_mobile_friendly_instant_navigation_hooks(self):
         response = self.client.get(reverse("employe_historique"))
@@ -147,6 +150,42 @@ class EmployeeDailyReportTests(TestCase):
         shift = ShiftDay.objects.get(employe=self.user, date=today)
         self.assertEqual(shift.daily_expenses_total_fc, Decimal("0"))
         self.assertEqual(shift.daily_expense_items, [])
+
+    def test_employee_can_signal_water_purchase_in_one_click(self):
+        today = timezone.localdate()
+
+        response = self.client.post(reverse("employe_water_purchase"))
+
+        self.assertEqual(response.status_code, 302)
+        purchase = SiteWaterPurchase.objects.get(site=self.site, purchase_date=today)
+        self.assertEqual(purchase.billing_month, today.replace(day=1))
+        self.assertEqual(purchase.amount_fc, get_water_purchase_default_amount(today))
+        self.assertEqual(purchase.created_by, self.user)
+        self.assertIn("Signalé via portail employé", purchase.notes)
+
+    def test_employee_water_purchase_page_renders(self):
+        response = self.client.get(reverse("employe_water_purchase"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Gestion de l'eau du site")
+        self.assertContains(response, "Confirmer que l'eau a été achetée aujourd'hui")
+
+    def test_employee_water_purchase_prevents_same_day_duplicate(self):
+        today = timezone.localdate()
+        SiteWaterPurchase.objects.create(
+            site=self.site,
+            billing_month=today.replace(day=1),
+            purchase_date=today,
+            amount_fc=get_water_purchase_default_amount(today),
+            notes="Signalé via portail employé par jules.",
+            created_by=self.user,
+        )
+
+        response = self.client.post(reverse("employe_water_purchase"), follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(SiteWaterPurchase.objects.filter(site=self.site, purchase_date=today).count(), 1)
+        self.assertContains(response, "déjà été signalé")
 
 
 class AdminDashboardDailyReportMessagesTests(TestCase):
