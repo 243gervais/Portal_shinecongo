@@ -214,7 +214,6 @@ def employe_dashboard(request):
 
     # Lavages du jour
     lavages_today = user.lavages.filter(date=today).count()
-    montant_today = user.lavages.filter(date=today).aggregate(total=Sum('montant'))['total'] or 0
     
     # Problèmes ouverts de l'employé
     problemes_ouverts = user.problemes_signales.filter(statut="OUVERT").count()
@@ -236,10 +235,8 @@ def employe_dashboard(request):
     
     context = {
         'lavages_today': lavages_today,
-        'montant_today': montant_today,
         'problemes_ouverts': problemes_ouverts,
         'shift_today': shift_today,
-        'show_live_amount': not (shift_today and shift_today.daily_report_confirmed),
         'water_purchase_today': water_purchase_today,
         'water_purchase_month_count': water_purchase_month_count,
     }
@@ -303,7 +300,7 @@ def employe_water_purchase(request):
 
         messages.success(
             request,
-            f"Achat d'eau enregistré à {default_amount:,.0f} FC pour aujourd'hui.".replace(",", " "),
+            "Achat d'eau enregistré pour aujourd'hui.",
         )
         return redirect("employe_water_purchase")
 
@@ -689,20 +686,62 @@ def employe_historique(request):
     Historique des pointages et lavages de l'employé
     """
     user = request.user
+    today = timezone.localdate()
+    profile = getattr(user, "userprofile", None)
+    site = getattr(profile, "site", None)
     
     # Pointages récents (30 derniers jours)
-    pointages = ShiftDay.objects.filter(employe=user).order_by('-date')[:30]
+    pointages = (
+        ShiftDay.objects.filter(employe=user)
+        .select_related("site")
+        .order_by('-date')[:30]
+    )
+    report_history = (
+        ShiftDay.objects.filter(employe=user)
+        .select_related("site")
+        .order_by("-date")[:20]
+    )
     
     # Lavages récents
     lavages = user.lavages.all().order_by('-created_at')[:50]
     
     # Problèmes signalés
     problemes = user.problemes_signales.all().order_by('-created_at')[:20]
+
+    water_history = []
+    water_history_month_count = 0
+    if site:
+        water_history_qs = (
+            SiteWaterPurchase.objects.filter(site=site)
+            .select_related("created_by")
+            .order_by("-purchase_date", "-created_at")
+        )
+        water_history = list(water_history_qs[:20])
+        water_history_month_count = water_history_qs.filter(
+            billing_month=today.replace(day=1),
+        ).count()
+
+    report_count = ShiftDay.objects.filter(
+        employe=user,
+        daily_report_confirmed=True,
+    ).count()
+    pending_report_count = ShiftDay.objects.filter(
+        employe=user,
+        clock_in_time__isnull=False,
+        daily_report_confirmed=False,
+    ).count()
     
     context = {
+        'site': site,
         'pointages': pointages,
+        'report_history': report_history,
         'lavages': lavages,
         'problemes': problemes,
+        'water_history': water_history,
+        'report_count': report_count,
+        'pending_report_count': pending_report_count,
+        'water_history_month_count': water_history_month_count,
+        'problem_count': user.problemes_signales.count(),
     }
     
     return render(request, 'employe/historique.html', context)

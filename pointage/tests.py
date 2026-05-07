@@ -84,6 +84,9 @@ class EmployeeDailyReportTests(TestCase):
         self.assertContains(response, reverse("ajouter_lavage"))
         self.assertContains(response, reverse("employe_water_purchase"))
         self.assertContains(response, "Gestion de l'eau")
+        self.assertContains(response, "Rapport du jour envoyé")
+        self.assertContains(response, "Eau signalée aujourd'hui")
+        self.assertNotContains(response, "Montant du jour")
 
     def test_employee_history_contains_mobile_friendly_instant_navigation_hooks(self):
         response = self.client.get(reverse("employe_historique"))
@@ -94,6 +97,9 @@ class EmployeeDailyReportTests(TestCase):
         self.assertContains(response, "touchstart")
         self.assertContains(response, reverse("mes_lavages"))
         self.assertContains(response, reverse("mes_problemes"))
+        self.assertContains(response, "Rapports de fin de journée")
+        self.assertContains(response, "Gestion de l'eau")
+        self.assertContains(response, "Aucun montant n'est affiché dans cet espace")
 
     def test_employee_can_update_same_day_report(self):
         today = timezone.localdate()
@@ -171,6 +177,8 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Gestion de l'eau du site")
         self.assertContains(response, "Confirmer que l'eau a été achetée aujourd'hui")
+        self.assertContains(response, "Automatique")
+        self.assertNotContains(response, "Tarif appliqué")
 
     def test_employee_water_purchase_prevents_same_day_duplicate(self):
         today = timezone.localdate()
@@ -189,6 +197,47 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(SiteWaterPurchase.objects.filter(site=self.site, purchase_date=today).count(), 1)
         self.assertContains(response, "déjà été signalé")
 
+    def test_employee_history_lists_water_and_report_entries_without_amounts(self):
+        today = timezone.localdate()
+        ShiftDay.objects.create(
+            employe=self.user,
+            site=self.site,
+            date=today,
+            clock_in_time=timezone.now(),
+            clock_out_time=timezone.now(),
+            daily_report_confirmed=True,
+            total_amount_reported_fc=Decimal("18000.00"),
+            total_lavages_reported=2,
+            daily_expenses=[
+                {
+                    "key": "transport_personnels",
+                    "label": "Transport de Personnels",
+                    "amount_fc": "14000.00",
+                    "is_known": True,
+                }
+            ],
+            daily_expenses_total_fc=Decimal("14000.00"),
+        )
+        SiteWaterPurchase.objects.create(
+            site=self.site,
+            billing_month=today.replace(day=1),
+            purchase_date=today,
+            amount_fc=get_water_purchase_default_amount(today),
+            notes="Signalé via portail employé par jules.",
+            created_by=self.user,
+        )
+
+        response = self.client.get(reverse("employe_historique"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Rapport enregistré")
+        self.assertContains(response, "Achat du")
+        self.assertContains(response, "Transmis")
+        self.assertContains(response, "2 lavages")
+        self.assertNotContains(response, "18 000 FC")
+        self.assertNotContains(response, "14 000 FC")
+        self.assertNotContains(response, "22 000 FC")
+
     def test_employee_water_page_reflects_admin_edit_and_delete(self):
         today = timezone.localdate()
         purchase = SiteWaterPurchase.objects.create(
@@ -201,8 +250,9 @@ class EmployeeDailyReportTests(TestCase):
         )
 
         response = self.client.get(reverse("employe_water_purchase"))
-        self.assertContains(response, "22000 FC")
         self.assertContains(response, "Déjà signalé aujourd'hui")
+        self.assertContains(response, today.strftime("%d/%m/%Y"))
+        self.assertNotContains(response, "22000 FC")
 
         admin_user = User.objects.create_superuser(
             username="admin_water_sync",
@@ -225,7 +275,8 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(edit_response.status_code, 302)
 
         response = self.client.get(reverse("employe_water_purchase"))
-        self.assertContains(response, "25000 FC")
+        self.assertContains(response, "Transmis à l'admin")
+        self.assertNotContains(response, "25000 FC")
 
         delete_response = admin_client.post(
             reverse("admin_delete_water_purchase", kwargs={"purchase_id": purchase.id})
@@ -233,7 +284,7 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(delete_response.status_code, 302)
 
         response = self.client.get(reverse("employe_water_purchase"))
-        self.assertNotContains(response, "25000 FC")
+        self.assertNotContains(response, "Achat enregistré pour")
         self.assertContains(response, "Confirmer que l'eau a été achetée aujourd'hui")
 
 

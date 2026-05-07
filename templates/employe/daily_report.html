@@ -20,8 +20,8 @@
             <div style="font-size: 1.6rem; font-weight: 700; color: var(--primary-color);">{{ computed_total_washes }}</div>
         </div>
         <div>
-            <strong style="color: var(--text-secondary);">Montant calculé</strong>
-            <div style="font-size: 1.6rem; font-weight: 700; color: var(--success-color);">{{ computed_total_amount|floatformat:0 }} FC</div>
+            <strong style="color: var(--text-secondary);">Dépenses enregistrées</strong>
+            <div style="font-size: 1.6rem; font-weight: 700; color: var(--success-color);">{% if report_submitted %}{{ shift.daily_expenses|length }}{% else %}0{% endif %}</div>
         </div>
         <div>
             <strong style="color: var(--text-secondary);">Problèmes du jour</strong>
@@ -41,13 +41,11 @@
     <div style="padding: 1rem; background: rgba(12, 166, 120, 0.08); border: 1px solid rgba(12, 166, 120, 0.16); border-radius: 10px; margin-bottom: 1rem;">
         <h2 style="margin-top: 0; color: var(--success-color);">Rapport déjà envoyé</h2>
         <p style="margin-bottom: 0; color: var(--text-secondary);">
-            Vous pouvez encore corriger le montant final et les dépenses si vous remarquez une erreur. Chaque modification apparaîtra aussi dans la boîte messages du dashboard administrateur.
+            Vous pouvez encore corriger le rapport si vous remarquez une erreur. Chaque modification apparaîtra aussi dans la boîte messages du dashboard administrateur.
         </p>
         <p style="margin: 0.75rem 0 0 0; color: var(--text-secondary);">
-            <strong>Dépenses enregistrées:</strong> {{ shift.daily_expenses_total_fc|floatformat:0 }} FC
-            {% if shift.daily_expense_items %}
-                • {{ shift.daily_expense_summary }}
-            {% endif %}
+            <strong>Dépenses enregistrées:</strong> {{ shift.daily_expenses|length }} poste{{ shift.daily_expenses|length|pluralize }}
+            {% if shift.daily_expense_items %} • {{ shift.daily_expense_summary }}{% endif %}
         </p>
     </div>
     {% endif %}
@@ -67,7 +65,7 @@
                 required
                 value="{{ submitted_total_amount }}"
             >
-            <small style="color: var(--text-secondary);">Le système a calculé {{ computed_total_amount|floatformat:0 }} FC à partir des lavages enregistrés aujourd'hui.</small>
+            <small style="color: var(--text-secondary);">Saisissez le total final du jour avant validation.</small>
         </div>
 
         <div class="form-group">
@@ -142,11 +140,11 @@
         <div style="padding: 0.95rem 1rem; border-radius: 12px; background: rgba(10, 67, 107, 0.06); border: 1px solid rgba(10, 67, 107, 0.1); margin-bottom: 1rem;">
             <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
                 <div>
-                    <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.03em;">Total dépenses du jour</div>
-                    <div id="daily-expense-total" style="font-size: 1.4rem; font-weight: 800; color: var(--primary-color);">{{ expense_form.total|floatformat:0 }} FC</div>
+                    <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.03em;">Postes de dépenses</div>
+                    <div id="daily-expense-total" style="font-size: 1.4rem; font-weight: 800; color: var(--primary-color);">0</div>
                 </div>
                 <div style="color: var(--text-secondary); font-size: 0.88rem;">
-                    Le total se met à jour automatiquement selon les cases cochées et les autres dépenses ajoutées.
+                    Le compteur se met à jour automatiquement selon les dépenses cochées et ajoutées.
                 </div>
             </div>
         </div>
@@ -225,21 +223,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
         document.querySelectorAll('[data-known-expense-row]').forEach(function (row) {
             const checkbox = row.querySelector('[data-expense-toggle]');
-            const amountInput = row.querySelector('[data-expense-amount]');
-            if (checkbox && checkbox.checked && amountInput) {
-                total += parseAmount(amountInput.value);
+            if (checkbox && checkbox.checked) {
+                total += 1;
             }
         });
 
         expenseList.querySelectorAll('.daily-expense-row').forEach(function (row) {
             const labelInput = row.querySelector('input[name="custom_expense_label"]');
             const amountInput = row.querySelector('input[name="custom_expense_amount"]');
-            if (labelInput && labelInput.value.trim() && amountInput) {
-                total += parseAmount(amountInput.value);
+            if (labelInput && labelInput.value.trim() && amountInput && parseAmount(amountInput.value) > 0) {
+                total += 1;
             }
         });
 
-        totalNode.textContent = total.toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' FC';
+        totalNode.textContent = total.toLocaleString('fr-FR', { maximumFractionDigits: 0 });
     }
 
     function bindExpenseRow(row) {

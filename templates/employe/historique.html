@@ -2,155 +2,464 @@
 
 {% block title %}Historique{% endblock %}
 
+{% block extra_css %}
+<style>
+    .employee-history-shell {
+        display: grid;
+        gap: 1.25rem;
+    }
+
+    .employee-history-hero {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .employee-history-copy {
+        max-width: 44rem;
+        color: var(--text-secondary);
+        margin: 0.35rem 0 0 0;
+    }
+
+    .employee-history-chip-row {
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+        margin-top: 0.9rem;
+    }
+
+    .employee-history-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.42rem 0.72rem;
+        border-radius: 999px;
+        background: rgba(10, 67, 107, 0.08);
+        color: var(--primary-dark);
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
+    .employee-history-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+    }
+
+    .employee-history-stat {
+        padding: 1rem 1.05rem;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.98);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        box-shadow: 0 14px 32px rgba(10, 67, 107, 0.08);
+    }
+
+    .employee-history-stat-label {
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .employee-history-stat-value {
+        margin-top: 0.3rem;
+        font-size: 1.7rem;
+        font-weight: 800;
+        color: var(--primary-dark);
+        line-height: 1;
+    }
+
+    .employee-history-stat-copy {
+        margin-top: 0.22rem;
+        color: var(--text-secondary);
+        font-size: 0.84rem;
+    }
+
+    .employee-history-section-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.9rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+    }
+
+    .employee-history-section-copy {
+        margin: 0.3rem 0 0 0;
+        color: var(--text-secondary);
+    }
+
+    .employee-history-actions {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+    }
+
+    .employee-history-status {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.35rem 0.68rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .employee-history-status--ok {
+        background: rgba(12, 166, 120, 0.12);
+        color: #0c7d59;
+    }
+
+    .employee-history-status--wait {
+        background: rgba(244, 163, 64, 0.14);
+        color: #8a5600;
+    }
+
+    .employee-history-status--issue {
+        background: rgba(215, 58, 73, 0.1);
+        color: #b42318;
+    }
+
+    .employee-history-status--info {
+        background: rgba(10, 67, 107, 0.1);
+        color: var(--primary-dark);
+    }
+
+    .employee-history-grid {
+        display: grid;
+        gap: 0.85rem;
+    }
+
+    .employee-history-row-card {
+        display: grid;
+        gap: 0.4rem;
+        padding: 1rem 1.05rem;
+        border-radius: 18px;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        background: rgba(10, 67, 107, 0.03);
+    }
+
+    .employee-history-row-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+    }
+
+    .employee-history-row-title {
+        margin: 0;
+        color: var(--primary-dark);
+        font-size: 1rem;
+    }
+
+    .employee-history-row-meta {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 0.86rem;
+    }
+
+    .employee-history-row-metrics {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .employee-history-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.35rem 0.62rem;
+        border-radius: 999px;
+        background: rgba(10, 67, 107, 0.08);
+        color: var(--primary-dark);
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<h1 class="mt-2 mb-4">Mon historique</h1>
+<div class="employee-history-shell">
+    <section class="employee-history-hero">
+        <div>
+            <h1 class="mt-2 mb-2">Mon historique</h1>
+            <p class="employee-history-copy">
+                Retrouvez ici l'historique complet de vos activités: rapports de fin de journée, gestion de l'eau, pointages, lavages et problèmes signalés.
+            </p>
+            <div class="employee-history-chip-row">
+                {% if site %}
+                <span class="employee-history-chip">{{ site.nom }}</span>
+                {% endif %}
+                <span class="employee-history-chip">Aucun montant n'est affiché dans cet espace</span>
+            </div>
+        </div>
+        <div class="employee-history-actions">
+            <a href="{% url 'employe_daily_report' %}" class="btn btn-primary">Rapport du jour</a>
+            <a href="{% url 'employe_water_purchase' %}" class="btn btn-info">Gestion de l'eau</a>
+        </div>
+    </section>
 
-<!-- Pointages -->
-<div class="card mb-4">
-    <h2 class="mb-3">Mes pointages</h2>
-    {% if pointages %}
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Entrée</th>
-                    <th>Sortie</th>
-                    <th>Durée</th>
-                    <th>Lavages déclarés</th>
-                    <th>Rapport</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for pointage in pointages %}
-                <tr>
-                    <td>{{ pointage.date|date:"d/m/Y" }}</td>
-                    <td>{{ pointage.clock_in_time|time:"H:i" }}</td>
-                    <td>
-                        {% if pointage.clock_out_time %}
-                        {{ pointage.clock_out_time|time:"H:i" }}
-                        {% else %}
-                        <span style="color: var(--warning-color);">—</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if pointage.duration %}
-                        {{ pointage.duration|time:"H:i" }}
-                        {% else %}
-                        <span style="color: var(--text-secondary);">—</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if pointage.daily_report_confirmed %}
-                        {{ pointage.total_lavages_reported }}
-                        {% else %}
-                        <span style="color: var(--text-secondary);">—</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if pointage.daily_report_confirmed %}
-                        <span style="color: var(--success-color);">Enregistré</span>
-                        {% else %}
-                        <span style="color: var(--warning-color);">En attente</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <p style="color: var(--text-secondary);">Aucun pointage enregistré.</p>
-    {% endif %}
-</div>
+    <section class="employee-history-stats">
+        <article class="employee-history-stat">
+            <div class="employee-history-stat-label">Rapports envoyés</div>
+            <div class="employee-history-stat-value">{{ report_count }}</div>
+            <div class="employee-history-stat-copy">Total des rapports confirmés sur votre compte.</div>
+        </article>
+        <article class="employee-history-stat">
+            <div class="employee-history-stat-label">Rapports en attente</div>
+            <div class="employee-history-stat-value">{{ pending_report_count }}</div>
+            <div class="employee-history-stat-copy">Jours pointés sans rapport final confirmé.</div>
+        </article>
+        <article class="employee-history-stat">
+            <div class="employee-history-stat-label">Eau ce mois</div>
+            <div class="employee-history-stat-value">{{ water_history_month_count }}</div>
+            <div class="employee-history-stat-copy">Signalements d'eau déjà remontés pour le site ce mois-ci.</div>
+        </article>
+        <article class="employee-history-stat">
+            <div class="employee-history-stat-label">Problèmes signalés</div>
+            <div class="employee-history-stat-value">{{ problem_count }}</div>
+            <div class="employee-history-stat-copy">Total des incidents ou besoins remontés.</div>
+        </article>
+    </section>
 
-<!-- Lavages récents -->
-<div class="card mb-4">
-    <h2 class="mb-3">Mes lavages récents</h2>
-    {% if lavages %}
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Type</th>
-                    <th>Plaque</th>
-                    <th>Photos</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for lavage in lavages %}
-                <tr>
-                    <td>{{ lavage.date|date:"d/m/Y" }}</td>
-                    <td>{{ lavage.get_type_service_display }}</td>
-                    <td>
-                        {% if lavage.plaque %}
-                            {{ lavage.plaque }}
-                        {% elif lavage.plaque_photo %}
-                            📷 Photo enregistrée
-                        {% else %}
-                            —
-                        {% endif %}
-                    </td>
-                    <td>{{ lavage.photo_count }} photo(s)</td>
-                    <td><a href="{% url 'detail_lavage' lavage.id %}" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Voir</a></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+    <section class="card">
+        <div class="employee-history-section-head">
+            <div>
+                <h2 class="mb-2">Rapports de fin de journée</h2>
+                <p class="employee-history-section-copy">
+                    Suivi de vos rapports journaliers sans afficher les montants déclarés.
+                </p>
+            </div>
+            <a href="{% url 'employe_daily_report' %}" class="btn btn-primary">Ouvrir le rapport du jour</a>
+        </div>
+
+        {% if report_history %}
+        <div class="employee-history-grid">
+            {% for report in report_history %}
+            <article class="employee-history-row-card">
+                <div class="employee-history-row-head">
+                    <div>
+                        <h3 class="employee-history-row-title">{{ report.date|date:"d/m/Y" }}</h3>
+                        <p class="employee-history-row-meta">
+                            {% if report.clock_in_time %}
+                            Entrée {{ report.clock_in_time|time:"H:i" }}
+                            {% else %}
+                            Pas de pointage d'entrée
+                            {% endif %}
+                            {% if report.clock_out_time %}
+                            • Sortie {{ report.clock_out_time|time:"H:i" }}
+                            {% endif %}
+                            • Dernière mise à jour {{ report.updated_at|date:"d/m/Y à H:i" }}
+                        </p>
+                    </div>
+                    {% if report.daily_report_confirmed %}
+                    <span class="employee-history-status employee-history-status--ok">Rapport enregistré</span>
+                    {% else %}
+                    <span class="employee-history-status employee-history-status--wait">En attente</span>
+                    {% endif %}
+                </div>
+                <div class="employee-history-row-metrics">
+                    <span class="employee-history-pill">{{ report.total_lavages_reported }} lavage{{ report.total_lavages_reported|pluralize }}</span>
+                    <span class="employee-history-pill">{{ report.daily_expenses|length }} dépense{{ report.daily_expenses|length|pluralize }}</span>
+                    {% if report.site %}
+                    <span class="employee-history-pill">{{ report.site.nom }}</span>
+                    {% endif %}
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="color: var(--text-secondary);">Aucun rapport de fin de journée enregistré pour le moment.</p>
+        {% endif %}
+    </section>
+
+    <section class="card">
+        <div class="employee-history-section-head">
+            <div>
+                <h2 class="mb-2">Gestion de l'eau</h2>
+                <p class="employee-history-section-copy">
+                    Historique récent des signalements d'eau du site, sans affichage de montant.
+                </p>
+            </div>
+            <a href="{% url 'employe_water_purchase' %}" class="btn btn-info">Voir le suivi eau</a>
+        </div>
+
+        {% if water_history %}
+        <div class="employee-history-grid">
+            {% for purchase in water_history %}
+            <article class="employee-history-row-card">
+                <div class="employee-history-row-head">
+                    <div>
+                        <h3 class="employee-history-row-title">Achat du {{ purchase.purchase_date|date:"d/m/Y" }}</h3>
+                        <p class="employee-history-row-meta">
+                            Mois rattaché {{ purchase.billing_month|date:"m/Y" }}
+                            • Saisi le {{ purchase.created_at|date:"d/m/Y à H:i" }}
+                        </p>
+                    </div>
+                    <span class="employee-history-status employee-history-status--ok">Transmis</span>
+                </div>
+                <div class="employee-history-row-metrics">
+                    {% if purchase.created_by %}
+                    <span class="employee-history-pill">{{ purchase.created_by.get_full_name|default:purchase.created_by.username }}</span>
+                    {% else %}
+                    <span class="employee-history-pill">Employé non précisé</span>
+                    {% endif %}
+                    {% if site %}
+                    <span class="employee-history-pill">{{ site.nom }}</span>
+                    {% endif %}
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="color: var(--text-secondary);">Aucun achat d'eau enregistré pour le moment.</p>
+        {% endif %}
+    </section>
+
+    <section class="card mb-4">
+        <div class="employee-history-section-head">
+            <div>
+                <h2 class="mb-2">Mes pointages</h2>
+                <p class="employee-history-section-copy">Vue récente de vos entrées, sorties et statut de rapport.</p>
+            </div>
+        </div>
+
+        {% if pointages %}
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Entrée</th>
+                        <th>Sortie</th>
+                        <th>Durée</th>
+                        <th>Lavages déclarés</th>
+                        <th>Rapport</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pointage in pointages %}
+                    <tr>
+                        <td>{{ pointage.date|date:"d/m/Y" }}</td>
+                        <td>{% if pointage.clock_in_time %}{{ pointage.clock_in_time|time:"H:i" }}{% else %}<span style="color: var(--text-secondary);">—</span>{% endif %}</td>
+                        <td>{% if pointage.clock_out_time %}{{ pointage.clock_out_time|time:"H:i" }}{% else %}<span style="color: var(--warning-color);">—</span>{% endif %}</td>
+                        <td>{% if pointage.duration %}{{ pointage.duration|time:"H:i" }}{% else %}<span style="color: var(--text-secondary);">—</span>{% endif %}</td>
+                        <td>{% if pointage.daily_report_confirmed %}{{ pointage.total_lavages_reported }}{% else %}<span style="color: var(--text-secondary);">—</span>{% endif %}</td>
+                        <td>
+                            {% if pointage.daily_report_confirmed %}
+                            <span class="employee-history-status employee-history-status--ok">Enregistré</span>
+                            {% else %}
+                            <span class="employee-history-status employee-history-status--wait">En attente</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p style="color: var(--text-secondary);">Aucun pointage enregistré.</p>
+        {% endif %}
+    </section>
+
+    <section class="card mb-4">
+        <div class="employee-history-section-head">
+            <div>
+                <h2 class="mb-2">Mes lavages récents</h2>
+                <p class="employee-history-section-copy">Historique opérationnel des véhicules enregistrés.</p>
+            </div>
+            <a href="{% url 'mes_lavages' %}" class="btn btn-primary">Voir tous mes lavages</a>
+        </div>
+
+        {% if lavages %}
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Plaque</th>
+                        <th>Photos</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lavage in lavages %}
+                    <tr>
+                        <td>{{ lavage.date|date:"d/m/Y" }}</td>
+                        <td>{{ lavage.get_type_service_display }}</td>
+                        <td>
+                            {% if lavage.plaque %}
+                                {{ lavage.plaque }}
+                            {% elif lavage.plaque_photo %}
+                                📷 Photo enregistrée
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td>{{ lavage.photo_count }} photo(s)</td>
+                        <td><a href="{% url 'detail_lavage' lavage.id %}" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Voir</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p style="color: var(--text-secondary);">Aucun lavage enregistré.</p>
+        {% endif %}
+    </section>
+
+    <section class="card">
+        <div class="employee-history-section-head">
+            <div>
+                <h2 class="mb-2">Mes problèmes signalés</h2>
+                <p class="employee-history-section-copy">Suivi des incidents ou besoins remontés par votre compte.</p>
+            </div>
+            <a href="{% url 'mes_problemes' %}" class="btn btn-warning">Voir tous mes problèmes</a>
+        </div>
+
+        {% if problemes %}
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Catégorie</th>
+                        <th>Statut</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for probleme in problemes %}
+                    <tr>
+                        <td>{{ probleme.created_at|date:"d/m/Y" }}</td>
+                        <td>{{ probleme.get_categorie_display }}</td>
+                        <td>
+                            {% if probleme.statut == "OUVERT" %}
+                            <span class="employee-history-status employee-history-status--wait">Ouvert</span>
+                            {% elif probleme.statut == "EN_COURS" %}
+                            <span class="employee-history-status employee-history-status--info">En cours</span>
+                            {% elif probleme.statut == "RESOLU" %}
+                            <span class="employee-history-status employee-history-status--ok">Résolu</span>
+                            {% else %}
+                            <span class="employee-history-status employee-history-status--issue">{{ probleme.statut }}</span>
+                            {% endif %}
+                        </td>
+                        <td><a href="{% url 'detail_probleme' probleme.id %}" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Voir</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p style="color: var(--text-secondary);">Aucun problème signalé.</p>
+        {% endif %}
+    </section>
+
     <div class="mt-3">
-        <a href="{% url 'mes_lavages' %}" class="btn btn-primary">Voir tous mes lavages</a>
+        <a href="{% url 'employe_dashboard' %}" class="btn btn-primary">Retour au tableau de bord</a>
     </div>
-    {% else %}
-    <p style="color: var(--text-secondary);">Aucun lavage enregistré.</p>
-    {% endif %}
-</div>
-
-<!-- Problèmes signalés -->
-<div class="card">
-    <h2 class="mb-3">Mes problèmes signalés</h2>
-    {% if problemes %}
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Catégorie</th>
-                    <th>Statut</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for probleme in problemes %}
-                <tr>
-                    <td>{{ probleme.created_at|date:"d/m/Y" }}</td>
-                    <td>{{ probleme.get_categorie_display }}</td>
-                    <td>
-                        {% if probleme.statut == "OUVERT" %}
-                        <span style="color: var(--warning-color);">● Ouvert</span>
-                        {% elif probleme.statut == "EN_COURS" %}
-                        <span style="color: var(--primary-color);">● En cours</span>
-                        {% elif probleme.statut == "RESOLU" %}
-                        <span style="color: var(--success-color);">✓ Résolu</span>
-                        {% endif %}
-                    </td>
-                    <td><a href="{% url 'detail_probleme' probleme.id %}" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Voir</a></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    <div class="mt-3">
-        <a href="{% url 'mes_problemes' %}" class="btn btn-warning">Voir tous mes problèmes</a>
-    </div>
-    {% else %}
-    <p style="color: var(--text-secondary);">Aucun problème signalé.</p>
-    {% endif %}
-</div>
-
-<div class="mt-3">
-    <a href="{% url 'employe_dashboard' %}" class="btn btn-primary">Retour au tableau de bord</a>
 </div>
 {% endblock %}

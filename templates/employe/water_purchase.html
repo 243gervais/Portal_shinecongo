@@ -226,9 +226,9 @@
         </div>
         <div class="employee-water-side">
             <div class="employee-water-side-card">
-                <div class="employee-water-side-label">Tarif appliqué</div>
-                <div class="employee-water-side-value">{{ default_amount|floatformat:0 }} FC</div>
-                <div class="employee-water-side-copy">Le montant est appliqué automatiquement lors du signalement.</div>
+                <div class="employee-water-side-label">Enregistrement</div>
+                <div class="employee-water-side-value">Automatique</div>
+                <div class="employee-water-side-copy">Le tarif du mois est appliqué côté administration sans afficher de montant ici.</div>
             </div>
             <div class="employee-water-side-card">
                 <div class="employee-water-side-label">Statut du jour</div>
@@ -285,7 +285,7 @@
             <div>
                 <h2 class="mb-2">Signaler l'achat d'eau</h2>
                 <p style="margin: 0; color: var(--text-secondary);">
-                    L'équipe n'a rien à saisir. Un clic enregistre automatiquement l'achat du jour à {{ default_amount|floatformat:0 }} FC pour {{ billing_month|date:"m/Y" }}.
+                    L'équipe n'a rien à saisir. Un clic enregistre automatiquement l'achat du jour pour {{ billing_month|date:"m/Y" }}.
                 </p>
             </div>
             <a href="{% url 'employe_dashboard' %}" class="btn btn-secondary">Retour</a>
@@ -299,10 +299,10 @@
                     <h3 class="employee-water-row-title" style="margin-top: 0.75rem;">Achat enregistré pour {{ today_purchase.purchase_date|date:"d/m/Y" }}</h3>
                     <p class="employee-water-row-meta">
                         Déclaré par {% if today_purchase.created_by %}{{ today_purchase.created_by.get_full_name|default:today_purchase.created_by.username }}{% else %}un employé{% endif %}
-                        à {{ today_purchase.created_at|date:"H:i" }}. Si le montant ou la date est faux, l'administrateur peut le modifier dans le suivi eau.
+                        à {{ today_purchase.created_at|date:"H:i" }}. Si la date ou la catégorie est fausse, l'administrateur peut la corriger dans le suivi eau.
                     </p>
                 </div>
-                <div class="employee-water-row-value">{{ today_purchase.amount_fc|floatformat:0 }} FC</div>
+                <div class="employee-water-row-value">Transmis à l'admin</div>
             </div>
             {% else %}
             <form method="post">
@@ -339,7 +339,7 @@
                         {% endif %}
                     </div>
                 </div>
-                <div class="employee-water-row-value">{{ purchase.amount_fc|floatformat:0 }} FC</div>
+                <div class="employee-water-row-value">Enregistré</div>
             </article>
             {% endfor %}
         </div>
