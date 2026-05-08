@@ -292,6 +292,41 @@ class SiteDocumentUploadTests(TestCase):
         self.assertTrue(SiteDocument.objects.filter(site=self.site, title="Photos chantier (1)").exists())
         self.assertTrue(SiteDocument.objects.filter(site=self.site, title="Photos chantier (2)").exists())
 
+    def test_admin_can_rename_site_document_from_library(self):
+        document = SiteDocument.objects.create(
+            site=self.site,
+            file_type="PHOTO_CONSTRUCTION",
+            title="Photo chantier A",
+            description="Avant renommage",
+            file=SimpleUploadedFile("chantier-a.jpg", b"fake-image-content", content_type="image/jpeg"),
+            uploaded_by=self.admin_user,
+        )
+
+        library_response = self.client.get(reverse("admin_site_documents", args=[self.site.id]))
+        self.assertEqual(library_response.status_code, 200)
+        self.assertContains(
+            library_response,
+            reverse("admin_edit_site_document", args=[self.site.id, document.id]),
+        )
+        self.assertContains(library_response, "Renommer")
+
+        response = self.client.post(
+            reverse("admin_edit_site_document", args=[self.site.id, document.id]),
+            data={
+                "title": "Photo chantier renommée",
+                "next": reverse("admin_site_documents", args=[self.site.id]),
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(
+            response,
+            reverse("admin_site_documents", args=[self.site.id]),
+            fetch_redirect_response=False,
+        )
+        document.refresh_from_db()
+        self.assertEqual(document.title, "Photo chantier renommée")
+
 
 class EmployeePaymentShareTests(TestCase):
     def setUp(self):

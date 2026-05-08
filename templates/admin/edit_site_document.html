@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}Renommer un document - {{ site.nom }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .doc-rename-shell {
+        display: grid;
+        gap: 1.25rem;
+    }
+
+    .doc-rename-hero {
+        border-radius: 28px;
+        padding: 1.7rem;
+        background:
+            radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 34%),
+            linear-gradient(135deg, #071a2c 0%, #0e3555 48%, #16608f 100%);
+        color: #f8fbff;
+        box-shadow: 0 24px 60px rgba(7, 26, 44, 0.18);
+    }
+
+    .doc-rename-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+        gap: 1.1rem;
+    }
+
+    .doc-rename-card {
+        border-radius: 24px;
+        padding: 1.3rem;
+        background: rgba(255, 255, 255, 0.98);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        box-shadow: 0 18px 45px rgba(11, 31, 53, 0.08);
+    }
+
+    .doc-rename-preview {
+        border-radius: 20px;
+        overflow: hidden;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        background: rgba(7, 26, 44, 0.03);
+    }
+
+    .doc-rename-preview img,
+    .doc-rename-preview video {
+        width: 100%;
+        display: block;
+        height: auto;
+    }
+
+    .doc-rename-filebox {
+        display: grid;
+        place-items: center;
+        min-height: 240px;
+        text-align: center;
+        padding: 1.25rem;
+        color: var(--primary-dark);
+    }
+
+    .doc-rename-meta {
+        display: grid;
+        gap: 0.85rem;
+        margin-top: 1rem;
+    }
+
+    .doc-rename-meta-row {
+        padding: 0.95rem 1rem;
+        border-radius: 16px;
+        background: rgba(10, 67, 107, 0.04);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .doc-rename-meta-label {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-secondary);
+        font-weight: 700;
+    }
+
+    .doc-rename-meta-value {
+        margin-top: 0.25rem;
+        color: var(--primary-dark);
+        font-weight: 700;
+        word-break: break-word;
+    }
+
+    .doc-rename-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+
+    @media (max-width: 860px) {
+        .doc-rename-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="doc-rename-shell">
+    <section class="doc-rename-hero">
+        <div style="display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; flex-wrap: wrap;">
+            <div>
+                <p style="margin: 0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(248, 251, 255, 0.76);">Bibliothèque documentaire</p>
+                <h1 style="margin: 0.65rem 0 0.35rem;">Renommer un document</h1>
+                <p style="margin: 0; max-width: 44rem; color: rgba(248, 251, 255, 0.84);">
+                    Modifiez le nom affiché dans la bibliothèque sans toucher au fichier source.
+                </p>
+            </div>
+            <a href="{{ next_url }}" class="btn btn-secondary">← Retour à la bibliothèque</a>
+        </div>
+    </section>
+
+    <div class="doc-rename-grid">
+        <section class="doc-rename-card">
+            <h2 style="margin-top: 0;">Nouveau nom</h2>
+            <p style="color: var(--text-secondary); margin-top: 0.35rem;">
+                Le fichier reste le même. Seul le titre affiché dans `Documents du site` sera mis à jour.
+            </p>
+
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next_url }}">
+
+                <div class="form-group">
+                    <label for="title">Nom affiché *</label>
+                    <input
+                        type="text"
+                        id="title"
+                        name="title"
+                        class="form-control"
+                        maxlength="200"
+                        required
+                        value="{% if request.method == 'POST' %}{{ request.POST.title }}{% else %}{{ document.title }}{% endif %}"
+                    >
+                    <small style="color: var(--text-secondary);">C'est ce nom qui apparaîtra dans la carte du document.</small>
+                </div>
+
+                <div class="doc-rename-actions">
+                    <button type="submit" class="btn btn-primary">Enregistrer le nouveau nom</button>
+                    <a href="{{ document.file.url }}" target="_blank" class="btn btn-info">Ouvrir le fichier</a>
+                    <a href="{{ next_url }}" class="btn btn-secondary">Annuler</a>
+                </div>
+            </form>
+        </section>
+
+        <aside class="doc-rename-card">
+            <div class="doc-rename-preview">
+                {% if document.is_image %}
+                <img src="{{ document.file.url }}" alt="{{ document.title }}">
+                {% elif document.is_video %}
+                <video controls>
+                    <source src="{{ document.file.url }}" type="video/mp4">
+                    Votre navigateur ne supporte pas la lecture de vidéos.
+                </video>
+                {% else %}
+                <div class="doc-rename-filebox">
+                    <div>
+                        <div style="font-size: 2.6rem; line-height: 1;">📎</div>
+                        <div style="margin-top: 0.65rem; font-weight: 800;">{{ document.get_file_type_display }}</div>
+                        <div style="margin-top: 0.3rem; color: var(--text-secondary);">{{ document.filename }}</div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="doc-rename-meta">
+                <div class="doc-rename-meta-row">
+                    <div class="doc-rename-meta-label">Nom actuel</div>
+                    <div class="doc-rename-meta-value">{{ document.title }}</div>
+                </div>
+                <div class="doc-rename-meta-row">
+                    <div class="doc-rename-meta-label">Type</div>
+                    <div class="doc-rename-meta-value">{{ document.get_file_type_display }}</div>
+                </div>
+                <div class="doc-rename-meta-row">
+                    <div class="doc-rename-meta-label">Fichier source</div>
+                    <div class="doc-rename-meta-value">{{ document.filename }}</div>
+                </div>
+                <div class="doc-rename-meta-row">
+                    <div class="doc-rename-meta-label">Uploadé le</div>
+                    <div class="doc-rename-meta-value">{{ document.uploaded_at|date:"d/m/Y à H:i" }}</div>
+                </div>
+                <div class="doc-rename-meta-row">
+                    <div class="doc-rename-meta-label">Uploadé par</div>
+                    <div class="doc-rename-meta-value">{% if document.uploaded_by %}{{ document.uploaded_by.get_full_name|default:document.uploaded_by.username }}{% else %}Non renseigné{% endif %}</div>
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}

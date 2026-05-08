@@ -4309,6 +4309,58 @@ def admin_upload_site_document(request, site_id):
 
 @login_required
 @no_cache_view
+def admin_edit_site_document(request, site_id, document_id):
+    """
+    Renommer un document déjà présent dans la bibliothèque du site.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    site = get_object_or_404(Location, id=site_id)
+    document = get_object_or_404(SiteDocument, id=document_id, site=site)
+    next_url = _safe_next_url(request) or reverse('admin_site_documents', args=[site.id])
+
+    if request.method == 'POST':
+        title = request.POST.get('title', '').strip()
+        next_url = _safe_next_url(request) or reverse('admin_site_documents', args=[site.id])
+
+        if not title:
+            messages.error(request, "Le nom du document est requis.")
+        elif title == document.title:
+            messages.info(request, "Aucune modification détectée sur le nom du document.")
+            return redirect(next_url)
+        else:
+            old_title = document.title
+            document.title = title
+            document.save(update_fields=['title', 'updated_at'])
+
+            AuditLog.log(
+                user=user,
+                action="MODIFIER",
+                description=f"Document renommé pour le site {site.nom}: {old_title} → {title}",
+                content_object=document,
+                donnees_avant={'title': old_title},
+                donnees_apres={'title': title},
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request),
+            )
+
+            messages.success(request, f'Document renommé avec succès: "{title}".')
+            return redirect(next_url)
+
+    return render(request, 'admin/edit_site_document.html', {
+        'site': site,
+        'document': document,
+        'next_url': next_url,
+    })
+
+
+@login_required
+@no_cache_view
 def admin_delete_site_document(request, site_id, document_id):
     """
     Vue pour supprimer un document d'un site
