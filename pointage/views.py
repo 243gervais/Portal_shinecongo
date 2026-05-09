@@ -203,6 +203,59 @@ def _send_final_report_notification(shift, computed_total_amount, issue_count, w
         return False
 
 
+def _send_water_purchase_notification(purchase):
+    recipient = (
+        getattr(settings, "WATER_PURCHASE_NOTIFICATION_EMAIL", "")
+        or getattr(settings, "FINAL_REPORT_NOTIFICATION_EMAIL", "")
+        or ""
+    ).strip()
+    if not recipient:
+        return False
+    email_backend = getattr(settings, "EMAIL_BACKEND", "")
+    uses_smtp_backend = email_backend.endswith("smtp.EmailBackend")
+    if uses_smtp_backend and (
+        not getattr(settings, "EMAIL_HOST", "")
+        or not getattr(settings, "EMAIL_HOST_USER", "")
+        or not getattr(settings, "EMAIL_HOST_PASSWORD", "")
+    ):
+        logger.warning(
+            "Notification email skipped for water purchase because SMTP settings are incomplete"
+        )
+        return False
+
+    reporter_name = (
+        purchase.created_by.get_full_name() or purchase.created_by.username
+        if purchase.created_by else
+        "Employé non précisé"
+    )
+    subject = (
+        f"Achat d'eau signalé - "
+        f"{purchase.site.nom} - {purchase.purchase_date.strftime('%d/%m/%Y')}"
+    )
+    message = "\n".join([
+        f"Employé: {reporter_name}",
+        f"Site: {purchase.site.nom}",
+        f"Date d'achat: {purchase.purchase_date.strftime('%d/%m/%Y')}",
+        f"Mois rattaché: {purchase.billing_month.strftime('%m/%Y')}",
+        f"Montant enregistré: {purchase.amount_fc:,.0f} FC".replace(",", " "),
+        "",
+        f"Notes: {purchase.notes or 'Aucune note'}",
+    ])
+
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            recipient_list=[recipient],
+            fail_silently=False,
+        )
+        return True
+    except Exception:
+        logger.exception("Impossible d'envoyer la notification email de l'achat d'eau")
+        return False
+
+
 @login_required
 @never_cache
 def employe_dashboard(request):
@@ -286,6 +339,7 @@ def employe_water_purchase(request):
             notes=f"Signalé via portail employé par {reporter_name}.",
             created_by=user,
         )
+        _send_water_purchase_notification(purchase)
 
         AuditLog.log(
             user=user,

@@ -170,6 +170,12 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(purchase.amount_fc, get_water_purchase_default_amount(today))
         self.assertEqual(purchase.created_by, self.user)
         self.assertIn("Signalé via portail employé", purchase.notes)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("Achat d'eau signalé", mail.outbox[0].subject)
+        self.assertEqual(mail.outbox[0].to, ["mbadunkokorigervais@gmail.com"])
+        self.assertIn("Employé: jules", mail.outbox[0].body)
+        self.assertIn("Site: Ngaliema Test", mail.outbox[0].body)
+        self.assertIn("Montant enregistré: 22 000 FC", mail.outbox[0].body)
 
     def test_employee_water_purchase_page_renders(self):
         response = self.client.get(reverse("employe_water_purchase"))
