@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from urllib.parse import urlparse
 
@@ -15,6 +15,7 @@ from lavages.models import CarWash
 from sites.models import Location, SiteDocument, SiteJournalEntry, SiteWaterPurchase
 from sites.models import DailyBankDeposit, SiteLossEntry
 from pointage.models import ShiftDay
+from problemes.models import IssueReport
 
 
 class AccountApprovalFlowTests(TestCase):
@@ -571,6 +572,17 @@ class SiteJournalEntryTests(TestCase):
             amount_fc=Decimal("12000.00"),
             created_by=self.admin_user,
         )
+        issue = IssueReport.objects.create(
+            employe=employee,
+            site=self.site,
+            categorie="EAU",
+            description="Le tuyau principal fuit près du réservoir.",
+            statut="OUVERT",
+        )
+        IssueReport.objects.filter(id=issue.id).update(
+            created_at=timezone.make_aware(datetime(2026, 4, 15, 10, 0)),
+            updated_at=timezone.make_aware(datetime(2026, 4, 15, 10, 0)),
+        )
 
         response = self.client.get(
             reverse("admin_site_detail", args=[self.site.id]),
@@ -584,12 +596,20 @@ class SiteJournalEntryTests(TestCase):
         self.assertContains(response, "Journal quotidien de la période")
         self.assertContains(response, "Dépôts bancaires de la période")
         self.assertContains(response, "Pertes et dépenses de la période")
-        self.assertContains(response, "Rapports employés, eau et journal du site")
+        self.assertContains(response, "Rapports employés, eau, problèmes et journal du site")
         self.assertContains(response, "50 000 FC")
         self.assertContains(response, "14 000 FC")
         self.assertContains(response, "22 000 FC")
         self.assertContains(response, "Transport équipe")
         self.assertContains(response, "Achat de matériel")
+        self.assertContains(response, "Problèmes signalés")
+        self.assertContains(response, "Problèmes: 1 • Eau: 1 • Journal: 1")
+        self.assertContains(response, "Le tuyau principal fuit près du réservoir.")
+        self.assertContains(response, 'href="#historique-lavages"')
+        self.assertContains(response, 'href="#period-bank-deposits"')
+        self.assertContains(response, 'href="#period-losses"')
+        self.assertContains(response, 'href="#period-reports"')
+        self.assertContains(response, 'href="#period-activity-stream"')
         self.assertTrue(response.context["show_period_breakdown"])
         self.assertEqual(response.context["period_bank_deposit_total"], Decimal("50000"))
         self.assertEqual(response.context["period_losses_total"], Decimal("14000"))
