@@ -1669,6 +1669,20 @@ def admin_site_detail(request, site_id):
     filter_today = request.GET.get('filter_today', 'false') == 'true'
     selected_single_date = None  # Date unique sélectionnée pour affichage détaillé
     selected_week_anchor = today
+    parsed_date_debut = None
+    parsed_date_fin = None
+
+    if date_debut:
+        try:
+            parsed_date_debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
+        except ValueError:
+            parsed_date_debut = None
+
+    if date_fin:
+        try:
+            parsed_date_fin = datetime.strptime(date_fin, '%Y-%m-%d').date()
+        except ValueError:
+            parsed_date_fin = None
 
     if week_anchor_param:
         try:
@@ -1685,29 +1699,24 @@ def admin_site_detail(request, site_id):
         selected_date_end = today
         selected_single_date = today
         selected_week_anchor = today
-    elif date_debut and date_fin and date_debut == date_fin:
+    elif parsed_date_debut and parsed_date_fin and parsed_date_debut == parsed_date_fin:
         # Une seule date sélectionnée - affichage détaillé
-        try:
-            selected_single_date = datetime.strptime(date_debut, '%Y-%m-%d').date()
-            lavages_query = CarWash.objects.filter(site=site, date=selected_single_date)
-            selected_date_start = selected_single_date
-            selected_date_end = selected_single_date
-            selected_week_anchor = selected_single_date
-        except ValueError:
-            lavages_query = CarWash.objects.filter(site=site)
-            selected_date_start = None
-            selected_date_end = None
-    elif date_debut or date_fin:
+        selected_single_date = parsed_date_debut
+        lavages_query = CarWash.objects.filter(site=site, date=selected_single_date)
+        selected_date_start = selected_single_date
+        selected_date_end = selected_single_date
+        selected_week_anchor = selected_single_date
+    elif parsed_date_debut or parsed_date_fin:
         # Filtrer sur une plage de dates
         lavages_query = CarWash.objects.filter(site=site)
-        if date_debut:
-            lavages_query = lavages_query.filter(date__gte=date_debut)
-            selected_date_start = date_debut
+        if parsed_date_debut:
+            lavages_query = lavages_query.filter(date__gte=parsed_date_debut)
+            selected_date_start = parsed_date_debut
         else:
             selected_date_start = None
-        if date_fin:
-            lavages_query = lavages_query.filter(date__lte=date_fin)
-            selected_date_end = date_fin
+        if parsed_date_fin:
+            lavages_query = lavages_query.filter(date__lte=parsed_date_fin)
+            selected_date_end = parsed_date_fin
         else:
             selected_date_end = None
     else:
@@ -1889,6 +1898,220 @@ def admin_site_detail(request, site_id):
     next_week_start = week_start + timedelta(days=7)
     next_week_end = next_week_start + timedelta(days=6)
     can_view_next_week = next_week_start <= today
+
+    show_period_breakdown = bool(
+        selected_date_start and selected_date_end and selected_date_start < selected_date_end
+    )
+
+    period_bank_deposits = []
+    period_bank_deposit_total = Decimal("0")
+    period_losses = []
+    period_losses_total = Decimal("0")
+    period_losses_caisse = Decimal("0")
+    period_losses_banque = Decimal("0")
+    period_bank_net = Decimal("0")
+    period_caisse_balance = Decimal("0")
+    period_reports = []
+    period_reported_total = Decimal("0")
+    period_reports_count = 0
+    period_report_variance = Decimal("0")
+    period_water_purchases = []
+    period_water_total = Decimal("0")
+    period_water_count = 0
+    period_journal_entries = []
+    period_journal_amount_total = Decimal("0")
+    period_journal_count = 0
+    period_problems = []
+    period_problem_count = 0
+    period_presence_count = 0
+    period_distinct_employees = 0
+    period_daily_rows = []
+
+    if show_period_breakdown:
+        period_bank_deposits_qs = DailyBankDeposit.objects.filter(
+            site=site,
+            date__gte=selected_date_start,
+            date__lte=selected_date_end,
+        ).select_related("created_by").order_by("-date", "-created_at")
+        period_losses_qs = SiteLossEntry.objects.filter(
+            site=site,
+            date__gte=selected_date_start,
+            date__lte=selected_date_end,
+        ).select_related("created_by").order_by("-date", "-created_at")
+        period_reports_qs = ShiftDay.objects.filter(
+            site=site,
+            date__gte=selected_date_start,
+            date__lte=selected_date_end,
+            daily_report_confirmed=True,
+        ).select_related("employe").order_by("-date", "-updated_at")
+        period_pointages_qs = ShiftDay.objects.filter(
+            site=site,
+            date__gte=selected_date_start,
+            date__lte=selected_date_end,
+            clock_in_time__isnull=False,
+        ).select_related("employe").order_by("-date", "-clock_in_time")
+        period_water_purchases_qs = SiteWaterPurchase.objects.filter(
+            site=site,
+            purchase_date__gte=selected_date_start,
+            purchase_date__lte=selected_date_end,
+        ).select_related("created_by").order_by("-purchase_date", "-created_at")
+        period_journal_entries_qs = SiteJournalEntry.objects.filter(
+            site=site,
+            entry_date__gte=selected_date_start,
+            entry_date__lte=selected_date_end,
+        ).select_related("created_by").order_by("-entry_date", "-created_at")
+        period_problems_qs = IssueReport.objects.filter(
+            site=site,
+            created_at__date__gte=selected_date_start,
+            created_at__date__lte=selected_date_end,
+        ).select_related("employe").order_by("-created_at")
+
+        period_bank_deposits = list(period_bank_deposits_qs)
+        period_losses = list(period_losses_qs)
+        period_reports = list(period_reports_qs)
+        period_water_purchases = list(period_water_purchases_qs)
+        period_journal_entries = list(period_journal_entries_qs)
+        period_problems = list(period_problems_qs)
+
+        period_bank_deposit_total = _to_decimal_amount(
+            period_bank_deposits_qs.aggregate(total=Sum("amount"))["total"]
+        )
+        period_losses_total = _to_decimal_amount(
+            period_losses_qs.aggregate(total=Sum("amount"))["total"]
+        )
+        period_losses_caisse = _to_decimal_amount(
+            period_losses_qs.filter(funding_source="CAISSE").aggregate(total=Sum("amount"))["total"]
+        )
+        period_losses_banque = _to_decimal_amount(
+            period_losses_qs.filter(funding_source="BANQUE").aggregate(total=Sum("amount"))["total"]
+        )
+        period_bank_net = period_bank_deposit_total - period_losses_banque
+        period_caisse_balance = _to_decimal_amount(chiffre_periode) - period_bank_deposit_total - period_losses_caisse
+        period_reported_total = _to_decimal_amount(
+            period_reports_qs.aggregate(total=Sum("total_amount_reported_fc"))["total"]
+        )
+        period_reports_count = period_reports_qs.count()
+        period_report_variance = period_reported_total - _to_decimal_amount(chiffre_periode)
+        period_water_total = _to_decimal_amount(
+            period_water_purchases_qs.aggregate(total=Sum("amount_fc"))["total"]
+        )
+        period_water_count = period_water_purchases_qs.count()
+        period_journal_amount_total = _to_decimal_amount(
+            period_journal_entries_qs.aggregate(total=Sum("amount_fc"))["total"]
+        )
+        period_journal_count = period_journal_entries_qs.count()
+        period_problem_count = period_problems_qs.count()
+        period_presence_count = period_pointages_qs.count()
+        period_distinct_employees = period_pointages_qs.values("employe_id").distinct().count()
+
+        cash_by_day = {
+            row["date"]: {
+                "cash_flow": _to_decimal_amount(row["cash_flow"]),
+                "lavages_count": row["lavages_count"] or 0,
+            }
+            for row in CarWash.objects.filter(
+                site=site,
+                date__gte=selected_date_start,
+                date__lte=selected_date_end,
+            ).values("date").annotate(
+                cash_flow=Sum("montant"),
+                lavages_count=Count("id"),
+            )
+        }
+        reports_by_day = {
+            row["date"]: {
+                "reported_cash": _to_decimal_amount(row["reported_cash"]),
+                "reports_count": row["reports_count"] or 0,
+            }
+            for row in ShiftDay.objects.filter(
+                site=site,
+                date__gte=selected_date_start,
+                date__lte=selected_date_end,
+                daily_report_confirmed=True,
+            ).values("date").annotate(
+                reported_cash=Sum("total_amount_reported_fc"),
+                reports_count=Count("id"),
+            )
+        }
+        deposits_by_day = {deposit.date: deposit for deposit in period_bank_deposits}
+        losses_by_day = {
+            row["date"]: {
+                "pertes_total": _to_decimal_amount(row["pertes_total"]),
+                "pertes_caisse": _to_decimal_amount(row["pertes_caisse"]),
+                "pertes_banque": _to_decimal_amount(row["pertes_banque"]),
+                "losses_count": row["losses_count"] or 0,
+            }
+            for row in SiteLossEntry.objects.filter(
+                site=site,
+                date__gte=selected_date_start,
+                date__lte=selected_date_end,
+            ).values("date").annotate(
+                pertes_total=Sum("amount"),
+                pertes_caisse=Sum("amount", filter=Q(funding_source="CAISSE")),
+                pertes_banque=Sum("amount", filter=Q(funding_source="BANQUE")),
+                losses_count=Count("id"),
+            )
+        }
+        problems_by_day = {
+            row["created_at__date"]: row["problem_count"] or 0
+            for row in period_problems_qs.values("created_at__date").annotate(problem_count=Count("id"))
+        }
+        water_by_day = {
+            row["purchase_date"]: {
+                "water_count": row["water_count"] or 0,
+                "water_total": _to_decimal_amount(row["water_total"]),
+            }
+            for row in period_water_purchases_qs.values("purchase_date").annotate(
+                water_count=Count("id"),
+                water_total=Sum("amount_fc"),
+            )
+        }
+        journal_by_day = {
+            row["entry_date"]: {
+                "journal_count": row["journal_count"] or 0,
+                "journal_amount": _to_decimal_amount(row["journal_amount"]),
+            }
+            for row in period_journal_entries_qs.values("entry_date").annotate(
+                journal_count=Count("id"),
+                journal_amount=Sum("amount_fc"),
+            )
+        }
+
+        cursor = selected_date_start
+        while cursor <= selected_date_end:
+            day_cash = cash_by_day.get(cursor, {})
+            day_reports = reports_by_day.get(cursor, {})
+            day_deposit = deposits_by_day.get(cursor)
+            day_losses = losses_by_day.get(cursor, {})
+            day_water = water_by_day.get(cursor, {})
+            day_journal = journal_by_day.get(cursor, {})
+
+            cash_flow_day = _to_decimal_amount(day_cash.get("cash_flow"))
+            bank_deposit_day = _to_decimal_amount(day_deposit.amount if day_deposit else 0)
+            pertes_caisse_day = _to_decimal_amount(day_losses.get("pertes_caisse"))
+            pertes_banque_day = _to_decimal_amount(day_losses.get("pertes_banque"))
+            pertes_total_day = _to_decimal_amount(day_losses.get("pertes_total"))
+
+            period_daily_rows.append(
+                {
+                    "date": cursor,
+                    "cash_flow": cash_flow_day,
+                    "lavages_count": day_cash.get("lavages_count", 0),
+                    "reported_cash": _to_decimal_amount(day_reports.get("reported_cash")),
+                    "reports_count": day_reports.get("reports_count", 0),
+                    "bank_deposit": bank_deposit_day,
+                    "bank_net": bank_deposit_day - pertes_banque_day,
+                    "pertes_total": pertes_total_day,
+                    "pertes_caisse": pertes_caisse_day,
+                    "pertes_banque": pertes_banque_day,
+                    "ecart_caisse": cash_flow_day - bank_deposit_day - pertes_caisse_day,
+                    "problems_count": problems_by_day.get(cursor, 0),
+                    "water_count": day_water.get("water_count", 0),
+                    "journal_count": day_journal.get("journal_count", 0),
+                    "detail_query": f"date_debut={cursor.strftime('%Y-%m-%d')}&date_fin={cursor.strftime('%Y-%m-%d')}",
+                }
+            )
+            cursor += timedelta(days=1)
     
     context = {
         'site': site,
@@ -1939,6 +2162,30 @@ def admin_site_detail(request, site_id):
         'next_week_start': next_week_start,
         'next_week_end': next_week_end,
         'can_view_next_week': can_view_next_week,
+        'show_period_breakdown': show_period_breakdown,
+        'period_bank_deposits': period_bank_deposits,
+        'period_bank_deposit_total': period_bank_deposit_total,
+        'period_losses': period_losses,
+        'period_losses_total': period_losses_total,
+        'period_losses_caisse': period_losses_caisse,
+        'period_losses_banque': period_losses_banque,
+        'period_bank_net': period_bank_net,
+        'period_caisse_balance': period_caisse_balance,
+        'period_reports': period_reports,
+        'period_reported_total': period_reported_total,
+        'period_reports_count': period_reports_count,
+        'period_report_variance': period_report_variance,
+        'period_water_purchases': period_water_purchases,
+        'period_water_total': period_water_total,
+        'period_water_count': period_water_count,
+        'period_journal_entries': period_journal_entries,
+        'period_journal_amount_total': period_journal_amount_total,
+        'period_journal_count': period_journal_count,
+        'period_problems': period_problems,
+        'period_problem_count': period_problem_count,
+        'period_presence_count': period_presence_count,
+        'period_distinct_employees': period_distinct_employees,
+        'period_daily_rows': period_daily_rows,
         'photos_lavages': photos_lavages,
         'problemes_date': problemes_date,
         'problemes_ouverts': problemes_ouverts,

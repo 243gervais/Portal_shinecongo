@@ -1275,12 +1275,60 @@
     <div class="site-section-head">
         <div>
             <h2 class="site-section-title">Synthèse opérationnelle</h2>
-            <p class="site-section-copy">Chiffres rapides pour la période active, la journée et le niveau de supervision du site.</p>
+            <p class="site-section-copy">
+                {% if show_period_breakdown %}
+                Chiffres complets de la période sélectionnée, avec les dépôts, pertes, rapports et événements réellement enregistrés sur cet intervalle.
+                {% else %}
+                Chiffres rapides pour la période active, la journée et le niveau de supervision du site.
+                {% endif %}
+            </p>
         </div>
         <span class="site-section-state">{{ period_label }}</span>
     </div>
     <div class="site-section-body">
         <div class="site-metric-grid">
+            {% if show_period_breakdown %}
+            <div class="site-metric-card">
+                <div class="site-metric-label">Cash flow période</div>
+                <div class="site-metric-value">{{ chiffre_periode|fc_amount }} FC</div>
+                <div class="site-metric-subvalue">~ ${{ chiffre_periode|usd_equivalent }} USD</div>
+            </div>
+            <div class="site-metric-card">
+                <div class="site-metric-label">Lavages période</div>
+                <div class="site-metric-value">{{ total_lavages }}</div>
+                <div class="site-metric-subvalue">Volume total enregistré</div>
+            </div>
+            <div class="site-metric-card">
+                <div class="site-metric-label">Dépôts banque période</div>
+                <div class="site-metric-value">{{ period_bank_deposit_total|fc_amount }} FC</div>
+                <div class="site-metric-subvalue">{{ period_bank_deposits|length }} dépôt{{ period_bank_deposits|length|pluralize }} saisi{{ period_bank_deposits|length|pluralize }}</div>
+            </div>
+            <div class="site-metric-card">
+                <div class="site-metric-label">Banque nette période</div>
+                <div class="site-metric-value" style="color: {% if period_bank_net < 0 %}var(--error-color){% else %}var(--primary-dark){% endif %};">{{ period_bank_net|fc_amount }} FC</div>
+                <div class="site-metric-subvalue">Dépôts moins pertes financées par banque</div>
+            </div>
+            <div class="site-metric-card">
+                <div class="site-metric-label">Pertes période</div>
+                <div class="site-metric-value">{{ period_losses_total|fc_amount }} FC</div>
+                <div class="site-metric-subvalue">Caisse: {{ period_losses_caisse|fc_amount }} FC • Banque: {{ period_losses_banque|fc_amount }} FC</div>
+            </div>
+            <div class="site-metric-card">
+                <div class="site-metric-label">Écart de caisse période</div>
+                <div class="site-metric-value" style="color: {% if period_caisse_balance < 0 %}var(--error-color){% elif period_caisse_balance > 0 %}var(--warning-color){% else %}var(--success-color){% endif %};">{{ period_caisse_balance|fc_amount }} FC</div>
+                <div class="site-metric-subvalue">Lecture consolidée sur la période</div>
+            </div>
+            <div class="site-metric-card">
+                <div class="site-metric-label">Rapports employés période</div>
+                <div class="site-metric-value">{{ period_reported_total|fc_amount }} FC</div>
+                <div class="site-metric-subvalue">{{ period_reports_count }} rapport{{ period_reports_count|pluralize }} confirmé{{ period_reports_count|pluralize }} • écart: {{ period_report_variance|fc_amount }} FC</div>
+            </div>
+            <div class="site-metric-card">
+                <div class="site-metric-label">Événements période</div>
+                <div class="site-metric-value">{{ period_problem_count|add:period_water_count|add:period_journal_count }}</div>
+                <div class="site-metric-subvalue">Problèmes: {{ period_problem_count }} • Eau: {{ period_water_count }} • Journal: {{ period_journal_count }}</div>
+            </div>
+            {% else %}
             <div class="site-metric-card">
                 <div class="site-metric-label">Cash flow période</div>
                 <div class="site-metric-value">{{ chiffre_periode|fc_amount }} FC</div>
@@ -1321,9 +1369,282 @@
                 <div class="site-metric-value">{{ problemes_ouverts.count }}</div>
                 <div class="site-metric-subvalue">Incidents actifs à suivre</div>
             </div>
+            {% endif %}
         </div>
     </div>
 </section>
+
+{% if show_period_breakdown %}
+<section class="site-section-card" id="lecture-complete-periode">
+    <div class="site-section-head">
+        <div>
+            <h2 class="site-section-title">Lecture complète de la période</h2>
+            <p class="site-section-copy">
+                Cette vue liste chaque journée de la période puis détaille les dépôts, pertes, rapports, achats d'eau et notes de journal pour que le mois soit lisible sans aller chercher l'information ailleurs.
+            </p>
+        </div>
+        <span class="site-section-state">{{ period_label }}</span>
+    </div>
+    <div class="site-section-body">
+        <div class="finance-disclosures">
+            <details class="finance-disclosure" open>
+                <summary class="finance-disclosure-head">
+                    <div>
+                        <div class="finance-disclosure-title">Journal quotidien de la période</div>
+                        <div class="finance-disclosure-copy">Chaque ligne résume une journée du mois avec cash flow, dépôt bancaire, pertes et autres événements.</div>
+                    </div>
+                    <span class="finance-disclosure-state">{{ period_daily_rows|length }} jour{{ period_daily_rows|length|pluralize }}</span>
+                </summary>
+                <div class="finance-disclosure-body">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Lavages</th>
+                                    <th>Cash flow</th>
+                                    <th>Rapports</th>
+                                    <th>Dépôt banque</th>
+                                    <th>Pertes</th>
+                                    <th>Banque nette</th>
+                                    <th>Écart caisse</th>
+                                    <th>Eau</th>
+                                    <th>Journal</th>
+                                    <th>Problèmes</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in period_daily_rows %}
+                                <tr>
+                                    <td style="font-weight: 700;">{{ row.date|date:"d/m/Y" }}</td>
+                                    <td>{{ row.lavages_count }}</td>
+                                    <td class="finance-table-money finance-table-money--primary">{{ row.cash_flow|fc_amount }} FC</td>
+                                    <td>
+                                        {{ row.reports_count }} rapport{{ row.reports_count|pluralize }}
+                                        <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.2rem;">{{ row.reported_cash|fc_amount }} FC</div>
+                                    </td>
+                                    <td class="finance-table-money finance-table-money--success">{{ row.bank_deposit|fc_amount }} FC</td>
+                                    <td class="finance-table-money finance-table-money--warning">{{ row.pertes_total|fc_amount }} FC</td>
+                                    <td class="finance-table-money {% if row.bank_net < 0 %}finance-table-money--danger{% endif %}">{{ row.bank_net|fc_amount }} FC</td>
+                                    <td class="finance-table-money {% if row.ecart_caisse < 0 %}finance-table-money--danger{% elif row.ecart_caisse > 0 %}finance-table-money--warning{% endif %}">{{ row.ecart_caisse|fc_amount }} FC</td>
+                                    <td>{{ row.water_count }}</td>
+                                    <td>{{ row.journal_count }}</td>
+                                    <td>{{ row.problems_count }}</td>
+                                    <td>
+                                        <a href="{% url 'admin_site_detail' site.id %}?{{ row.detail_query }}" class="finance-mini-btn finance-mini-btn--light">Ouvrir</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </details>
+
+            <details class="finance-disclosure" {% if period_bank_deposits %}open{% endif %}>
+                <summary class="finance-disclosure-head">
+                    <div>
+                        <div class="finance-disclosure-title">Dépôts bancaires de la période</div>
+                        <div class="finance-disclosure-copy">Tous les montants réellement déposés à la banque sur la période sélectionnée.</div>
+                    </div>
+                    <span class="finance-disclosure-state">{{ period_bank_deposit_total|fc_amount }} FC</span>
+                </summary>
+                <div class="finance-disclosure-body">
+                    {% if period_bank_deposits %}
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Montant</th>
+                                    <th>Note</th>
+                                    <th>Saisi par</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for deposit in period_bank_deposits %}
+                                <tr>
+                                    <td>{{ deposit.date|date:"d/m/Y" }}</td>
+                                    <td class="finance-table-money finance-table-money--success">{{ deposit.amount|fc_amount }} FC</td>
+                                    <td>{{ deposit.notes|default:"Aucune note" }}</td>
+                                    <td>{% if deposit.created_by %}{{ deposit.created_by.get_full_name|default:deposit.created_by.username }}{% else %}Admin{% endif %}</td>
+                                    <td>
+                                        <div class="finance-action-row">
+                                            <a href="{% url 'admin_add_bank_deposit' site.id %}?date={{ deposit.date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}" class="finance-mini-btn finance-mini-btn--light">Modifier</a>
+                                            <a href="{% url 'admin_delete_bank_deposit' site.id deposit.id %}?next={{ request.get_full_path|urlencode }}" class="finance-mini-btn finance-mini-btn--warning">Supprimer</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p style="margin: 0; color: var(--text-secondary);">Aucun dépôt bancaire enregistré sur cette période.</p>
+                    {% endif %}
+                </div>
+            </details>
+
+            <details class="finance-disclosure" {% if period_losses %}open{% endif %}>
+                <summary class="finance-disclosure-head">
+                    <div>
+                        <div class="finance-disclosure-title">Pertes et dépenses de la période</div>
+                        <div class="finance-disclosure-copy">Transport, réparations, consommables et autres dépenses déjà saisies sur le mois.</div>
+                    </div>
+                    <span class="finance-disclosure-state">{{ period_losses_total|fc_amount }} FC</span>
+                </summary>
+                <div class="finance-disclosure-body">
+                    {% if period_losses %}
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Titre</th>
+                                    <th>Catégorie</th>
+                                    <th>Source</th>
+                                    <th>Montant</th>
+                                    <th>Détails</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for loss in period_losses %}
+                                <tr>
+                                    <td>{{ loss.date|date:"d/m/Y" }}</td>
+                                    <td style="font-weight: 700;">{{ loss.title }}</td>
+                                    <td>{{ loss.get_category_display }}</td>
+                                    <td>{{ loss.get_funding_source_display }}</td>
+                                    <td class="finance-table-money finance-table-money--warning">{{ loss.amount|fc_amount }} FC</td>
+                                    <td>{{ loss.description|default:"Aucun détail"|truncatechars:120 }}</td>
+                                    <td>
+                                        <div class="finance-action-row">
+                                            <a href="{% url 'admin_edit_site_loss' site.id loss.id %}?next={{ request.get_full_path|urlencode }}" class="finance-mini-btn finance-mini-btn--light">Modifier</a>
+                                            <a href="{% url 'admin_delete_site_loss' site.id loss.id %}?next={{ request.get_full_path|urlencode }}" class="finance-mini-btn finance-mini-btn--warning">Supprimer</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p style="margin: 0; color: var(--text-secondary);">Aucune perte ou dépense enregistrée sur cette période.</p>
+                    {% endif %}
+                </div>
+            </details>
+
+            <details class="finance-disclosure">
+                <summary class="finance-disclosure-head">
+                    <div>
+                        <div class="finance-disclosure-title">Rapports employés, eau et journal du site</div>
+                        <div class="finance-disclosure-copy">Tous les autres événements remontés sur la période: rapports fin de journée, achats d'eau et notes opérationnelles.</div>
+                    </div>
+                    <span class="finance-disclosure-state">{{ period_reports_count|add:period_water_count|add:period_journal_count }} entrées</span>
+                </summary>
+                <div class="finance-disclosure-body">
+                    <div class="finance-meta-grid">
+                        <div class="finance-meta-block">
+                            <h3>Rapports employés</h3>
+                            {% if period_reports %}
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Employé</th>
+                                            <th>Lavages</th>
+                                            <th>Montant déclaré</th>
+                                            <th>Dépenses</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for report in period_reports %}
+                                        <tr>
+                                            <td>{{ report.date|date:"d/m/Y" }}</td>
+                                            <td>{{ report.employe.get_full_name|default:report.employe.username }}</td>
+                                            <td>{{ report.total_lavages_reported }}</td>
+                                            <td class="finance-table-money">{{ report.total_amount_reported_fc|fc_amount }} FC</td>
+                                            <td class="finance-table-money finance-table-money--warning">{{ report.daily_expenses_total_fc|fc_amount }} FC</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p style="margin: 0; color: var(--text-secondary);">Aucun rapport confirmé sur cette période.</p>
+                            {% endif %}
+                        </div>
+                        <div class="finance-meta-block">
+                            <h3>Achats d'eau</h3>
+                            {% if period_water_purchases %}
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Mois</th>
+                                            <th>Montant</th>
+                                            <th>Saisi par</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for purchase in period_water_purchases %}
+                                        <tr>
+                                            <td>{{ purchase.purchase_date|date:"d/m/Y" }}</td>
+                                            <td>{{ purchase.billing_month|date:"m/Y" }}</td>
+                                            <td class="finance-table-money finance-table-money--primary">{{ purchase.amount_fc|fc_amount }} FC</td>
+                                            <td>{% if purchase.created_by %}{{ purchase.created_by.get_full_name|default:purchase.created_by.username }}{% else %}Admin{% endif %}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p style="margin: 0; color: var(--text-secondary);">Aucun achat d'eau enregistré sur cette période.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1rem;">
+                        <h3 style="margin-top: 0;">Journal du site</h3>
+                        {% if period_journal_entries %}
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Catégorie</th>
+                                        <th>Titre</th>
+                                        <th>Montant lié</th>
+                                        <th>Détails</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for entry in period_journal_entries %}
+                                    <tr>
+                                        <td>{{ entry.entry_date|date:"d/m/Y" }}</td>
+                                        <td>{{ entry.get_category_display }}</td>
+                                        <td style="font-weight: 700;">{{ entry.title }}</td>
+                                        <td>{% if entry.amount_fc %}<span class="finance-table-money">{{ entry.amount_fc|fc_amount }} FC</span>{% else %}<span style="color: var(--text-secondary);">—</span>{% endif %}</td>
+                                        <td>{{ entry.description|default:"Aucun détail"|truncatechars:140 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <p style="margin: 0; color: var(--text-secondary);">Aucune entrée du journal sur cette période.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </details>
+        </div>
+    </div>
+</section>
+{% endif %}
 
 <!-- Pilotage hebdomadaire -->
 <div class="card finance-panel mb-4" id="pilotage-hebdomadaire">

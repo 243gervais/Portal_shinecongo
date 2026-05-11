@@ -508,6 +508,93 @@ class SiteJournalEntryTests(TestCase):
         self.assertContains(response, "Visite du bailleur")
         self.assertContains(response, reverse("admin_site_journal", args=[self.site.id]))
 
+    def test_site_detail_month_view_shows_full_period_finance_details(self):
+        employee = User.objects.create_user(
+            username="period_employee",
+            email="period_employee@example.com",
+            password="EmployeePass123!",
+        )
+        employee.userprofile.role = "EMPLOYE"
+        employee.userprofile.site = self.site
+        employee.userprofile.save()
+
+        CarWash.objects.create(
+            employe=employee,
+            site=self.site,
+            date=date(2026, 4, 11),
+            type_service="COMPLET",
+            plaque="ABC123",
+            montant=Decimal("75000.00"),
+        )
+        DailyBankDeposit.objects.create(
+            site=self.site,
+            date=date(2026, 4, 11),
+            amount=Decimal("50000.00"),
+            notes="Depot du 11 avril",
+            created_by=self.admin_user,
+        )
+        SiteLossEntry.objects.create(
+            site=self.site,
+            date=date(2026, 4, 11),
+            category="TRANSPORT",
+            funding_source="CAISSE",
+            amount=Decimal("14000.00"),
+            title="Transport équipe",
+            description="Navette du personnel",
+            created_by=self.admin_user,
+        )
+        ShiftDay.objects.create(
+            employe=employee,
+            site=self.site,
+            date=date(2026, 4, 11),
+            clock_in_time=timezone.now(),
+            clock_out_time=timezone.now(),
+            daily_report_confirmed=True,
+            total_lavages_reported=4,
+            total_amount_reported_fc=Decimal("75000.00"),
+            daily_expenses_total_fc=Decimal("14000.00"),
+        )
+        SiteWaterPurchase.objects.create(
+            site=self.site,
+            billing_month=date(2026, 4, 1),
+            purchase_date=date(2026, 4, 12),
+            amount_fc=Decimal("22000.00"),
+            notes="Remplissage du tank",
+            created_by=self.admin_user,
+        )
+        SiteJournalEntry.objects.create(
+            site=self.site,
+            entry_date=date(2026, 4, 14),
+            category="DEPENSE",
+            title="Achat de matériel",
+            description="Achat de nouveaux accessoires",
+            amount_fc=Decimal("12000.00"),
+            created_by=self.admin_user,
+        )
+
+        response = self.client.get(
+            reverse("admin_site_detail", args=[self.site.id]),
+            data={"date_debut": "2026-04-01", "date_fin": "2026-04-30"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Lecture complète de la période")
+        self.assertContains(response, "Dépôts banque période")
+        self.assertContains(response, "Banque nette période")
+        self.assertContains(response, "Journal quotidien de la période")
+        self.assertContains(response, "Dépôts bancaires de la période")
+        self.assertContains(response, "Pertes et dépenses de la période")
+        self.assertContains(response, "Rapports employés, eau et journal du site")
+        self.assertContains(response, "50 000 FC")
+        self.assertContains(response, "14 000 FC")
+        self.assertContains(response, "22 000 FC")
+        self.assertContains(response, "Transport équipe")
+        self.assertContains(response, "Achat de matériel")
+        self.assertTrue(response.context["show_period_breakdown"])
+        self.assertEqual(response.context["period_bank_deposit_total"], Decimal("50000"))
+        self.assertEqual(response.context["period_losses_total"], Decimal("14000"))
+        self.assertEqual(response.context["period_water_count"], 1)
+
     def test_site_journal_breaks_down_selected_month_by_category(self):
         SiteJournalEntry.objects.create(
             site=self.site,
