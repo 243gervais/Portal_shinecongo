@@ -120,6 +120,15 @@ class DailyBankDeposit(models.Model):
         related_name="bank_deposits_created",
         verbose_name="Enregistré par"
     )
+    is_system_generated = models.BooleanField(
+        default=False,
+        verbose_name="Généré automatiquement",
+    )
+    system_source = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Source système",
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")
     
@@ -130,6 +139,7 @@ class DailyBankDeposit(models.Model):
         ordering = ["-date", "-created_at"]
         indexes = [
             models.Index(fields=["site", "date"]),
+            models.Index(fields=["is_system_generated", "system_source"]),
             models.Index(fields=["-date"]),
         ]
     
@@ -192,6 +202,15 @@ class SiteLossEntry(models.Model):
         related_name="site_losses_created",
         verbose_name="Enregistré par",
     )
+    is_system_generated = models.BooleanField(
+        default=False,
+        verbose_name="Généré automatiquement",
+    )
+    system_source = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Source système",
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")
 
@@ -201,6 +220,7 @@ class SiteLossEntry(models.Model):
         ordering = ["-date", "-created_at"]
         indexes = [
             models.Index(fields=["site", "date"]),
+            models.Index(fields=["is_system_generated", "system_source"]),
             models.Index(fields=["site", "category"]),
             models.Index(fields=["-created_at"]),
         ]

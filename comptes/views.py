@@ -45,6 +45,7 @@ from lavages.models import CarWash, CarWashPhoto
 from problemes.models import IssueReport
 from pointage.models import ShiftDay
 from pointage.views import _build_initial_daily_expense_form, _parse_daily_expenses_form
+from pointage.report_sync import sync_site_finance_from_daily_reports
 from comptes.models import UserProfile, EmployeePayment
 from audit.models import AuditLog
 from pointage.utils import get_client_ip, get_user_agent
@@ -2562,6 +2563,7 @@ def admin_add_daily_total(request, site_id):
                 ip_address=get_client_ip(request),
                 user_agent=get_user_agent(request)
             )
+            sync_site_finance_from_daily_reports(site, date_obj, actor=user)
             
             messages.success(request, f'Montant total de {montant_decimal:,.0f} FC ajouté avec succès pour le {date_obj.strftime("%d/%m/%Y")} !')
             return redirect('admin_site_detail', site_id=site.id)
@@ -2715,6 +2717,7 @@ def admin_add_wash(request, site_id):
                 ip_address=get_client_ip(request),
                 user_agent=get_user_agent(request)
             )
+            sync_site_finance_from_daily_reports(site, date_obj, actor=user)
             
             messages.success(request, f'Lavage enregistré avec succès pour le {date_obj.strftime("%d/%m/%Y")} !')
             return _redirect_to_admin_site_detail(request, site)
@@ -2815,6 +2818,7 @@ def admin_edit_wash(request, site_id, lavage_id):
                 'montant': str(lavage.montant),
                 'notes': lavage.notes,
             }
+            original_date = lavage.date
 
             lavage.employe = employe
             lavage.date = date_obj
@@ -2854,6 +2858,9 @@ def admin_edit_wash(request, site_id, lavage_id):
                 ip_address=get_client_ip(request),
                 user_agent=get_user_agent(request),
             )
+            sync_site_finance_from_daily_reports(site, date_obj, actor=user)
+            if original_date != date_obj:
+                sync_site_finance_from_daily_reports(site, original_date, actor=user)
 
             if added_photos:
                 messages.success(request, f"Lavage modifié avec succès. {added_photos} photo(s) ajoutée(s).")
@@ -2919,6 +2926,7 @@ def admin_delete_wash(request, site_id, lavage_id):
             ip_address=get_client_ip(request),
             user_agent=get_user_agent(request),
         )
+        sync_site_finance_from_daily_reports(site, lavage.date, actor=user)
 
         messages.success(request, "Lavage supprimé avec succès.")
         return _redirect_to_admin_site_detail(request, site)
@@ -3025,6 +3033,7 @@ def admin_edit_pointage(request, site_id, pointage_id):
             pointage.correction_reason = motif
             pointage.corrected_at = timezone.now()
             pointage.save()
+            sync_site_finance_from_daily_reports(site, pointage.date, actor=user)
 
             donnees_apres = {
                 'clock_in_time': str(pointage.clock_in_time) if pointage.clock_in_time else None,
@@ -3098,7 +3107,9 @@ def admin_delete_pointage(request, site_id, pointage_id):
             'clock_out_time': str(pointage.clock_out_time) if pointage.clock_out_time else None,
             'total_lavages_reported': pointage.total_lavages_reported,
         }
+        should_sync_finance = pointage.daily_report_confirmed
         pointage_label = str(pointage)
+        pointage_date = pointage.date
         pointage.delete()
 
         AuditLog.log(
@@ -3110,6 +3121,8 @@ def admin_delete_pointage(request, site_id, pointage_id):
             ip_address=get_client_ip(request),
             user_agent=get_user_agent(request),
         )
+        if should_sync_finance:
+            sync_site_finance_from_daily_reports(site, pointage_date, actor=user)
 
         messages.success(request, "Pointage supprimé avec succès.")
         return _redirect_to_admin_site_detail(request, site)
@@ -3170,6 +3183,7 @@ def admin_delete_daily_report(request, site_id, pointage_id):
         pointage.correction_reason = motif
         pointage.corrected_at = timezone.now()
         pointage.save()
+        sync_site_finance_from_daily_reports(site, pointage.date, actor=user)
 
         donnees_apres = {
             'daily_report_confirmed': pointage.daily_report_confirmed,

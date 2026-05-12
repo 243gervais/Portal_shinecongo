@@ -8,6 +8,7 @@ from decimal import Decimal, InvalidOperation
 from .models import CarWash, CarWashPhoto
 from audit.models import AuditLog
 from pointage.utils import get_client_ip, get_user_agent
+from pointage.report_sync import sync_site_finance_from_daily_reports
 
 
 @login_required
@@ -139,6 +140,7 @@ def ajouter_lavage(request):
                 ip_address=get_client_ip(request),
                 user_agent=get_user_agent(request)
             )
+            sync_site_finance_from_daily_reports(site, lavage.date, actor=user)
             
             messages.success(request, 'Lavage enregistré avec succès !')
             return redirect('employe_dashboard')

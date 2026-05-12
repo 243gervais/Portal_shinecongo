@@ -54,6 +54,15 @@ class CarWash(models.Model):
         verbose_name="Montant payé (FC)"
     )
     notes = models.TextField(blank=True, verbose_name="Notes")
+    is_system_generated = models.BooleanField(
+        default=False,
+        verbose_name="Généré automatiquement",
+    )
+    system_source = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="Source système",
+    )
     
     # Métadonnées
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
@@ -66,6 +75,7 @@ class CarWash(models.Model):
         indexes = [
             models.Index(fields=["employe", "date"]),
             models.Index(fields=["site", "date"]),
+            models.Index(fields=["is_system_generated", "system_source"]),
             models.Index(fields=["-created_at"]),
         ]
     

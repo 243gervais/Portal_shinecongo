@@ -10,7 +10,7 @@ from django.utils import timezone
 from comptes.forms import get_water_purchase_default_amount
 from lavages.models import CarWash
 from pointage.models import ShiftDay
-from sites.models import Location, SiteWaterPurchase
+from sites.models import DailyBankDeposit, Location, SiteLossEntry, SiteWaterPurchase
 
 
 @override_settings(
@@ -25,6 +25,11 @@ class EmployeeDailyReportTests(TestCase):
             adresse="Avenue Test",
             ville="Kinshasa",
             actif=True,
+        )
+        self.admin_user = User.objects.create_superuser(
+            username="report_admin",
+            email="report_admin@example.com",
+            password="AdminPass123!",
         )
         self.user = User.objects.create_user(
             username="jules",
@@ -70,6 +75,223 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(mail.outbox[0].to, ["mbadunkokorigervais@gmail.com"])
         self.assertIn("Montant déclaré: 15 000 FC", mail.outbox[0].body)
         self.assertIn("Dépenses du jour: 16 000 FC", mail.outbox[0].body)
+
+    def test_final_report_auto_syncs_daily_total_expenses_and_bank_deposit(self):
+        today = timezone.localdate()
+        CarWash.objects.create(
+            employe=self.user,
+            site=self.site,
+            date=today,
+            type_service="COMPLET",
+            plaque="ABC123",
+            montant=Decimal("28000.00"),
+        )
+
+        response = self.client.post(
+            reverse("employe_daily_report"),
+            data={
+                "total_amount_reported_fc": "60000",
+                "known_expense_transport_personnels_enabled": "1",
+                "known_expense_transport_personnels_amount": "24000",
+                "custom_expense_label": [""],
+                "custom_expense_amount": [""],
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        auto_adjustment = CarWash.objects.get(
+            site=self.site,
+            date=today,
+            is_system_generated=True,
+            system_source="DAILY_REPORT_SYNC",
+        )
+        self.assertEqual(auto_adjustment.montant, Decimal("32000.00"))
+        self.assertEqual(auto_adjustment.employe, self.admin_user)
+        self.assertIn("Ajustement automatique du rapport de fin de journée", auto_adjustment.notes)
+
+        auto_expense = SiteLossEntry.objects.get(
+            site=self.site,
+            date=today,
+            is_system_generated=True,
+            system_source="DAILY_REPORT_SYNC",
+            title="Transport de Personnels",
+        )
+        self.assertEqual(auto_expense.amount, Decimal("24000.00"))
+        self.assertEqual(auto_expense.funding_source, "CAISSE")
+
+        auto_deposit = DailyBankDeposit.objects.get(site=self.site, date=today)
+        self.assertTrue(auto_deposit.is_system_generated)
+        self.assertEqual(auto_deposit.amount, Decimal("36000.00"))
+        self.assertIn("rapport de fin de journée", auto_deposit.notes.lower())
+
+    def test_updating_final_report_recomputes_auto_finance_records(self):
+        today = timezone.localdate()
+        CarWash.objects.create(
+            employe=self.user,
+            site=self.site,
+            date=today,
+            type_service="COMPLET",
+            plaque="ABC123",
+            montant=Decimal("28000.00"),
+        )
+
+        self.client.post(
+            reverse("employe_daily_report"),
+            data={
+                "total_amount_reported_fc": "60000",
+                "known_expense_transport_personnels_enabled": "1",
+                "known_expense_transport_personnels_amount": "24000",
+                "custom_expense_label": [""],
+                "custom_expense_amount": [""],
+            },
+        )
+
+        response = self.client.post(
+            reverse("employe_daily_report"),
+            data={
+                "total_amount_reported_fc": "70000",
+                "known_expense_transport_personnels_enabled": "1",
+                "known_expense_transport_personnels_amount": "10000",
+                "custom_expense_label": ["Savon"],
+                "custom_expense_amount": ["5000"],
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        auto_adjustment = CarWash.objects.get(
+            site=self.site,
+            date=today,
+            is_system_generated=True,
+            system_source="DAILY_REPORT_SYNC",
+        )
+        self.assertEqual(auto_adjustment.montant, Decimal("42000.00"))
+
+        auto_expenses = SiteLossEntry.objects.filter(
+            site=self.site,
+            date=today,
+            is_system_generated=True,
+            system_source="DAILY_REPORT_SYNC",
+        ).order_by("title")
+        self.assertEqual(auto_expenses.count(), 2)
+        self.assertEqual(auto_expenses[0].title, "Savon")
+        self.assertEqual(auto_expenses[0].amount, Decimal("5000.00"))
+        self.assertEqual(auto_expenses[1].title, "Transport de Personnels")
+        self.assertEqual(auto_expenses[1].amount, Decimal("10000.00"))
+
+        auto_deposit = DailyBankDeposit.objects.get(site=self.site, date=today)
+        self.assertEqual(auto_deposit.amount, Decimal("55000.00"))
+
+    def test_admin_delete_daily_report_clears_auto_synced_finance_records(self):
+        today = timezone.localdate()
+        CarWash.objects.create(
+            employe=self.user,
+            site=self.site,
+            date=today,
+            type_service="COMPLET",
+            plaque="ABC123",
+            montant=Decimal("28000.00"),
+        )
+        self.client.post(
+            reverse("employe_daily_report"),
+            data={
+                "total_amount_reported_fc": "60000",
+                "known_expense_transport_personnels_enabled": "1",
+                "known_expense_transport_personnels_amount": "24000",
+                "custom_expense_label": [""],
+                "custom_expense_amount": [""],
+            },
+        )
+
+        shift = ShiftDay.objects.get(employe=self.user, date=today)
+        admin_client = self.client_class()
+        admin_client.login(username="report_admin", password="AdminPass123!")
+        response = admin_client.post(
+            reverse("admin_delete_daily_report", args=[self.site.id, shift.id]),
+            data={"motif": "Annulation du rapport automatique"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(
+            CarWash.objects.filter(
+                site=self.site,
+                date=today,
+                is_system_generated=True,
+                system_source="DAILY_REPORT_SYNC",
+            ).exists()
+        )
+        self.assertFalse(
+            SiteLossEntry.objects.filter(
+                site=self.site,
+                date=today,
+                is_system_generated=True,
+                system_source="DAILY_REPORT_SYNC",
+            ).exists()
+        )
+        self.assertFalse(
+            DailyBankDeposit.objects.filter(
+                site=self.site,
+                date=today,
+                is_system_generated=True,
+                system_source="DAILY_REPORT_SYNC",
+            ).exists()
+        )
+        self.assertEqual(
+            CarWash.objects.filter(site=self.site, date=today, is_system_generated=False).count(),
+            1,
+        )
+
+    def test_admin_added_wash_rebalances_auto_adjustment_after_report(self):
+        today = timezone.localdate()
+        CarWash.objects.create(
+            employe=self.user,
+            site=self.site,
+            date=today,
+            type_service="COMPLET",
+            plaque="ABC123",
+            montant=Decimal("28000.00"),
+        )
+        self.client.post(
+            reverse("employe_daily_report"),
+            data={
+                "total_amount_reported_fc": "60000",
+                "known_expense_transport_personnels_enabled": "1",
+                "known_expense_transport_personnels_amount": "24000",
+                "custom_expense_label": [""],
+                "custom_expense_amount": [""],
+            },
+        )
+
+        employee_two = User.objects.create_user(
+            username="mike",
+            email="mike@example.com",
+            password="TestPass123!",
+        )
+        employee_two.userprofile.role = "EMPLOYE"
+        employee_two.userprofile.site = self.site
+        employee_two.userprofile.save()
+
+        admin_client = self.client_class()
+        admin_client.login(username="report_admin", password="AdminPass123!")
+        response = admin_client.post(
+            reverse("admin_add_wash", args=[self.site.id]),
+            data={
+                "employe": str(employee_two.id),
+                "date": today.strftime("%Y-%m-%d"),
+                "type_service": "COMPLET",
+                "plaque": "XYZ987",
+                "montant": "10000",
+                "notes": "Lavage oublié puis ajouté par admin",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        auto_adjustment = CarWash.objects.get(
+            site=self.site,
+            date=today,
+            is_system_generated=True,
+            system_source="DAILY_REPORT_SYNC",
+        )
+        self.assertEqual(auto_adjustment.montant, Decimal("22000.00"))
 
     def test_employee_dashboard_contains_instant_navigation(self):
         response = self.client.get(reverse("employe_dashboard"))

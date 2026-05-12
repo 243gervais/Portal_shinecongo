@@ -17,6 +17,7 @@ from .utils import get_client_ip, get_user_agent
 from audit.models import AuditLog
 from decimal import Decimal, InvalidOperation
 from comptes.forms import get_water_purchase_default_amount
+from .report_sync import sync_site_finance_from_daily_reports
 
 logger = logging.getLogger(__name__)
 
@@ -443,6 +444,7 @@ def employe_daily_report(request):
             shift.daily_expenses_total_fc = expense_form['total']
             shift.daily_report_confirmed = True
             shift.save()
+            sync_site_finance_from_daily_reports(site, today, actor=user)
             _send_final_report_notification(
                 shift=shift,
                 computed_total_amount=computed_total_amount,
