@@ -1,9 +1,71 @@
+import logging
+
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+from django.core.mail import send_mail
+from django.shortcuts import render, redirect, get_object_or_404
+
 from .models import IssueReport
 from audit.models import AuditLog
 from pointage.utils import get_client_ip, get_user_agent
+
+logger = logging.getLogger(__name__)
+
+
+def _send_issue_report_notification(probleme):
+    recipient = (
+        getattr(settings, "ISSUE_REPORT_NOTIFICATION_EMAIL", "")
+        or getattr(settings, "WATER_PURCHASE_NOTIFICATION_EMAIL", "")
+        or getattr(settings, "FINAL_REPORT_NOTIFICATION_EMAIL", "")
+        or ""
+    ).strip()
+    if not recipient:
+        return False
+
+    email_backend = getattr(settings, "EMAIL_BACKEND", "")
+    uses_smtp_backend = email_backend.endswith("smtp.EmailBackend")
+    if uses_smtp_backend and (
+        not getattr(settings, "EMAIL_HOST", "")
+        or not getattr(settings, "EMAIL_HOST_USER", "")
+        or not getattr(settings, "EMAIL_HOST_PASSWORD", "")
+    ):
+        logger.warning(
+            "Notification email skipped for issue report because SMTP settings are incomplete"
+        )
+        return False
+
+    reporter_name = (
+        probleme.employe.get_full_name() or probleme.employe.username
+        if probleme.employe_id else
+        "Employé non précisé"
+    )
+    subject = (
+        f"Problème signalé - "
+        f"{probleme.site.nom} - {probleme.created_at.strftime('%d/%m/%Y')}"
+    )
+    message = "\n".join([
+        f"Employé: {reporter_name}",
+        f"Site: {probleme.site.nom}",
+        f"Date: {probleme.created_at.strftime('%d/%m/%Y %H:%M')}",
+        f"Catégorie: {probleme.get_categorie_display()}",
+        f"Statut: {probleme.get_statut_display()}",
+        "",
+        f"Description: {probleme.description}",
+    ])
+
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            recipient_list=[recipient],
+            fail_silently=False,
+        )
+        return True
+    except Exception:
+        logger.exception("Impossible d'envoyer la notification email du problème signalé")
+        return False
 
 
 @login_required
@@ -28,6 +90,7 @@ def signaler_probleme(request):
                 photo=photo,
                 statut='OUVERT'
             )
+            _send_issue_report_notification(probleme)
             
             # Log d'audit
             AuditLog.log(
