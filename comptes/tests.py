@@ -509,6 +509,114 @@ class SiteJournalEntryTests(TestCase):
         self.assertContains(response, "Visite du bailleur")
         self.assertContains(response, reverse("admin_site_journal", args=[self.site.id]))
 
+    def test_site_detail_single_day_journal_shows_full_day_activity_details(self):
+        employee = User.objects.create_user(
+            username="daily_employee",
+            email="daily_employee@example.com",
+            password="EmployeePass123!",
+            first_name="Jules",
+            last_name="Mbadu",
+        )
+        employee.userprofile.role = "EMPLOYE"
+        employee.userprofile.site = self.site
+        employee.userprofile.save()
+
+        CarWash.objects.create(
+            employe=employee,
+            site=self.site,
+            date=date(2026, 4, 11),
+            type_service="COMPLET",
+            plaque="ABC123",
+            montant=Decimal("28000.00"),
+            notes="Client habituel",
+        )
+        DailyBankDeposit.objects.create(
+            site=self.site,
+            date=date(2026, 4, 11),
+            amount=Decimal("36000.00"),
+            notes="Depot principal de la journee",
+            created_by=self.admin_user,
+        )
+        SiteLossEntry.objects.create(
+            site=self.site,
+            date=date(2026, 4, 11),
+            category="TRANSPORT",
+            funding_source="CAISSE",
+            amount=Decimal("24000.00"),
+            title="Transport équipe",
+            description="Navette du personnel",
+            created_by=self.admin_user,
+        )
+        ShiftDay.objects.create(
+            employe=employee,
+            site=self.site,
+            date=date(2026, 4, 11),
+            clock_in_time=timezone.make_aware(datetime(2026, 4, 11, 8, 0)),
+            clock_out_time=timezone.make_aware(datetime(2026, 4, 11, 18, 15)),
+            daily_report_confirmed=True,
+            total_lavages_reported=3,
+            total_amount_reported_fc=Decimal("60000.00"),
+            daily_expenses=[
+                {
+                    "key": "transport_personnels",
+                    "label": "Transport de Personnels",
+                    "amount_fc": "24000",
+                    "is_known": True,
+                }
+            ],
+            daily_expenses_total_fc=Decimal("24000.00"),
+            report_notes="Le reste a ete mis a la banque.",
+        )
+        SiteWaterPurchase.objects.create(
+            site=self.site,
+            billing_month=date(2026, 4, 1),
+            purchase_date=date(2026, 4, 11),
+            amount_fc=Decimal("22000.00"),
+            notes="Remplissage du tank",
+            created_by=self.admin_user,
+        )
+        SiteJournalEntry.objects.create(
+            site=self.site,
+            entry_date=date(2026, 4, 11),
+            category="INFO",
+            title="Visite du bailleur",
+            description="Passage pour verifier le site.",
+            created_by=self.admin_user,
+        )
+        issue = IssueReport.objects.create(
+            employe=employee,
+            site=self.site,
+            categorie="CLIENT",
+            description="Client difficile sur site.",
+            statut="OUVERT",
+        )
+        IssueReport.objects.filter(id=issue.id).update(
+            created_at=timezone.make_aware(datetime(2026, 4, 11, 14, 30)),
+            updated_at=timezone.make_aware(datetime(2026, 4, 11, 14, 30)),
+        )
+
+        response = self.client.get(
+            reverse("admin_site_detail", args=[self.site.id]),
+            data={"date_debut": "2026-04-11", "date_fin": "2026-04-11"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Journal complet de la journee")
+        self.assertContains(response, "Lavages enregistres")
+        self.assertContains(response, "Flux financiers du jour")
+        self.assertContains(response, "Gestion de l'eau")
+        self.assertContains(response, "Notes et suivi du site")
+        self.assertContains(response, "Problemes et observations du jour")
+        self.assertContains(response, "Presences et pointages")
+        self.assertContains(response, "ABC123")
+        self.assertContains(response, "Transport équipe")
+        self.assertContains(response, "Depot principal de la journee")
+        self.assertContains(response, "Remplissage du tank")
+        self.assertContains(response, "Visite du bailleur")
+        self.assertContains(response, "Client difficile sur site.")
+        self.assertContains(response, "Transport de Personnels")
+        self.assertGreaterEqual(len(response.context["single_day_activity_entries"]), 6)
+
     def test_site_detail_month_view_shows_full_period_finance_details(self):
         employee = User.objects.create_user(
             username="period_employee",

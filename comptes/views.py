@@ -1749,7 +1749,11 @@ def admin_site_detail(request, site_id):
     detail_date = selected_single_date if selected_single_date else selected_week_anchor
     
     # Problèmes du jour sélectionné
-    problemes_date = IssueReport.objects.filter(site=site, created_at__date=detail_date).order_by('-created_at')
+    problemes_date = (
+        IssueReport.objects.filter(site=site, created_at__date=detail_date)
+        .select_related('employe', 'traite_par')
+        .order_by('-created_at')
+    )
     
     # Problèmes ouverts (tous statuts, toutes dates)
     problemes_ouverts = IssueReport.objects.filter(
@@ -1757,13 +1761,35 @@ def admin_site_detail(request, site_id):
         statut__in=['OUVERT', 'EN_COURS']
     ).order_by('-created_at')
     
+    lavages_date = (
+        CarWash.objects.filter(site=site, date=detail_date)
+        .select_related('employe')
+        .prefetch_related('photos')
+        .order_by('-created_at')
+    )
+    pointages_date_qs = ShiftDay.objects.filter(site=site, date=detail_date).select_related('employe').order_by('-clock_in_time')
+    reports_date = (
+        ShiftDay.objects.filter(site=site, date=detail_date, daily_report_confirmed=True)
+        .select_related('employe')
+        .order_by('-updated_at')
+    )
+    water_purchases_date = (
+        SiteWaterPurchase.objects.filter(site=site, purchase_date=detail_date)
+        .select_related('created_by')
+        .order_by('-created_at')
+    )
+    journal_entries_date = (
+        SiteJournalEntry.objects.filter(site=site, entry_date=detail_date)
+        .select_related('created_by')
+        .order_by('-created_at')
+    )
+
     # Pointages de la date sélectionnée avec calcul de durée
-    pointages_date = ShiftDay.objects.filter(site=site, date=detail_date).select_related('employe').order_by('-clock_in_time')
-    presents = pointages_date.filter(clock_in_time__isnull=False).count()
+    presents = pointages_date_qs.filter(clock_in_time__isnull=False).count()
     
     # Ajouter la durée formatée pour chaque pointage
     pointages_with_duration = []
-    for pointage in pointages_date:
+    for pointage in pointages_date_qs:
         duration_str = None
         if pointage.clock_in_time and pointage.clock_out_time:
             duration = pointage.clock_out_time - pointage.clock_in_time
@@ -1780,7 +1806,6 @@ def admin_site_detail(request, site_id):
     # Statistiques par employé pour la date sélectionnée
     lavages_by_employee = {}
     if selected_single_date:
-        lavages_date = CarWash.objects.filter(site=site, date=selected_single_date).select_related('employe')
         for lavage in lavages_date:
             emp_id = lavage.employe.id
             if emp_id not in lavages_by_employee:
@@ -1822,11 +1847,15 @@ def admin_site_detail(request, site_id):
         period_label = "Tous les lavages"
     
     # Récupérer le dépôt bancaire pour la date sélectionnée
-    bank_deposit_date = DailyBankDeposit.objects.filter(site=site, date=detail_date).first()
+    bank_deposit_date = DailyBankDeposit.objects.filter(site=site, date=detail_date).select_related('created_by').first()
     bank_deposit_amount_date = bank_deposit_date.amount if bank_deposit_date else 0
 
     # Pertes de la date sélectionnée
-    losses_date_qs = SiteLossEntry.objects.filter(site=site, date=detail_date).order_by('-created_at')
+    losses_date_qs = (
+        SiteLossEntry.objects.filter(site=site, date=detail_date)
+        .select_related('created_by')
+        .order_by('-created_at')
+    )
     pertes_date_total = losses_date_qs.aggregate(total=Sum('amount'))['total'] or 0
     pertes_date_caisse = losses_date_qs.filter(funding_source='CAISSE').aggregate(total=Sum('amount'))['total'] or 0
     pertes_date_banque = losses_date_qs.filter(funding_source='BANQUE').aggregate(total=Sum('amount'))['total'] or 0
@@ -1839,6 +1868,178 @@ def admin_site_detail(request, site_id):
     ecart_rapports_date = montant_rapports_date - chiffre_date
     # Écart de caisse: cash flow - dépôt - pertes financées par la caisse
     difference_date = chiffre_date - bank_deposit_amount_date - pertes_date_caisse
+
+    single_day_activity_entries = []
+
+    def _append_day_activity(kind, label, title, timestamp, *, summary="", amount=None, status="", actor="", anchor=""):
+        single_day_activity_entries.append(
+            {
+                "kind": kind,
+                "label": label,
+                "title": title,
+                "timestamp": timestamp,
+                "summary": summary,
+                "has_amount": amount is not None,
+                "amount": _to_decimal_amount(amount) if amount is not None else Decimal("0"),
+                "status": status,
+                "actor": actor,
+                "anchor": anchor,
+            }
+        )
+
+    for lavage in lavages_date:
+        wash_summary_parts = [lavage.get_type_service_display()]
+        if lavage.plaque:
+            wash_summary_parts.append(f"Plaque {lavage.plaque}")
+        elif lavage.plaque_photo:
+            wash_summary_parts.append("Photo de plaque enregistrée")
+        photo_count = lavage.photos.count()
+        if photo_count:
+            wash_summary_parts.append(f"{photo_count} photo{'s' if photo_count > 1 else ''}")
+        if lavage.notes:
+            wash_summary_parts.append(lavage.notes)
+        actor_name = lavage.employe.get_full_name() or lavage.employe.username
+        _append_day_activity(
+            "wash",
+            "Lavage",
+            actor_name,
+            lavage.created_at,
+            summary=" • ".join(wash_summary_parts),
+            amount=lavage.montant,
+            status="Auto" if lavage.is_system_generated else "",
+            actor=actor_name,
+            anchor="#single-day-washes",
+        )
+
+    for report in reports_date:
+        actor_name = report.employe.get_full_name() or report.employe.username
+        report_summary_parts = [f"{report.total_lavages_reported} lavage(s) déclarés"]
+        if report.daily_expense_items:
+            report_summary_parts.append(report.daily_expense_summary)
+        if report.report_notes:
+            report_summary_parts.append(report.report_notes)
+        _append_day_activity(
+            "report",
+            "Rapport final",
+            f"Rapport de {actor_name}",
+            report.updated_at,
+            summary=" • ".join(report_summary_parts),
+            amount=report.total_amount_reported_fc,
+            status="Confirmé",
+            actor=actor_name,
+            anchor="#single-day-reports",
+        )
+
+    if bank_deposit_date:
+        deposit_actor = ""
+        if bank_deposit_date.created_by:
+            deposit_actor = bank_deposit_date.created_by.get_full_name() or bank_deposit_date.created_by.username
+        _append_day_activity(
+            "deposit",
+            "Dépôt",
+            "Dépôt bancaire enregistré",
+            bank_deposit_date.created_at,
+            summary=bank_deposit_date.notes or "Aucune note ajoutée pour ce dépôt.",
+            amount=bank_deposit_date.amount,
+            actor=deposit_actor,
+            anchor="#single-day-deposit-trace",
+        )
+
+    for loss in losses_date_qs:
+        loss_actor = (loss.created_by.get_full_name() or loss.created_by.username) if loss.created_by else ""
+        loss_summary_parts = [loss.get_category_display(), loss.get_funding_source_display()]
+        if loss.description:
+            loss_summary_parts.append(loss.description)
+        _append_day_activity(
+            "loss",
+            "Perte",
+            loss.title,
+            loss.created_at,
+            summary=" • ".join(loss_summary_parts),
+            amount=loss.amount,
+            status="Auto" if loss.is_system_generated else "",
+            actor=loss_actor,
+            anchor="#single-day-losses",
+        )
+
+    for purchase in water_purchases_date:
+        purchase_actor = (purchase.created_by.get_full_name() or purchase.created_by.username) if purchase.created_by else ""
+        water_summary_parts = [f"Mois {purchase.billing_month.strftime('%m/%Y')}"]
+        if purchase.notes:
+            water_summary_parts.append(purchase.notes)
+        _append_day_activity(
+            "water",
+            "Eau",
+            "Achat d'eau",
+            purchase.created_at,
+            summary=" • ".join(water_summary_parts),
+            amount=purchase.amount_fc,
+            actor=purchase_actor,
+            anchor="#single-day-water",
+        )
+
+    for journal_entry in journal_entries_date:
+        journal_actor = (journal_entry.created_by.get_full_name() or journal_entry.created_by.username) if journal_entry.created_by else ""
+        journal_summary_parts = [journal_entry.get_category_display()]
+        if journal_entry.description:
+            journal_summary_parts.append(journal_entry.description)
+        _append_day_activity(
+            "journal",
+            "Journal",
+            journal_entry.title,
+            journal_entry.created_at,
+            summary=" • ".join(journal_summary_parts),
+            amount=journal_entry.amount_fc,
+            actor=journal_actor,
+            anchor="#single-day-journal-entries",
+        )
+
+    for probleme in problemes_date:
+        problem_actor = probleme.employe.get_full_name() or probleme.employe.username
+        _append_day_activity(
+            "problem",
+            "Problème",
+            probleme.get_categorie_display(),
+            probleme.created_at,
+            summary=probleme.description,
+            status=probleme.get_statut_display(),
+            actor=problem_actor,
+            anchor="#single-day-problems",
+        )
+
+    for item in pointages_with_duration:
+        pointage = item['pointage']
+        pointage_actor = pointage.employe.get_full_name() or pointage.employe.username
+        pointage_summary_parts = []
+        if pointage.clock_in_time:
+            pointage_summary_parts.append(
+                f"Entrée {timezone.localtime(pointage.clock_in_time).strftime('%H:%M')}"
+            )
+        if pointage.clock_out_time:
+            pointage_summary_parts.append(
+                f"Sortie {timezone.localtime(pointage.clock_out_time).strftime('%H:%M')}"
+            )
+        else:
+            pointage_summary_parts.append("Toujours en service")
+        if item['duration']:
+            pointage_summary_parts.append(f"Durée {item['duration']}")
+        if pointage.daily_report_confirmed:
+            pointage_summary_parts.append("Rapport final envoyé")
+        _append_day_activity(
+            "attendance",
+            "Présence",
+            pointage_actor,
+            pointage.clock_in_time or pointage.updated_at or pointage.created_at,
+            summary=" • ".join(pointage_summary_parts),
+            status="Clôturé" if pointage.clock_out_time else "En cours",
+            actor=pointage_actor,
+            anchor="#single-day-attendance",
+        )
+
+    single_day_activity_entries.sort(
+        key=lambda entry: entry['timestamp'] or timezone.make_aware(datetime.combine(detail_date, datetime.min.time())),
+        reverse=True,
+    )
 
     # Cash flow d'aujourd'hui (pour comparaison)
     chiffre_jour = CarWash.objects.filter(site=site, date=today).aggregate(total=Sum('montant'))['total'] or 0
@@ -2187,6 +2388,11 @@ def admin_site_detail(request, site_id):
         'period_presence_count': period_presence_count,
         'period_distinct_employees': period_distinct_employees,
         'period_daily_rows': period_daily_rows,
+        'lavages_date': lavages_date,
+        'reports_date': reports_date,
+        'water_purchases_date': water_purchases_date,
+        'journal_entries_date': journal_entries_date,
+        'single_day_activity_entries': single_day_activity_entries,
         'photos_lavages': photos_lavages,
         'problemes_date': problemes_date,
         'problemes_ouverts': problemes_ouverts,
