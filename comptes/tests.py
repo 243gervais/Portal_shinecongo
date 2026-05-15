@@ -909,6 +909,44 @@ class WaterPurchaseTrackingTests(TestCase):
         self.assertNotContains(response, "Note Avril spéciale")
         self.assertContains(response, "24 000")
 
+    def test_water_purchase_view_shows_weekly_breakdown_for_selected_month(self):
+        SiteWaterPurchase.objects.create(
+            site=self.site,
+            billing_month=date(2026, 4, 1),
+            purchase_date=date(2026, 4, 2),
+            amount_fc=Decimal("24000"),
+            notes="Semaine 1 - premier achat",
+            created_by=self.admin_user,
+        )
+        SiteWaterPurchase.objects.create(
+            site=self.site,
+            billing_month=date(2026, 4, 1),
+            purchase_date=date(2026, 4, 4),
+            amount_fc=Decimal("24000"),
+            notes="Semaine 1 - second achat",
+            created_by=self.admin_user,
+        )
+        SiteWaterPurchase.objects.create(
+            site=self.site,
+            billing_month=date(2026, 4, 1),
+            purchase_date=date(2026, 4, 15),
+            amount_fc=Decimal("24000"),
+            notes="Semaine 3 - achat",
+            created_by=self.admin_user,
+        )
+
+        response = self.client.get(reverse("admin_water_purchases"), data={"month": "2026-04"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Rythme hebdomadaire du mois")
+        self.assertContains(response, "Semaine du 01/04 au 05/04")
+        self.assertContains(response, "Semaine du 13/04 au 19/04")
+        self.assertContains(response, "2 achats enregistrés pour cette semaine")
+        self.assertContains(response, "1 achat enregistré pour cette semaine")
+        self.assertEqual(response.context["weekly_breakdown"][0]["count"], 2)
+        self.assertEqual(response.context["weekly_breakdown"][0]["total"], Decimal("48000"))
+        self.assertEqual(response.context["weekly_breakdown"][2]["count"], 1)
+
 
 class FundingSnapshotTests(TestCase):
     def test_snapshot_includes_weekly_and_total_bank_balances(self):

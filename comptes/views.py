@@ -16,7 +16,7 @@ from django.contrib import messages
 from django.db.models import Sum, Count, Q, Min
 from django.contrib.auth.models import User
 from django.core import signing
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from xhtml2pdf import pisa
 from .forms import (
@@ -1536,6 +1536,48 @@ def admin_water_purchases(request):
         billing_month=previous_month,
     ).count()
     month_total_delta = month_total - previous_month_total
+    month_last_day = date(
+        selected_month.year,
+        selected_month.month,
+        calendar.monthrange(selected_month.year, selected_month.month)[1],
+    )
+    purchases_by_date = {
+        item["purchase_date"]: {
+            "count": item["count"] or 0,
+            "total": item["total"] or Decimal("0"),
+        }
+        for item in purchases.values("purchase_date").annotate(
+            count=Count("id"),
+            total=Sum("amount_fc"),
+        )
+    }
+    weekly_breakdown = []
+    week_cursor = selected_month
+    while week_cursor <= month_last_day:
+        week_end = min(week_cursor + timedelta(days=(6 - week_cursor.weekday())), month_last_day)
+        week_count = 0
+        week_total = Decimal("0")
+        day_cursor = week_cursor
+        while day_cursor <= week_end:
+            day_data = purchases_by_date.get(day_cursor)
+            if day_data:
+                week_count += day_data["count"]
+                week_total += day_data["total"] or Decimal("0")
+            day_cursor += timedelta(days=1)
+        weekly_breakdown.append(
+            {
+                "week_start": week_cursor,
+                "week_end": week_end,
+                "count": week_count,
+                "total": week_total,
+                "label": f"Semaine du {week_cursor.strftime('%d/%m')} au {week_end.strftime('%d/%m')}",
+                "is_active": week_count > 0,
+            }
+        )
+        week_cursor = week_end + timedelta(days=1)
+    max_weekly_count = max((item["count"] for item in weekly_breakdown), default=0)
+    for item in weekly_breakdown:
+        item["bar_width"] = int((item["count"] / max_weekly_count) * 100) if max_weekly_count else 0
     monthly_history = list(
         SiteWaterPurchase.objects.filter(site__actif=True)
         .values("billing_month")
@@ -1577,6 +1619,7 @@ def admin_water_purchases(request):
             "previous_month_total": previous_month_total,
             "previous_month_count": previous_month_count,
             "month_total_delta": month_total_delta,
+            "weekly_breakdown": weekly_breakdown,
             "monthly_history": monthly_history,
             "site_leader": site_leader,
             "rate_change_month": WATER_RATE_CHANGE_MONTH,
