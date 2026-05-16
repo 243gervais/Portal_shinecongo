@@ -10,6 +10,7 @@ from pointage.models import ShiftDay
 from sites.models import DailyBankDeposit, SiteLossEntry
 
 DAILY_REPORT_SYNC_SOURCE = "DAILY_REPORT_SYNC"
+ADMIN_CORRECTION_SOURCE = "ADMIN_CORRECTION"
 AUTO_REPORT_ADJUSTMENT_NOTE = "Ajustement automatique du rapport de fin de journée."
 AUTO_REPORT_DEPOSIT_NOTE = "Dépôt bancaire synchronisé automatiquement depuis le rapport de fin de journée."
 AUTO_REPORT_EXPENSE_DESCRIPTION = "Dépense synchronisée automatiquement depuis le rapport de fin de journée."
@@ -150,6 +151,7 @@ def sync_site_finance_from_daily_reports(site, target_date, actor=None):
     base_cash_flow = _to_decimal(
         CarWash.objects.filter(site=site, date=target_date)
         .exclude(is_system_generated=True, system_source=DAILY_REPORT_SYNC_SOURCE)
+        .exclude(system_source=ADMIN_CORRECTION_SOURCE)
         .aggregate(total=Sum("montant"))["total"]
     )
 

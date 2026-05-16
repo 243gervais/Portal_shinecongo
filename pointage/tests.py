@@ -12,6 +12,7 @@ from django.utils import timezone
 from comptes.forms import get_water_purchase_default_amount
 from lavages.models import CarWash
 from pointage.models import ShiftDay
+from pointage.report_sync import ADMIN_CORRECTION_SOURCE, sync_site_finance_from_daily_reports
 from sites.models import DailyBankDeposit, Location, SiteLossEntry, SiteWaterPurchase
 
 
@@ -293,6 +294,16 @@ class EmployeeDailyReportTests(TestCase):
             is_system_generated=True,
             system_source="DAILY_REPORT_SYNC",
         )
+        correction_wash = CarWash.objects.get(
+            site=self.site,
+            date=today,
+            plaque="XYZ987",
+            is_system_generated=False,
+        )
+        self.assertEqual(correction_wash.system_source, ADMIN_CORRECTION_SOURCE)
+
+        sync_site_finance_from_daily_reports(self.site, today, actor=self.admin_user)
+        auto_adjustment.refresh_from_db()
         self.assertEqual(auto_adjustment.montant, Decimal("32000.00"))
         total_cash_flow = CarWash.objects.filter(site=self.site, date=today).aggregate(
             total=Sum("montant")

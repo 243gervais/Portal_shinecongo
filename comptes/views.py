@@ -45,7 +45,7 @@ from lavages.models import CarWash, CarWashPhoto
 from problemes.models import IssueReport
 from pointage.models import ShiftDay
 from pointage.views import _build_initial_daily_expense_form, _parse_daily_expenses_form
-from pointage.report_sync import sync_site_finance_from_daily_reports
+from pointage.report_sync import ADMIN_CORRECTION_SOURCE, sync_site_finance_from_daily_reports
 from comptes.models import UserProfile, EmployeePayment
 from audit.models import AuditLog
 from pointage.utils import get_client_ip, get_user_agent
@@ -2950,7 +2950,10 @@ def admin_add_wash(request, site_id):
                 type_service=type_service,
                 plaque=plaque,
                 montant=montant,
-                notes=notes
+                notes=notes,
+                # Les lavages oubliés saisis par l'admin doivent rester
+                # additifs dans le cash flow même si un rapport final existe déjà.
+                system_source=ADMIN_CORRECTION_SOURCE,
             )
             
             # Traiter les photos si présentes (toutes marquées comme "après lavage")
