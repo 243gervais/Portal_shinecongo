@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.contrib.auth.models import User
 from django.core import mail
+from django.db.models import Sum
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -241,7 +242,7 @@ class EmployeeDailyReportTests(TestCase):
             1,
         )
 
-    def test_admin_added_wash_rebalances_auto_adjustment_after_report(self):
+    def test_admin_added_wash_keeps_cash_correction_additive_after_report(self):
         today = timezone.localdate()
         CarWash.objects.create(
             employe=self.user,
@@ -292,7 +293,14 @@ class EmployeeDailyReportTests(TestCase):
             is_system_generated=True,
             system_source="DAILY_REPORT_SYNC",
         )
-        self.assertEqual(auto_adjustment.montant, Decimal("22000.00"))
+        self.assertEqual(auto_adjustment.montant, Decimal("32000.00"))
+        total_cash_flow = CarWash.objects.filter(site=self.site, date=today).aggregate(
+            total=Sum("montant")
+        )["total"]
+        self.assertEqual(total_cash_flow, Decimal("70000.00"))
+
+        auto_deposit = DailyBankDeposit.objects.get(site=self.site, date=today)
+        self.assertEqual(auto_deposit.amount, Decimal("36000.00"))
 
     def test_admin_added_wash_redirects_back_to_same_date_and_updates_week_total(self):
         target_date = timezone.localdate() - timedelta(days=7)

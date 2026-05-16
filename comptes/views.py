@@ -2816,10 +2816,10 @@ def admin_add_daily_total(request, site_id):
                 ip_address=get_client_ip(request),
                 user_agent=get_user_agent(request)
             )
-            sync_site_finance_from_daily_reports(site, date_obj, actor=user)
-            
+            # Correction admin explicite: ce total doit modifier le cash flow
+            # réel sans être neutralisé par le rapport final déjà soumis.
             messages.success(request, f'Montant total de {montant_decimal:,.0f} FC ajouté avec succès pour le {date_obj.strftime("%d/%m/%Y")} !')
-            return redirect('admin_site_detail', site_id=site.id)
+            return _redirect_to_admin_site_detail(request, site, date_obj=date_obj)
             
         except Exception as e:
             messages.error(request, f'Erreur lors de l\'enregistrement: {str(e)}')
@@ -2970,8 +2970,8 @@ def admin_add_wash(request, site_id):
                 ip_address=get_client_ip(request),
                 user_agent=get_user_agent(request)
             )
-            sync_site_finance_from_daily_reports(site, date_obj, actor=user)
-            
+            # Correction admin explicite: le lavage ajouté doit augmenter le
+            # cash flow au lieu de réduire l'ajustement automatique du rapport.
             messages.success(request, f'Lavage enregistré avec succès pour le {date_obj.strftime("%d/%m/%Y")} !')
             return _redirect_to_admin_site_detail(request, site, date_obj=date_obj)
             
@@ -3111,9 +3111,8 @@ def admin_edit_wash(request, site_id, lavage_id):
                 ip_address=get_client_ip(request),
                 user_agent=get_user_agent(request),
             )
-            sync_site_finance_from_daily_reports(site, date_obj, actor=user)
-            if original_date != date_obj:
-                sync_site_finance_from_daily_reports(site, original_date, actor=user)
+            # Les corrections admin doivent conserver leur impact financier
+            # direct et ne pas être rebalancées automatiquement par le rapport.
 
             if added_photos:
                 messages.success(request, f"Lavage modifié avec succès. {added_photos} photo(s) ajoutée(s).")
@@ -3179,8 +3178,7 @@ def admin_delete_wash(request, site_id, lavage_id):
             ip_address=get_client_ip(request),
             user_agent=get_user_agent(request),
         )
-        sync_site_finance_from_daily_reports(site, lavage.date, actor=user)
-
+        # Une suppression admin doit diminuer le cash flow directement.
         messages.success(request, "Lavage supprimé avec succès.")
         return _redirect_to_admin_site_detail(request, site, date_obj=lavage.date)
 
