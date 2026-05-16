@@ -1,3 +1,4 @@
+from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth.models import User
@@ -292,6 +293,35 @@ class EmployeeDailyReportTests(TestCase):
             system_source="DAILY_REPORT_SYNC",
         )
         self.assertEqual(auto_adjustment.montant, Decimal("22000.00"))
+
+    def test_admin_added_wash_redirects_back_to_same_date_and_updates_week_total(self):
+        target_date = timezone.localdate() - timedelta(days=7)
+        admin_client = self.client_class()
+        admin_client.login(username="report_admin", password="AdminPass123!")
+
+        response = admin_client.post(
+            reverse("admin_add_wash", args=[self.site.id]),
+            data={
+                "employe": str(self.user.id),
+                "date": target_date.strftime("%Y-%m-%d"),
+                "type_service": "COMPLET",
+                "plaque": "WEEK123",
+                "montant": "15000",
+                "notes": "Ajout admin semaine précédente",
+            },
+        )
+
+        expected_redirect = (
+            f"{reverse('admin_site_detail', args=[self.site.id])}"
+            f"?date_debut={target_date.strftime('%Y-%m-%d')}&date_fin={target_date.strftime('%Y-%m-%d')}"
+        )
+        self.assertRedirects(response, expected_redirect, fetch_redirect_response=False)
+
+        detail_response = admin_client.get(expected_redirect)
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertEqual(detail_response.context["selected_single_date"], target_date)
+        self.assertEqual(detail_response.context["chiffre_week"], Decimal("15000"))
+        self.assertContains(detail_response, "15 000 FC")
 
     def test_employee_dashboard_contains_instant_navigation(self):
         response = self.client.get(reverse("employe_dashboard"))

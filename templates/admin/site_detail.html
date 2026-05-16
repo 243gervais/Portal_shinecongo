@@ -28,10 +28,10 @@
         <div class="site-actions">
             <a href="{% url 'admin_site_documents' site.id %}" class="btn btn-success">Documents du site</a>
             <a href="{% url 'admin_site_journal' site.id %}" class="btn btn-secondary">Journal du site</a>
-            <a href="{% url 'admin_add_bank_deposit' site.id %}" class="btn btn-info">{% if bank_deposit_today %}Modifier{% else %}Ajouter{% endif %} dépôt bancaire</a>
+            <a href="{% url 'admin_add_bank_deposit' site.id %}?date={{ detail_date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}" class="btn btn-info">{% if bank_deposit_today %}Modifier{% else %}Ajouter{% endif %} dépôt bancaire</a>
             <a href="{% url 'admin_site_losses' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-warning">Corrections & finance</a>
-            <a href="{% url 'admin_add_daily_total' site.id %}" class="btn btn-primary">Ajouter le total quotidien</a>
-            <a href="{% url 'admin_add_wash' site.id %}" class="btn btn-primary">Ajouter un lavage complet</a>
+            <a href="{% url 'admin_add_daily_total' site.id %}?date={{ detail_date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}" class="btn btn-primary">Ajouter le total quotidien</a>
+            <a href="{% url 'admin_add_wash' site.id %}?date={{ detail_date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}" class="btn btn-primary">Ajouter un lavage complet</a>
             <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">Retour aux sites</a>
         </div>
     </div>

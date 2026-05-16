@@ -509,6 +509,29 @@ class SiteJournalEntryTests(TestCase):
         self.assertContains(response, "Visite du bailleur")
         self.assertContains(response, reverse("admin_site_journal", args=[self.site.id]))
 
+    def test_site_detail_buttons_preserve_selected_day_context(self):
+        response = self.client.get(
+            reverse("admin_site_detail", args=[self.site.id]),
+            data={"date_debut": "2026-04-11", "date_fin": "2026-04-11"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            f"{reverse('admin_add_wash', args=[self.site.id])}?date=2026-04-11&next=",
+            html=False,
+        )
+        self.assertContains(
+            response,
+            f"{reverse('admin_add_daily_total', args=[self.site.id])}?date=2026-04-11&next=",
+            html=False,
+        )
+        self.assertContains(
+            response,
+            f"{reverse('admin_add_bank_deposit', args=[self.site.id])}?date=2026-04-11&next=",
+            html=False,
+        )
+
     def test_site_detail_single_day_journal_shows_full_day_activity_details(self):
         employee = User.objects.create_user(
             username="daily_employee",

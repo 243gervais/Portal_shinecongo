@@ -477,13 +477,17 @@ def _safe_next_url(request):
     return None
 
 
-def _redirect_to_admin_site_detail(request, site):
+def _redirect_to_admin_site_detail(request, site, date_obj=None):
     """
     Redirige vers l'URL de retour demandée ou vers le détail du site.
     """
     next_url = _safe_next_url(request)
     if next_url:
         return redirect(next_url)
+    if date_obj:
+        date_query = date_obj.strftime('%Y-%m-%d')
+        base_url = reverse('admin_site_detail', kwargs={'site_id': site.id})
+        return redirect(f"{base_url}?date_debut={date_query}&date_fin={date_query}")
     return redirect('admin_site_detail', site_id=site.id)
 
 
@@ -2969,7 +2973,7 @@ def admin_add_wash(request, site_id):
             sync_site_finance_from_daily_reports(site, date_obj, actor=user)
             
             messages.success(request, f'Lavage enregistré avec succès pour le {date_obj.strftime("%d/%m/%Y")} !')
-            return _redirect_to_admin_site_detail(request, site)
+            return _redirect_to_admin_site_detail(request, site, date_obj=date_obj)
             
         except Exception as e:
             messages.error(request, f'Erreur lors de l\'enregistrement: {str(e)}')
@@ -3115,7 +3119,7 @@ def admin_edit_wash(request, site_id, lavage_id):
                 messages.success(request, f"Lavage modifié avec succès. {added_photos} photo(s) ajoutée(s).")
             else:
                 messages.success(request, "Lavage modifié avec succès.")
-            return _redirect_to_admin_site_detail(request, site)
+            return _redirect_to_admin_site_detail(request, site, date_obj=date_obj)
         except Exception as e:
             messages.error(request, f"Erreur lors de la modification du lavage: {str(e)}")
 
@@ -3178,7 +3182,7 @@ def admin_delete_wash(request, site_id, lavage_id):
         sync_site_finance_from_daily_reports(site, lavage.date, actor=user)
 
         messages.success(request, "Lavage supprimé avec succès.")
-        return _redirect_to_admin_site_detail(request, site)
+        return _redirect_to_admin_site_detail(request, site, date_obj=lavage.date)
 
     return render(request, 'admin/delete_wash.html', {
         'site': site,
@@ -3307,7 +3311,7 @@ def admin_edit_pointage(request, site_id, pointage_id):
             )
 
             messages.success(request, "Pointage corrigé avec succès.")
-            return _redirect_to_admin_site_detail(request, site)
+            return _redirect_to_admin_site_detail(request, site, date_obj=date_obj)
         except ValueError as e:
             messages.error(request, f"Erreur de validation: {str(e)}")
         except Exception as e:
@@ -3374,7 +3378,7 @@ def admin_delete_pointage(request, site_id, pointage_id):
             sync_site_finance_from_daily_reports(site, pointage_date, actor=user)
 
         messages.success(request, "Pointage supprimé avec succès.")
-        return _redirect_to_admin_site_detail(request, site)
+        return _redirect_to_admin_site_detail(request, site, date_obj=pointage_date)
 
     return render(request, 'admin/delete_pointage.html', {
         'site': site,
@@ -3455,7 +3459,7 @@ def admin_delete_daily_report(request, site_id, pointage_id):
         )
 
         messages.success(request, "Rapport de fin de journée supprimé avec succès.")
-        return _redirect_to_admin_site_detail(request, site)
+        return _redirect_to_admin_site_detail(request, site, date_obj=pointage.date)
 
     return render(request, 'admin/delete_daily_report.html', {
         'site': site,
@@ -3544,7 +3548,7 @@ def admin_add_bank_deposit(request, site_id):
             )
             
             messages.success(request, f'Dépôt bancaire de {amount_decimal:,.0f} FC {"ajouté" if created else "modifié"} avec succès pour le {date_obj.strftime("%d/%m/%Y")} !')
-            return _redirect_to_admin_site_detail(request, site)
+            return _redirect_to_admin_site_detail(request, site, date_obj=date_obj)
             
         except Exception as e:
             messages.error(request, f'Erreur lors de l\'enregistrement: {str(e)}')
@@ -3610,7 +3614,7 @@ def admin_delete_bank_deposit(request, site_id, deposit_id):
         )
 
         messages.success(request, "Dépôt bancaire supprimé avec succès.")
-        return _redirect_to_admin_site_detail(request, site)
+        return _redirect_to_admin_site_detail(request, site, date_obj=deposit_date)
 
     return render(request, 'admin/delete_bank_deposit.html', {
         'site': site,
