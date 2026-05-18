@@ -263,7 +263,7 @@
         <button type="button" class="btn btn-light" data-share-trigger>📤 Partager le PDF</button>
         <button type="button" class="btn btn-secondary" data-whatsapp-share>WhatsApp Web (PDF)</button>
         {% if not is_shared_view %}
-        <a class="btn btn-secondary" href="{% url 'admin_site_documents' site.id %}">← Retour aux documents</a>
+        <a class="btn btn-secondary" href="{% url 'admin_site_employees' site.id %}">← Retour aux employés</a>
         {% endif %}
     </div>
     <div class="share-feedback" id="payment-share-feedback" role="status" aria-live="polite"></div>

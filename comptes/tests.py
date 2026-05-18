@@ -328,6 +328,15 @@ class SiteDocumentUploadTests(TestCase):
         document.refresh_from_db()
         self.assertEqual(document.title, "Photo chantier renommée")
 
+    def test_site_documents_page_is_documents_only(self):
+        response = self.client.get(reverse("admin_site_documents", args=[self.site.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Bibliothèque documentaire")
+        self.assertContains(response, "Gestion des employés")
+        self.assertNotContains(response, "Vue équipe")
+        self.assertNotContains(response, "Historique des paiements")
+
 
 class EmployeePaymentShareTests(TestCase):
     def setUp(self):
@@ -406,11 +415,11 @@ class EmployeePaymentShareTests(TestCase):
         self.assertEqual(shared_pdf_response.status_code, 200)
         self.assertEqual(shared_pdf_response["Content-Type"], "application/pdf")
 
-    def test_site_documents_page_shows_payment_share_actions(self):
-        response = self.client.get(reverse("admin_site_documents", args=[self.site.id]))
+    def test_employee_management_page_shows_payment_share_actions(self):
+        response = self.client.get(reverse("admin_site_employees", args=[self.site.id]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Bibliothèque documentaire")
+        self.assertContains(response, "Gestion des employés")
         self.assertContains(response, "Partager PDF")
         self.assertContains(response, "WhatsApp Web (PDF)")
         self.assertContains(response, "data-share-pdf-url")

@@ -1,0 +1,684 @@
+{% extends "base.html" %}
+{% load currency_tags %}
+
+{% block title %}Gestion des employés - {{ site.nom }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .people-shell {
+        display: grid;
+        gap: 1.4rem;
+    }
+
+    .people-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 30px;
+        padding: 1.85rem;
+        background:
+            radial-gradient(circle at top left, rgba(56, 189, 248, 0.22), transparent 35%),
+            linear-gradient(135deg, #071a2c 0%, #0f3352 48%, #155f91 100%);
+        color: #f7fbff;
+        box-shadow: 0 28px 72px rgba(7, 26, 44, 0.24);
+    }
+
+    .people-hero::after {
+        content: "";
+        position: absolute;
+        right: -5rem;
+        top: -4rem;
+        width: 15rem;
+        height: 15rem;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .people-hero-top,
+    .people-hero-actions,
+    .people-card-head,
+    .people-payment-top,
+    .people-payment-actions,
+    .people-filter-row,
+    .people-employee-head,
+    .people-employee-actions,
+    .people-employee-metrics {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .people-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.42rem 0.82rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        color: rgba(247, 251, 255, 0.92);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .people-hero h1 {
+        margin: 0.85rem 0 0.45rem;
+        font-size: clamp(2rem, 3vw, 2.8rem);
+        line-height: 1.05;
+        color: #ffffff;
+    }
+
+    .people-hero-copy {
+        margin: 0;
+        max-width: 58rem;
+        color: rgba(247, 251, 255, 0.82);
+        line-height: 1.65;
+    }
+
+    .people-chips {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+        margin-top: 1.1rem;
+    }
+
+    .people-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.55rem 0.78rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        font-size: 0.86rem;
+        font-weight: 700;
+        color: #ffffff;
+    }
+
+    .people-chip strong {
+        font-weight: 800;
+    }
+
+    .people-kpis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 1rem;
+    }
+
+    .people-kpi,
+    .people-card,
+    .people-employee-card,
+    .people-payment-card {
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.97);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        box-shadow: 0 18px 45px rgba(11, 31, 53, 0.08);
+    }
+
+    .people-kpi {
+        padding: 1.15rem 1.2rem;
+    }
+
+    .people-kpi-label,
+    .people-stat-label,
+    .people-payment-label {
+        color: var(--text-secondary);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .people-kpi-value {
+        margin-top: 0.38rem;
+        font-size: 1.68rem;
+        font-weight: 800;
+        color: var(--primary-dark);
+    }
+
+    .people-kpi-copy,
+    .people-card-copy,
+    .people-payment-copy,
+    .people-empty {
+        margin-top: 0.22rem;
+        color: var(--text-secondary);
+        line-height: 1.55;
+    }
+
+    .people-card {
+        padding: 1.35rem;
+        display: grid;
+        gap: 1rem;
+    }
+
+    .people-card-title {
+        margin: 0;
+        font-size: 1.18rem;
+        color: var(--primary-dark);
+    }
+
+    .people-card-badge,
+    .people-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.38rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 800;
+    }
+
+    .people-card-badge {
+        background: rgba(10, 67, 107, 0.06);
+        color: var(--primary-dark);
+    }
+
+    .people-grid {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 1.2rem;
+    }
+
+    .people-employee-grid,
+    .people-payment-list {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .people-employee-grid {
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+
+    .people-employee-card,
+    .people-payment-card {
+        padding: 1rem 1.05rem;
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .people-avatar {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #0a436b 0%, #1da7ff 100%);
+        color: #ffffff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 1rem;
+        box-shadow: 0 12px 28px rgba(10, 67, 107, 0.2);
+    }
+
+    .people-employee-name,
+    .people-payment-name {
+        margin: 0;
+        color: var(--primary-dark);
+        font-size: 1.02rem;
+    }
+
+    .people-employee-meta,
+    .people-payment-date {
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+    }
+
+    .people-status--active {
+        background: rgba(15, 157, 88, 0.12);
+        color: #0f9d58;
+    }
+
+    .people-status--inactive {
+        background: rgba(180, 35, 24, 0.12);
+        color: #b42318;
+    }
+
+    .people-employee-details,
+    .people-payment-grid {
+        display: grid;
+        gap: 0.7rem;
+    }
+
+    .people-employee-details {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .people-detail-box,
+    .people-payment-stat {
+        padding: 0.8rem 0.9rem;
+        border-radius: 16px;
+        background: rgba(7, 26, 44, 0.03);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .people-detail-value,
+    .people-payment-value {
+        margin-top: 0.24rem;
+        font-weight: 800;
+        color: var(--primary-dark);
+    }
+
+    .people-employee-actions .btn,
+    .people-payment-actions .btn {
+        flex: 1 1 140px;
+    }
+
+    .people-metric {
+        display: grid;
+        gap: 0.12rem;
+        min-width: 120px;
+    }
+
+    .people-metric-value {
+        font-weight: 800;
+        color: var(--primary-dark);
+    }
+
+    .people-filter-row {
+        padding: 0.95rem 1rem;
+        border-radius: 18px;
+        background: rgba(7, 26, 44, 0.03);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .people-filter-row .form-group {
+        margin: 0;
+        min-width: 260px;
+    }
+
+    .people-payment-method {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.68rem;
+        border-radius: 999px;
+        background: rgba(10, 67, 107, 0.06);
+        color: var(--primary-dark);
+        font-size: 0.8rem;
+        font-weight: 800;
+    }
+
+    .people-payment-period,
+    .people-payment-signature {
+        padding: 0.8rem 0.9rem;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.78);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .people-payment-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    @media (max-width: 960px) {
+        .people-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 720px) {
+        .people-employee-details,
+        .people-payment-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .people-hero,
+        .people-card,
+        .people-employee-card,
+        .people-payment-card {
+            border-radius: 22px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="people-shell">
+    <section class="people-hero">
+        <div class="people-hero-top">
+            <div>
+                <span class="people-eyebrow">Site workforce</span>
+                <h1>Gestion des employés</h1>
+                <p class="people-hero-copy">
+                    Hub RH et opérationnel de <strong>{{ site.nom }}</strong>. Cette page centralise les employés du site,
+                    leurs salaires, leur productivité, leurs paiements et l'accès direct aux portails individuels.
+                </p>
+                <div class="people-chips">
+                    <span class="people-chip">Site <strong>{{ site.nom }}</strong></span>
+                    <span class="people-chip">Actifs <strong>{{ active_employee_count }}</strong></span>
+                    <span class="people-chip">Salaires définis <strong>{{ salary_defined_count }}</strong></span>
+                </div>
+            </div>
+            <div class="people-hero-actions">
+                <a href="{% url 'admin_add_site_employee' site.id %}" class="btn btn-info">👤 Ajouter un employé</a>
+                <a href="{% url 'admin_site_documents' site.id %}" class="btn btn-success">📁 Documents du site</a>
+                <a href="{% url 'admin_site_detail' site.id %}" class="btn btn-primary">← Retour au site</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="people-kpis">
+        <article class="people-kpi">
+            <div class="people-kpi-label">Équipe du site</div>
+            <div class="people-kpi-value">{{ site_employees|length }}</div>
+            <div class="people-kpi-copy">{{ active_employee_count }} actifs • {{ inactive_employee_count }} inactifs</div>
+        </article>
+        <article class="people-kpi">
+            <div class="people-kpi-label">Productivité du mois</div>
+            <div class="people-kpi-value">{{ team_month_cash_flow|fc_amount }} FC</div>
+            <div class="people-kpi-copy">{{ team_month_lavages }} lavage{{ team_month_lavages|pluralize }} saisi{{ team_month_lavages|pluralize }} ce mois</div>
+        </article>
+        <article class="people-kpi">
+            <div class="people-kpi-label">Rapports confirmés (mois)</div>
+            <div class="people-kpi-value">{{ reports_month_count }}</div>
+            <div class="people-kpi-copy">Rapports de fin de journée validés depuis le {{ month_start|date:"d/m/Y" }}</div>
+        </article>
+        <article class="people-kpi">
+            <div class="people-kpi-label">Paiements visibles</div>
+            <div class="people-kpi-value">${{ payment_total_usd|floatformat:2 }}</div>
+            <div class="people-kpi-copy">{{ payment_records_count }} paiement{{ payment_records_count|pluralize }} dans le filtre courant</div>
+        </article>
+    </section>
+
+    <section class="people-grid">
+        <article class="people-card">
+            <div class="people-card-head">
+                <div>
+                    <h2 class="people-card-title">Vue équipe</h2>
+                    <p class="people-card-copy">Chaque carte expose les données RH et la production utile pour gérer le site sans ouvrir les documents.</p>
+                </div>
+                <span class="people-card-badge">Cash flow total équipe: {{ team_total_cash_flow|fc_amount }} FC</span>
+            </div>
+
+            {% if employee_rows %}
+            <div class="people-employee-grid">
+                {% for row in employee_rows %}
+                <article class="people-employee-card">
+                    <div class="people-employee-head">
+                        <div style="display: flex; align-items: center; gap: 0.8rem;">
+                            <span class="people-avatar">{{ row.profile.user.first_name|default:row.profile.user.username|slice:":1"|upper }}</span>
+                            <div>
+                                <h3 class="people-employee-name">{{ row.profile.user.get_full_name|default:row.profile.user.username }}</h3>
+                                <div class="people-employee-meta">@{{ row.profile.user.username }} • {{ row.profile.telephone|default:"Sans téléphone" }}</div>
+                            </div>
+                        </div>
+                        {% if row.profile.actif and row.profile.user.is_active %}
+                        <span class="people-status people-status--active">Actif</span>
+                        {% else %}
+                        <span class="people-status people-status--inactive">Inactif</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="people-employee-details">
+                        <div class="people-detail-box">
+                            <div class="people-stat-label">Salaire mensuel</div>
+                            <div class="people-detail-value">{% if row.profile.salaire_mensuel_usd %}${{ row.profile.salaire_mensuel_usd|floatformat:2 }} USD{% else %}Non défini{% endif %}</div>
+                        </div>
+                        <div class="people-detail-box">
+                            <div class="people-stat-label">M-Pesa</div>
+                            <div class="people-detail-value">{{ row.profile.mpesa_numero|default:"Non renseigné" }}</div>
+                        </div>
+                        <div class="people-detail-box">
+                            <div class="people-stat-label">Productivité du mois</div>
+                            <div class="people-detail-value">{{ row.month_fc|fc_amount }} FC</div>
+                            <div class="people-payment-copy">{{ row.month_lavages }} lavage{{ row.month_lavages|pluralize }}</div>
+                        </div>
+                        <div class="people-detail-box">
+                            <div class="people-stat-label">Paiements cumulés</div>
+                            <div class="people-detail-value">${{ row.total_paid_usd|floatformat:2 }} USD</div>
+                            <div class="people-payment-copy">{{ row.total_payments }} versement{{ row.total_payments|pluralize }}</div>
+                        </div>
+                    </div>
+
+                    <div class="people-employee-metrics">
+                        <div class="people-metric">
+                            <div class="people-stat-label">Rapports</div>
+                            <div class="people-metric-value">{{ row.month_reports }} ce mois • {{ row.total_reports }} total</div>
+                        </div>
+                        <div class="people-metric">
+                            <div class="people-stat-label">Problèmes</div>
+                            <div class="people-metric-value">{{ row.open_issues }} ouvert{{ row.open_issues|pluralize }} • {{ row.total_issues }} total</div>
+                        </div>
+                        <div class="people-metric">
+                            <div class="people-stat-label">Dernière activité</div>
+                            <div class="people-metric-value">{% if row.last_activity %}{{ row.last_activity|date:"d/m/Y" }}{% else %}Aucune{% endif %}</div>
+                        </div>
+                    </div>
+
+                    <div class="people-employee-actions">
+                        <a href="{% url 'admin_site_employee_portal' site.id row.profile.id %}" class="btn btn-info">Portail</a>
+                        <a href="{% url 'admin_edit_site_employee' site.id row.profile.id %}" class="btn btn-secondary">Modifier</a>
+                        <a href="{% url 'admin_create_employee_payment' site.id row.profile.id %}" class="btn btn-success">Payer</a>
+                        <a href="{% url 'admin_remove_site_employee' site.id row.profile.id %}" class="btn btn-danger">Retirer</a>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="people-empty">Aucun employé n'est encore rattaché à ce site.</div>
+            {% endif %}
+        </article>
+
+        <article class="people-card">
+            <div class="people-card-head">
+                <div>
+                    <h2 class="people-card-title">Lecture rapide RH</h2>
+                    <p class="people-card-copy">Vue compactée de la situation salaires, paiements et activité du mois pour le site.</p>
+                </div>
+                <span class="people-card-badge">USD payés ce mois: ${{ payments_month_total_usd|floatformat:2 }}</span>
+            </div>
+
+            <div class="people-employee-grid" style="grid-template-columns: 1fr;">
+                <div class="people-detail-box">
+                    <div class="people-stat-label">Cash flow cumulé équipe</div>
+                    <div class="people-detail-value">{{ team_total_cash_flow|fc_amount }} FC</div>
+                    <div class="people-payment-copy">{{ team_total_lavages }} lavage{{ team_total_lavages|pluralize }} saisi{{ team_total_lavages|pluralize }} sur l'historique.</div>
+                </div>
+                <div class="people-detail-box">
+                    <div class="people-stat-label">Employés payés</div>
+                    <div class="people-detail-value">{{ unique_paid_employee_count }}</div>
+                    <div class="people-payment-copy">Employé{{ unique_paid_employee_count|pluralize }} concerné{{ unique_paid_employee_count|pluralize }} par les paiements actuellement filtrés.</div>
+                </div>
+                <div class="people-detail-box">
+                    <div class="people-stat-label">Dernier paiement</div>
+                    <div class="people-detail-value">{% if latest_payment %}{{ latest_payment.payment_date|date:"d/m/Y" }}{% else %}-{% endif %}</div>
+                    <div class="people-payment-copy">
+                        {% if latest_payment %}
+                        {{ latest_payment.employee_profile.user.get_full_name|default:latest_payment.employee_profile.user.username }} • ${{ latest_payment.amount_paid_usd|floatformat:2 }} USD
+                        {% else %}
+                        Aucun paiement enregistré pour le moment.
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </article>
+    </section>
+
+    <section class="people-card">
+        <div class="people-card-head">
+            <div>
+                <h2 class="people-card-title">Historique des paiements</h2>
+                <p class="people-card-copy">Relisez les périodes payées, les signatures de réception, ouvrez la fiche et partagez le PDF directement.</p>
+            </div>
+            <span class="people-card-badge">{{ payment_records_count }} ligne{{ payment_records_count|pluralize }}</span>
+        </div>
+
+        <form method="get" class="people-filter-row">
+            <div class="form-group">
+                <label for="employee">Filtrer par employé</label>
+                <select id="employee" name="employee" class="form-control">
+                    <option value="">Tous les employés</option>
+                    {% for profile in site_employees %}
+                    <option value="{{ profile.id }}" {% if selected_employee == profile.id|stringformat:"s" %}selected{% endif %}>
+                        {{ profile.user.get_full_name|default:profile.user.username }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: end;">
+                <button type="submit" class="btn btn-primary">Filtrer</button>
+                <a href="{% url 'admin_site_employees' site.id %}" class="btn btn-secondary">Réinitialiser</a>
+            </div>
+        </form>
+
+        {% if payment_records %}
+        <div class="people-payment-list">
+            {% for payment in payment_records %}
+            <article class="people-payment-card">
+                <div class="people-payment-top">
+                    <div>
+                        <div class="people-payment-date">{{ payment.payment_date|date:"d/m/Y" }}</div>
+                        <h3 class="people-payment-name">{{ payment.employee_profile.user.get_full_name|default:payment.employee_profile.user.username }}</h3>
+                    </div>
+                    <span class="people-payment-method">{{ payment.get_payment_method_display }}</span>
+                </div>
+
+                <div class="people-payment-period">
+                    <strong>Période:</strong> {{ payment.period_start|date:"d/m/Y" }} → {{ payment.period_end|date:"d/m/Y" }}
+                    {% if payment.mpesa_reference %}
+                    <div class="people-payment-copy" style="margin-top: 0.25rem;">Référence: {{ payment.mpesa_reference }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="people-payment-grid">
+                    <div class="people-payment-stat">
+                        <div class="people-payment-label">Salaire base</div>
+                        <div class="people-payment-value">${{ payment.salary_base_usd|floatformat:2 }} USD</div>
+                    </div>
+                    <div class="people-payment-stat">
+                        <div class="people-payment-label">Montant payé</div>
+                        <div class="people-payment-value">${{ payment.amount_paid_usd|floatformat:2 }} USD</div>
+                    </div>
+                </div>
+
+                <div class="people-payment-signature">
+                    <strong>Signature employé:</strong> {{ payment.employee_signature_name }}
+                    <div class="people-payment-copy">{{ payment.signed_at|date:"d/m/Y H:i" }}</div>
+                </div>
+
+                <div class="people-payment-actions">
+                    <a href="{% url 'admin_employee_payment_receipt' site.id payment.id %}" class="btn btn-info">Fiche</a>
+                    <button
+                        type="button"
+                        class="btn btn-secondary js-payment-share"
+                        data-share-title="{{ payment.share_title }}"
+                        data-share-text="{{ payment.share_text }}"
+                        data-share-pdf-url="{{ payment.share_pdf_url }}"
+                        data-share-filename="{{ payment.share_filename }}"
+                        data-whatsapp-url="{{ payment.whatsapp_share_url }}"
+                    >
+                        Partager PDF
+                    </button>
+                    <button
+                        type="button"
+                        class="btn btn-light js-payment-whatsapp"
+                        data-share-title="{{ payment.share_title }}"
+                        data-share-text="{{ payment.share_text }}"
+                        data-share-pdf-url="{{ payment.share_pdf_url }}"
+                        data-share-filename="{{ payment.share_filename }}"
+                        data-whatsapp-url="{{ payment.whatsapp_share_url }}"
+                    >
+                        WhatsApp Web (PDF)
+                    </button>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="people-empty">Aucun paiement enregistré pour ce site.</div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const shareButtons = Array.from(document.querySelectorAll('.js-payment-share'));
+        const whatsappButtons = Array.from(document.querySelectorAll('.js-payment-whatsapp'));
+
+        async function fetchPdfFile(pdfUrl, filename) {
+            const response = await fetch(pdfUrl, { credentials: 'same-origin' });
+            if (!response.ok) {
+                throw new Error('Impossible de télécharger le PDF.');
+            }
+            const blob = await response.blob();
+            return new File([blob], filename || 'fiche-paiement.pdf', { type: 'application/pdf' });
+        }
+
+        function downloadBlob(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename || 'fiche-paiement.pdf';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.setTimeout(function () {
+                URL.revokeObjectURL(url);
+            }, 1000);
+        }
+
+        shareButtons.forEach(function (button) {
+            button.addEventListener('click', async function () {
+                const shareTitle = button.dataset.shareTitle || 'Fiche de paiement';
+                const shareText = button.dataset.shareText || '';
+                const pdfUrl = button.dataset.sharePdfUrl || '';
+                const filename = button.dataset.shareFilename || 'fiche-paiement.pdf';
+
+                if (!pdfUrl) {
+                    window.alert('Le PDF de la fiche est indisponible pour le moment.');
+                    return;
+                }
+
+                try {
+                    const file = await fetchPdfFile(pdfUrl, filename);
+                    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                        await navigator.share({
+                            title: shareTitle,
+                            text: shareText,
+                            files: [file],
+                        });
+                        return;
+                    }
+                    downloadBlob(file, filename);
+                    window.alert('Le PDF a été téléchargé. Partagez-le maintenant depuis votre appareil.');
+                } catch (error) {
+                    console.error(error);
+                    window.alert('Impossible de préparer le PDF pour le partage.');
+                }
+            });
+        });
+
+        whatsappButtons.forEach(function (button) {
+            button.addEventListener('click', async function () {
+                const pdfUrl = button.dataset.sharePdfUrl || '';
+                const filename = button.dataset.shareFilename || 'fiche-paiement.pdf';
+                const whatsappUrl = button.dataset.whatsappUrl || 'https://web.whatsapp.com/';
+                const popup = window.open(whatsappUrl, '_blank', 'noopener');
+
+                if (!pdfUrl) {
+                    if (popup) {
+                        popup.focus();
+                    }
+                    return;
+                }
+
+                try {
+                    const file = await fetchPdfFile(pdfUrl, filename);
+                    downloadBlob(file, filename);
+                    if (popup) {
+                        popup.focus();
+                    }
+                    window.alert('WhatsApp Web est ouvert et le PDF a été téléchargé. Attachez maintenant le fichier dans la conversation.');
+                } catch (error) {
+                    console.error(error);
+                    if (popup) {
+                        popup.focus();
+                    }
+                    window.alert('WhatsApp Web a été ouvert, mais le PDF n’a pas pu être préparé.');
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -565,8 +565,9 @@
                 <span class="docs-hero-eyebrow">Site records</span>
                 <h1>📁 Documents du site</h1>
                 <p class="docs-hero-copy">
-                    Centre de gestion documentaire, salarial et employé pour <strong>{{ site.nom }}</strong>.
-                    Cette page regroupe l'équipe active, l'historique des paiements et l'ensemble des preuves documentaires du site dans une lecture plus claire.
+                    Bibliothèque documentaire et média de <strong>{{ site.nom }}</strong>.
+                    Les employés, salaires, paiements et portails individuels sont désormais gérés depuis
+                    <strong>Gestion des employés</strong> pour éviter de mélanger RH et archivage.
                 </p>
                 <div class="docs-hero-chips">
                     <span class="docs-chip">Site <strong>{{ site.nom }}</strong></span>
@@ -575,7 +576,7 @@
                 </div>
             </div>
             <div class="docs-hero-actions">
-                <a href="{% url 'admin_add_site_employee' site.id %}" class="btn btn-info">👤 Ajouter un employé</a>
+                <a href="{% url 'admin_site_employees' site.id %}" class="btn btn-info">👥 Gestion des employés</a>
                 <a href="{% url 'admin_upload_site_document' site.id %}" class="btn btn-success">➕ Uploader un document</a>
                 <a href="{% url 'admin_site_detail' site.id %}" class="btn btn-primary">← Retour</a>
             </div>
@@ -584,81 +585,30 @@
 
     <section class="docs-kpis">
         <article class="docs-kpi">
-            <p class="docs-kpi-label">Employés du site</p>
-            <div class="docs-kpi-value">{{ site_employees|length }}</div>
-            <div class="docs-kpi-subvalue">{{ active_employee_count }} actifs • {{ inactive_employee_count }} inactifs</div>
+            <p class="docs-kpi-label">Documents du site</p>
+            <div class="docs-kpi-value">{{ documents_total_count }}</div>
+            <div class="docs-kpi-subvalue">Pièces archivées pour ce site</div>
         </article>
         <article class="docs-kpi">
-            <p class="docs-kpi-label">Paiements visibles</p>
-            <div class="docs-kpi-value">{{ payment_records_count }}</div>
-            <div class="docs-kpi-subvalue">{{ unique_paid_employee_count }} employé{{ unique_paid_employee_count|pluralize }} concerné{{ unique_paid_employee_count|pluralize }}</div>
+            <p class="docs-kpi-label">Catégories actives</p>
+            <div class="docs-kpi-value">{{ active_document_type_count }}</div>
+            <div class="docs-kpi-subvalue">Types contenant au moins un document</div>
         </article>
         <article class="docs-kpi">
-            <p class="docs-kpi-label">Total payé (filtre courant)</p>
-            <div class="docs-kpi-value">${{ payment_total_usd|floatformat:2 }}</div>
-            <div class="docs-kpi-subvalue">USD versés dans la vue actuelle</div>
+            <p class="docs-kpi-label">Médias</p>
+            <div class="docs-kpi-value">{{ media_documents_count }}</div>
+            <div class="docs-kpi-subvalue">Photos et vidéos directement consultables</div>
         </article>
         <article class="docs-kpi">
             <p class="docs-kpi-label">Dernière activité</p>
-            <div class="docs-kpi-value">
-                {% if latest_document %}{{ latest_document.uploaded_at|date:"d/m" }}{% elif latest_payment %}{{ latest_payment.payment_date|date:"d/m" }}{% else %}-{% endif %}
-            </div>
+            <div class="docs-kpi-value">{% if latest_document %}{{ latest_document.uploaded_at|date:"d/m" }}{% else %}-{% endif %}</div>
             <div class="docs-kpi-subvalue">
-                {% if latest_document %}Dernier upload{% elif latest_payment %}Dernier paiement{% else %}Aucune activité récente{% endif %}
+                {% if latest_document %}Dernier upload documentaire{% else %}Aucune activité récente{% endif %}
             </div>
         </article>
     </section>
 
     <section class="docs-grid">
-        <article class="docs-card">
-            <div class="docs-card-header">
-                <div>
-                    <h2 class="docs-card-title">Vue équipe</h2>
-                    <p class="docs-card-copy">Accès direct aux profils, au salaire USD, au portail employé et aux actions de paiement.</p>
-                </div>
-                <span class="docs-card-badge">{{ active_employee_count }} actif{{ active_employee_count|pluralize }}</span>
-            </div>
-
-            {% if site_employees %}
-            <div class="docs-employees-grid">
-                {% for profile in site_employees %}
-                <article class="docs-employee-card">
-                    <div class="docs-employee-card-head">
-                        <div style="display: flex; align-items: center; gap: 0.8rem;">
-                            <span class="docs-avatar">{{ profile.user.first_name|default:profile.user.username|slice:":1"|upper }}</span>
-                            <div>
-                                <h3 class="docs-employee-name">{{ profile.user.get_full_name|default:profile.user.username }}</h3>
-                                <div class="docs-employee-meta">@{{ profile.user.username }}</div>
-                            </div>
-                        </div>
-                        {% if profile.actif and profile.user.is_active %}
-                        <span class="docs-status docs-status--active">Actif</span>
-                        {% else %}
-                        <span class="docs-status docs-status--inactive">Inactif</span>
-                        {% endif %}
-                    </div>
-
-                    <div class="docs-employee-details">
-                        <div><strong>Téléphone:</strong> {{ profile.telephone|default:"-" }}</div>
-                        <div><strong>M-Pesa:</strong> {{ profile.mpesa_numero|default:"-" }}</div>
-                        <div><strong>Salaire:</strong> {% if profile.salaire_mensuel_usd %}${{ profile.salaire_mensuel_usd|floatformat:2 }} USD{% else %}Non défini{% endif %}</div>
-                        <div><strong>Ancienneté:</strong> {{ profile.anciennete_texte }}</div>
-                    </div>
-
-                    <div class="docs-employee-actions">
-                        <a href="{% url 'admin_site_employee_portal' site.id profile.id %}" class="btn btn-info">Portail</a>
-                        <a href="{% url 'admin_edit_site_employee' site.id profile.id %}" class="btn btn-secondary">Modifier</a>
-                        <a href="{% url 'admin_create_employee_payment' site.id profile.id %}" class="btn btn-success">Payer</a>
-                        <a href="{% url 'admin_remove_site_employee' site.id profile.id %}" class="btn btn-danger">Retirer</a>
-                    </div>
-                </article>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="docs-empty">Aucun employé n'est encore rattaché à ce site.</div>
-            {% endif %}
-        </article>
-
         <article class="docs-card">
             <div class="docs-card-header">
                 <div>
@@ -691,113 +641,15 @@
                 </div>
                 <div class="docs-mini-item docs-card-row">
                     <div>
-                        <p class="docs-mini-label">Dernier paiement</p>
+                        <p class="docs-mini-label">Gestion RH</p>
                         <div class="docs-mini-copy">
-                            {% if latest_payment %}
-                            {{ latest_payment.employee_profile.user.get_full_name|default:latest_payment.employee_profile.user.username }} • {{ latest_payment.get_payment_method_display }}
-                            {% else %}
-                            Aucun paiement enregistré.
-                            {% endif %}
+                            Les salaires, la productivité et les paiements ont été déplacés vers une page dédiée pour garder ce centre uniquement documentaire.
                         </div>
                     </div>
-                    <div class="docs-mini-value">{% if latest_payment %}${{ latest_payment.amount_paid_usd|floatformat:2 }}{% else %}-{% endif %}</div>
+                    <div class="docs-mini-value"><a href="{% url 'admin_site_employees' site.id %}" class="btn btn-info">Ouvrir</a></div>
                 </div>
             </div>
         </article>
-    </section>
-
-    <section class="docs-card">
-        <div class="docs-card-header">
-            <div>
-                <h2 class="docs-card-title">💳 Historique des paiements</h2>
-                <p class="docs-card-copy">Filtrez par employé, relisez les périodes payées, ouvrez la fiche et partagez directement le PDF de paiement.</p>
-            </div>
-            <span class="docs-card-badge">{{ payment_records_count }} ligne{{ payment_records_count|pluralize }}</span>
-        </div>
-
-        <form method="get" class="docs-form-inline">
-            <input type="hidden" name="type" value="{{ filter_type|default:'' }}">
-            <div class="form-group">
-                <label for="employee">Filtrer par employé</label>
-                <select id="employee" name="employee" class="form-control">
-                    <option value="">Tous les employés</option>
-                    {% for profile in site_employees %}
-                    <option value="{{ profile.id }}" {% if selected_employee == profile.id|stringformat:"s" %}selected{% endif %}>
-                        {{ profile.user.get_full_name|default:profile.user.username }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <button type="submit" class="btn btn-primary">Filtrer</button>
-            <a href="{% url 'admin_site_documents' site.id %}" class="btn btn-secondary">Réinitialiser</a>
-        </form>
-
-        {% if payment_records %}
-        <div class="docs-payment-list">
-            {% for payment in payment_records %}
-            <article class="docs-payment-card">
-                <div class="docs-payment-topline">
-                    <div>
-                        <div class="docs-payment-date">{{ payment.payment_date|date:"d/m/Y" }}</div>
-                        <h3 class="docs-payment-name">{{ payment.employee_profile.user.get_full_name|default:payment.employee_profile.user.username }}</h3>
-                    </div>
-                    <span class="docs-payment-method">{{ payment.get_payment_method_display }}</span>
-                </div>
-
-                <div class="docs-payment-period">
-                    <strong>Période:</strong> {{ payment.period_start|date:"d/m/Y" }} → {{ payment.period_end|date:"d/m/Y" }}
-                    {% if payment.mpesa_reference %}
-                    <div class="docs-payment-copy" style="margin-top: 0.25rem;">Référence: {{ payment.mpesa_reference }}</div>
-                    {% endif %}
-                </div>
-
-                <div class="docs-payment-grid">
-                    <div class="docs-payment-stat">
-                        <div class="docs-payment-stat-label">Salaire base</div>
-                        <div class="docs-payment-stat-value">${{ payment.salary_base_usd|floatformat:2 }} USD</div>
-                    </div>
-                    <div class="docs-payment-stat">
-                        <div class="docs-payment-stat-label">Montant payé</div>
-                        <div class="docs-payment-stat-value">${{ payment.amount_paid_usd|floatformat:2 }} USD</div>
-                    </div>
-                </div>
-
-                <div class="docs-payment-signature">
-                    <strong>Signature employé:</strong> {{ payment.employee_signature_name }}
-                    <div class="docs-payment-copy">{{ payment.signed_at|date:"d/m/Y H:i" }}</div>
-                </div>
-
-                <div class="docs-payment-actions">
-                    <a href="{% url 'admin_employee_payment_receipt' site.id payment.id %}" class="btn btn-info">Fiche</a>
-                    <button
-                        type="button"
-                        class="btn btn-secondary js-payment-share"
-                        data-share-title="{{ payment.share_title }}"
-                        data-share-text="{{ payment.share_text }}"
-                        data-share-pdf-url="{{ payment.share_pdf_url }}"
-                        data-share-filename="{{ payment.share_filename }}"
-                        data-whatsapp-url="{{ payment.whatsapp_share_url }}"
-                    >
-                        Partager PDF
-                    </button>
-                    <button
-                        type="button"
-                        class="btn btn-light js-payment-whatsapp"
-                        data-share-title="{{ payment.share_title }}"
-                        data-share-text="{{ payment.share_text }}"
-                        data-share-pdf-url="{{ payment.share_pdf_url }}"
-                        data-share-filename="{{ payment.share_filename }}"
-                        data-whatsapp-url="{{ payment.whatsapp_share_url }}"
-                    >
-                        WhatsApp Web (PDF)
-                    </button>
-                </div>
-            </article>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="docs-empty">Aucun paiement enregistré pour ce site.</div>
-        {% endif %}
     </section>
 
     <section class="docs-card">
@@ -810,11 +662,11 @@
         </div>
 
         <div class="docs-filter-pills">
-            <a href="{% url 'admin_site_documents' site.id %}?employee={{ selected_employee }}" class="docs-filter-pill {% if not filter_type %}docs-filter-pill--active{% endif %}">
+            <a href="{% url 'admin_site_documents' site.id %}" class="docs-filter-pill {% if not filter_type %}docs-filter-pill--active{% endif %}">
                 Tous <strong>{{ documents_total_count }}</strong>
             </a>
             {% for summary in document_type_summaries %}
-            <a href="{% url 'admin_site_documents' site.id %}?type={{ summary.value }}{% if selected_employee %}&employee={{ selected_employee }}{% endif %}" class="docs-filter-pill {% if filter_type == summary.value %}docs-filter-pill--active{% endif %}">
+            <a href="{% url 'admin_site_documents' site.id %}?type={{ summary.value }}" class="docs-filter-pill {% if filter_type == summary.value %}docs-filter-pill--active{% endif %}">
                 {{ summary.label }} <strong>{{ summary.count }}</strong>
             </a>
             {% endfor %}

@@ -136,10 +136,16 @@ def _build_admin_site_navigation(request):
                 "keywords": "finance pertes depot banque corrections",
             },
             {
+                "label": "Gestion des employés",
+                "url": reverse("admin_site_employees", kwargs={"site_id": site.id}),
+                "description": "Salaires, paiements et productivité",
+                "keywords": "employes equipe salaire productivite paiements mpesa rh",
+            },
+            {
                 "label": "Documents du site",
                 "url": reverse("admin_site_documents", kwargs={"site_id": site.id}),
-                "description": "Documents et médias",
-                "keywords": "documents fichiers photos site",
+                "description": "Documents, médias et bibliothèque",
+                "keywords": "documents fichiers photos medias bibliotheque site",
             },
             {
                 "label": "Journal du site",

@@ -14,7 +14,7 @@
     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
         <a href="{% url 'admin_edit_site_employee' site.id employee_profile.id %}" class="btn btn-secondary">✏️ Modifier</a>
         <a href="{% url 'admin_create_employee_payment' site.id employee_profile.id %}" class="btn btn-success">💵 Payer</a>
-        <a href="{% url 'admin_site_documents' site.id %}" class="btn btn-primary">← Retour</a>
+        <a href="{% url 'admin_site_employees' site.id %}" class="btn btn-primary">← Retour</a>
     </div>
 </div>
 

@@ -13,7 +13,7 @@ from django.views.decorators.http import require_http_methods
 from functools import wraps
 from django.http import HttpResponse, Http404
 from django.contrib import messages
-from django.db.models import Sum, Count, Q, Min
+from django.db.models import Sum, Count, Q, Min, Max
 from django.contrib.auth.models import User
 from django.core import signing
 from datetime import date, datetime, timedelta
@@ -4087,6 +4087,171 @@ def _get_shared_payment_from_token(token):
     )
 
 
+def _build_site_employee_management_context(request, site):
+    today = timezone.localdate()
+    month_start = today.replace(day=1)
+
+    site_employees = list(
+        UserProfile.objects.filter(
+            site=site,
+            role='EMPLOYE',
+        ).select_related('user').order_by('-actif', 'user__first_name', 'user__last_name', 'user__username')
+    )
+    active_employee_count = sum(1 for profile in site_employees if profile.actif and profile.user.is_active)
+    inactive_employee_count = len(site_employees) - active_employee_count
+    salary_defined_count = sum(1 for profile in site_employees if profile.salaire_mensuel_usd)
+
+    selected_employee = request.GET.get('employee')
+    payment_records_qs = EmployeePayment.objects.filter(site=site).select_related(
+        'employee_profile',
+        'employee_profile__user',
+        'created_by',
+    )
+    if selected_employee:
+        payment_records_qs = payment_records_qs.filter(employee_profile_id=selected_employee)
+    payment_records = list(payment_records_qs.order_by('-payment_date', '-created_at'))
+    payment_total_usd = sum((payment.amount_paid_usd for payment in payment_records), Decimal("0"))
+    unique_paid_employee_count = len({payment.employee_profile_id for payment in payment_records})
+    latest_payment = payment_records[0] if payment_records else None
+    for payment in payment_records:
+        share_meta = _build_payment_receipt_share_meta(request, payment)
+        payment.share_url = share_meta["share_url"]
+        payment.share_pdf_url = share_meta["share_pdf_url"]
+        payment.share_filename = share_meta["share_filename"]
+        payment.share_title = share_meta["share_title"]
+        payment.share_text = share_meta["share_text"]
+        payment.share_body = share_meta["share_body"]
+        payment.whatsapp_share_url = share_meta["whatsapp_share_url"]
+        payment.email_share_url = share_meta["email_share_url"]
+
+    productivity_qs = CarWash.objects.filter(
+        site=site,
+        is_system_generated=False,
+    )
+    team_total_lavages = productivity_qs.count()
+    team_total_cash_flow = productivity_qs.aggregate(total=Sum('montant'))['total'] or Decimal("0")
+    team_month_lavages = productivity_qs.filter(date__gte=month_start, date__lte=today).count()
+    team_month_cash_flow = (
+        productivity_qs.filter(date__gte=month_start, date__lte=today).aggregate(total=Sum('montant'))['total']
+        or Decimal("0")
+    )
+
+    reports_month_count = ShiftDay.objects.filter(
+        site=site,
+        date__gte=month_start,
+        date__lte=today,
+        daily_report_confirmed=True,
+    ).count()
+    payments_month_total_usd = (
+        EmployeePayment.objects.filter(
+            site=site,
+            payment_date__gte=month_start,
+            payment_date__lte=today,
+        ).aggregate(total=Sum('amount_paid_usd'))['total']
+        or Decimal("0")
+    )
+
+    lavages_totals = {
+        item['employe_id']: item
+        for item in productivity_qs.values('employe_id').annotate(
+            total_lavages=Count('id'),
+            total_fc=Sum('montant'),
+            last_lavage_date=Max('date'),
+        )
+    }
+    lavages_month_totals = {
+        item['employe_id']: item
+        for item in productivity_qs.filter(date__gte=month_start, date__lte=today).values('employe_id').annotate(
+            month_lavages=Count('id'),
+            month_fc=Sum('montant'),
+        )
+    }
+    reports_totals = {
+        item['employe_id']: item
+        for item in ShiftDay.objects.filter(site=site, daily_report_confirmed=True).values('employe_id').annotate(
+            total_reports=Count('id'),
+            last_report_date=Max('date'),
+        )
+    }
+    reports_month_totals = {
+        item['employe_id']: item
+        for item in ShiftDay.objects.filter(
+            site=site,
+            daily_report_confirmed=True,
+            date__gte=month_start,
+            date__lte=today,
+        ).values('employe_id').annotate(month_reports=Count('id'))
+    }
+    issues_totals = {
+        item['employe_id']: item
+        for item in IssueReport.objects.filter(site=site).values('employe_id').annotate(
+            total_issues=Count('id'),
+            open_issues=Count('id', filter=Q(statut__in=['OUVERT', 'EN_COURS'])),
+        )
+    }
+    payment_totals = {
+        item['employee_profile_id']: item
+        for item in EmployeePayment.objects.filter(site=site).values('employee_profile_id').annotate(
+            total_payments=Count('id'),
+            total_paid_usd=Sum('amount_paid_usd'),
+            last_payment_date=Max('payment_date'),
+        )
+    }
+
+    employee_rows = []
+    for profile in site_employees:
+        total_stats = lavages_totals.get(profile.user_id, {})
+        month_stats = lavages_month_totals.get(profile.user_id, {})
+        report_stats = reports_totals.get(profile.user_id, {})
+        month_report_stats = reports_month_totals.get(profile.user_id, {})
+        issue_stats = issues_totals.get(profile.user_id, {})
+        payment_stats = payment_totals.get(profile.id, {})
+
+        last_activity = total_stats.get('last_lavage_date') or report_stats.get('last_report_date')
+        report_date = report_stats.get('last_report_date')
+        if report_date and (not last_activity or report_date > last_activity):
+            last_activity = report_date
+
+        employee_rows.append({
+            'profile': profile,
+            'total_lavages': total_stats.get('total_lavages', 0) or 0,
+            'total_fc': total_stats.get('total_fc') or Decimal("0"),
+            'month_lavages': month_stats.get('month_lavages', 0) or 0,
+            'month_fc': month_stats.get('month_fc') or Decimal("0"),
+            'total_reports': report_stats.get('total_reports', 0) or 0,
+            'month_reports': month_report_stats.get('month_reports', 0) or 0,
+            'total_issues': issue_stats.get('total_issues', 0) or 0,
+            'open_issues': issue_stats.get('open_issues', 0) or 0,
+            'total_payments': payment_stats.get('total_payments', 0) or 0,
+            'total_paid_usd': payment_stats.get('total_paid_usd') or Decimal("0"),
+            'last_payment_date': payment_stats.get('last_payment_date'),
+            'last_activity': last_activity,
+        })
+
+    return {
+        'site': site,
+        'today': today,
+        'month_start': month_start,
+        'site_employees': site_employees,
+        'employee_rows': employee_rows,
+        'active_employee_count': active_employee_count,
+        'inactive_employee_count': inactive_employee_count,
+        'salary_defined_count': salary_defined_count,
+        'payment_records': payment_records,
+        'payment_total_usd': payment_total_usd,
+        'payment_records_count': len(payment_records),
+        'unique_paid_employee_count': unique_paid_employee_count,
+        'selected_employee': str(selected_employee) if selected_employee else '',
+        'latest_payment': latest_payment,
+        'team_total_lavages': team_total_lavages,
+        'team_total_cash_flow': team_total_cash_flow,
+        'team_month_lavages': team_month_lavages,
+        'team_month_cash_flow': team_month_cash_flow,
+        'reports_month_count': reports_month_count,
+        'payments_month_total_usd': payments_month_total_usd,
+    }
+
+
 def _build_payment_receipt_pdf(payment):
     """
     Génère un PDF de la fiche de paiement.
@@ -4125,34 +4290,28 @@ def _build_payment_receipt_pdf_response(payment, download=False):
 @no_cache_view
 def admin_site_documents(request, site_id):
     """
-    Vue pour gérer les documents et les employés d'un site.
+    Vue documentaire du site.
     """
     user = request.user
-    
-    # Pour les superutilisateurs, s'assurer qu'ils ont un profil avec le rôle ADMIN
-    if user.is_superuser:
-        if not hasattr(user, 'userprofile'):
-            UserProfile.objects.create(user=user, role='ADMIN')
-        elif not user.userprofile.is_admin():
-            user.userprofile.role = 'ADMIN'
-            user.userprofile.save()
-    
-    # Vérifier que l'utilisateur est admin
+    ensure_superuser_admin_profile(user)
+
     if not is_admin_user(user):
         messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
         return redirect('dashboard')
-    
+
     site = get_object_or_404(Location, id=site_id)
-    
-    # Documents du site
-    all_documents = SiteDocument.objects.filter(site=site).select_related('uploaded_by').order_by('-uploaded_at')
-    documents_total_count = all_documents.count()
+
+    documents_queryset = SiteDocument.objects.filter(site=site).select_related('uploaded_by').order_by('-uploaded_at')
+    documents_total_count = documents_queryset.count()
     documents_by_type = {}
-    for doc in all_documents:
+    media_documents_count = 0
+    for doc in documents_queryset:
         file_type = doc.file_type
         if file_type not in documents_by_type:
             documents_by_type[file_type] = []
         documents_by_type[file_type].append(doc)
+        if doc.is_image or doc.is_video:
+            media_documents_count += 1
     document_type_summaries = []
     for value, label in SiteDocument.FILE_TYPE_CHOICES:
         docs_for_type = documents_by_type.get(value, [])
@@ -4164,40 +4323,13 @@ def admin_site_documents(request, site_id):
         })
     
     filter_type = request.GET.get('type')
+    all_documents = documents_queryset
     if filter_type:
-        all_documents = all_documents.filter(file_type=filter_type)
+        all_documents = documents_queryset.filter(file_type=filter_type)
 
-    # Employés du site (actifs + inactifs pour gestion complète)
-    site_employees = UserProfile.objects.filter(
-        site=site,
-        role='EMPLOYE'
-    ).select_related('user').order_by('-actif', 'user__first_name', 'user__last_name', 'user__username')
-    active_employee_count = site_employees.filter(actif=True, user__is_active=True).count()
-    inactive_employee_count = site_employees.count() - active_employee_count
+    latest_document = documents_queryset.first()
+    active_document_type_count = sum(1 for summary in document_type_summaries if summary["count"])
 
-    # Historique des paiements
-    selected_employee = request.GET.get('employee')
-    payment_records = EmployeePayment.objects.filter(site=site).select_related(
-        'employee_profile',
-        'employee_profile__user',
-        'created_by',
-    )
-    if selected_employee:
-        payment_records = payment_records.filter(employee_profile_id=selected_employee)
-    payment_records = list(payment_records.order_by('-payment_date', '-created_at'))
-    payment_total_usd = sum((payment.amount_paid_usd for payment in payment_records), Decimal("0"))
-    unique_paid_employee_count = len({payment.employee_profile_id for payment in payment_records})
-    for payment in payment_records:
-        share_meta = _build_payment_receipt_share_meta(request, payment)
-        payment.share_url = share_meta["share_url"]
-        payment.share_title = share_meta["share_title"]
-        payment.share_text = share_meta["share_text"]
-        payment.share_body = share_meta["share_body"]
-        payment.whatsapp_share_url = share_meta["whatsapp_share_url"]
-        payment.email_share_url = share_meta["email_share_url"]
-    latest_document = all_documents.first()
-    latest_payment = payment_records[0] if payment_records else None
-    
     context = {
         'site': site,
         'all_documents': all_documents,
@@ -4206,19 +4338,30 @@ def admin_site_documents(request, site_id):
         'document_type_summaries': document_type_summaries,
         'filter_type': filter_type,
         'documents_total_count': documents_total_count,
-        'site_employees': site_employees,
-        'active_employee_count': active_employee_count,
-        'inactive_employee_count': inactive_employee_count,
-        'payment_records': payment_records,
-        'payment_total_usd': payment_total_usd,
-        'payment_records_count': len(payment_records),
-        'unique_paid_employee_count': unique_paid_employee_count,
-        'selected_employee': str(selected_employee) if selected_employee else '',
         'latest_document': latest_document,
-        'latest_payment': latest_payment,
+        'active_document_type_count': active_document_type_count,
+        'media_documents_count': media_documents_count,
     }
     
     return render(request, 'admin/site_documents.html', context)
+
+
+@login_required
+@no_cache_view
+def admin_site_employees(request, site_id):
+    """
+    Hub RH du site: équipe, rémunérations et productivité.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    site = get_object_or_404(Location, id=site_id)
+    context = _build_site_employee_management_context(request, site)
+    return render(request, 'admin/site_employees.html', context)
 
 
 @login_required
@@ -4473,7 +4616,7 @@ def admin_add_site_employee(request, site_id):
                 user_agent=get_user_agent(request),
             )
             messages.success(request, f'Employé "{employee_name}" ajouté avec succès.')
-            return redirect('admin_site_documents', site_id=site.id)
+            return redirect('admin_site_employees', site_id=site.id)
     else:
         form = SiteEmployeeForm()
 
@@ -4522,7 +4665,7 @@ def admin_edit_site_employee(request, site_id, profile_id):
                 user_agent=get_user_agent(request),
             )
             messages.success(request, f'Informations de "{employee_name}" mises à jour.')
-            return redirect('admin_site_documents', site_id=site.id)
+            return redirect('admin_site_employees', site_id=site.id)
     else:
         form = SiteEmployeeForm(user_instance=profile.user, profile_instance=profile)
 
@@ -4572,7 +4715,7 @@ def admin_remove_site_employee(request, site_id, profile_id):
             user_agent=get_user_agent(request),
         )
         messages.success(request, f'"{employee_name}" a été retiré du site et désactivé.')
-        return redirect('admin_site_documents', site_id=site.id)
+        return redirect('admin_site_employees', site_id=site.id)
 
     return render(request, 'admin/site_employee_delete.html', {
         'site': site,
