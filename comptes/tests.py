@@ -420,9 +420,22 @@ class EmployeePaymentShareTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Gestion des employés")
+        self.assertContains(response, 'data-tab-trigger="team"')
+        self.assertContains(response, 'data-tab-trigger="payments"')
+        self.assertContains(response, 'data-tab-trigger="performance"')
         self.assertContains(response, "Partager PDF")
         self.assertContains(response, "WhatsApp Web (PDF)")
         self.assertContains(response, "data-share-pdf-url")
+
+    def test_employee_management_page_keeps_requested_tab(self):
+        response = self.client.get(
+            reverse("admin_site_employees", args=[self.site.id]),
+            {"tab": "payments", "employee": str(self.employee.userprofile.id)},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["active_tab"], "payments")
+        self.assertContains(response, 'name="tab" value="payments"')
 
 
 class SiteJournalEntryTests(TestCase):

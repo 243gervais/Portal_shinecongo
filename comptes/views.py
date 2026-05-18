@@ -4090,6 +4090,9 @@ def _get_shared_payment_from_token(token):
 def _build_site_employee_management_context(request, site):
     today = timezone.localdate()
     month_start = today.replace(day=1)
+    active_tab = request.GET.get('tab', 'team').strip().lower()
+    if active_tab not in {'team', 'payments', 'performance'}:
+        active_tab = 'team'
 
     site_employees = list(
         UserProfile.objects.filter(
@@ -4102,6 +4105,8 @@ def _build_site_employee_management_context(request, site):
     salary_defined_count = sum(1 for profile in site_employees if profile.salaire_mensuel_usd)
 
     selected_employee = request.GET.get('employee')
+    if selected_employee and active_tab == 'team':
+        active_tab = 'payments'
     payment_records_qs = EmployeePayment.objects.filter(site=site).select_related(
         'employee_profile',
         'employee_profile__user',
@@ -4228,10 +4233,23 @@ def _build_site_employee_management_context(request, site):
             'last_activity': last_activity,
         })
 
+    top_performers_month = sorted(
+        employee_rows,
+        key=lambda row: (row['month_fc'], row['month_lavages'], row['total_fc']),
+        reverse=True,
+    )[:5]
+    top_performers_total = sorted(
+        employee_rows,
+        key=lambda row: (row['total_fc'], row['total_lavages'], row['total_paid_usd']),
+        reverse=True,
+    )[:5]
+    employees_missing_salary = [row for row in employee_rows if not row['profile'].salaire_mensuel_usd]
+
     return {
         'site': site,
         'today': today,
         'month_start': month_start,
+        'active_tab': active_tab,
         'site_employees': site_employees,
         'employee_rows': employee_rows,
         'active_employee_count': active_employee_count,
@@ -4249,6 +4267,9 @@ def _build_site_employee_management_context(request, site):
         'team_month_cash_flow': team_month_cash_flow,
         'reports_month_count': reports_month_count,
         'payments_month_total_usd': payments_month_total_usd,
+        'top_performers_month': top_performers_month,
+        'top_performers_total': top_performers_total,
+        'employees_missing_salary': employees_missing_salary,
     }
 
 

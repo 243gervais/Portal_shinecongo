@@ -309,8 +309,127 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .people-tabs {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        padding: 0.8rem;
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        box-shadow: 0 14px 34px rgba(11, 31, 53, 0.06);
+    }
+
+    .people-tab-button {
+        appearance: none;
+        border: 1px solid rgba(10, 67, 107, 0.1);
+        background: rgba(7, 26, 44, 0.03);
+        color: var(--primary-dark);
+        border-radius: 999px;
+        padding: 0.85rem 1rem;
+        min-width: 180px;
+        text-align: left;
+        cursor: pointer;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .people-tab-button:hover {
+        transform: translateY(-1px);
+        border-color: rgba(10, 67, 107, 0.18);
+        box-shadow: 0 12px 26px rgba(10, 67, 107, 0.08);
+    }
+
+    .people-tab-button.is-active {
+        background: linear-gradient(135deg, #0a436b 0%, #1f78b4 100%);
+        color: #ffffff;
+        border-color: transparent;
+        box-shadow: 0 18px 36px rgba(10, 67, 107, 0.24);
+    }
+
+    .people-tab-label {
+        display: block;
+        font-weight: 800;
+    }
+
+    .people-tab-copy {
+        display: block;
+        margin-top: 0.18rem;
+        font-size: 0.8rem;
+        color: inherit;
+        opacity: 0.82;
+        line-height: 1.4;
+    }
+
+    .people-tab-panel[hidden] {
+        display: none !important;
+    }
+
+    .people-performance-grid,
+    .people-performance-panels {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .people-performance-grid {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .people-performance-panels {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .people-ranking-list {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .people-ranking-item {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 0.8rem;
+        align-items: center;
+        padding: 0.85rem 0.9rem;
+        border-radius: 16px;
+        background: rgba(7, 26, 44, 0.03);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .people-ranking-rank {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        background: rgba(10, 67, 107, 0.08);
+        color: var(--primary-dark);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 0.82rem;
+    }
+
+    .people-ranking-name {
+        font-weight: 700;
+        color: var(--primary-dark);
+    }
+
+    .people-ranking-meta {
+        margin-top: 0.12rem;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+    }
+
+    .people-ranking-value {
+        text-align: right;
+        font-weight: 800;
+        color: var(--primary-dark);
+    }
+
     @media (max-width: 960px) {
         .people-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .people-performance-panels {
             grid-template-columns: 1fr;
         }
     }
@@ -319,6 +438,10 @@
         .people-employee-details,
         .people-payment-grid {
             grid-template-columns: 1fr;
+        }
+
+        .people-tab-button {
+            min-width: 100%;
         }
 
         .people-hero,
@@ -379,7 +502,22 @@
         </article>
     </section>
 
-    <section class="people-grid">
+    <section class="people-tabs" aria-label="Sections gestion des employés">
+        <button type="button" class="people-tab-button {% if active_tab == 'team' %}is-active{% endif %}" data-tab-trigger="team" aria-pressed="{% if active_tab == 'team' %}true{% else %}false{% endif %}">
+            <span class="people-tab-label">Équipe</span>
+            <span class="people-tab-copy">Profils, salaires, statuts et accès rapides.</span>
+        </button>
+        <button type="button" class="people-tab-button {% if active_tab == 'payments' %}is-active{% endif %}" data-tab-trigger="payments" aria-pressed="{% if active_tab == 'payments' %}true{% else %}false{% endif %}">
+            <span class="people-tab-label">Paiements</span>
+            <span class="people-tab-copy">Fiches, historiques et partage des PDF.</span>
+        </button>
+        <button type="button" class="people-tab-button {% if active_tab == 'performance' %}is-active{% endif %}" data-tab-trigger="performance" aria-pressed="{% if active_tab == 'performance' %}true{% else %}false{% endif %}">
+            <span class="people-tab-label">Performance</span>
+            <span class="people-tab-copy">Productivité, classements et lecture RH.</span>
+        </button>
+    </section>
+
+    <section class="people-tab-panel" data-tab-panel="team" {% if active_tab != 'team' %}hidden{% endif %}>
         <article class="people-card">
             <div class="people-card-head">
                 <div>
@@ -457,135 +595,205 @@
             <div class="people-empty">Aucun employé n'est encore rattaché à ce site.</div>
             {% endif %}
         </article>
+    </section>
 
+    <section class="people-tab-panel" data-tab-panel="payments" {% if active_tab != 'payments' %}hidden{% endif %}>
         <article class="people-card">
             <div class="people-card-head">
                 <div>
-                    <h2 class="people-card-title">Lecture rapide RH</h2>
-                    <p class="people-card-copy">Vue compactée de la situation salaires, paiements et activité du mois pour le site.</p>
+                    <h2 class="people-card-title">Historique des paiements</h2>
+                    <p class="people-card-copy">Relisez les périodes payées, les signatures de réception, ouvrez la fiche et partagez le PDF directement.</p>
                 </div>
-                <span class="people-card-badge">USD payés ce mois: ${{ payments_month_total_usd|floatformat:2 }}</span>
+                <span class="people-card-badge">{{ payment_records_count }} ligne{{ payment_records_count|pluralize }}</span>
             </div>
 
-            <div class="people-employee-grid" style="grid-template-columns: 1fr;">
-                <div class="people-detail-box">
-                    <div class="people-stat-label">Cash flow cumulé équipe</div>
-                    <div class="people-detail-value">{{ team_total_cash_flow|fc_amount }} FC</div>
-                    <div class="people-payment-copy">{{ team_total_lavages }} lavage{{ team_total_lavages|pluralize }} saisi{{ team_total_lavages|pluralize }} sur l'historique.</div>
+            <form method="get" class="people-filter-row">
+                <input type="hidden" name="tab" value="payments">
+                <div class="form-group">
+                    <label for="employee">Filtrer par employé</label>
+                    <select id="employee" name="employee" class="form-control">
+                        <option value="">Tous les employés</option>
+                        {% for profile in site_employees %}
+                        <option value="{{ profile.id }}" {% if selected_employee == profile.id|stringformat:"s" %}selected{% endif %}>
+                            {{ profile.user.get_full_name|default:profile.user.username }}
+                        </option>
+                        {% endfor %}
+                    </select>
                 </div>
-                <div class="people-detail-box">
-                    <div class="people-stat-label">Employés payés</div>
-                    <div class="people-detail-value">{{ unique_paid_employee_count }}</div>
-                    <div class="people-payment-copy">Employé{{ unique_paid_employee_count|pluralize }} concerné{{ unique_paid_employee_count|pluralize }} par les paiements actuellement filtrés.</div>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: end;">
+                    <button type="submit" class="btn btn-primary">Filtrer</button>
+                    <a href="{% url 'admin_site_employees' site.id %}?tab=payments" class="btn btn-secondary">Réinitialiser</a>
                 </div>
-                <div class="people-detail-box">
-                    <div class="people-stat-label">Dernier paiement</div>
-                    <div class="people-detail-value">{% if latest_payment %}{{ latest_payment.payment_date|date:"d/m/Y" }}{% else %}-{% endif %}</div>
-                    <div class="people-payment-copy">
-                        {% if latest_payment %}
-                        {{ latest_payment.employee_profile.user.get_full_name|default:latest_payment.employee_profile.user.username }} • ${{ latest_payment.amount_paid_usd|floatformat:2 }} USD
-                        {% else %}
-                        Aucun paiement enregistré pour le moment.
+            </form>
+
+            {% if payment_records %}
+            <div class="people-payment-list">
+                {% for payment in payment_records %}
+                <article class="people-payment-card">
+                    <div class="people-payment-top">
+                        <div>
+                            <div class="people-payment-date">{{ payment.payment_date|date:"d/m/Y" }}</div>
+                            <h3 class="people-payment-name">{{ payment.employee_profile.user.get_full_name|default:payment.employee_profile.user.username }}</h3>
+                        </div>
+                        <span class="people-payment-method">{{ payment.get_payment_method_display }}</span>
+                    </div>
+
+                    <div class="people-payment-period">
+                        <strong>Période:</strong> {{ payment.period_start|date:"d/m/Y" }} → {{ payment.period_end|date:"d/m/Y" }}
+                        {% if payment.mpesa_reference %}
+                        <div class="people-payment-copy" style="margin-top: 0.25rem;">Référence: {{ payment.mpesa_reference }}</div>
                         {% endif %}
                     </div>
-                </div>
+
+                    <div class="people-payment-grid">
+                        <div class="people-payment-stat">
+                            <div class="people-payment-label">Salaire base</div>
+                            <div class="people-payment-value">${{ payment.salary_base_usd|floatformat:2 }} USD</div>
+                        </div>
+                        <div class="people-payment-stat">
+                            <div class="people-payment-label">Montant payé</div>
+                            <div class="people-payment-value">${{ payment.amount_paid_usd|floatformat:2 }} USD</div>
+                        </div>
+                    </div>
+
+                    <div class="people-payment-signature">
+                        <strong>Signature employé:</strong> {{ payment.employee_signature_name }}
+                        <div class="people-payment-copy">{{ payment.signed_at|date:"d/m/Y H:i" }}</div>
+                    </div>
+
+                    <div class="people-payment-actions">
+                        <a href="{% url 'admin_employee_payment_receipt' site.id payment.id %}" class="btn btn-info">Fiche</a>
+                        <button
+                            type="button"
+                            class="btn btn-secondary js-payment-share"
+                            data-share-title="{{ payment.share_title }}"
+                            data-share-text="{{ payment.share_text }}"
+                            data-share-pdf-url="{{ payment.share_pdf_url }}"
+                            data-share-filename="{{ payment.share_filename }}"
+                            data-whatsapp-url="{{ payment.whatsapp_share_url }}"
+                        >
+                            Partager PDF
+                        </button>
+                        <button
+                            type="button"
+                            class="btn btn-light js-payment-whatsapp"
+                            data-share-title="{{ payment.share_title }}"
+                            data-share-text="{{ payment.share_text }}"
+                            data-share-pdf-url="{{ payment.share_pdf_url }}"
+                            data-share-filename="{{ payment.share_filename }}"
+                            data-whatsapp-url="{{ payment.whatsapp_share_url }}"
+                        >
+                            WhatsApp Web (PDF)
+                        </button>
+                    </div>
+                </article>
+                {% endfor %}
             </div>
+            {% else %}
+            <div class="people-empty">Aucun paiement enregistré pour ce site.</div>
+            {% endif %}
         </article>
     </section>
 
-    <section class="people-card">
-        <div class="people-card-head">
-            <div>
-                <h2 class="people-card-title">Historique des paiements</h2>
-                <p class="people-card-copy">Relisez les périodes payées, les signatures de réception, ouvrez la fiche et partagez le PDF directement.</p>
-            </div>
-            <span class="people-card-badge">{{ payment_records_count }} ligne{{ payment_records_count|pluralize }}</span>
-        </div>
-
-        <form method="get" class="people-filter-row">
-            <div class="form-group">
-                <label for="employee">Filtrer par employé</label>
-                <select id="employee" name="employee" class="form-control">
-                    <option value="">Tous les employés</option>
-                    {% for profile in site_employees %}
-                    <option value="{{ profile.id }}" {% if selected_employee == profile.id|stringformat:"s" %}selected{% endif %}>
-                        {{ profile.user.get_full_name|default:profile.user.username }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: end;">
-                <button type="submit" class="btn btn-primary">Filtrer</button>
-                <a href="{% url 'admin_site_employees' site.id %}" class="btn btn-secondary">Réinitialiser</a>
-            </div>
-        </form>
-
-        {% if payment_records %}
-        <div class="people-payment-list">
-            {% for payment in payment_records %}
-            <article class="people-payment-card">
-                <div class="people-payment-top">
+    <section class="people-tab-panel" data-tab-panel="performance" {% if active_tab != 'performance' %}hidden{% endif %}>
+        <div class="people-performance-grid">
+            <article class="people-card">
+                <div class="people-card-head">
                     <div>
-                        <div class="people-payment-date">{{ payment.payment_date|date:"d/m/Y" }}</div>
-                        <h3 class="people-payment-name">{{ payment.employee_profile.user.get_full_name|default:payment.employee_profile.user.username }}</h3>
+                        <h2 class="people-card-title">Lecture rapide RH</h2>
+                        <p class="people-card-copy">Vue compactée de la situation salaires, paiements et activité du mois pour le site.</p>
                     </div>
-                    <span class="people-payment-method">{{ payment.get_payment_method_display }}</span>
+                    <span class="people-card-badge">USD payés ce mois: ${{ payments_month_total_usd|floatformat:2 }}</span>
                 </div>
 
-                <div class="people-payment-period">
-                    <strong>Période:</strong> {{ payment.period_start|date:"d/m/Y" }} → {{ payment.period_end|date:"d/m/Y" }}
-                    {% if payment.mpesa_reference %}
-                    <div class="people-payment-copy" style="margin-top: 0.25rem;">Référence: {{ payment.mpesa_reference }}</div>
-                    {% endif %}
-                </div>
-
-                <div class="people-payment-grid">
-                    <div class="people-payment-stat">
-                        <div class="people-payment-label">Salaire base</div>
-                        <div class="people-payment-value">${{ payment.salary_base_usd|floatformat:2 }} USD</div>
+                <div class="people-performance-grid">
+                    <div class="people-detail-box">
+                        <div class="people-stat-label">Cash flow cumulé équipe</div>
+                        <div class="people-detail-value">{{ team_total_cash_flow|fc_amount }} FC</div>
+                        <div class="people-payment-copy">{{ team_total_lavages }} lavage{{ team_total_lavages|pluralize }} saisi{{ team_total_lavages|pluralize }} sur l'historique.</div>
                     </div>
-                    <div class="people-payment-stat">
-                        <div class="people-payment-label">Montant payé</div>
-                        <div class="people-payment-value">${{ payment.amount_paid_usd|floatformat:2 }} USD</div>
+                    <div class="people-detail-box">
+                        <div class="people-stat-label">Employés payés</div>
+                        <div class="people-detail-value">{{ unique_paid_employee_count }}</div>
+                        <div class="people-payment-copy">Employé{{ unique_paid_employee_count|pluralize }} concerné{{ unique_paid_employee_count|pluralize }} par les paiements actuellement filtrés.</div>
                     </div>
-                </div>
-
-                <div class="people-payment-signature">
-                    <strong>Signature employé:</strong> {{ payment.employee_signature_name }}
-                    <div class="people-payment-copy">{{ payment.signed_at|date:"d/m/Y H:i" }}</div>
-                </div>
-
-                <div class="people-payment-actions">
-                    <a href="{% url 'admin_employee_payment_receipt' site.id payment.id %}" class="btn btn-info">Fiche</a>
-                    <button
-                        type="button"
-                        class="btn btn-secondary js-payment-share"
-                        data-share-title="{{ payment.share_title }}"
-                        data-share-text="{{ payment.share_text }}"
-                        data-share-pdf-url="{{ payment.share_pdf_url }}"
-                        data-share-filename="{{ payment.share_filename }}"
-                        data-whatsapp-url="{{ payment.whatsapp_share_url }}"
-                    >
-                        Partager PDF
-                    </button>
-                    <button
-                        type="button"
-                        class="btn btn-light js-payment-whatsapp"
-                        data-share-title="{{ payment.share_title }}"
-                        data-share-text="{{ payment.share_text }}"
-                        data-share-pdf-url="{{ payment.share_pdf_url }}"
-                        data-share-filename="{{ payment.share_filename }}"
-                        data-whatsapp-url="{{ payment.whatsapp_share_url }}"
-                    >
-                        WhatsApp Web (PDF)
-                    </button>
+                    <div class="people-detail-box">
+                        <div class="people-stat-label">Dernier paiement</div>
+                        <div class="people-detail-value">{% if latest_payment %}{{ latest_payment.payment_date|date:"d/m/Y" }}{% else %}-{% endif %}</div>
+                        <div class="people-payment-copy">
+                            {% if latest_payment %}
+                            {{ latest_payment.employee_profile.user.get_full_name|default:latest_payment.employee_profile.user.username }} • ${{ latest_payment.amount_paid_usd|floatformat:2 }} USD
+                            {% else %}
+                            Aucun paiement enregistré pour le moment.
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="people-detail-box">
+                        <div class="people-stat-label">Salaires à compléter</div>
+                        <div class="people-detail-value">{{ employees_missing_salary|length }}</div>
+                        <div class="people-payment-copy">Employé{{ employees_missing_salary|length|pluralize }} sans salaire mensuel défini.</div>
+                    </div>
                 </div>
             </article>
-            {% endfor %}
         </div>
-        {% else %}
-        <div class="people-empty">Aucun paiement enregistré pour ce site.</div>
-        {% endif %}
+
+        <div class="people-performance-panels">
+            <article class="people-card">
+                <div class="people-card-head">
+                    <div>
+                        <h2 class="people-card-title">Top productivité du mois</h2>
+                        <p class="people-card-copy">Classement basé sur la valeur produite ce mois, puis le nombre de lavages.</p>
+                    </div>
+                    <span class="people-card-badge">{{ month_start|date:"m/Y" }}</span>
+                </div>
+                {% if top_performers_month %}
+                <div class="people-ranking-list">
+                    {% for row in top_performers_month %}
+                    <div class="people-ranking-item">
+                        <span class="people-ranking-rank">{{ forloop.counter }}</span>
+                        <div>
+                            <div class="people-ranking-name">{{ row.profile.user.get_full_name|default:row.profile.user.username }}</div>
+                            <div class="people-ranking-meta">{{ row.month_lavages }} lavage{{ row.month_lavages|pluralize }} • {{ row.month_reports }} rapport{{ row.month_reports|pluralize }}</div>
+                        </div>
+                        <div class="people-ranking-value">
+                            {{ row.month_fc|fc_amount }} FC
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="people-empty">Aucune production enregistrée ce mois.</div>
+                {% endif %}
+            </article>
+
+            <article class="people-card">
+                <div class="people-card-head">
+                    <div>
+                        <h2 class="people-card-title">Top cumul historique</h2>
+                        <p class="people-card-copy">Vue durable des collaborateurs les plus productifs sur l'ensemble du site.</p>
+                    </div>
+                    <span class="people-card-badge">Historique complet</span>
+                </div>
+                {% if top_performers_total %}
+                <div class="people-ranking-list">
+                    {% for row in top_performers_total %}
+                    <div class="people-ranking-item">
+                        <span class="people-ranking-rank">{{ forloop.counter }}</span>
+                        <div>
+                            <div class="people-ranking-name">{{ row.profile.user.get_full_name|default:row.profile.user.username }}</div>
+                            <div class="people-ranking-meta">{{ row.total_lavages }} lavage{{ row.total_lavages|pluralize }} • {{ row.total_reports }} rapport{{ row.total_reports|pluralize }}</div>
+                        </div>
+                        <div class="people-ranking-value">
+                            {{ row.total_fc|fc_amount }} FC
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="people-empty">Aucune activité historique disponible.</div>
+                {% endif %}
+            </article>
+        </div>
     </section>
 </div>
 {% endblock %}
@@ -593,8 +801,39 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        const tabButtons = Array.from(document.querySelectorAll('[data-tab-trigger]'));
+        const tabPanels = Array.from(document.querySelectorAll('[data-tab-panel]'));
         const shareButtons = Array.from(document.querySelectorAll('.js-payment-share'));
         const whatsappButtons = Array.from(document.querySelectorAll('.js-payment-whatsapp'));
+
+        function setActiveTab(tabId, pushState) {
+            tabButtons.forEach(function (button) {
+                const isActive = button.dataset.tabTrigger === tabId;
+                button.classList.toggle('is-active', isActive);
+                button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            });
+
+            tabPanels.forEach(function (panel) {
+                panel.hidden = panel.dataset.tabPanel !== tabId;
+            });
+
+            if (pushState) {
+                const url = new URL(window.location.href);
+                url.searchParams.set('tab', tabId);
+                window.history.replaceState({}, '', url.toString());
+            }
+        }
+
+        tabButtons.forEach(function (button) {
+            button.addEventListener('click', function () {
+                setActiveTab(button.dataset.tabTrigger, true);
+            });
+        });
+
+        const initialTabButton = document.querySelector('.people-tab-button.is-active');
+        if (initialTabButton) {
+            setActiveTab(initialTabButton.dataset.tabTrigger, false);
+        }
 
         async function fetchPdfFile(pdfUrl, filename) {
             const response = await fetch(pdfUrl, { credentials: 'same-origin' });
