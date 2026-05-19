@@ -4624,7 +4624,7 @@ def admin_add_site_employee(request, site_id):
     site = get_object_or_404(Location, id=site_id)
 
     if request.method == 'POST':
-        form = SiteEmployeeForm(request.POST)
+        form = SiteEmployeeForm(request.POST, request.FILES)
         if form.is_valid():
             profile = form.save(site=site)
             employee_name = profile.user.get_full_name() or profile.user.username
@@ -4671,6 +4671,7 @@ def admin_edit_site_employee(request, site_id, profile_id):
     if request.method == 'POST':
         form = SiteEmployeeForm(
             request.POST,
+            request.FILES,
             user_instance=profile.user,
             profile_instance=profile,
         )

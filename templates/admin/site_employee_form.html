@@ -12,7 +12,7 @@
 </div>
 
 <div class="card">
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
 
         {% if form.non_field_errors %}
@@ -67,6 +67,26 @@
                 <label for="id_salaire_mensuel_usd">Salaire mensuel (USD)</label>
                 {{ form.salaire_mensuel_usd }}
             </div>
+        </div>
+
+        <div class="form-group">
+            <label for="id_profile_photo">Photo de l'employé</label>
+            {% if employee_profile and employee_profile.profile_photo %}
+            <div style="display: flex; align-items: center; gap: 1rem; margin: 0.75rem 0 1rem; padding: 0.9rem 1rem; border: 1px solid var(--border-color); border-radius: 16px; background: rgba(30, 64, 175, 0.04); flex-wrap: wrap;">
+                <img
+                    src="{{ employee_profile.profile_photo.url }}"
+                    alt="Photo de {{ employee_profile.user.get_full_name|default:employee_profile.user.username }}"
+                    style="width: 72px; height: 72px; border-radius: 18px; object-fit: cover; border: 1px solid var(--border-color);"
+                >
+                <div>
+                    <div style="font-weight: 700; color: var(--text-primary);">Photo actuelle</div>
+                    <div style="color: var(--text-secondary); font-size: 0.95rem;">{{ employee_profile.photo_filename }}</div>
+                </div>
+            </div>
+            {% endif %}
+            {{ form.profile_photo }}
+            <small style="color: var(--text-secondary); display: block; margin-top: 0.45rem;">{{ form.profile_photo.help_text }}</small>
+            {% if form.profile_photo.errors %}<small style="color: var(--error-color); display:block;">{{ form.profile_photo.errors.0 }}</small>{% endif %}
         </div>
 
         <div class="form-group">

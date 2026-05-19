@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.contrib.auth.models import User
 from django.core.cache import cache
@@ -16,6 +16,14 @@ from sites.models import Location, SiteDocument, SiteJournalEntry, SiteWaterPurc
 from sites.models import DailyBankDeposit, SiteLossEntry
 from pointage.models import ShiftDay
 from problemes.models import IssueReport
+
+
+TEST_GIF_BYTES = (
+    b"GIF89a\x01\x00\x01\x00\x80\x00\x00"
+    b"\x00\x00\x00\xff\xff\xff!\xf9\x04\x01"
+    b"\x00\x00\x00\x00,\x00\x00\x00\x00\x01"
+    b"\x00\x01\x00\x00\x02\x02D\x01\x00;"
+)
 
 
 class AccountApprovalFlowTests(TestCase):
@@ -436,6 +444,63 @@ class EmployeePaymentShareTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["active_tab"], "payments")
         self.assertContains(response, 'name="tab" value="payments"')
+
+
+@override_settings(MEDIA_ROOT="/private/tmp/portal_shinecongo_test_media")
+class AdminSiteEmployeeFormTests(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            username="employee_admin",
+            email="employee_admin@example.com",
+            password="AdminPass123!",
+        )
+        self.site = Location.objects.create(
+            nom="Site Employes",
+            adresse="Adresse Employes",
+            ville="Kinshasa",
+            actif=True,
+        )
+        self.client.login(username="employee_admin", password="AdminPass123!")
+
+    def test_admin_employee_form_shows_optional_photo_field(self):
+        response = self.client.get(reverse("admin_add_site_employee", args=[self.site.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Photo de l'employé")
+        self.assertContains(response, "Optionnel. Ajoutez une photo")
+        self.assertContains(response, 'enctype="multipart/form-data"', html=False)
+
+    def test_admin_can_create_employee_with_optional_photo(self):
+        response = self.client.post(
+            reverse("admin_add_site_employee", args=[self.site.id]),
+            data={
+                "username": "mike_photo",
+                "first_name": "Mike",
+                "last_name": "Mwana-Ntambwe",
+                "email": "mike.photo@example.com",
+                "telephone": "0999999999",
+                "mpesa_numero": "243999999999",
+                "date_embauche": "2026-05-19",
+                "salaire_mensuel_usd": "110.00",
+                "password": "EmployeePass123!",
+                "is_active": "on",
+                "profile_photo": SimpleUploadedFile(
+                    "employee.gif",
+                    TEST_GIF_BYTES,
+                    content_type="image/gif",
+                ),
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(
+            response,
+            reverse("admin_site_employees", args=[self.site.id]),
+            fetch_redirect_response=False,
+        )
+        employee = User.objects.get(username="mike_photo")
+        employee.userprofile.refresh_from_db()
+        self.assertTrue(employee.userprofile.profile_photo.name.endswith(".gif"))
 
 
 class SiteJournalEntryTests(TestCase):

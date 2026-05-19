@@ -264,6 +264,17 @@ class SiteEmployeeForm(forms.Form):
         max_digits=12,
         widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
     )
+    profile_photo = forms.ImageField(
+        label="Photo de l'employé",
+        required=False,
+        help_text="Optionnel. Ajoutez une photo pour la fiche employé.",
+        widget=forms.ClearableFileInput(
+            attrs={
+                "class": "form-control",
+                "accept": ".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp",
+            }
+        ),
+    )
     password = forms.CharField(
         label="Mot de passe",
         required=False,
@@ -346,6 +357,9 @@ class SiteEmployeeForm(forms.Form):
         profile.mpesa_numero = self.cleaned_data.get("mpesa_numero", "")
         profile.date_embauche = self.cleaned_data.get("date_embauche")
         profile.salaire_mensuel_usd = self.cleaned_data.get("salaire_mensuel_usd")
+        profile_photo = self.cleaned_data.get("profile_photo")
+        if profile_photo:
+            profile.profile_photo = profile_photo
         profile.actif = user.is_active
         profile.save()
         return profile
