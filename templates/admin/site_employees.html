@@ -524,7 +524,10 @@
                     <h2 class="people-card-title">Vue équipe</h2>
                     <p class="people-card-copy">Chaque carte expose les données RH et la production utile pour gérer le site sans ouvrir les documents.</p>
                 </div>
-                <span class="people-card-badge">Cash flow total équipe: {{ team_total_cash_flow|fc_amount }} FC</span>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+                    <span class="people-card-badge">Cash flow total équipe: {{ team_total_cash_flow|fc_amount }} FC</span>
+                    <a href="{% url 'admin_add_site_employee' site.id %}" class="btn btn-info">+ Nouvel employé</a>
+                </div>
             </div>
 
             {% if employee_rows %}
@@ -592,7 +595,12 @@
                 {% endfor %}
             </div>
             {% else %}
-            <div class="people-empty">Aucun employé n'est encore rattaché à ce site.</div>
+            <div class="people-empty">
+                Aucun employé n'est encore rattaché à ce site.
+                <div style="margin-top: 0.9rem;">
+                    <a href="{% url 'admin_add_site_employee' site.id %}" class="btn btn-info">Ajouter le premier employé</a>
+                </div>
+            </div>
             {% endif %}
         </article>
     </section>
