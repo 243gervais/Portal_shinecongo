@@ -1,3 +1,5 @@
+from datetime import date as python_date
+
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
@@ -41,6 +43,7 @@ class UserProfile(models.Model):
     telephone = models.CharField(max_length=20, blank=True, verbose_name="Téléphone")
     mpesa_numero = models.CharField(max_length=30, blank=True, verbose_name="Numéro M-Pesa")
     date_embauche = models.DateField(null=True, blank=True, verbose_name="Date d'embauche")
+    date_naissance = models.DateField(null=True, blank=True, verbose_name="Date de naissance")
     salaire_mensuel_usd = models.DecimalField(
         max_digits=12,
         decimal_places=2,
@@ -118,6 +121,93 @@ class UserProfile(models.Model):
         if not self.profile_photo:
             return ""
         return os.path.basename(self.profile_photo.name)
+
+    def prochaine_date_anniversaire(self, reference_date=None):
+        if not self.date_naissance:
+            return None
+        reference = reference_date or timezone.localdate()
+        birth_month = self.date_naissance.month
+        birth_day = self.date_naissance.day
+
+        def _build_candidate(year):
+            try:
+                return python_date(year, birth_month, birth_day)
+            except ValueError:
+                return python_date(year, 2, 28)
+
+        candidate = _build_candidate(reference.year)
+        if candidate < reference:
+            candidate = _build_candidate(reference.year + 1)
+        return candidate
+
+    def jours_avant_anniversaire(self, reference_date=None):
+        reference = reference_date or timezone.localdate()
+        prochain = self.prochaine_date_anniversaire(reference)
+        if not prochain:
+            return None
+        return max((prochain - reference).days, 0)
+
+
+class AdminReminder(models.Model):
+    """
+    Rappels globaux visibles dans la Boite Admin pour le portail et le site web.
+    """
+
+    TARGET_CHOICES = [
+        ("PORTAL", "Portail"),
+        ("WEBSITE", "Site web shinecongo.org"),
+    ]
+
+    PRIORITY_CHOICES = [
+        ("INFO", "Information"),
+        ("IMPORTANT", "Important"),
+        ("URGENT", "Urgent"),
+    ]
+
+    title = models.CharField(max_length=200, verbose_name="Titre")
+    description = models.TextField(blank=True, verbose_name="Détails")
+    target = models.CharField(
+        max_length=20,
+        choices=TARGET_CHOICES,
+        default="PORTAL",
+        verbose_name="Cible",
+    )
+    priority = models.CharField(
+        max_length=12,
+        choices=PRIORITY_CHOICES,
+        default="IMPORTANT",
+        verbose_name="Priorité",
+    )
+    due_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Échéance",
+        help_text="Optionnel. Utilisez-le pour faire remonter un rappel à une date précise.",
+    )
+    is_resolved = models.BooleanField(default=False, verbose_name="Traité")
+    resolved_at = models.DateTimeField(null=True, blank=True, verbose_name="Traité le")
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="admin_reminders_created",
+        verbose_name="Créé par",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")
+
+    class Meta:
+        verbose_name = "Rappel Admin"
+        verbose_name_plural = "Rappels Admin"
+        ordering = ["is_resolved", "due_at", "-created_at"]
+        indexes = [
+            models.Index(fields=["is_resolved", "due_at"]),
+            models.Index(fields=["target", "priority"]),
+        ]
+
+    def __str__(self):
+        return f"{self.get_target_display()} - {self.title}"
 
 
 class EmployeePayment(models.Model):

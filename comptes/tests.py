@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 
 from comptes.forms import ApprovalAuthenticationForm
 from comptes.views import _daily_funding_snapshot
-from comptes.models import EmployeePayment
+from comptes.models import AdminReminder, EmployeePayment
 from lavages.models import CarWash
 from sites.models import Location, SiteDocument, SiteJournalEntry, SiteWaterPurchase
 from sites.models import DailyBankDeposit, SiteLossEntry
@@ -172,6 +172,98 @@ class AdminAccountRequestsDashboardTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertRedirects(response, reverse("admin_dashboard"), fetch_redirect_response=False)
         self.assertFalse(User.objects.filter(id=self.pending_user.id).exists())
+
+
+class AdminReminderDashboardTests(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            username="reminder_admin",
+            email="reminder_admin@example.com",
+            password="AdminPass123!",
+        )
+        self.site = Location.objects.create(
+            nom="Site Rappels",
+            adresse="Adresse Rappels",
+            ville="Kinshasa",
+            actif=True,
+        )
+        self.employee = User.objects.create_user(
+            username="birthday_employee",
+            email="birthday_employee@example.com",
+            password="EmployeePass123!",
+            first_name="Mike",
+            last_name="Mwana-Ntambwe",
+        )
+        self.employee.userprofile.role = "EMPLOYE"
+        self.employee.userprofile.site = self.site
+        self.employee.userprofile.actif = True
+        self.employee.userprofile.date_naissance = timezone.localdate() + timedelta(days=5)
+        self.employee.userprofile.save()
+        self.client.login(username="reminder_admin", password="AdminPass123!")
+
+    def test_dashboard_shows_admin_reminders_and_upcoming_birthdays(self):
+        AdminReminder.objects.create(
+            title="Mettre à jour shinecongo.org",
+            description="Publier les nouvelles photos sur le site principal.",
+            target="WEBSITE",
+            priority="IMPORTANT",
+            due_at=timezone.now() + timedelta(days=2),
+            created_by=self.admin_user,
+        )
+
+        response = self.client.get(reverse("admin_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Rappels & notifications")
+        self.assertContains(response, "shinecongo.org")
+        self.assertContains(response, "Mettre à jour shinecongo.org")
+        self.assertContains(response, "Anniversaires à venir")
+        self.assertContains(response, "Mike Mwana-Ntambwe")
+
+    def test_admin_can_create_reminder_from_dashboard(self):
+        due_at = timezone.localtime(timezone.now() + timedelta(days=3)).strftime("%Y-%m-%dT%H:%M")
+        response = self.client.post(
+            reverse("admin_dashboard"),
+            data={
+                "action": "create_admin_reminder",
+                "target": "PORTAL",
+                "priority": "URGENT",
+                "title": "Vérifier le portail avant lundi",
+                "description": "Contrôler les messages et les rapports en attente.",
+                "due_at": due_at,
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(
+            response,
+            f"{reverse('admin_dashboard')}#admin-reminders",
+            fetch_redirect_response=False,
+        )
+        reminder = AdminReminder.objects.get(title="Vérifier le portail avant lundi")
+        self.assertEqual(reminder.target, "PORTAL")
+        self.assertEqual(reminder.priority, "URGENT")
+        self.assertEqual(reminder.created_by, self.admin_user)
+
+    def test_admin_can_resolve_reminder(self):
+        reminder = AdminReminder.objects.create(
+            title="Relire la page d'accueil",
+            target="WEBSITE",
+            priority="INFO",
+            created_by=self.admin_user,
+        )
+
+        response = self.client.post(reverse("admin_resolve_reminder", args=[reminder.id]))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(
+            response,
+            f"{reverse('admin_dashboard')}#admin-reminders",
+            fetch_redirect_response=False,
+        )
+        reminder.refresh_from_db()
+        self.assertTrue(reminder.is_resolved)
+        self.assertIsNotNone(reminder.resolved_at)
 
 
 class AdminPasswordManagementTests(TestCase):

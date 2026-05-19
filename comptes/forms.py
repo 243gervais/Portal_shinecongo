@@ -10,7 +10,7 @@ from django.utils import timezone
 from shinecongo.currency import convert_cdf_to_usd, get_usd_to_cdf_rate
 from sites.models import Location, SiteJournalEntry, SiteWaterPurchase
 
-from .models import EmployeePayment, UserProfile
+from .models import AdminReminder, EmployeePayment, UserProfile
 
 
 WATER_RATE_CHANGE_MONTH = date(2026, 5, 1)
@@ -256,6 +256,11 @@ class SiteEmployeeForm(forms.Form):
         required=False,
         widget=forms.DateInput(attrs={"class": "form-control", "type": "date"}),
     )
+    date_naissance = forms.DateField(
+        label="Date de naissance",
+        required=False,
+        widget=forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+    )
     salaire_mensuel_usd = forms.DecimalField(
         label="Salaire mensuel (USD)",
         required=False,
@@ -302,6 +307,7 @@ class SiteEmployeeForm(forms.Form):
             self.fields["telephone"].initial = self.profile_instance.telephone
             self.fields["mpesa_numero"].initial = self.profile_instance.mpesa_numero
             self.fields["date_embauche"].initial = self.profile_instance.date_embauche
+            self.fields["date_naissance"].initial = self.profile_instance.date_naissance
             self.fields["salaire_mensuel_usd"].initial = self.profile_instance.salaire_mensuel_usd
 
     def clean_username(self):
@@ -356,6 +362,7 @@ class SiteEmployeeForm(forms.Form):
         profile.telephone = self.cleaned_data.get("telephone", "")
         profile.mpesa_numero = self.cleaned_data.get("mpesa_numero", "")
         profile.date_embauche = self.cleaned_data.get("date_embauche")
+        profile.date_naissance = self.cleaned_data.get("date_naissance")
         profile.salaire_mensuel_usd = self.cleaned_data.get("salaire_mensuel_usd")
         profile_photo = self.cleaned_data.get("profile_photo")
         if profile_photo:
@@ -363,6 +370,47 @@ class SiteEmployeeForm(forms.Form):
         profile.actif = user.is_active
         profile.save()
         return profile
+
+
+class AdminReminderForm(forms.ModelForm):
+    due_at = forms.DateTimeField(
+        label="Échéance",
+        required=False,
+        widget=forms.DateTimeInput(attrs={"class": "form-control", "type": "datetime-local"}),
+        help_text="Optionnel. Heure de Kinshasa recommandée pour les rappels sensibles.",
+    )
+
+    class Meta:
+        model = AdminReminder
+        fields = ["target", "priority", "title", "description", "due_at"]
+        widgets = {
+            "target": forms.Select(attrs={"class": "form-control"}),
+            "priority": forms.Select(attrs={"class": "form-control"}),
+            "title": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "Ex: Préparer le contenu de shinecongo.org",
+                }
+            ),
+            "description": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 3,
+                    "placeholder": "Détail du rappel ou de la notification.",
+                }
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk and self.instance.due_at:
+            self.initial["due_at"] = timezone.localtime(self.instance.due_at).strftime("%Y-%m-%dT%H:%M")
+
+    def clean_due_at(self):
+        due_at = self.cleaned_data.get("due_at")
+        if due_at and timezone.is_naive(due_at):
+            due_at = timezone.make_aware(due_at, timezone.get_current_timezone())
+        return due_at
 
 
 class AdminPasswordManagementForm(forms.Form):

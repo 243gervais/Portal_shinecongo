@@ -559,6 +559,29 @@
                             <div class="people-detail-value">{{ row.profile.mpesa_numero|default:"Non renseigné" }}</div>
                         </div>
                         <div class="people-detail-box">
+                            <div class="people-stat-label">Anniversaire</div>
+                            <div class="people-detail-value">
+                                {% if row.profile.date_naissance %}
+                                    {{ row.profile.date_naissance|date:"d/m" }}
+                                {% else %}
+                                    Non renseigné
+                                {% endif %}
+                            </div>
+                            {% if row.profile.date_naissance %}
+                            <div class="people-payment-copy">
+                                {% with days=row.profile.jours_avant_anniversaire %}
+                                    {% if days == 0 %}
+                                        Aujourd'hui
+                                    {% elif days == 1 %}
+                                        Demain
+                                    {% else %}
+                                        Dans {{ days }} jours
+                                    {% endif %}
+                                {% endwith %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="people-detail-box">
                             <div class="people-stat-label">Productivité du mois</div>
                             <div class="people-detail-value">{{ row.month_fc|fc_amount }} FC</div>
                             <div class="people-payment-copy">{{ row.month_lavages }} lavage{{ row.month_lavages|pluralize }}</div>

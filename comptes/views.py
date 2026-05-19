@@ -20,6 +20,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from xhtml2pdf import pisa
 from .forms import (
+    AdminReminderForm,
     UserRegistrationForm,
     SiteCreationForm,
     SiteEmployeeForm,
@@ -46,7 +47,7 @@ from problemes.models import IssueReport
 from pointage.models import ShiftDay
 from pointage.views import _build_initial_daily_expense_form, _parse_daily_expenses_form
 from pointage.report_sync import ADMIN_CORRECTION_SOURCE, sync_site_finance_from_daily_reports
-from comptes.models import UserProfile, EmployeePayment
+from comptes.models import AdminReminder, UserProfile, EmployeePayment
 from audit.models import AuditLog
 from pointage.utils import get_client_ip, get_user_agent
 from comptes.admin_inbox import mark_admin_inbox_seen
@@ -90,6 +91,102 @@ def _to_decimal_amount(value):
         return Decimal(str(value or 0))
     except (ArithmeticError, TypeError, ValueError):
         return Decimal("0")
+
+
+def _build_admin_reminders_snapshot(reference_date=None):
+    today = reference_date or timezone.localdate()
+    now = timezone.now()
+    priority_rank = {"URGENT": 0, "IMPORTANT": 1, "INFO": 2}
+
+    active_manual_reminders = list(
+        AdminReminder.objects.filter(is_resolved=False)
+        .select_related("created_by")
+        .order_by("due_at", "-created_at")
+    )
+    far_future = now + timedelta(days=3650)
+    active_manual_reminders.sort(
+        key=lambda reminder: (
+            reminder.due_at is None,
+            reminder.due_at or far_future,
+            priority_rank.get(reminder.priority, 3),
+            -(reminder.created_at.timestamp() if reminder.created_at else 0),
+        )
+    )
+
+    upcoming_birthdays = []
+    employee_profiles = (
+        UserProfile.objects.filter(
+            role="EMPLOYE",
+            actif=True,
+            user__is_active=True,
+            site__actif=True,
+            date_naissance__isnull=False,
+        )
+        .select_related("site", "user")
+        .order_by("site__nom", "user__first_name", "user__last_name", "user__username")
+    )
+    for profile in employee_profiles:
+        next_birthday = profile.prochaine_date_anniversaire(today)
+        if not next_birthday:
+            continue
+        days_until = max((next_birthday - today).days, 0)
+        if days_until > 30:
+            continue
+        employee_name = profile.user.get_full_name() or profile.user.username
+        if days_until == 0:
+            countdown_label = "Aujourd'hui"
+        elif days_until == 1:
+            countdown_label = "Demain"
+        else:
+            countdown_label = f"Dans {days_until} jours"
+        upcoming_birthdays.append(
+            {
+                "profile": profile,
+                "employee_name": employee_name,
+                "site_name": profile.site.nom if profile.site else "Site non assigné",
+                "next_birthday": next_birthday,
+                "days_until": days_until,
+                "countdown_label": countdown_label,
+                "turning_age": next_birthday.year - profile.date_naissance.year,
+                "portal_url": reverse(
+                    "admin_site_employee_portal",
+                    kwargs={"site_id": profile.site.id, "profile_id": profile.id},
+                ) if profile.site else "",
+            }
+        )
+
+    upcoming_birthdays.sort(
+        key=lambda item: (
+            item["days_until"],
+            item["site_name"],
+            item["employee_name"].lower(),
+        )
+    )
+
+    overdue_manual_count = sum(
+        1
+        for reminder in active_manual_reminders
+        if reminder.due_at and timezone.localtime(reminder.due_at).date() < today
+    )
+    due_this_week_count = sum(
+        1
+        for reminder in active_manual_reminders
+        if reminder.due_at and 0 <= (timezone.localtime(reminder.due_at).date() - today).days <= 7
+    )
+
+    return {
+        "manual_reminders": active_manual_reminders,
+        "upcoming_birthdays": upcoming_birthdays,
+        "summary": {
+            "manual_count": len(active_manual_reminders),
+            "birthday_count": len(upcoming_birthdays),
+            "website_count": sum(1 for reminder in active_manual_reminders if reminder.target == "WEBSITE"),
+            "portal_count": sum(1 for reminder in active_manual_reminders if reminder.target == "PORTAL"),
+            "overdue_count": overdue_manual_count,
+            "due_this_week_count": due_this_week_count,
+            "total_visible": len(active_manual_reminders) + len(upcoming_birthdays),
+        },
+    }
 
 
 def _build_site_comparison_periods(site, detail_date, selected_scope="week"):
@@ -1118,6 +1215,25 @@ def admin_dashboard(request):
         return redirect('dashboard')
     
     today = timezone.localdate()
+    reminder_form = AdminReminderForm()
+
+    if request.method == "POST" and request.POST.get("action") == "create_admin_reminder":
+        reminder_form = AdminReminderForm(request.POST)
+        if reminder_form.is_valid():
+            reminder = reminder_form.save(commit=False)
+            reminder.created_by = user
+            reminder.save()
+            AuditLog.log(
+                user=user,
+                action="CREER",
+                description=f"Rappel admin ajouté: {reminder.title}",
+                content_object=reminder,
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request),
+            )
+            messages.success(request, "Rappel ajouté à la Boite Admin.")
+            return redirect(f"{reverse('admin_dashboard')}#admin-reminders")
+        messages.error(request, "Impossible d'ajouter ce rappel. Vérifiez les champs du formulaire.")
     
     month_start = today.replace(day=1)
     year_start = today.replace(month=1, day=1)
@@ -1285,6 +1401,7 @@ def admin_dashboard(request):
         ),
     }
     password_overview = _build_admin_password_overview(user)
+    admin_reminders_snapshot = _build_admin_reminders_snapshot(today)
 
     context = {
         'sites_stats': sites_stats,
@@ -1299,11 +1416,69 @@ def admin_dashboard(request):
         'recent_water_purchases': recent_water_purchases,
         'water_purchase_summary': water_purchase_summary,
         'password_summary': password_overview["summary"],
+        'admin_reminder_form': reminder_form,
+        'admin_manual_reminders': admin_reminders_snapshot["manual_reminders"],
+        'admin_upcoming_birthdays': admin_reminders_snapshot["upcoming_birthdays"],
+        'admin_reminder_summary': admin_reminders_snapshot["summary"],
     }
 
     mark_admin_inbox_seen(user)
 
     return render(request, 'admin/dashboard.html', context)
+
+
+@login_required
+@no_cache_view
+@require_http_methods(["POST"])
+def admin_resolve_reminder(request, reminder_id):
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    reminder = get_object_or_404(AdminReminder, id=reminder_id, is_resolved=False)
+    reminder.is_resolved = True
+    reminder.resolved_at = timezone.now()
+    reminder.save(update_fields=["is_resolved", "resolved_at", "updated_at"])
+
+    AuditLog.log(
+        user=user,
+        action="MODIFIER",
+        description=f"Rappel admin traité: {reminder.title}",
+        content_object=reminder,
+        ip_address=get_client_ip(request),
+        user_agent=get_user_agent(request),
+    )
+    messages.success(request, "Rappel marqué comme traité.")
+    return redirect(f"{reverse('admin_dashboard')}#admin-reminders")
+
+
+@login_required
+@no_cache_view
+@require_http_methods(["POST"])
+def admin_delete_reminder(request, reminder_id):
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    reminder = get_object_or_404(AdminReminder, id=reminder_id)
+    reminder_title = reminder.title
+    reminder.delete()
+
+    AuditLog.log(
+        user=user,
+        action="SUPPRIMER",
+        description=f"Rappel admin supprimé: {reminder_title}",
+        ip_address=get_client_ip(request),
+        user_agent=get_user_agent(request),
+    )
+    messages.success(request, "Rappel supprimé.")
+    return redirect(f"{reverse('admin_dashboard')}#admin-reminders")
 
 
 @login_required

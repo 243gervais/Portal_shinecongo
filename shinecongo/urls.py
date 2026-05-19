@@ -24,6 +24,8 @@ from comptes.views import (
     logout_view,
     register_view,
     admin_dashboard,
+    admin_resolve_reminder,
+    admin_delete_reminder,
     admin_daily_report_history,
     admin_password_management,
     admin_change_user_password,
@@ -137,6 +139,8 @@ urlpatterns = [
     
     # PORTAIL ADMIN
     path("admin-dashboard/", admin_dashboard, name="admin_dashboard"),
+    path("admin-dashboard/reminders/<int:reminder_id>/resolve/", admin_resolve_reminder, name="admin_resolve_reminder"),
+    path("admin-dashboard/reminders/<int:reminder_id>/delete/", admin_delete_reminder, name="admin_delete_reminder"),
     path("admin-dashboard/daily-reports/history/", admin_daily_report_history, name="admin_daily_report_history"),
     path("admin-dashboard/passwords/", admin_password_management, name="admin_password_management"),
     path("admin-dashboard/passwords/<int:user_id>/", admin_change_user_password, name="admin_change_user_password"),
