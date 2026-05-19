@@ -1215,26 +1215,6 @@ def admin_dashboard(request):
         return redirect('dashboard')
     
     today = timezone.localdate()
-    reminder_form = AdminReminderForm()
-
-    if request.method == "POST" and request.POST.get("action") == "create_admin_reminder":
-        reminder_form = AdminReminderForm(request.POST)
-        if reminder_form.is_valid():
-            reminder = reminder_form.save(commit=False)
-            reminder.created_by = user
-            reminder.save()
-            AuditLog.log(
-                user=user,
-                action="CREER",
-                description=f"Rappel admin ajouté: {reminder.title}",
-                content_object=reminder,
-                ip_address=get_client_ip(request),
-                user_agent=get_user_agent(request),
-            )
-            messages.success(request, "Rappel ajouté à la Boite Admin.")
-            return redirect(f"{reverse('admin_dashboard')}#admin-reminders")
-        messages.error(request, "Impossible d'ajouter ce rappel. Vérifiez les champs du formulaire.")
-    
     month_start = today.replace(day=1)
     year_start = today.replace(month=1, day=1)
 
@@ -1401,7 +1381,6 @@ def admin_dashboard(request):
         ),
     }
     password_overview = _build_admin_password_overview(user)
-    admin_reminders_snapshot = _build_admin_reminders_snapshot(today)
 
     context = {
         'sites_stats': sites_stats,
@@ -1416,15 +1395,52 @@ def admin_dashboard(request):
         'recent_water_purchases': recent_water_purchases,
         'water_purchase_summary': water_purchase_summary,
         'password_summary': password_overview["summary"],
-        'admin_reminder_form': reminder_form,
-        'admin_manual_reminders': admin_reminders_snapshot["manual_reminders"],
-        'admin_upcoming_birthdays': admin_reminders_snapshot["upcoming_birthdays"],
-        'admin_reminder_summary': admin_reminders_snapshot["summary"],
     }
 
     mark_admin_inbox_seen(user)
 
     return render(request, 'admin/dashboard.html', context)
+
+
+@login_required
+@no_cache_view
+def admin_messages(request):
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    reminder_form = AdminReminderForm()
+    if request.method == "POST" and request.POST.get("action") == "create_admin_reminder":
+        reminder_form = AdminReminderForm(request.POST)
+        if reminder_form.is_valid():
+            reminder = reminder_form.save(commit=False)
+            reminder.created_by = user
+            reminder.save()
+            AuditLog.log(
+                user=user,
+                action="CREER",
+                description=f"Rappel admin ajouté: {reminder.title}",
+                content_object=reminder,
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request),
+            )
+            messages.success(request, "Rappel ajouté à la page Messages.")
+            return redirect(reverse("admin_messages"))
+        messages.error(request, "Impossible d'ajouter ce rappel. Vérifiez les champs du formulaire.")
+
+    today = timezone.localdate()
+    reminders_snapshot = _build_admin_reminders_snapshot(today)
+    context = {
+        "today": today,
+        "admin_reminder_form": reminder_form,
+        "admin_manual_reminders": reminders_snapshot["manual_reminders"],
+        "admin_upcoming_birthdays": reminders_snapshot["upcoming_birthdays"],
+        "admin_reminder_summary": reminders_snapshot["summary"],
+    }
+    return render(request, "admin/messages.html", context)
 
 
 @login_required
@@ -1452,7 +1468,7 @@ def admin_resolve_reminder(request, reminder_id):
         user_agent=get_user_agent(request),
     )
     messages.success(request, "Rappel marqué comme traité.")
-    return redirect(f"{reverse('admin_dashboard')}#admin-reminders")
+    return redirect(reverse('admin_messages'))
 
 
 @login_required
@@ -1478,7 +1494,7 @@ def admin_delete_reminder(request, reminder_id):
         user_agent=get_user_agent(request),
     )
     messages.success(request, "Rappel supprimé.")
-    return redirect(f"{reverse('admin_dashboard')}#admin-reminders")
+    return redirect(reverse('admin_messages'))
 
 
 @login_required

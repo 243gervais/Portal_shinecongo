@@ -143,6 +143,7 @@ class AdminAccountRequestsDashboardTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Boite Admin")
+        self.assertContains(response, "Messages")
         self.assertNotContains(response, "Django Admin")
         self.assertContains(response, "Recherche admin ou site")
         self.assertContains(response, "Convertisseur USD/FC")
@@ -201,7 +202,7 @@ class AdminReminderDashboardTests(TestCase):
         self.employee.userprofile.save()
         self.client.login(username="reminder_admin", password="AdminPass123!")
 
-    def test_dashboard_shows_admin_reminders_and_upcoming_birthdays(self):
+    def test_messages_page_shows_admin_reminders_and_upcoming_birthdays(self):
         AdminReminder.objects.create(
             title="Mettre à jour shinecongo.org",
             description="Publier les nouvelles photos sur le site principal.",
@@ -211,19 +212,19 @@ class AdminReminderDashboardTests(TestCase):
             created_by=self.admin_user,
         )
 
-        response = self.client.get(reverse("admin_dashboard"))
+        response = self.client.get(reverse("admin_messages"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Rappels & notifications")
+        self.assertContains(response, "Messages & notifications")
         self.assertContains(response, "shinecongo.org")
         self.assertContains(response, "Mettre à jour shinecongo.org")
         self.assertContains(response, "Anniversaires à venir")
         self.assertContains(response, "Mike Mwana-Ntambwe")
 
-    def test_admin_can_create_reminder_from_dashboard(self):
+    def test_admin_can_create_reminder_from_messages_page(self):
         due_at = timezone.localtime(timezone.now() + timedelta(days=3)).strftime("%Y-%m-%dT%H:%M")
         response = self.client.post(
-            reverse("admin_dashboard"),
+            reverse("admin_messages"),
             data={
                 "action": "create_admin_reminder",
                 "target": "PORTAL",
@@ -237,7 +238,7 @@ class AdminReminderDashboardTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertRedirects(
             response,
-            f"{reverse('admin_dashboard')}#admin-reminders",
+            reverse('admin_messages'),
             fetch_redirect_response=False,
         )
         reminder = AdminReminder.objects.get(title="Vérifier le portail avant lundi")
@@ -258,7 +259,7 @@ class AdminReminderDashboardTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertRedirects(
             response,
-            f"{reverse('admin_dashboard')}#admin-reminders",
+            reverse('admin_messages'),
             fetch_redirect_response=False,
         )
         reminder.refresh_from_db()

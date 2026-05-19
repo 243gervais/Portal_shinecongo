@@ -73,10 +73,10 @@ def _build_admin_site_navigation(request):
             keywords="dashboard admin demandes rapports compte pending",
         ),
         build_search_item(
-            "Rappels & notifications",
-            f"{reverse('admin_dashboard')}#admin-reminders",
+            "Messages",
+            reverse("admin_messages"),
             description="Rappels du portail, shinecongo.org et anniversaires employés",
-            keywords="rappels notifications portail website shinecongo.org anniversaires employes admin",
+            keywords="messages rappels notifications portail website shinecongo.org anniversaires employes admin",
         ),
         build_search_item(
             "Historique rapports fin de journée",

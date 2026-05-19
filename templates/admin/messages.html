@@ -1,0 +1,427 @@
+{% extends "base.html" %}
+
+{% block title %}Messages{% endblock %}
+
+{% block extra_css %}
+<style>
+    .messages-shell {
+        display: grid;
+        gap: 1.4rem;
+    }
+
+    .messages-hero {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+        padding: 1.7rem;
+        border-radius: 28px;
+        background:
+            radial-gradient(circle at top right, rgba(244, 163, 64, 0.18), transparent 28%),
+            linear-gradient(135deg, #081f33 0%, #0d3556 46%, #15679f 100%);
+        color: #ffffff;
+        box-shadow: 0 24px 54px rgba(10, 67, 107, 0.18);
+    }
+
+    .messages-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.42rem;
+        padding: 0.38rem 0.78rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .messages-title {
+        margin: 0.8rem 0 0.35rem;
+        font-size: clamp(2rem, 4vw, 2.8rem);
+        line-height: 1;
+        letter-spacing: -0.04em;
+    }
+
+    .messages-copy {
+        max-width: 760px;
+        margin: 0;
+        color: rgba(255, 255, 255, 0.82);
+    }
+
+    .messages-toolbar {
+        display: flex;
+        gap: 0.7rem;
+        flex-wrap: wrap;
+    }
+
+    .messages-toolbar .btn-secondary {
+        background: rgba(255, 255, 255, 0.12);
+        color: #ffffff;
+        border-color: rgba(255, 255, 255, 0.18);
+    }
+
+    .messages-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+    }
+
+    .messages-stat,
+    .messages-panel {
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.97);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        box-shadow: 0 18px 42px rgba(31, 41, 51, 0.07);
+    }
+
+    .messages-stat {
+        padding: 1.05rem 1.1rem;
+    }
+
+    .messages-stat-label {
+        color: var(--text-secondary);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .messages-stat-value {
+        margin-top: 0.35rem;
+        font-size: 1.7rem;
+        font-weight: 800;
+        color: var(--primary-dark);
+    }
+
+    .messages-stat-copy {
+        margin-top: 0.2rem;
+        color: var(--text-secondary);
+    }
+
+    .messages-form {
+        display: grid;
+        gap: 0.95rem;
+    }
+
+    .messages-form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 0.85rem;
+    }
+
+    .messages-panels {
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 1rem;
+    }
+
+    .messages-panel {
+        padding: 1.2rem;
+        display: grid;
+        gap: 1rem;
+    }
+
+    .messages-panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.85rem;
+        flex-wrap: wrap;
+    }
+
+    .messages-panel-title {
+        margin: 0;
+        color: var(--primary-dark);
+        font-size: 1.08rem;
+    }
+
+    .messages-panel-copy {
+        margin: 0.24rem 0 0 0;
+        color: var(--text-secondary);
+        font-size: 0.86rem;
+    }
+
+    .messages-badge,
+    .messages-tag {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        padding: 0.3rem 0.68rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 800;
+    }
+
+    .messages-badge {
+        background: rgba(10, 67, 107, 0.08);
+        color: var(--primary-dark);
+    }
+
+    .messages-list {
+        display: grid;
+        gap: 0.8rem;
+    }
+
+    .messages-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.85rem;
+        padding: 0.95rem 1rem;
+        border-radius: 18px;
+        background: rgba(7, 26, 44, 0.03);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .messages-item-title {
+        font-weight: 800;
+        color: var(--text-primary);
+    }
+
+    .messages-item-meta {
+        margin-top: 0.24rem;
+        color: var(--text-secondary);
+        font-size: 0.84rem;
+        line-height: 1.5;
+    }
+
+    .messages-item-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .messages-tag {
+        background: rgba(10, 67, 107, 0.08);
+        color: var(--primary-dark);
+    }
+
+    .messages-tag--urgent {
+        background: rgba(180, 35, 24, 0.12);
+        color: #b42318;
+    }
+
+    .messages-tag--important {
+        background: rgba(244, 163, 64, 0.18);
+        color: #8a5600;
+    }
+
+    .messages-tag--info {
+        background: rgba(29, 167, 255, 0.14);
+        color: #0f5b8a;
+    }
+
+    .messages-tag--birthday {
+        background: rgba(15, 157, 88, 0.14);
+        color: #0f9d58;
+    }
+
+    .messages-empty {
+        padding: 1rem;
+        border-radius: 18px;
+        background: rgba(7, 26, 44, 0.03);
+        color: var(--text-secondary);
+    }
+
+    @media (max-width: 980px) {
+        .messages-panels {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 720px) {
+        .messages-hero,
+        .messages-panel {
+            border-radius: 22px;
+        }
+
+        .messages-toolbar,
+        .messages-item-actions {
+            width: 100%;
+        }
+
+        .messages-toolbar .btn,
+        .messages-item-actions .btn,
+        .messages-item-actions .admin-mini-btn {
+            width: 100%;
+        }
+
+        .messages-item {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="messages-shell">
+    <section class="messages-hero">
+        <div>
+            <span class="messages-kicker">Messages</span>
+            <h1 class="messages-title">Messages & notifications</h1>
+            <p class="messages-copy">
+                Cette page centralise les rappels du portail, les points de suivi pour <strong>shinecongo.org</strong>
+                et les alertes automatiques sur les anniversaires des employés.
+            </p>
+        </div>
+        <div class="messages-toolbar">
+            <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">Boite Admin</a>
+            <a href="{% url 'admin_daily_report_history' %}" class="btn btn-secondary">Rapports employés</a>
+            <a href="{% url 'admin_messages' %}" class="btn btn-primary">Rafraîchir</a>
+        </div>
+    </section>
+
+    <section class="messages-stats">
+        <article class="messages-stat">
+            <div class="messages-stat-label">Rappels actifs</div>
+            <div class="messages-stat-value">{{ admin_reminder_summary.manual_count }}</div>
+            <div class="messages-stat-copy">{{ admin_reminder_summary.portal_count }} portail • {{ admin_reminder_summary.website_count }} shinecongo.org</div>
+        </article>
+        <article class="messages-stat">
+            <div class="messages-stat-label">À traiter cette semaine</div>
+            <div class="messages-stat-value">{{ admin_reminder_summary.due_this_week_count }}</div>
+            <div class="messages-stat-copy">{{ admin_reminder_summary.overdue_count }} en retard</div>
+        </article>
+        <article class="messages-stat">
+            <div class="messages-stat-label">Anniversaires proches</div>
+            <div class="messages-stat-value">{{ admin_reminder_summary.birthday_count }}</div>
+            <div class="messages-stat-copy">30 prochains jours</div>
+        </article>
+    </section>
+
+    <section class="messages-panel">
+        <div class="messages-panel-head">
+            <div>
+                <h2 class="messages-panel-title">Ajouter un message</h2>
+                <p class="messages-panel-copy">Créez un rappel manuel pour le portail ou pour le site web principal.</p>
+            </div>
+        </div>
+        <form method="post" class="messages-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_admin_reminder">
+            <div class="messages-form-grid">
+                <div class="form-group">
+                    <label for="{{ admin_reminder_form.target.id_for_label }}">Cible</label>
+                    {{ admin_reminder_form.target }}
+                    {% for error in admin_reminder_form.target.errors %}<small style="color: var(--error-color); display:block;">{{ error }}</small>{% endfor %}
+                </div>
+                <div class="form-group">
+                    <label for="{{ admin_reminder_form.priority.id_for_label }}">Priorité</label>
+                    {{ admin_reminder_form.priority }}
+                    {% for error in admin_reminder_form.priority.errors %}<small style="color: var(--error-color); display:block;">{{ error }}</small>{% endfor %}
+                </div>
+                <div class="form-group">
+                    <label for="{{ admin_reminder_form.due_at.id_for_label }}">Échéance</label>
+                    {{ admin_reminder_form.due_at }}
+                    <small style="color: var(--text-secondary); display:block;">{{ admin_reminder_form.due_at.help_text }}</small>
+                    {% for error in admin_reminder_form.due_at.errors %}<small style="color: var(--error-color); display:block;">{{ error }}</small>{% endfor %}
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="{{ admin_reminder_form.title.id_for_label }}">Titre</label>
+                {{ admin_reminder_form.title }}
+                {% for error in admin_reminder_form.title.errors %}<small style="color: var(--error-color); display:block;">{{ error }}</small>{% endfor %}
+            </div>
+            <div class="form-group">
+                <label for="{{ admin_reminder_form.description.id_for_label }}">Détails</label>
+                {{ admin_reminder_form.description }}
+                {% for error in admin_reminder_form.description.errors %}<small style="color: var(--error-color); display:block;">{{ error }}</small>{% endfor %}
+            </div>
+            {% if admin_reminder_form.non_field_errors %}
+            <div class="alert alert-error">{{ admin_reminder_form.non_field_errors }}</div>
+            {% endif %}
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; flex-wrap: wrap;">
+                <button type="submit" class="btn btn-primary">Ajouter le message</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="messages-panels">
+        <article class="messages-panel">
+            <div class="messages-panel-head">
+                <div>
+                    <h2 class="messages-panel-title">Rappels actifs</h2>
+                    <p class="messages-panel-copy">Messages manuels pour le portail et pour <strong>shinecongo.org</strong>.</p>
+                </div>
+                <span class="messages-badge">{{ admin_reminder_summary.manual_count }}</span>
+            </div>
+            {% if admin_manual_reminders %}
+            <div class="messages-list">
+                {% for reminder in admin_manual_reminders %}
+                <div class="messages-item">
+                    <div>
+                        <div style="display: flex; gap: 0.45rem; flex-wrap: wrap; margin-bottom: 0.42rem;">
+                            <span class="messages-tag">{{ reminder.get_target_display }}</span>
+                            <span class="messages-tag {% if reminder.priority == 'URGENT' %}messages-tag--urgent{% elif reminder.priority == 'IMPORTANT' %}messages-tag--important{% else %}messages-tag--info{% endif %}">
+                                {{ reminder.get_priority_display }}
+                            </span>
+                        </div>
+                        <div class="messages-item-title">{{ reminder.title }}</div>
+                        {% if reminder.description %}
+                        <div class="messages-item-meta">{{ reminder.description|linebreaksbr }}</div>
+                        {% endif %}
+                        <div class="messages-item-meta">
+                            {% if reminder.due_at %}
+                                Échéance: {{ reminder.due_at|date:"d/m/Y H:i" }} •
+                            {% else %}
+                                Sans échéance •
+                            {% endif %}
+                            Créé le {{ reminder.created_at|date:"d/m/Y H:i" }}
+                        </div>
+                    </div>
+                    <div class="messages-item-actions">
+                        <form method="post" action="{% url 'admin_resolve_reminder' reminder.id %}" style="margin: 0;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-secondary">Traité</button>
+                        </form>
+                        <form method="post" action="{% url 'admin_delete_reminder' reminder.id %}" style="margin: 0;" onsubmit="return confirm('Supprimer ce message ?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger">Supprimer</button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="messages-empty">Aucun message actif pour le moment.</div>
+            {% endif %}
+        </article>
+
+        <article class="messages-panel">
+            <div class="messages-panel-head">
+                <div>
+                    <h2 class="messages-panel-title">Anniversaires à venir</h2>
+                    <p class="messages-panel-copy">Alertes automatiques basées sur les dates de naissance enregistrées.</p>
+                </div>
+                <span class="messages-badge">{{ admin_reminder_summary.birthday_count }}</span>
+            </div>
+            {% if admin_upcoming_birthdays %}
+            <div class="messages-list">
+                {% for item in admin_upcoming_birthdays %}
+                <div class="messages-item">
+                    <div>
+                        <div style="display: flex; gap: 0.45rem; flex-wrap: wrap; margin-bottom: 0.42rem;">
+                            <span class="messages-tag messages-tag--birthday">Anniversaire</span>
+                            <span class="messages-tag">{{ item.countdown_label }}</span>
+                        </div>
+                        <div class="messages-item-title">{{ item.employee_name }}</div>
+                        <div class="messages-item-meta">{{ item.site_name }} • {{ item.next_birthday|date:"d/m/Y" }}</div>
+                        <div class="messages-item-meta">{{ item.turning_age }} an{{ item.turning_age|pluralize }} à célébrer</div>
+                    </div>
+                    <div class="messages-item-actions">
+                        {% if item.portal_url %}
+                        <a href="{{ item.portal_url }}" class="btn btn-secondary">Voir l'employé</a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="messages-empty">Aucun anniversaire sur les 30 prochains jours. Ajoutez la date de naissance dans la fiche employé pour activer ces alertes.</div>
+            {% endif %}
+        </article>
+    </section>
+</div>
+{% endblock %}
