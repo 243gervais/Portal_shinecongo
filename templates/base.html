@@ -1023,7 +1023,12 @@
                         <span class="nav-badge">{{ admin_inbox_unread_total }}</span>
                         {% endif %}
                     </a>
-                    <a href="{% url 'admin_messages' %}">Messages</a>
+                    <a href="{% url 'admin_messages' %}">
+                        Messages
+                        {% if admin_messages_unread_total %}
+                        <span class="nav-badge">{{ admin_messages_unread_total }}</span>
+                        {% endif %}
+                    </a>
                     {% if show_admin_site_nav %}
                     <div class="nav-dropdown" data-nav-dropdown>
                         <button type="button" class="nav-menu-button" data-nav-dropdown-toggle aria-expanded="false" aria-haspopup="true">
@@ -1083,7 +1088,12 @@
                         <span class="nav-badge">{{ admin_inbox_unread_total }}</span>
                         {% endif %}
                     </a>
-                    <a href="{% url 'admin_messages' %}">Messages</a>
+                    <a href="{% url 'admin_messages' %}">
+                        Messages
+                        {% if admin_messages_unread_total %}
+                        <span class="nav-badge">{{ admin_messages_unread_total }}</span>
+                        {% endif %}
+                    </a>
                     {% if show_admin_site_nav %}
                     <div class="nav-dropdown" data-nav-dropdown>
                         <button type="button" class="nav-menu-button" data-nav-dropdown-toggle aria-expanded="false" aria-haspopup="true">

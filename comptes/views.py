@@ -50,7 +50,7 @@ from pointage.report_sync import ADMIN_CORRECTION_SOURCE, sync_site_finance_from
 from comptes.models import AdminReminder, UserProfile, EmployeePayment
 from audit.models import AuditLog
 from pointage.utils import get_client_ip, get_user_agent
-from comptes.admin_inbox import mark_admin_inbox_seen
+from comptes.admin_inbox import mark_admin_inbox_seen, mark_admin_messages_seen
 
 
 def no_cache_view(view_func):
@@ -1440,6 +1440,7 @@ def admin_messages(request):
         "admin_upcoming_birthdays": reminders_snapshot["upcoming_birthdays"],
         "admin_reminder_summary": reminders_snapshot["summary"],
     }
+    mark_admin_messages_seen(user)
     return render(request, "admin/messages.html", context)
 
 

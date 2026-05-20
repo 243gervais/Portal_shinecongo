@@ -74,6 +74,11 @@ class UserProfile(models.Model):
         blank=True,
         verbose_name="Dernière consultation des rapports admin",
     )
+    admin_messages_last_seen_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Dernière consultation des messages admin",
+    )
     actif = models.BooleanField(default=True, verbose_name="Actif")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")

@@ -266,6 +266,33 @@ class AdminReminderDashboardTests(TestCase):
         self.assertTrue(reminder.is_resolved)
         self.assertIsNotNone(reminder.resolved_at)
 
+    def test_messages_nav_shows_unread_count_until_messages_page_is_opened(self):
+        initial_response = self.client.get(reverse("admin_messages"))
+
+        self.assertEqual(initial_response.context["admin_messages_unread_total"], 0)
+        self.admin_user.userprofile.refresh_from_db()
+        self.assertIsNotNone(self.admin_user.userprofile.admin_messages_last_seen_at)
+
+        self.employee.userprofile.date_naissance = timezone.localdate() + timedelta(days=6)
+        self.employee.userprofile.save()
+        AdminReminder.objects.create(
+            title="Nouvelle note portail",
+            target="PORTAL",
+            priority="IMPORTANT",
+            created_by=self.admin_user,
+        )
+
+        dashboard_response = self.client.get(reverse("admin_dashboard"))
+
+        self.assertEqual(dashboard_response.context["admin_messages_unread_total"], 2)
+        self.assertContains(dashboard_response, "Messages")
+
+        messages_response = self.client.get(reverse("admin_messages"))
+        self.assertEqual(messages_response.context["admin_messages_unread_total"], 0)
+
+        dashboard_after_open = self.client.get(reverse("admin_dashboard"))
+        self.assertEqual(dashboard_after_open.context["admin_messages_unread_total"], 0)
+
 
 class AdminPasswordManagementTests(TestCase):
     def setUp(self):
