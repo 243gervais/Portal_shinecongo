@@ -1,0 +1,516 @@
+{% extends "base.html" %}
+{% load currency_tags %}
+
+{% block title %}Rapport caméra - {{ report.date|date:"d/m/Y" }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .evidence-shell {
+        display: grid;
+        gap: 1.4rem;
+    }
+
+    .evidence-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 30px;
+        padding: 1.85rem;
+        background:
+            radial-gradient(circle at top left, rgba(29, 167, 255, 0.18), transparent 28%),
+            radial-gradient(circle at bottom right, rgba(244, 163, 64, 0.16), transparent 24%),
+            linear-gradient(135deg, #08192a 0%, #0d2f4d 46%, #155b8f 100%);
+        color: #f7fbff;
+        box-shadow: 0 28px 72px rgba(8, 25, 42, 0.24);
+    }
+
+    .evidence-hero::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+            linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+        background-size: 24px 24px;
+        mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.38), transparent 82%);
+        pointer-events: none;
+    }
+
+    .evidence-hero > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .evidence-hero-top,
+    .evidence-actions,
+    .evidence-card-head,
+    .evidence-upload-meta,
+    .evidence-item-head,
+    .evidence-item-actions,
+    .evidence-asset-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .evidence-kicker,
+    .evidence-chip,
+    .evidence-badge,
+    .evidence-type {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        border-radius: 999px;
+        font-weight: 700;
+    }
+
+    .evidence-kicker,
+    .evidence-chip {
+        padding: 0.42rem 0.82rem;
+        background: rgba(255, 255, 255, 0.12);
+        color: rgba(247, 251, 255, 0.94);
+        font-size: 0.82rem;
+    }
+
+    .evidence-hero h1 {
+        margin: 0.85rem 0 0.38rem;
+        font-size: clamp(2rem, 3vw, 2.8rem);
+        line-height: 1.03;
+        color: #ffffff;
+    }
+
+    .evidence-hero p,
+    .evidence-muted,
+    .evidence-empty,
+    .evidence-help {
+        margin: 0;
+        color: var(--text-secondary);
+        line-height: 1.6;
+    }
+
+    .evidence-hero p {
+        max-width: 58rem;
+        color: rgba(247, 251, 255, 0.82);
+    }
+
+    .evidence-chip-row,
+    .evidence-actions {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+
+    .evidence-summary,
+    .evidence-grid,
+    .evidence-stat-grid,
+    .evidence-item-grid {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .evidence-summary,
+    .evidence-stat-grid {
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    }
+
+    .evidence-grid {
+        grid-template-columns: minmax(0, 0.95fr) minmax(340px, 1.05fr);
+    }
+
+    .evidence-card,
+    .evidence-kpi,
+    .evidence-item {
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.98);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        box-shadow: 0 18px 44px rgba(11, 31, 53, 0.08);
+    }
+
+    .evidence-card,
+    .evidence-item,
+    .evidence-kpi {
+        padding: 1.2rem;
+    }
+
+    .evidence-kpi-label,
+    .evidence-stat-label {
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .evidence-kpi-value,
+    .evidence-stat-value,
+    .evidence-title,
+    .evidence-item-title {
+        color: var(--primary-dark);
+        font-weight: 800;
+    }
+
+    .evidence-kpi-value {
+        margin-top: 0.35rem;
+        font-size: 1.68rem;
+    }
+
+    .evidence-card {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .evidence-title {
+        margin: 0;
+        font-size: 1.16rem;
+    }
+
+    .evidence-form-grid {
+        display: grid;
+        gap: 0.9rem;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .evidence-field {
+        display: grid;
+        gap: 0.35rem;
+    }
+
+    .evidence-field label {
+        font-weight: 700;
+        color: var(--primary-dark);
+    }
+
+    .evidence-field--full {
+        grid-column: 1 / -1;
+    }
+
+    .evidence-badge,
+    .evidence-type {
+        padding: 0.32rem 0.66rem;
+        font-size: 0.8rem;
+    }
+
+    .evidence-badge {
+        background: rgba(10, 67, 107, 0.08);
+        color: var(--primary-dark);
+    }
+
+    .evidence-type {
+        background: rgba(29, 167, 255, 0.12);
+        color: #0b6ea9;
+    }
+
+    .evidence-list {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .evidence-item {
+        display: grid;
+        gap: 0.95rem;
+    }
+
+    .evidence-item-grid {
+        grid-template-columns: minmax(0, 260px) minmax(0, 1fr);
+        align-items: start;
+    }
+
+    .evidence-asset,
+    .evidence-asset-placeholder,
+    .evidence-stat-box,
+    .evidence-empty {
+        border-radius: 18px;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .evidence-asset,
+    .evidence-asset-placeholder {
+        width: 100%;
+        min-height: 180px;
+        background: rgba(7, 26, 44, 0.04);
+        overflow: hidden;
+    }
+
+    .evidence-asset img,
+    .evidence-asset video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .evidence-asset-placeholder,
+    .evidence-empty {
+        display: grid;
+        place-items: center;
+        padding: 1rem;
+        color: var(--text-secondary);
+        background: rgba(7, 26, 44, 0.03);
+    }
+
+    .evidence-stat-grid {
+        align-items: stretch;
+    }
+
+    .evidence-stat-box {
+        padding: 0.85rem 0.9rem;
+        background: rgba(7, 26, 44, 0.03);
+    }
+
+    .evidence-stat-value {
+        margin-top: 0.24rem;
+        font-size: 1.22rem;
+    }
+
+    .evidence-note {
+        padding: 1rem 1.05rem;
+        border-radius: 18px;
+        background: rgba(244, 163, 64, 0.12);
+        border: 1px solid rgba(244, 163, 64, 0.22);
+        color: #7b4a00;
+        line-height: 1.55;
+    }
+
+    .evidence-ai-grid {
+        display: grid;
+        gap: 0.8rem;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+
+    @media (max-width: 980px) {
+        .evidence-grid,
+        .evidence-item-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .evidence-hero,
+        .evidence-card,
+        .evidence-item,
+        .evidence-kpi {
+            padding: 1rem;
+            border-radius: 22px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="evidence-shell">
+    <section class="evidence-hero">
+        <div class="evidence-hero-top">
+            <div>
+                <span class="evidence-kicker">Rapport caméra quotidien</span>
+                <h1>{{ report.date|date:"l d/m/Y"|capfirst }}</h1>
+                <p>{{ site.nom }} · Comptage manuel validé pour la journée active. Les champs IA sont prêts pour plus tard, mais les chiffres manuels restent la source de vérité pour le portail aujourd'hui.</p>
+                <div class="evidence-chip-row">
+                    <span class="evidence-chip">{{ report.final_cars_count|default:report.cars_count }} voiture{{ report.final_cars_count|default:report.cars_count|pluralize }}</span>
+                    <span class="evidence-chip">{{ report.final_motos_count|default:report.motos_count }} moto{{ report.final_motos_count|default:report.motos_count|pluralize }}</span>
+                    <span class="evidence-chip">{{ report.total_vehicles }} véhicule{{ report.total_vehicles|pluralize }}</span>
+                    <span class="evidence-chip">{{ report.expected_revenue|fc_amount }} FC</span>
+                </div>
+            </div>
+            <div class="evidence-actions">
+                <a href="{{ monitoring_url }}" class="btn btn-secondary">Modifier le comptage</a>
+                <a href="{% url 'admin_site_camera_monitoring' site.id %}?date={{ report.date|date:'Y-m-d' }}" class="btn btn-secondary">Retour au module caméras</a>
+                <a href="{% url 'admin_site_detail' site.id %}?date_debut={{ report.date|date:'Y-m-d' }}&date_fin={{ report.date|date:'Y-m-d' }}" class="btn btn-primary">Retour au site</a>
+            </div>
+        </div>
+
+        <div class="evidence-summary">
+            <article class="evidence-kpi">
+                <div class="evidence-kpi-label">Recette attendue</div>
+                <div class="evidence-kpi-value">{{ report.expected_revenue|fc_amount }} FC</div>
+                <div class="evidence-muted">~ ${{ report.expected_revenue|usd_equivalent }} USD</div>
+            </article>
+            <article class="evidence-kpi">
+                <div class="evidence-kpi-label">Preuves uploadées</div>
+                <div class="evidence-kpi-value">{{ evidences|length }}</div>
+                <div class="evidence-muted">Clips et captures liés à ce rapport</div>
+            </article>
+            <article class="evidence-kpi">
+                <div class="evidence-kpi-label">Créé par</div>
+                <div class="evidence-kpi-value">{% if report.created_by %}{{ report.created_by.get_full_name|default:report.created_by.username }}{% else %}Admin{% endif %}</div>
+                <div class="evidence-muted">{{ report.created_at|date:"d/m/Y H:i" }}</div>
+            </article>
+        </div>
+    </section>
+
+    <div class="evidence-grid">
+        <section class="evidence-card">
+            <div class="evidence-card-head">
+                <div>
+                    <h2 class="evidence-title">Ajouter une preuve</h2>
+                    <p class="evidence-muted">Uploadez ici un clip vidéo ou une capture écran importante. En production, le fichier sera stocké via le backend média du portail, donc sur AWS S3 quand `USE_S3=True`.</p>
+                </div>
+            </div>
+            <form method="post" enctype="multipart/form-data" class="evidence-form-grid">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="upload_video_evidence">
+                {% if evidence_form.non_field_errors %}
+                <div class="alert alert-danger evidence-field--full">{{ evidence_form.non_field_errors }}</div>
+                {% endif %}
+                <div class="evidence-field">
+                    <label for="{{ evidence_form.camera.id_for_label }}">{{ evidence_form.camera.label }}</label>
+                    {{ evidence_form.camera }}
+                    {% if evidence_form.camera.errors %}<div class="text-danger small">{{ evidence_form.camera.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="evidence-field">
+                    <label for="{{ evidence_form.evidence_type.id_for_label }}">{{ evidence_form.evidence_type.label }}</label>
+                    {{ evidence_form.evidence_type }}
+                    {% if evidence_form.evidence_type.errors %}<div class="text-danger small">{{ evidence_form.evidence_type.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="evidence-field">
+                    <label for="{{ evidence_form.title.id_for_label }}">{{ evidence_form.title.label }}</label>
+                    {{ evidence_form.title }}
+                    {% if evidence_form.title.errors %}<div class="text-danger small">{{ evidence_form.title.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="evidence-field">
+                    <label for="{{ evidence_form.clip_date.id_for_label }}">{{ evidence_form.clip_date.label }}</label>
+                    {{ evidence_form.clip_date }}
+                    {% if evidence_form.clip_date.errors %}<div class="text-danger small">{{ evidence_form.clip_date.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="evidence-field">
+                    <label for="{{ evidence_form.start_time.id_for_label }}">{{ evidence_form.start_time.label }}</label>
+                    {{ evidence_form.start_time }}
+                    {% if evidence_form.start_time.errors %}<div class="text-danger small">{{ evidence_form.start_time.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="evidence-field">
+                    <label for="{{ evidence_form.end_time.id_for_label }}">{{ evidence_form.end_time.label }}</label>
+                    {{ evidence_form.end_time }}
+                    {% if evidence_form.end_time.errors %}<div class="text-danger small">{{ evidence_form.end_time.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="evidence-field evidence-field--full">
+                    <label for="{{ evidence_form.uploaded_file.id_for_label }}">{{ evidence_form.uploaded_file.label }}</label>
+                    {{ evidence_form.uploaded_file }}
+                    <div class="evidence-help">Formats supportés: vidéo ou image. Utilisez ce champ pour la preuve qui doit rester consultable depuis l'admin.</div>
+                    {% if evidence_form.uploaded_file.errors %}<div class="text-danger small">{{ evidence_form.uploaded_file.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="evidence-field evidence-field--full">
+                    <label for="{{ evidence_form.notes.id_for_label }}">{{ evidence_form.notes.label }}</label>
+                    {{ evidence_form.notes }}
+                    {% if evidence_form.notes.errors %}<div class="text-danger small">{{ evidence_form.notes.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="evidence-field evidence-field--full">
+                    <button type="submit" class="btn btn-primary">Uploader la preuve</button>
+                </div>
+            </form>
+            <div class="evidence-note">Quand un clip prouve un comptage, un incident, un contrôle du réservoir d'eau ou du carburant, gardez-le ici au lieu de le disperser dans WhatsApp. Le rapport quotidien devient alors votre dossier de référence.</div>
+        </section>
+
+        <section class="evidence-card">
+            <div class="evidence-card-head">
+                <div>
+                    <h2 class="evidence-title">Lecture du rapport</h2>
+                    <p class="evidence-muted">Résumé complet de la journée et zone prête pour une future comparaison IA.</p>
+                </div>
+                <div class="evidence-chip-row" style="margin-top:0;">
+                    {% for label, count in evidence_type_counts.items %}
+                    <span class="evidence-badge">{{ label }}: {{ count }}</span>
+                    {% empty %}
+                    <span class="evidence-badge">Aucune preuve</span>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="evidence-stat-grid">
+                <div class="evidence-stat-box">
+                    <div class="evidence-stat-label">Voitures manuelles</div>
+                    <div class="evidence-stat-value">{{ report.cars_count }}</div>
+                </div>
+                <div class="evidence-stat-box">
+                    <div class="evidence-stat-label">Motos manuelles</div>
+                    <div class="evidence-stat-value">{{ report.motos_count }}</div>
+                </div>
+                <div class="evidence-stat-box">
+                    <div class="evidence-stat-label">Total véhicules</div>
+                    <div class="evidence-stat-value">{{ report.total_vehicles }}</div>
+                </div>
+                <div class="evidence-stat-box">
+                    <div class="evidence-stat-label">Recette attendue</div>
+                    <div class="evidence-stat-value">{{ report.expected_revenue|fc_amount }} FC</div>
+                </div>
+            </div>
+            <div class="evidence-ai-grid">
+                <div class="evidence-stat-box">
+                    <div class="evidence-stat-label">AI voitures</div>
+                    <div class="evidence-stat-value">{{ report.ai_cars_count|default:"-" }}</div>
+                </div>
+                <div class="evidence-stat-box">
+                    <div class="evidence-stat-label">AI motos</div>
+                    <div class="evidence-stat-value">{{ report.ai_motos_count|default:"-" }}</div>
+                </div>
+                <div class="evidence-stat-box">
+                    <div class="evidence-stat-label">Confiance AI</div>
+                    <div class="evidence-stat-value">{% if report.ai_confidence_score %}{{ report.ai_confidence_score }}%{% else %}-{% endif %}</div>
+                </div>
+                <div class="evidence-stat-box">
+                    <div class="evidence-stat-label">Revu par</div>
+                    <div class="evidence-stat-value">{% if report.reviewed_by %}{{ report.reviewed_by.get_full_name|default:report.reviewed_by.username }}{% else %}-{% endif %}</div>
+                </div>
+            </div>
+            {% if report.notes %}
+            <div class="evidence-note">{{ report.notes }}</div>
+            {% endif %}
+        </section>
+    </div>
+
+    <section class="evidence-card">
+        <div class="evidence-card-head">
+            <div>
+                <h2 class="evidence-title">Clips & captures du rapport</h2>
+                <p class="evidence-muted">Tout ce qui a été sauvegardé pour cette journée apparaît ici avec son type de preuve, la caméra source et l'accès direct au fichier.</p>
+            </div>
+        </div>
+        <div class="evidence-list">
+            {% for evidence in evidences %}
+            <article class="evidence-item">
+                <div class="evidence-item-head">
+                    <div>
+                        <div class="evidence-item-title">{{ evidence.title }}</div>
+                        <div class="evidence-muted">{{ evidence.camera.name }} · caméra {{ evidence.camera.camera_number }} · {{ evidence.clip_date|date:"d/m/Y" }}</div>
+                    </div>
+                    <span class="evidence-type">{{ evidence.get_evidence_type_display }}</span>
+                </div>
+                <div class="evidence-item-grid">
+                    <div>
+                        {% if evidence.is_image %}
+                        <div class="evidence-asset"><img src="{{ evidence.uploaded_file.url }}" alt="{{ evidence.title }}"></div>
+                        {% elif evidence.is_video %}
+                        <div class="evidence-asset"><video controls preload="metadata"><source src="{{ evidence.uploaded_file.url }}"></video></div>
+                        {% else %}
+                        <div class="evidence-asset-placeholder">Aperçu non disponible</div>
+                        {% endif %}
+                    </div>
+                    <div style="display:grid;gap:0.9rem;">
+                        <div class="evidence-stat-grid">
+                            <div class="evidence-stat-box">
+                                <div class="evidence-stat-label">Créneau</div>
+                                <div class="evidence-stat-value">{% if evidence.start_time %}{{ evidence.start_time|time:"H:i" }}{% else %}-{% endif %} → {% if evidence.end_time %}{{ evidence.end_time|time:"H:i" }}{% else %}-{% endif %}</div>
+                            </div>
+                            <div class="evidence-stat-box">
+                                <div class="evidence-stat-label">Uploadé par</div>
+                                <div class="evidence-stat-value">{% if evidence.uploaded_by %}{{ evidence.uploaded_by.get_full_name|default:evidence.uploaded_by.username }}{% else %}Admin{% endif %}</div>
+                            </div>
+                        </div>
+                        {% if evidence.notes %}
+                        <div class="evidence-muted">{{ evidence.notes }}</div>
+                        {% endif %}
+                        <div class="evidence-asset-actions">
+                            <a href="{{ evidence.uploaded_file.url }}" target="_blank" rel="noopener" class="btn btn-primary">Ouvrir le fichier</a>
+                            {% if evidence.s3_url %}
+                            <a href="{{ evidence.s3_url }}" target="_blank" rel="noopener" class="btn btn-secondary">Lien stockage</a>
+                            {% endif %}
+                            <a href="{% url 'admin_delete_video_evidence' site.id evidence.id %}" class="btn btn-danger">Supprimer</a>
+                        </div>
+                    </div>
+                </div>
+            </article>
+            {% empty %}
+            <div class="evidence-empty">Aucune preuve n'a encore été uploadée pour ce rapport. Utilisez le formulaire ci-dessus pour commencer.</div>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+{% endblock %}

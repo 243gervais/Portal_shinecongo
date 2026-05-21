@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Supprimer une preuve caméra{% endblock %}
+
+{% block content %}
+<div class="dashboard-header" style="margin-bottom: 1.25rem; display:flex; justify-content:space-between; gap:1rem; align-items:flex-start; flex-wrap:wrap;">
+    <div>
+        <h1 style="margin-bottom:0.25rem;">Supprimer la preuve</h1>
+        <p style="margin:0; color: var(--text-secondary);">{{ site.nom }} · {{ report.date|date:"d/m/Y" }} · {{ evidence.title }}</p>
+    </div>
+    <a href="{% url 'admin_site_camera_report_detail' site.id report.id %}" class="btn btn-secondary">Retour au rapport</a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <p>Cette action supprimera la preuve <strong>{{ evidence.title }}</strong> liée à <strong>{{ evidence.camera.name }}</strong>. Le fichier média sera retiré de la bibliothèque de ce rapport.</p>
+        {% if evidence.notes %}
+        <p style="color: var(--text-secondary);">{{ evidence.notes }}</p>
+        {% endif %}
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger btn-block">Confirmer la suppression</button>
+            <a href="{% url 'admin_site_camera_report_detail' site.id report.id %}" class="btn btn-secondary btn-block mt-2">Annuler</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

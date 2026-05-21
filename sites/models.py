@@ -367,6 +367,19 @@ def site_document_path(instance, filename):
     return f"sites/{site_id}/{file_type}/{filename}"
 
 
+def camera_evidence_path(instance, filename):
+    """Chemin de sauvegarde des preuves vidéo/capture liées aux caméras."""
+    site_id = str(instance.daily_report.site_id)
+    report_date = instance.daily_report.date.strftime("%Y-%m-%d")
+    ext = os.path.splitext(filename)[1].lower()
+    safe_ext = ext or ".bin"
+    camera_segment = f"camera-{instance.camera_id or 'unknown'}"
+    title_slug = (instance.title or "evidence").strip().replace(" ", "-").lower()
+    title_slug = "".join(char for char in title_slug if char.isalnum() or char in {"-", "_"})
+    title_slug = title_slug[:60] or "evidence"
+    return f"sites/{site_id}/camera-evidence/{report_date}/{camera_segment}/{title_slug}{safe_ext}"
+
+
 class SiteDocument(models.Model):
     """
     Documents et fichiers liés à un site
@@ -441,3 +454,221 @@ class SiteDocument(models.Model):
             return round(size / (1024 * 1024), 2)
         except:
             return 0
+
+
+class Camera(models.Model):
+    CAMERA_POSITION_CHOICES = [
+        ("GATE", "Entrée / gate"),
+        ("WORK_AREA", "Zone de travail"),
+        ("TOOLS_AREA", "Zone outils"),
+        ("PAYMENT_AREA", "Zone paiement"),
+        ("OUTSIDE", "Extérieur"),
+    ]
+
+    name = models.CharField(max_length=150, verbose_name="Nom de la caméra")
+    site = models.ForeignKey(
+        Location,
+        on_delete=models.CASCADE,
+        related_name="cameras",
+        verbose_name="Site",
+    )
+    camera_number = models.PositiveIntegerField(verbose_name="Numéro de caméra")
+    camera_position = models.CharField(
+        max_length=20,
+        choices=CAMERA_POSITION_CHOICES,
+        default="GATE",
+        verbose_name="Position",
+    )
+    app_name = models.CharField(max_length=120, blank=True, verbose_name="Nom de l'application")
+    notes = models.TextField(blank=True, verbose_name="Notes")
+    is_active = models.BooleanField(default=True, verbose_name="Active")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créée le")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifiée le")
+
+    class Meta:
+        verbose_name = "Caméra"
+        verbose_name_plural = "Caméras"
+        ordering = ["site__nom", "camera_number", "name"]
+        unique_together = [["site", "camera_number"]]
+        indexes = [
+            models.Index(fields=["site", "is_active"]),
+            models.Index(fields=["site", "camera_position"]),
+        ]
+
+    def __str__(self):
+        return f"{self.site.nom} - Caméra {self.camera_number} - {self.name}"
+
+
+class DailyCameraReport(models.Model):
+    CAR_PRICE_FC = Decimal("15000")
+    MOTO_PRICE_FC = Decimal("10000")
+
+    site = models.ForeignKey(
+        Location,
+        on_delete=models.CASCADE,
+        related_name="daily_camera_reports",
+        verbose_name="Site",
+    )
+    date = models.DateField(verbose_name="Date")
+    cars_count = models.PositiveIntegerField(default=0, verbose_name="Nombre de voitures")
+    motos_count = models.PositiveIntegerField(default=0, verbose_name="Nombre de motos")
+    total_vehicles = models.PositiveIntegerField(default=0, verbose_name="Total véhicules")
+    expected_revenue = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0"),
+        verbose_name="Recette attendue (FC)",
+    )
+    notes = models.TextField(blank=True, verbose_name="Notes")
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="daily_camera_reports_created",
+        verbose_name="Créé par",
+    )
+    ai_cars_count = models.PositiveIntegerField(null=True, blank=True, verbose_name="AI voitures")
+    ai_motos_count = models.PositiveIntegerField(null=True, blank=True, verbose_name="AI motos")
+    ai_confidence_score = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Score confiance AI",
+    )
+    final_cars_count = models.PositiveIntegerField(null=True, blank=True, verbose_name="Voitures finales")
+    final_motos_count = models.PositiveIntegerField(null=True, blank=True, verbose_name="Motos finales")
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="daily_camera_reports_reviewed",
+        verbose_name="Revu par",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name="Revu le")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")
+
+    class Meta:
+        verbose_name = "Rapport caméra quotidien"
+        verbose_name_plural = "Rapports caméra quotidiens"
+        ordering = ["-date", "-created_at"]
+        unique_together = [["site", "date"]]
+        indexes = [
+            models.Index(fields=["site", "date"]),
+            models.Index(fields=["-date"]),
+        ]
+
+    def __str__(self):
+        return f"{self.site.nom} - {self.date:%d/%m/%Y}"
+
+    @property
+    def manual_total_vehicles(self):
+        return (self.cars_count or 0) + (self.motos_count or 0)
+
+    @property
+    def manual_expected_revenue(self):
+        return (
+            (Decimal(self.cars_count or 0) * self.CAR_PRICE_FC)
+            + (Decimal(self.motos_count or 0) * self.MOTO_PRICE_FC)
+        )
+
+    def sync_computed_fields(self):
+        if self.reviewed_by_id is None:
+            self.final_cars_count = self.cars_count or 0
+            self.final_motos_count = self.motos_count or 0
+        elif self.final_cars_count is None:
+            self.final_cars_count = self.cars_count or 0
+        elif self.final_motos_count is None:
+            self.final_motos_count = self.motos_count or 0
+
+        effective_cars = self.final_cars_count if self.final_cars_count is not None else (self.cars_count or 0)
+        effective_motos = self.final_motos_count if self.final_motos_count is not None else (self.motos_count or 0)
+        self.total_vehicles = int(effective_cars + effective_motos)
+        self.expected_revenue = (
+            Decimal(effective_cars) * self.CAR_PRICE_FC
+            + Decimal(effective_motos) * self.MOTO_PRICE_FC
+        )
+
+    def save(self, *args, **kwargs):
+        self.sync_computed_fields()
+        super().save(*args, **kwargs)
+
+
+class VideoEvidence(models.Model):
+    EVIDENCE_TYPE_CHOICES = [
+        ("CAR_COUNT", "Comptage voitures"),
+        ("EMPLOYEE_WORK", "Travail employé"),
+        ("THEFT_SECURITY", "Sécurité / vol"),
+        ("WATER_TANK", "Réservoir d'eau"),
+        ("GENERATOR_FUEL", "Carburant groupe"),
+        ("OTHER", "Autre"),
+    ]
+
+    daily_report = models.ForeignKey(
+        DailyCameraReport,
+        on_delete=models.CASCADE,
+        related_name="video_evidences",
+        verbose_name="Rapport quotidien",
+    )
+    camera = models.ForeignKey(
+        Camera,
+        on_delete=models.CASCADE,
+        related_name="video_evidences",
+        verbose_name="Caméra",
+    )
+    title = models.CharField(max_length=200, verbose_name="Titre")
+    evidence_type = models.CharField(
+        max_length=20,
+        choices=EVIDENCE_TYPE_CHOICES,
+        default="OTHER",
+        verbose_name="Type de preuve",
+    )
+    clip_date = models.DateField(verbose_name="Date du clip")
+    start_time = models.TimeField(null=True, blank=True, verbose_name="Heure début")
+    end_time = models.TimeField(null=True, blank=True, verbose_name="Heure fin")
+    uploaded_file = models.FileField(upload_to=camera_evidence_path, verbose_name="Clip ou capture")
+    s3_url = models.URLField(blank=True, verbose_name="URL S3")
+    notes = models.TextField(blank=True, verbose_name="Notes")
+    uploaded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="video_evidences_uploaded",
+        verbose_name="Uploadé par",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
+
+    class Meta:
+        verbose_name = "Preuve vidéo"
+        verbose_name_plural = "Preuves vidéo"
+        ordering = ["-clip_date", "-created_at"]
+        indexes = [
+            models.Index(fields=["daily_report", "clip_date"]),
+            models.Index(fields=["camera", "evidence_type"]),
+        ]
+
+    def __str__(self):
+        return f"{self.daily_report.site.nom} - {self.title}"
+
+    def filename(self):
+        return os.path.basename(self.uploaded_file.name) if self.uploaded_file else ""
+
+    def is_image(self):
+        ext = os.path.splitext(self.filename())[1].lower()
+        return ext in [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"]
+
+    def is_video(self):
+        ext = os.path.splitext(self.filename())[1].lower()
+        return ext in [".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm", ".mkv", ".m4v"]
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.uploaded_file:
+            resolved_url = getattr(self.uploaded_file, "url", "") or ""
+            if resolved_url and self.s3_url != resolved_url:
+                type(self).objects.filter(pk=self.pk).update(s3_url=resolved_url)
+                self.s3_url = resolved_url

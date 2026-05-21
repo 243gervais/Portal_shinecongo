@@ -8,7 +8,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 
 from shinecongo.currency import convert_cdf_to_usd, get_usd_to_cdf_rate
-from sites.models import Location, SiteJournalEntry, SiteWaterPurchase
+from sites.models import Camera, DailyCameraReport, Location, SiteJournalEntry, SiteWaterPurchase, VideoEvidence
 
 from .models import AdminReminder, EmployeePayment, UserProfile
 
@@ -779,3 +779,107 @@ class SiteWaterPurchaseForm(forms.ModelForm):
                 except ValueError:
                     return fallback_month
         return fallback_month
+
+
+class CameraForm(forms.ModelForm):
+    class Meta:
+        model = Camera
+        fields = [
+            "name",
+            "camera_number",
+            "camera_position",
+            "app_name",
+            "notes",
+            "is_active",
+        ]
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ex: Caméra entrée principale"}),
+            "camera_number": forms.NumberInput(attrs={"class": "form-control", "min": "1"}),
+            "camera_position": forms.Select(attrs={"class": "form-control"}),
+            "app_name": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ex: V380, Hik-Connect..."}),
+            "notes": forms.Textarea(attrs={"class": "form-control", "rows": 3, "placeholder": "Remarques d'installation, angle, accès..."}),
+            "is_active": forms.CheckboxInput(),
+        }
+
+
+class DailyCameraReportForm(forms.ModelForm):
+    class Meta:
+        model = DailyCameraReport
+        fields = [
+            "date",
+            "cars_count",
+            "motos_count",
+            "notes",
+        ]
+        widgets = {
+            "date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "cars_count": forms.NumberInput(attrs={"class": "form-control", "min": "0"}),
+            "motos_count": forms.NumberInput(attrs={"class": "form-control", "min": "0"}),
+            "notes": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 3,
+                    "placeholder": "Notes sur le comptage, le trafic, une anomalie ou une précision terrain.",
+                }
+            ),
+        }
+        help_texts = {
+            "cars_count": "Prix voiture: 15 000 FC",
+            "motos_count": "Prix moto: 10 000 FC",
+        }
+
+
+class VideoEvidenceForm(forms.ModelForm):
+    class Meta:
+        model = VideoEvidence
+        fields = [
+            "camera",
+            "title",
+            "evidence_type",
+            "clip_date",
+            "start_time",
+            "end_time",
+            "uploaded_file",
+            "notes",
+        ]
+        widgets = {
+            "camera": forms.Select(attrs={"class": "form-control"}),
+            "title": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ex: Clip entrée 08h15"}),
+            "evidence_type": forms.Select(attrs={"class": "form-control"}),
+            "clip_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "start_time": forms.TimeInput(attrs={"class": "form-control", "type": "time"}),
+            "end_time": forms.TimeInput(attrs={"class": "form-control", "type": "time"}),
+            "uploaded_file": forms.ClearableFileInput(
+                attrs={
+                    "class": "form-control",
+                    "accept": "video/*,image/*,.mp4,.mov,.avi,.mkv,.webm,.jpg,.jpeg,.png,.webp",
+                }
+            ),
+            "notes": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 3,
+                    "placeholder": "Expliquez pourquoi ce clip ou cette capture doit être conservé.",
+                }
+            ),
+        }
+
+    def __init__(self, *args, site=None, daily_report=None, **kwargs):
+        self.site = site or getattr(daily_report, "site", None)
+        self.daily_report = daily_report
+        super().__init__(*args, **kwargs)
+
+        if self.site:
+            self.fields["camera"].queryset = Camera.objects.filter(site=self.site).order_by("camera_number", "name")
+        else:
+            self.fields["camera"].queryset = Camera.objects.none()
+
+        if self.daily_report and not self.is_bound:
+            self.fields["clip_date"].initial = self.daily_report.date
+
+    def clean(self):
+        cleaned_data = super().clean()
+        camera = cleaned_data.get("camera")
+        if camera and self.site and camera.site_id != self.site.id:
+            self.add_error("camera", "Choisissez une caméra du site concerné.")
+        return cleaned_data

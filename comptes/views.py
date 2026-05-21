@@ -21,6 +21,8 @@ from decimal import Decimal, InvalidOperation
 from xhtml2pdf import pisa
 from .forms import (
     AdminReminderForm,
+    CameraForm,
+    DailyCameraReportForm,
     UserRegistrationForm,
     SiteCreationForm,
     SiteEmployeeForm,
@@ -32,15 +34,19 @@ from .forms import (
     WATER_RATE_CHANGE_MONTH,
     WATER_DEFAULT_AMOUNT_BEFORE_CHANGE,
     WATER_DEFAULT_AMOUNT_AFTER_CHANGE,
+    VideoEvidenceForm,
     get_water_purchase_default_amount,
 )
 from sites.models import (
+    Camera,
+    DailyCameraReport,
     Location,
     DailyBankDeposit,
     SiteDocument,
     SiteLossEntry,
     SiteJournalEntry,
     SiteWaterPurchase,
+    VideoEvidence,
 )
 from lavages.models import CarWash, CarWashPhoto
 from problemes.models import IssueReport
@@ -4463,6 +4469,398 @@ def _build_site_employee_management_context(request, site):
         'top_performers_total': top_performers_total,
         'employees_missing_salary': employees_missing_salary,
     }
+
+
+def _camera_monitoring_url(site, selected_date=None, anchor=""):
+    """
+    Construit l'URL du hub caméras du site en conservant la date active.
+    """
+    base_url = reverse("admin_site_camera_monitoring", kwargs={"site_id": site.id})
+    if selected_date:
+        base_url = f"{base_url}?date={selected_date:%Y-%m-%d}"
+    if anchor:
+        return f"{base_url}#{anchor}"
+    return base_url
+
+
+def _parse_camera_selected_date(request):
+    """
+    Résout la date active pour le module caméras.
+    """
+    raw_value = request.GET.get("date") or request.POST.get("selected_date") or request.POST.get("report-date")
+    if raw_value:
+        try:
+            return datetime.strptime(raw_value, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+    return timezone.localdate()
+
+
+def _build_camera_monitoring_context(request, site, selected_date, camera_form=None, report_form=None):
+    """
+    Construit le contexte du tableau de bord caméras pour un site donné.
+    """
+    today = timezone.localdate()
+    current_month_start = today.replace(day=1)
+    current_month_end = current_month_start.replace(
+        day=calendar.monthrange(current_month_start.year, current_month_start.month)[1]
+    )
+    selected_month_start = _parse_month_filter(request.GET.get("month")) if request.GET.get("month") else selected_date.replace(day=1)
+    selected_month_end = selected_month_start.replace(
+        day=calendar.monthrange(selected_month_start.year, selected_month_start.month)[1]
+    )
+    week_start = today - timedelta(days=today.weekday())
+    week_end = week_start + timedelta(days=6)
+
+    cameras = list(
+        Camera.objects.filter(site=site)
+        .annotate(evidence_count=Count("video_evidences"))
+        .order_by("camera_number", "name")
+    )
+    reports_qs = DailyCameraReport.objects.filter(site=site)
+    selected_report = (
+        reports_qs.filter(date=selected_date)
+        .select_related("created_by", "reviewed_by")
+        .prefetch_related("video_evidences__camera", "video_evidences__uploaded_by")
+        .first()
+    )
+    month_reports = list(
+        reports_qs.filter(date__gte=selected_month_start, date__lte=selected_month_end)
+        .select_related("created_by", "reviewed_by")
+        .annotate(evidence_count=Count("video_evidences"))
+        .order_by("-date", "-created_at")
+    )
+    today_report = reports_qs.filter(date=today).first()
+    weekly_totals = reports_qs.filter(date__gte=week_start, date__lte=week_end).aggregate(
+        total_vehicles=Sum("total_vehicles"),
+        expected_revenue=Sum("expected_revenue"),
+    )
+    monthly_reports_qs = reports_qs.filter(date__gte=current_month_start, date__lte=current_month_end)
+    monthly_totals = monthly_reports_qs.aggregate(
+        total_vehicles=Sum("total_vehicles"),
+        expected_revenue=Sum("expected_revenue"),
+    )
+    monthly_evidence_count = VideoEvidence.objects.filter(
+        daily_report__site=site,
+        daily_report__date__gte=current_month_start,
+        daily_report__date__lte=current_month_end,
+    ).count()
+    selected_month_totals = reports_qs.filter(
+        date__gte=selected_month_start,
+        date__lte=selected_month_end,
+    ).aggregate(
+        cars_total=Sum("final_cars_count"),
+        motos_total=Sum("final_motos_count"),
+        total_vehicles=Sum("total_vehicles"),
+        expected_revenue=Sum("expected_revenue"),
+    )
+    total_evidence_count = VideoEvidence.objects.filter(daily_report__site=site).count()
+
+    if camera_form is None:
+        camera_form = CameraForm(prefix="camera", initial={"is_active": True})
+    if report_form is None:
+        report_form = DailyCameraReportForm(
+            prefix="report",
+            instance=selected_report,
+            initial={"date": selected_date},
+        )
+
+    return {
+        "site": site,
+        "today": today,
+        "selected_date": selected_date,
+        "selected_month_start": selected_month_start,
+        "selected_month_end": selected_month_end,
+        "selected_month_label": _month_label(selected_month_start),
+        "camera_form": camera_form,
+        "report_form": report_form,
+        "cameras": cameras,
+        "selected_report": selected_report,
+        "selected_report_evidences": list(selected_report.video_evidences.all()) if selected_report else [],
+        "month_reports": month_reports,
+        "active_camera_count": sum(1 for camera in cameras if camera.is_active),
+        "inactive_camera_count": sum(1 for camera in cameras if not camera.is_active),
+        "total_evidence_count": total_evidence_count,
+        "today_cars_count": (
+            today_report.final_cars_count
+            if today_report and today_report.final_cars_count is not None
+            else (today_report.cars_count if today_report else 0)
+        ) or 0,
+        "today_motos_count": (
+            today_report.final_motos_count
+            if today_report and today_report.final_motos_count is not None
+            else (today_report.motos_count if today_report else 0)
+        ) or 0,
+        "today_expected_revenue": _to_decimal_amount(today_report.expected_revenue if today_report else 0),
+        "weekly_total_vehicles": weekly_totals["total_vehicles"] or 0,
+        "weekly_expected_revenue": _to_decimal_amount(weekly_totals["expected_revenue"]),
+        "monthly_total_vehicles": monthly_totals["total_vehicles"] or 0,
+        "monthly_expected_revenue": _to_decimal_amount(monthly_totals["expected_revenue"]),
+        "monthly_evidence_count": monthly_evidence_count,
+        "selected_month_cars_total": selected_month_totals["cars_total"] or 0,
+        "selected_month_motos_total": selected_month_totals["motos_total"] or 0,
+        "selected_month_total_vehicles": selected_month_totals["total_vehicles"] or 0,
+        "selected_month_expected_revenue": _to_decimal_amount(selected_month_totals["expected_revenue"]),
+    }
+
+
+@login_required
+@no_cache_view
+def admin_site_camera_monitoring(request, site_id):
+    """
+    Hub admin pour la supervision des caméras, du comptage manuel et des preuves vidéo.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect("dashboard")
+
+    site = get_object_or_404(Location, id=site_id)
+    selected_date = _parse_camera_selected_date(request)
+    selected_report = DailyCameraReport.objects.filter(site=site, date=selected_date).first()
+
+    camera_form = CameraForm(prefix="camera", initial={"is_active": True})
+    report_form = DailyCameraReportForm(
+        prefix="report",
+        instance=selected_report,
+        initial={"date": selected_date},
+    )
+
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip()
+
+        if action == "save_camera":
+            camera_form = CameraForm(request.POST, prefix="camera")
+            if camera_form.is_valid():
+                camera = camera_form.save(commit=False)
+                camera.site = site
+                camera.save()
+
+                AuditLog.log(
+                    user=user,
+                    action="CREER",
+                    description=f"Caméra ajoutée sur {site.nom}: caméra {camera.camera_number} ({camera.name})",
+                    content_object=camera,
+                    ip_address=get_client_ip(request),
+                    user_agent=get_user_agent(request),
+                )
+
+                messages.success(request, f'Caméra "{camera.name}" enregistrée avec succès.')
+                return redirect(_camera_monitoring_url(site, selected_date, "camera-inventory"))
+
+        elif action == "save_daily_camera_report":
+            report_form = DailyCameraReportForm(
+                request.POST,
+                prefix="report",
+                instance=selected_report,
+            )
+            if report_form.is_valid():
+                report = report_form.save(commit=False)
+                report.site = site
+                if not report.created_by_id:
+                    report.created_by = user
+                report.save()
+
+                AuditLog.log(
+                    user=user,
+                    action="CREER" if selected_report is None else "MODIFIER",
+                    description=(
+                        f"Rapport caméra {'créé' if selected_report is None else 'mis à jour'} sur {site.nom} "
+                        f"pour le {report.date:%d/%m/%Y}"
+                    ),
+                    content_object=report,
+                    ip_address=get_client_ip(request),
+                    user_agent=get_user_agent(request),
+                )
+
+                messages.success(request, "Rapport caméra enregistré. Vous pouvez maintenant ajouter les preuves vidéo.")
+                return redirect("admin_site_camera_report_detail", site_id=site.id, report_id=report.id)
+
+    context = _build_camera_monitoring_context(
+        request,
+        site,
+        selected_date,
+        camera_form=camera_form,
+        report_form=report_form,
+    )
+    return render(request, "admin/site_camera_monitoring.html", context)
+
+
+@login_required
+@no_cache_view
+def admin_edit_site_camera(request, site_id, camera_id):
+    """
+    Modifier une caméra déjà enregistrée pour un site.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect("dashboard")
+
+    site = get_object_or_404(Location, id=site_id)
+    camera = get_object_or_404(Camera, id=camera_id, site=site)
+    next_url = _safe_next_url(request) or _camera_monitoring_url(site, timezone.localdate(), "camera-inventory")
+
+    if request.method == "POST":
+        form = CameraForm(request.POST, instance=camera)
+        if form.is_valid():
+            camera = form.save()
+            AuditLog.log(
+                user=user,
+                action="MODIFIER",
+                description=f"Caméra mise à jour sur {site.nom}: caméra {camera.camera_number} ({camera.name})",
+                content_object=camera,
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request),
+            )
+            messages.success(request, "Caméra mise à jour avec succès.")
+            return redirect(next_url)
+    else:
+        form = CameraForm(instance=camera)
+
+    return render(
+        request,
+        "admin/site_camera_form.html",
+        {
+            "site": site,
+            "camera": camera,
+            "form": form,
+            "next_url": next_url,
+        },
+    )
+
+
+@login_required
+@no_cache_view
+def admin_site_camera_report_detail(request, site_id, report_id):
+    """
+    Détail d'un rapport caméra quotidien avec upload des preuves.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect("dashboard")
+
+    site = get_object_or_404(Location, id=site_id)
+    report = get_object_or_404(
+        DailyCameraReport.objects.select_related("site", "created_by", "reviewed_by").prefetch_related(
+            "video_evidences__camera",
+            "video_evidences__uploaded_by",
+        ),
+        id=report_id,
+        site=site,
+    )
+
+    evidence_form = VideoEvidenceForm(
+        prefix="evidence",
+        site=site,
+        daily_report=report,
+    )
+
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip()
+        if action == "upload_video_evidence":
+            evidence_form = VideoEvidenceForm(
+                request.POST,
+                request.FILES,
+                prefix="evidence",
+                site=site,
+                daily_report=report,
+            )
+            if evidence_form.is_valid():
+                evidence = evidence_form.save(commit=False)
+                evidence.daily_report = report
+                evidence.uploaded_by = user
+                evidence.save()
+
+                AuditLog.log(
+                    user=user,
+                    action="CREER",
+                    description=(
+                        f"Preuve caméra ajoutée sur {site.nom} le {report.date:%d/%m/%Y}: "
+                        f"{evidence.title} ({evidence.get_evidence_type_display()})"
+                    ),
+                    content_object=evidence,
+                    ip_address=get_client_ip(request),
+                    user_agent=get_user_agent(request),
+                )
+
+                messages.success(request, "Preuve vidéo enregistrée avec succès.")
+                return redirect("admin_site_camera_report_detail", site_id=site.id, report_id=report.id)
+
+    evidences = list(report.video_evidences.all())
+    evidence_type_counts = {}
+    for evidence in evidences:
+        evidence_type_counts.setdefault(evidence.get_evidence_type_display(), 0)
+        evidence_type_counts[evidence.get_evidence_type_display()] += 1
+
+    return render(
+        request,
+        "admin/site_camera_report_detail.html",
+        {
+            "site": site,
+            "report": report,
+            "evidence_form": evidence_form,
+            "evidences": evidences,
+            "evidence_type_counts": evidence_type_counts,
+            "monitoring_url": _camera_monitoring_url(site, report.date, "daily-report-form"),
+        },
+    )
+
+
+@login_required
+@no_cache_view
+def admin_delete_video_evidence(request, site_id, evidence_id):
+    """
+    Supprimer une preuve vidéo/capture rattachée à un rapport caméra.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect("dashboard")
+
+    site = get_object_or_404(Location, id=site_id)
+    evidence = get_object_or_404(
+        VideoEvidence.objects.select_related("daily_report", "camera"),
+        id=evidence_id,
+        daily_report__site=site,
+    )
+    report = evidence.daily_report
+
+    if request.method == "POST":
+        evidence_title = evidence.title
+        if evidence.uploaded_file:
+            evidence.uploaded_file.delete(save=False)
+        evidence.delete()
+
+        AuditLog.log(
+            user=user,
+            action="SUPPRIMER",
+            description=f"Preuve caméra supprimée sur {site.nom}: {evidence_title}",
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request),
+        )
+
+        messages.success(request, "Preuve vidéo supprimée avec succès.")
+        return redirect("admin_site_camera_report_detail", site_id=site.id, report_id=report.id)
+
+    return render(
+        request,
+        "admin/delete_video_evidence.html",
+        {
+            "site": site,
+            "evidence": evidence,
+            "report": report,
+        },
+    )
 
 
 def _build_payment_receipt_pdf(payment):

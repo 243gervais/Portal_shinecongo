@@ -148,6 +148,12 @@ def _build_admin_site_navigation(request):
                 "keywords": "employes equipe salaire productivite paiements mpesa rh",
             },
             {
+                "label": "Caméras & comptage",
+                "url": reverse("admin_site_camera_monitoring", kwargs={"site_id": site.id}),
+                "description": "Caméras du site, comptage manuel et preuves vidéo",
+                "keywords": "camera monitoring comptage voitures motos videos preuves s3",
+            },
+            {
                 "label": "Documents du site",
                 "url": reverse("admin_site_documents", kwargs={"site_id": site.id}),
                 "description": "Documents, médias et bibliothèque",

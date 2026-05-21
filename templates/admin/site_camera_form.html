@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier caméra - {{ site.nom }}{% endblock %}
+
+{% block content %}
+<div class="dashboard-header" style="margin-bottom: 1.25rem; display:flex; justify-content:space-between; gap:1rem; align-items:flex-start; flex-wrap:wrap;">
+    <div>
+        <h1 style="margin-bottom:0.25rem;">Modifier la caméra</h1>
+        <p style="margin:0; color: var(--text-secondary);">{{ site.nom }} · caméra {{ camera.camera_number }} · {{ camera.name }}</p>
+    </div>
+    <a href="{{ next_url }}" class="btn btn-secondary">Retour au module caméras</a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post" style="display:grid; gap:1rem;">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next_url }}">
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
+            <div class="form-group">
+                <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+                {{ form.name }}
+                {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors|join:", " }}</div>{% endif %}
+            </div>
+            <div class="form-row" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:1rem;">
+                <div class="form-group">
+                    <label for="{{ form.camera_number.id_for_label }}">{{ form.camera_number.label }}</label>
+                    {{ form.camera_number }}
+                    {% if form.camera_number.errors %}<div class="text-danger small">{{ form.camera_number.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="{{ form.camera_position.id_for_label }}">{{ form.camera_position.label }}</label>
+                    {{ form.camera_position }}
+                    {% if form.camera_position.errors %}<div class="text-danger small">{{ form.camera_position.errors|join:", " }}</div>{% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="{{ form.app_name.id_for_label }}">{{ form.app_name.label }}</label>
+                    {{ form.app_name }}
+                    {% if form.app_name.errors %}<div class="text-danger small">{{ form.app_name.errors|join:", " }}</div>{% endif %}
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
+                {{ form.notes }}
+                {% if form.notes.errors %}<div class="text-danger small">{{ form.notes.errors|join:", " }}</div>{% endif %}
+            </div>
+            <div class="form-group">
+                <label style="display:flex; align-items:center; gap:0.55rem;">
+                    {{ form.is_active }}
+                    <span>{{ form.is_active.label }}</span>
+                </label>
+                {% if form.is_active.errors %}<div class="text-danger small">{{ form.is_active.errors|join:", " }}</div>{% endif %}
+            </div>
+            <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+                <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+                <a href="{{ next_url }}" class="btn btn-secondary">Annuler</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

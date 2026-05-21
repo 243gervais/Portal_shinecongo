@@ -12,7 +12,15 @@ from comptes.forms import ApprovalAuthenticationForm
 from comptes.views import _daily_funding_snapshot
 from comptes.models import AdminReminder, EmployeePayment
 from lavages.models import CarWash
-from sites.models import Location, SiteDocument, SiteJournalEntry, SiteWaterPurchase
+from sites.models import (
+    Camera,
+    DailyCameraReport,
+    Location,
+    SiteDocument,
+    SiteJournalEntry,
+    SiteWaterPurchase,
+    VideoEvidence,
+)
 from sites.models import DailyBankDeposit, SiteLossEntry
 from pointage.models import ShiftDay
 from problemes.models import IssueReport
@@ -621,6 +629,118 @@ class AdminSiteEmployeeFormTests(TestCase):
         employee = User.objects.get(username="mike_photo")
         employee.userprofile.refresh_from_db()
         self.assertTrue(employee.userprofile.profile_photo.name.endswith(".gif"))
+
+
+@override_settings(MEDIA_ROOT="/private/tmp/portal_shinecongo_camera_test_media")
+class SiteCameraMonitoringTests(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            username="camera_admin",
+            email="camera_admin@example.com",
+            password="AdminPass123!",
+        )
+        self.site = Location.objects.create(
+            nom="Site Caméras",
+            adresse="Adresse Caméras",
+            ville="Kinshasa",
+            actif=True,
+        )
+        self.client.login(username="camera_admin", password="AdminPass123!")
+
+    def test_site_detail_links_to_camera_monitoring_workspace(self):
+        response = self.client.get(reverse("admin_site_detail", args=[self.site.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Caméras & comptage")
+        self.assertContains(response, reverse("admin_site_camera_monitoring", args=[self.site.id]))
+
+    def test_admin_can_create_camera_from_monitoring_page(self):
+        response = self.client.post(
+            reverse("admin_site_camera_monitoring", args=[self.site.id]),
+            data={
+                "action": "save_camera",
+                "selected_date": "2026-05-21",
+                "camera-name": "Entrée principale",
+                "camera-camera_number": "1",
+                "camera-camera_position": "GATE",
+                "camera-app_name": "V380",
+                "camera-notes": "Vue principale pour les arrivées.",
+                "camera-is_active": "on",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Camera.objects.filter(site=self.site, camera_number=1, name="Entrée principale").exists())
+
+    def test_admin_can_create_daily_camera_report_with_computed_totals(self):
+        response = self.client.post(
+            reverse("admin_site_camera_monitoring", args=[self.site.id]),
+            data={
+                "action": "save_daily_camera_report",
+                "selected_date": "2026-05-21",
+                "report-date": "2026-05-21",
+                "report-cars_count": "4",
+                "report-motos_count": "3",
+                "report-notes": "Comptage manuel de la journée.",
+            },
+        )
+
+        report = DailyCameraReport.objects.get(site=self.site, date=date(2026, 5, 21))
+        self.assertRedirects(
+            response,
+            reverse("admin_site_camera_report_detail", args=[self.site.id, report.id]),
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(report.total_vehicles, 7)
+        self.assertEqual(report.expected_revenue, Decimal("90000"))
+        self.assertEqual(report.final_cars_count, 4)
+        self.assertEqual(report.final_motos_count, 3)
+
+    def test_camera_report_detail_can_upload_evidence(self):
+        camera = Camera.objects.create(
+            site=self.site,
+            name="Caméra caisse",
+            camera_number=2,
+            camera_position="PAYMENT_AREA",
+            app_name="Hik Connect",
+            is_active=True,
+        )
+        report = DailyCameraReport.objects.create(
+            site=self.site,
+            date=date(2026, 5, 21),
+            cars_count=2,
+            motos_count=1,
+            created_by=self.admin_user,
+        )
+
+        response = self.client.post(
+            reverse("admin_site_camera_report_detail", args=[self.site.id, report.id]),
+            data={
+                "action": "upload_video_evidence",
+                "evidence-camera": str(camera.id),
+                "evidence-title": "Capture caisse matin",
+                "evidence-evidence_type": "CAR_COUNT",
+                "evidence-clip_date": "2026-05-21",
+                "evidence-start_time": "08:15",
+                "evidence-end_time": "08:18",
+                "evidence-uploaded_file": SimpleUploadedFile(
+                    "camera-proof.gif",
+                    TEST_GIF_BYTES,
+                    content_type="image/gif",
+                ),
+                "evidence-notes": "Capture de vérification du nombre de véhicules.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        evidence = VideoEvidence.objects.get(daily_report=report, camera=camera)
+        self.assertEqual(evidence.title, "Capture caisse matin")
+        self.assertTrue(evidence.uploaded_file.name.endswith(".gif"))
+        self.assertTrue(bool(evidence.s3_url))
+
+        detail_response = self.client.get(reverse("admin_site_camera_report_detail", args=[self.site.id, report.id]))
+        self.assertContains(detail_response, "Capture caisse matin")
+        self.assertContains(detail_response, "Clips & captures du rapport")
 
 
 class SiteJournalEntryTests(TestCase):

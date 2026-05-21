@@ -27,6 +27,7 @@
         </div>
         <div class="site-actions">
             <a href="{% url 'admin_site_employees' site.id %}" class="btn btn-info">Gestion des employés</a>
+            <a href="{% url 'admin_site_camera_monitoring' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-info">Caméras & comptage</a>
             <a href="{% url 'admin_site_documents' site.id %}" class="btn btn-success">Documents du site</a>
             <a href="{% url 'admin_site_journal' site.id %}" class="btn btn-secondary">Journal du site</a>
             <a href="{% url 'admin_add_bank_deposit' site.id %}?date={{ detail_date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}" class="btn btn-info">{% if bank_deposit_today %}Modifier{% else %}Ajouter{% endif %} dépôt bancaire</a>

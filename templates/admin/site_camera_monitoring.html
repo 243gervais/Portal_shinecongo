@@ -1,0 +1,675 @@
+{% extends "base.html" %}
+{% load currency_tags %}
+
+{% block title %}Caméras & comptage - {{ site.nom }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .camera-shell {
+        display: grid;
+        gap: 1.4rem;
+    }
+
+    .camera-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 30px;
+        padding: 1.9rem;
+        background:
+            radial-gradient(circle at top left, rgba(255, 193, 7, 0.18), transparent 28%),
+            radial-gradient(circle at bottom right, rgba(29, 167, 255, 0.18), transparent 24%),
+            linear-gradient(135deg, #071727 0%, #0d2f4f 46%, #154f83 100%);
+        color: #f7fbff;
+        box-shadow: 0 28px 72px rgba(7, 23, 39, 0.24);
+    }
+
+    .camera-hero::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+            linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+        background-size: 24px 24px;
+        mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.38), transparent 82%);
+        pointer-events: none;
+    }
+
+    .camera-hero > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .camera-hero-top,
+    .camera-actions,
+    .camera-card-head,
+    .camera-filter-row,
+    .camera-report-meta,
+    .camera-report-actions,
+    .camera-inventory-head,
+    .camera-list-head,
+    .camera-asset-head,
+    .camera-evidence-mini {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .camera-kicker,
+    .camera-chip,
+    .camera-badge,
+    .camera-state {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        border-radius: 999px;
+        font-weight: 700;
+    }
+
+    .camera-kicker,
+    .camera-chip {
+        padding: 0.42rem 0.8rem;
+        background: rgba(255, 255, 255, 0.11);
+        color: rgba(247, 251, 255, 0.94);
+        font-size: 0.82rem;
+    }
+
+    .camera-hero h1 {
+        margin: 0.85rem 0 0.35rem;
+        font-size: clamp(2rem, 3vw, 2.85rem);
+        line-height: 1.03;
+        color: #ffffff;
+    }
+
+    .camera-hero p {
+        margin: 0;
+        max-width: 60rem;
+        color: rgba(247, 251, 255, 0.82);
+        line-height: 1.6;
+    }
+
+    .camera-hero-chips,
+    .camera-actions,
+    .camera-pill-row {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+
+    .camera-kpis,
+    .camera-report-summary,
+    .camera-asset-grid,
+    .camera-mini-grid {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .camera-kpis,
+    .camera-mini-grid {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+
+    .camera-grid {
+        display: grid;
+        gap: 1.2rem;
+        grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+    }
+
+    .camera-report-summary,
+    .camera-asset-grid {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .camera-kpi,
+    .camera-card,
+    .camera-report-item,
+    .camera-camera-card {
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.98);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        box-shadow: 0 18px 44px rgba(11, 31, 53, 0.08);
+    }
+
+    .camera-kpi,
+    .camera-card,
+    .camera-report-item,
+    .camera-camera-card {
+        padding: 1.2rem;
+    }
+
+    .camera-kpi-label,
+    .camera-stat-label,
+    .camera-report-label,
+    .camera-form-help,
+    .camera-muted {
+        color: var(--text-secondary);
+        font-size: 0.84rem;
+    }
+
+    .camera-kpi-value,
+    .camera-stat-value,
+    .camera-title,
+    .camera-report-date,
+    .camera-camera-name {
+        color: var(--primary-dark);
+        font-weight: 800;
+    }
+
+    .camera-kpi-value {
+        margin-top: 0.42rem;
+        font-size: 1.72rem;
+    }
+
+    .camera-card {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .camera-title {
+        margin: 0;
+        font-size: 1.16rem;
+    }
+
+    .camera-subtitle {
+        margin: 0.18rem 0 0;
+        color: var(--text-secondary);
+        line-height: 1.55;
+    }
+
+    .camera-filter-form,
+    .camera-form-grid,
+    .camera-add-form {
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .camera-filter-form {
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        align-items: end;
+    }
+
+    .camera-form-grid {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .camera-field {
+        display: grid;
+        gap: 0.35rem;
+    }
+
+    .camera-field label {
+        font-weight: 700;
+        color: var(--primary-dark);
+    }
+
+    .camera-field--full {
+        grid-column: 1 / -1;
+    }
+
+    .camera-preview {
+        padding: 1rem;
+        border-radius: 20px;
+        background: rgba(7, 26, 44, 0.03);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .camera-preview-grid,
+    .camera-inline-stats {
+        display: grid;
+        gap: 0.75rem;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
+
+    .camera-stat-box {
+        padding: 0.95rem;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.88);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .camera-stat-value {
+        margin-top: 0.28rem;
+        font-size: 1.28rem;
+    }
+
+    .camera-badge {
+        padding: 0.3rem 0.65rem;
+        background: rgba(10, 67, 107, 0.08);
+        color: var(--primary-dark);
+        font-size: 0.8rem;
+    }
+
+    .camera-state {
+        padding: 0.36rem 0.68rem;
+        font-size: 0.8rem;
+    }
+
+    .camera-state--active {
+        background: rgba(15, 157, 88, 0.12);
+        color: #0f9d58;
+    }
+
+    .camera-state--inactive {
+        background: rgba(180, 35, 24, 0.12);
+        color: #b42318;
+    }
+
+    .camera-list,
+    .camera-report-list {
+        display: grid;
+        gap: 0.95rem;
+    }
+
+    .camera-camera-card,
+    .camera-report-item {
+        display: grid;
+        gap: 0.85rem;
+    }
+
+    .camera-camera-meta,
+    .camera-report-meta,
+    .camera-mini-grid {
+        align-items: stretch;
+    }
+
+    .camera-camera-meta {
+        display: grid;
+        gap: 0.75rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .camera-mini-card {
+        padding: 0.85rem 0.9rem;
+        border-radius: 16px;
+        background: rgba(7, 26, 44, 0.03);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .camera-mini-value {
+        margin-top: 0.22rem;
+        font-weight: 800;
+        color: var(--primary-dark);
+    }
+
+    .camera-report-date {
+        font-size: 1.02rem;
+    }
+
+    .camera-empty {
+        padding: 1rem;
+        border-radius: 18px;
+        background: rgba(10, 67, 107, 0.04);
+        border: 1px dashed rgba(10, 67, 107, 0.16);
+        color: var(--text-secondary);
+    }
+
+    .camera-callout {
+        padding: 1rem 1.05rem;
+        border-radius: 18px;
+        background: rgba(244, 163, 64, 0.12);
+        border: 1px solid rgba(244, 163, 64, 0.22);
+        color: #7b4a00;
+        line-height: 1.55;
+    }
+
+    .camera-report-item .btn,
+    .camera-actions .btn,
+    .camera-card .btn {
+        min-height: 44px;
+    }
+
+    @media (max-width: 980px) {
+        .camera-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .camera-hero,
+        .camera-card,
+        .camera-kpi,
+        .camera-report-item,
+        .camera-camera-card {
+            padding: 1rem;
+            border-radius: 22px;
+        }
+
+        .camera-camera-meta {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="camera-shell">
+    <section class="camera-hero">
+        <div class="camera-hero-top">
+            <div>
+                <span class="camera-kicker">Camera Monitoring</span>
+                <h1>Caméras & comptage</h1>
+                <p>Supervisez les caméras du site, enregistrez le comptage manuel voitures/motos, puis rattachez les clips et captures importants au bon jour sans sortir du portail admin.</p>
+                <div class="camera-hero-chips">
+                    <span class="camera-chip">Site: {{ site.nom }}</span>
+                    <span class="camera-chip">Date active: {{ selected_date|date:"d/m/Y" }}</span>
+                    <span class="camera-chip">Mois affiché: {{ selected_month_label }}</span>
+                </div>
+            </div>
+            <div class="camera-actions">
+                <a href="{% url 'admin_site_detail' site.id %}?date_debut={{ selected_date|date:'Y-m-d' }}&date_fin={{ selected_date|date:'Y-m-d' }}" class="btn btn-secondary">Retour au site</a>
+                {% if selected_report %}
+                <a href="{% url 'admin_site_camera_report_detail' site.id selected_report.id %}" class="btn btn-primary">Ouvrir le rapport du jour</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="camera-kpis">
+            <article class="camera-kpi">
+                <div class="camera-kpi-label">Voitures aujourd'hui</div>
+                <div class="camera-kpi-value">{{ today_cars_count }}</div>
+                <div class="camera-muted">Rapport du {{ today|date:"d/m/Y" }}</div>
+            </article>
+            <article class="camera-kpi">
+                <div class="camera-kpi-label">Motos aujourd'hui</div>
+                <div class="camera-kpi-value">{{ today_motos_count }}</div>
+                <div class="camera-muted">Source manuelle tant que l'IA n'est pas activée</div>
+            </article>
+            <article class="camera-kpi">
+                <div class="camera-kpi-label">Recette attendue aujourd'hui</div>
+                <div class="camera-kpi-value">{{ today_expected_revenue|fc_amount }} FC</div>
+                <div class="camera-muted">~ ${{ today_expected_revenue|usd_equivalent }} USD</div>
+            </article>
+            <article class="camera-kpi">
+                <div class="camera-kpi-label">Véhicules semaine</div>
+                <div class="camera-kpi-value">{{ weekly_total_vehicles }}</div>
+                <div class="camera-muted">Recette estimée semaine: {{ weekly_expected_revenue|fc_amount }} FC</div>
+            </article>
+            <article class="camera-kpi">
+                <div class="camera-kpi-label">Recette attendue du mois</div>
+                <div class="camera-kpi-value">{{ monthly_expected_revenue|fc_amount }} FC</div>
+                <div class="camera-muted">~ ${{ monthly_expected_revenue|usd_equivalent }} USD</div>
+            </article>
+            <article class="camera-kpi">
+                <div class="camera-kpi-label">Parc caméras</div>
+                <div class="camera-kpi-value">{{ active_camera_count }}/{{ cameras|length }}</div>
+                <div class="camera-muted">{{ inactive_camera_count }} caméra{{ inactive_camera_count|pluralize }} inactive{{ inactive_camera_count|pluralize }}</div>
+            </article>
+        </div>
+    </section>
+
+    <section class="camera-card">
+        <div class="camera-card-head">
+            <div>
+                <h2 class="camera-title">Lecture rapide</h2>
+                <p class="camera-subtitle">Changez la journée active pour saisir le rapport manuel, puis changez le mois affiché pour relire l'historique et les clips d'une période donnée.</p>
+            </div>
+        </div>
+        <form method="get" class="camera-filter-form">
+            <div class="camera-field">
+                <label for="camera-date-filter">Date du rapport</label>
+                <input id="camera-date-filter" type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" class="form-control">
+            </div>
+            <div class="camera-field">
+                <label for="camera-month-filter">Mois de lecture</label>
+                <input id="camera-month-filter" type="month" name="month" value="{{ selected_month_start|date:'Y-m' }}" class="form-control">
+            </div>
+            <div class="camera-field">
+                <button type="submit" class="btn btn-primary btn-block">Afficher</button>
+            </div>
+        </form>
+    </section>
+
+    <div class="camera-grid">
+        <section class="camera-card" id="daily-report-form">
+            <div class="camera-card-head">
+                <div>
+                    <h2 class="camera-title">Rapport caméra quotidien</h2>
+                    <p class="camera-subtitle">Saisissez d'abord les chiffres manuels. Le portail calcule automatiquement le total véhicules et la recette attendue avec 15 000 FC par voiture et 10 000 FC par moto.</p>
+                </div>
+                {% if selected_report %}
+                <span class="camera-badge">Rapport existant</span>
+                {% else %}
+                <span class="camera-badge">Nouveau rapport</span>
+                {% endif %}
+            </div>
+            <form method="post" class="camera-add-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="save_daily_camera_report">
+                <input type="hidden" name="selected_date" value="{{ selected_date|date:'Y-m-d' }}">
+                {% if report_form.non_field_errors %}
+                <div class="alert alert-danger">{{ report_form.non_field_errors }}</div>
+                {% endif %}
+                <div class="camera-form-grid">
+                    <div class="camera-field">
+                        <label for="{{ report_form.date.id_for_label }}">{{ report_form.date.label }}</label>
+                        {{ report_form.date }}
+                        {% if report_form.date.errors %}<div class="text-danger small">{{ report_form.date.errors|join:", " }}</div>{% endif %}
+                    </div>
+                    <div class="camera-field">
+                        <label for="{{ report_form.cars_count.id_for_label }}">{{ report_form.cars_count.label }}</label>
+                        {{ report_form.cars_count }}
+                        <div class="camera-form-help">{{ report_form.cars_count.help_text }}</div>
+                        {% if report_form.cars_count.errors %}<div class="text-danger small">{{ report_form.cars_count.errors|join:", " }}</div>{% endif %}
+                    </div>
+                    <div class="camera-field">
+                        <label for="{{ report_form.motos_count.id_for_label }}">{{ report_form.motos_count.label }}</label>
+                        {{ report_form.motos_count }}
+                        <div class="camera-form-help">{{ report_form.motos_count.help_text }}</div>
+                        {% if report_form.motos_count.errors %}<div class="text-danger small">{{ report_form.motos_count.errors|join:", " }}</div>{% endif %}
+                    </div>
+                    <div class="camera-field camera-field--full">
+                        <label for="{{ report_form.notes.id_for_label }}">{{ report_form.notes.label }}</label>
+                        {{ report_form.notes }}
+                        {% if report_form.notes.errors %}<div class="text-danger small">{{ report_form.notes.errors|join:", " }}</div>{% endif %}
+                    </div>
+                </div>
+                <div class="camera-preview">
+                    <div class="camera-report-summary">
+                        <div class="camera-stat-box">
+                            <div class="camera-stat-label">Total véhicules</div>
+                            <div id="camera-report-total-preview" class="camera-stat-value">0</div>
+                        </div>
+                        <div class="camera-stat-box">
+                            <div class="camera-stat-label">Recette attendue</div>
+                            <div id="camera-report-revenue-preview" class="camera-stat-value">0 FC</div>
+                        </div>
+                        <div class="camera-stat-box">
+                            <div class="camera-stat-label">Source de vérité</div>
+                            <div class="camera-stat-value">Saisie manuelle</div>
+                            <div class="camera-form-help">Les champs IA restent disponibles plus tard sans bloquer l'usage actuel.</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="camera-report-actions">
+                    <button type="submit" class="btn btn-primary">{% if selected_report %}Mettre à jour le rapport{% else %}Enregistrer le rapport{% endif %}</button>
+                    {% if selected_report %}
+                    <a href="{% url 'admin_site_camera_report_detail' site.id selected_report.id %}" class="btn btn-secondary">Voir les preuves</a>
+                    {% endif %}
+                </div>
+            </form>
+            {% if selected_report %}
+            <div class="camera-callout">
+                Rapport actif du {{ selected_report.date|date:"d/m/Y" }}: {{ selected_report.total_vehicles }} véhicule{{ selected_report.total_vehicles|pluralize }} pour {{ selected_report.expected_revenue|fc_amount }} FC. {% if selected_report.video_evidences.count %}{{ selected_report.video_evidences.count }} preuve{{ selected_report.video_evidences.count|pluralize }} déjà liée{{ selected_report.video_evidences.count|pluralize }}.{% else %}Aucune preuve n'a encore été uploadée pour cette journée.{% endif %}
+            </div>
+            {% endif %}
+        </section>
+
+        <section class="camera-card" id="camera-inventory">
+            <div class="camera-card-head">
+                <div>
+                    <h2 class="camera-title">Parc caméras</h2>
+                    <p class="camera-subtitle">Enregistrez vos caméras physiques, leur position sur site et l'application utilisée pour consulter les flux.</p>
+                </div>
+            </div>
+            <form method="post" class="camera-add-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="save_camera">
+                <input type="hidden" name="selected_date" value="{{ selected_date|date:'Y-m-d' }}">
+                {% if camera_form.non_field_errors %}
+                <div class="alert alert-danger">{{ camera_form.non_field_errors }}</div>
+                {% endif %}
+                <div class="camera-form-grid">
+                    <div class="camera-field">
+                        <label for="{{ camera_form.name.id_for_label }}">{{ camera_form.name.label }}</label>
+                        {{ camera_form.name }}
+                        {% if camera_form.name.errors %}<div class="text-danger small">{{ camera_form.name.errors|join:", " }}</div>{% endif %}
+                    </div>
+                    <div class="camera-field">
+                        <label for="{{ camera_form.camera_number.id_for_label }}">{{ camera_form.camera_number.label }}</label>
+                        {{ camera_form.camera_number }}
+                        {% if camera_form.camera_number.errors %}<div class="text-danger small">{{ camera_form.camera_number.errors|join:", " }}</div>{% endif %}
+                    </div>
+                    <div class="camera-field">
+                        <label for="{{ camera_form.camera_position.id_for_label }}">{{ camera_form.camera_position.label }}</label>
+                        {{ camera_form.camera_position }}
+                        {% if camera_form.camera_position.errors %}<div class="text-danger small">{{ camera_form.camera_position.errors|join:", " }}</div>{% endif %}
+                    </div>
+                    <div class="camera-field">
+                        <label for="{{ camera_form.app_name.id_for_label }}">{{ camera_form.app_name.label }}</label>
+                        {{ camera_form.app_name }}
+                        {% if camera_form.app_name.errors %}<div class="text-danger small">{{ camera_form.app_name.errors|join:", " }}</div>{% endif %}
+                    </div>
+                    <div class="camera-field camera-field--full">
+                        <label for="{{ camera_form.notes.id_for_label }}">{{ camera_form.notes.label }}</label>
+                        {{ camera_form.notes }}
+                        {% if camera_form.notes.errors %}<div class="text-danger small">{{ camera_form.notes.errors|join:", " }}</div>{% endif %}
+                    </div>
+                    <div class="camera-field camera-field--full">
+                        <label style="display:flex;align-items:center;gap:0.55rem;">
+                            {{ camera_form.is_active }}
+                            <span>{{ camera_form.is_active.label }}</span>
+                        </label>
+                        {% if camera_form.is_active.errors %}<div class="text-danger small">{{ camera_form.is_active.errors|join:", " }}</div>{% endif %}
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Ajouter la caméra</button>
+            </form>
+            <div class="camera-list">
+                {% for camera in cameras %}
+                <article class="camera-camera-card">
+                    <div class="camera-list-head">
+                        <div>
+                            <div class="camera-camera-name">Caméra {{ camera.camera_number }} · {{ camera.name }}</div>
+                            <div class="camera-muted">{{ camera.get_camera_position_display }}{% if camera.app_name %} · {{ camera.app_name }}{% endif %}</div>
+                        </div>
+                        <span class="camera-state {% if camera.is_active %}camera-state--active{% else %}camera-state--inactive{% endif %}">
+                            {% if camera.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </div>
+                    <div class="camera-camera-meta">
+                        <div class="camera-mini-card">
+                            <div class="camera-kpi-label">Preuves liées</div>
+                            <div class="camera-mini-value">{{ camera.evidence_count }}</div>
+                        </div>
+                        <div class="camera-mini-card">
+                            <div class="camera-kpi-label">Dernière mise à jour</div>
+                            <div class="camera-mini-value">{{ camera.updated_at|date:"d/m/Y H:i" }}</div>
+                        </div>
+                    </div>
+                    {% if camera.notes %}
+                    <div class="camera-muted">{{ camera.notes }}</div>
+                    {% endif %}
+                    <div>
+                        <a href="{% url 'admin_edit_site_camera' site.id camera.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-secondary">Modifier</a>
+                    </div>
+                </article>
+                {% empty %}
+                <div class="camera-empty">Aucune caméra n'est encore enregistrée sur ce site. Ajoutez d'abord vos deux caméras pour pouvoir rattacher les clips au bon point de vue.</div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+
+    <section class="camera-card">
+        <div class="camera-card-head">
+            <div>
+                <h2 class="camera-title">Historique du mois · {{ selected_month_label }}</h2>
+                <p class="camera-subtitle">Retrouvez chaque journée, les volumes manuels saisis et le nombre de preuves jointes. Les clips et captures utilisent le stockage média du portail et sont envoyés sur S3 en production.</p>
+            </div>
+            <div class="camera-pill-row">
+                <span class="camera-badge">Voitures: {{ selected_month_cars_total }}</span>
+                <span class="camera-badge">Motos: {{ selected_month_motos_total }}</span>
+                <span class="camera-badge">Total: {{ selected_month_total_vehicles }}</span>
+                <span class="camera-badge">Recette: {{ selected_month_expected_revenue|fc_amount }} FC</span>
+            </div>
+        </div>
+        <div class="camera-report-list">
+            {% for report in month_reports %}
+            <article class="camera-report-item">
+                <div class="camera-report-meta">
+                    <div>
+                        <div class="camera-report-date">{{ report.date|date:"l d/m/Y"|capfirst }}</div>
+                        <div class="camera-muted">Créé par {% if report.created_by %}{{ report.created_by.get_full_name|default:report.created_by.username }}{% else %}admin{% endif %}</div>
+                    </div>
+                    <div class="camera-pill-row" style="margin-top:0;">
+                        <span class="camera-badge">{{ report.cars_count }} voiture{{ report.cars_count|pluralize }}</span>
+                        <span class="camera-badge">{{ report.motos_count }} moto{{ report.motos_count|pluralize }}</span>
+                        <span class="camera-badge">{{ report.evidence_count }} preuve{{ report.evidence_count|pluralize }}</span>
+                    </div>
+                </div>
+                <div class="camera-mini-grid">
+                    <div class="camera-mini-card">
+                        <div class="camera-kpi-label">Total véhicules</div>
+                        <div class="camera-mini-value">{{ report.total_vehicles }}</div>
+                    </div>
+                    <div class="camera-mini-card">
+                        <div class="camera-kpi-label">Recette attendue</div>
+                        <div class="camera-mini-value">{{ report.expected_revenue|fc_amount }} FC</div>
+                    </div>
+                    <div class="camera-mini-card">
+                        <div class="camera-kpi-label">Version finale</div>
+                        <div class="camera-mini-value">{{ report.final_cars_count|default:report.cars_count }} voitures · {{ report.final_motos_count|default:report.motos_count }} motos</div>
+                    </div>
+                </div>
+                {% if report.notes %}
+                <div class="camera-muted">{{ report.notes|truncatechars:180 }}</div>
+                {% endif %}
+                <div class="camera-report-actions">
+                    <a href="{% url 'admin_site_camera_report_detail' site.id report.id %}" class="btn btn-primary">Voir le détail</a>
+                    <a href="{% url 'admin_site_camera_monitoring' site.id %}?date={{ report.date|date:'Y-m-d' }}#daily-report-form" class="btn btn-secondary">Modifier le comptage</a>
+                </div>
+            </article>
+            {% empty %}
+            <div class="camera-empty">Aucun rapport caméra n'a encore été saisi pour {{ selected_month_label }}.</div>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const carsInput = document.getElementById('{{ report_form.cars_count.id_for_label }}');
+        const motosInput = document.getElementById('{{ report_form.motos_count.id_for_label }}');
+        const totalPreview = document.getElementById('camera-report-total-preview');
+        const revenuePreview = document.getElementById('camera-report-revenue-preview');
+        const CAR_PRICE = 15000;
+        const MOTO_PRICE = 10000;
+
+        if (!carsInput || !motosInput || !totalPreview || !revenuePreview) {
+            return;
+        }
+
+        function formatFc(value) {
+            return new Intl.NumberFormat('fr-FR').format(value) + ' FC';
+        }
+
+        function refreshPreview() {
+            const cars = parseInt(carsInput.value || '0', 10) || 0;
+            const motos = parseInt(motosInput.value || '0', 10) || 0;
+            const total = cars + motos;
+            const revenue = (cars * CAR_PRICE) + (motos * MOTO_PRICE);
+            totalPreview.textContent = total;
+            revenuePreview.textContent = formatFc(revenue);
+        }
+
+        carsInput.addEventListener('input', refreshPreview);
+        motosInput.addEventListener('input', refreshPreview);
+        refreshPreview();
+    });
+</script>
+{% endblock %}

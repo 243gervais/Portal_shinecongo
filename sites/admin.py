@@ -1,5 +1,13 @@
 from django.contrib import admin
-from .models import Location, DailyBankDeposit, SiteDocument, SiteLossEntry
+from .models import (
+    Camera,
+    DailyBankDeposit,
+    DailyCameraReport,
+    Location,
+    SiteDocument,
+    SiteLossEntry,
+    VideoEvidence,
+)
 
 
 @admin.register(Location)
@@ -101,6 +109,80 @@ class SiteLossEntryAdmin(admin.ModelAdmin):
         }),
         ("Métadonnées", {
             "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",)
+        }),
+    )
+
+
+@admin.register(Camera)
+class CameraAdmin(admin.ModelAdmin):
+    list_display = ("site", "camera_number", "name", "camera_position", "app_name", "is_active", "updated_at")
+    list_filter = ("site", "camera_position", "is_active")
+    search_fields = ("name", "site__nom", "app_name", "notes")
+    ordering = ("site__nom", "camera_number")
+    readonly_fields = ("created_at", "updated_at")
+
+    fieldsets = (
+        ("Identification", {
+            "fields": ("site", "camera_number", "name", "camera_position", "app_name", "is_active")
+        }),
+        ("Détails", {
+            "fields": ("notes",)
+        }),
+        ("Métadonnées", {
+            "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",)
+        }),
+    )
+
+
+class VideoEvidenceInline(admin.TabularInline):
+    model = VideoEvidence
+    extra = 0
+    fields = ("camera", "title", "evidence_type", "clip_date", "uploaded_file", "s3_url", "uploaded_by", "created_at")
+    readonly_fields = ("s3_url", "created_at")
+
+
+@admin.register(DailyCameraReport)
+class DailyCameraReportAdmin(admin.ModelAdmin):
+    list_display = ("site", "date", "cars_count", "motos_count", "total_vehicles", "expected_revenue", "created_by", "reviewed_by")
+    list_filter = ("site", "date", "reviewed_by")
+    search_fields = ("site__nom", "notes")
+    ordering = ("-date", "-created_at")
+    readonly_fields = ("total_vehicles", "expected_revenue", "created_at", "updated_at")
+    inlines = [VideoEvidenceInline]
+
+    fieldsets = (
+        ("Rapport", {
+            "fields": ("site", "date", "cars_count", "motos_count", "total_vehicles", "expected_revenue", "notes")
+        }),
+        ("AI / revue", {
+            "fields": ("ai_cars_count", "ai_motos_count", "ai_confidence_score", "final_cars_count", "final_motos_count", "reviewed_by", "reviewed_at")
+        }),
+        ("Métadonnées", {
+            "fields": ("created_by", "created_at", "updated_at"),
+            "classes": ("collapse",)
+        }),
+    )
+
+
+@admin.register(VideoEvidence)
+class VideoEvidenceAdmin(admin.ModelAdmin):
+    list_display = ("title", "daily_report", "camera", "evidence_type", "clip_date", "uploaded_by", "created_at")
+    list_filter = ("evidence_type", "camera__site", "clip_date")
+    search_fields = ("title", "notes", "camera__name", "daily_report__site__nom")
+    ordering = ("-clip_date", "-created_at")
+    readonly_fields = ("s3_url", "created_at")
+
+    fieldsets = (
+        ("Preuve", {
+            "fields": ("daily_report", "camera", "title", "evidence_type", "clip_date", "start_time", "end_time")
+        }),
+        ("Fichier", {
+            "fields": ("uploaded_file", "s3_url", "notes")
+        }),
+        ("Métadonnées", {
+            "fields": ("uploaded_by", "created_at"),
             "classes": ("collapse",)
         }),
     )
