@@ -809,12 +809,14 @@ class DailyCameraReportForm(forms.ModelForm):
             "date",
             "cars_count",
             "motos_count",
+            "three_wheelers_count",
             "notes",
         ]
         widgets = {
             "date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
             "cars_count": forms.NumberInput(attrs={"class": "form-control", "min": "0"}),
             "motos_count": forms.NumberInput(attrs={"class": "form-control", "min": "0"}),
+            "three_wheelers_count": forms.NumberInput(attrs={"class": "form-control", "min": "0"}),
             "notes": forms.Textarea(
                 attrs={
                     "class": "form-control",
@@ -825,7 +827,8 @@ class DailyCameraReportForm(forms.ModelForm):
         }
         help_texts = {
             "cars_count": "Prix voiture: 15 000 FC",
-            "motos_count": "Prix moto: 10 000 FC",
+            "motos_count": "Prix moto (2 pneus): 3 000 FC",
+            "three_wheelers_count": "Prix moto à 3 pneus: 5 000 FC",
         }
 
 

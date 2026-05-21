@@ -4551,6 +4551,7 @@ def _build_camera_monitoring_context(request, site, selected_date, camera_form=N
     ).aggregate(
         cars_total=Sum("final_cars_count"),
         motos_total=Sum("final_motos_count"),
+        three_wheelers_total=Sum("final_three_wheelers_count"),
         total_vehicles=Sum("total_vehicles"),
         expected_revenue=Sum("expected_revenue"),
     )
@@ -4591,6 +4592,11 @@ def _build_camera_monitoring_context(request, site, selected_date, camera_form=N
             if today_report and today_report.final_motos_count is not None
             else (today_report.motos_count if today_report else 0)
         ) or 0,
+        "today_three_wheelers_count": (
+            today_report.final_three_wheelers_count
+            if today_report and today_report.final_three_wheelers_count is not None
+            else (today_report.three_wheelers_count if today_report else 0)
+        ) or 0,
         "today_expected_revenue": _to_decimal_amount(today_report.expected_revenue if today_report else 0),
         "weekly_total_vehicles": weekly_totals["total_vehicles"] or 0,
         "weekly_expected_revenue": _to_decimal_amount(weekly_totals["expected_revenue"]),
@@ -4599,6 +4605,7 @@ def _build_camera_monitoring_context(request, site, selected_date, camera_form=N
         "monthly_evidence_count": monthly_evidence_count,
         "selected_month_cars_total": selected_month_totals["cars_total"] or 0,
         "selected_month_motos_total": selected_month_totals["motos_total"] or 0,
+        "selected_month_three_wheelers_total": selected_month_totals["three_wheelers_total"] or 0,
         "selected_month_total_vehicles": selected_month_totals["total_vehicles"] or 0,
         "selected_month_expected_revenue": _to_decimal_amount(selected_month_totals["expected_revenue"]),
     }

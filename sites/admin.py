@@ -145,7 +145,7 @@ class VideoEvidenceInline(admin.TabularInline):
 
 @admin.register(DailyCameraReport)
 class DailyCameraReportAdmin(admin.ModelAdmin):
-    list_display = ("site", "date", "cars_count", "motos_count", "total_vehicles", "expected_revenue", "created_by", "reviewed_by")
+    list_display = ("site", "date", "cars_count", "motos_count", "three_wheelers_count", "total_vehicles", "expected_revenue", "created_by", "reviewed_by")
     list_filter = ("site", "date", "reviewed_by")
     search_fields = ("site__nom", "notes")
     ordering = ("-date", "-created_at")
@@ -154,10 +154,10 @@ class DailyCameraReportAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ("Rapport", {
-            "fields": ("site", "date", "cars_count", "motos_count", "total_vehicles", "expected_revenue", "notes")
+            "fields": ("site", "date", "cars_count", "motos_count", "three_wheelers_count", "total_vehicles", "expected_revenue", "notes")
         }),
         ("AI / revue", {
-            "fields": ("ai_cars_count", "ai_motos_count", "ai_confidence_score", "final_cars_count", "final_motos_count", "reviewed_by", "reviewed_at")
+            "fields": ("ai_cars_count", "ai_motos_count", "ai_confidence_score", "final_cars_count", "final_motos_count", "final_three_wheelers_count", "reviewed_by", "reviewed_at")
         }),
         ("Métadonnées", {
             "fields": ("created_by", "created_at", "updated_at"),

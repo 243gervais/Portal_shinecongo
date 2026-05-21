@@ -501,7 +501,8 @@ class Camera(models.Model):
 
 class DailyCameraReport(models.Model):
     CAR_PRICE_FC = Decimal("15000")
-    MOTO_PRICE_FC = Decimal("10000")
+    MOTO_PRICE_FC = Decimal("3000")
+    THREE_WHEELER_PRICE_FC = Decimal("5000")
 
     site = models.ForeignKey(
         Location,
@@ -511,7 +512,8 @@ class DailyCameraReport(models.Model):
     )
     date = models.DateField(verbose_name="Date")
     cars_count = models.PositiveIntegerField(default=0, verbose_name="Nombre de voitures")
-    motos_count = models.PositiveIntegerField(default=0, verbose_name="Nombre de motos")
+    motos_count = models.PositiveIntegerField(default=0, verbose_name="Nombre de motos (2 pneus)")
+    three_wheelers_count = models.PositiveIntegerField(default=0, verbose_name="Nombre de motos à 3 pneus")
     total_vehicles = models.PositiveIntegerField(default=0, verbose_name="Total véhicules")
     expected_revenue = models.DecimalField(
         max_digits=12,
@@ -538,7 +540,8 @@ class DailyCameraReport(models.Model):
         verbose_name="Score confiance AI",
     )
     final_cars_count = models.PositiveIntegerField(null=True, blank=True, verbose_name="Voitures finales")
-    final_motos_count = models.PositiveIntegerField(null=True, blank=True, verbose_name="Motos finales")
+    final_motos_count = models.PositiveIntegerField(null=True, blank=True, verbose_name="Motos finales (2 pneus)")
+    final_three_wheelers_count = models.PositiveIntegerField(null=True, blank=True, verbose_name="Motos finales à 3 pneus")
     reviewed_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -566,30 +569,41 @@ class DailyCameraReport(models.Model):
 
     @property
     def manual_total_vehicles(self):
-        return (self.cars_count or 0) + (self.motos_count or 0)
+        return (self.cars_count or 0) + (self.motos_count or 0) + (self.three_wheelers_count or 0)
 
     @property
     def manual_expected_revenue(self):
         return (
             (Decimal(self.cars_count or 0) * self.CAR_PRICE_FC)
             + (Decimal(self.motos_count or 0) * self.MOTO_PRICE_FC)
+            + (Decimal(self.three_wheelers_count or 0) * self.THREE_WHEELER_PRICE_FC)
         )
 
     def sync_computed_fields(self):
         if self.reviewed_by_id is None:
             self.final_cars_count = self.cars_count or 0
             self.final_motos_count = self.motos_count or 0
-        elif self.final_cars_count is None:
-            self.final_cars_count = self.cars_count or 0
-        elif self.final_motos_count is None:
-            self.final_motos_count = self.motos_count or 0
+            self.final_three_wheelers_count = self.three_wheelers_count or 0
+        else:
+            if self.final_cars_count is None:
+                self.final_cars_count = self.cars_count or 0
+            if self.final_motos_count is None:
+                self.final_motos_count = self.motos_count or 0
+            if self.final_three_wheelers_count is None:
+                self.final_three_wheelers_count = self.three_wheelers_count or 0
 
         effective_cars = self.final_cars_count if self.final_cars_count is not None else (self.cars_count or 0)
         effective_motos = self.final_motos_count if self.final_motos_count is not None else (self.motos_count or 0)
-        self.total_vehicles = int(effective_cars + effective_motos)
+        effective_three_wheelers = (
+            self.final_three_wheelers_count
+            if self.final_three_wheelers_count is not None
+            else (self.three_wheelers_count or 0)
+        )
+        self.total_vehicles = int(effective_cars + effective_motos + effective_three_wheelers)
         self.expected_revenue = (
             Decimal(effective_cars) * self.CAR_PRICE_FC
             + Decimal(effective_motos) * self.MOTO_PRICE_FC
+            + Decimal(effective_three_wheelers) * self.THREE_WHEELER_PRICE_FC
         )
 
     def save(self, *args, **kwargs):

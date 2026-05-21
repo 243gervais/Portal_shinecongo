@@ -351,7 +351,7 @@
             <div>
                 <span class="camera-kicker">Camera Monitoring</span>
                 <h1>Caméras & comptage</h1>
-                <p>Supervisez les caméras du site, enregistrez le comptage manuel voitures/motos, puis rattachez les clips et captures importants au bon jour sans sortir du portail admin.</p>
+                <p>Supervisez les caméras du site, enregistrez le comptage manuel voitures, motos 2 pneus et motos à 3 pneus, puis rattachez les clips et captures importants au bon jour sans sortir du portail admin.</p>
                 <div class="camera-hero-chips">
                     <span class="camera-chip">Site: {{ site.nom }}</span>
                     <span class="camera-chip">Date active: {{ selected_date|date:"d/m/Y" }}</span>
@@ -373,9 +373,14 @@
                 <div class="camera-muted">Rapport du {{ today|date:"d/m/Y" }}</div>
             </article>
             <article class="camera-kpi">
-                <div class="camera-kpi-label">Motos aujourd'hui</div>
+                <div class="camera-kpi-label">Motos 2 pneus aujourd'hui</div>
                 <div class="camera-kpi-value">{{ today_motos_count }}</div>
                 <div class="camera-muted">Source manuelle tant que l'IA n'est pas activée</div>
+            </article>
+            <article class="camera-kpi">
+                <div class="camera-kpi-label">Motos 3 pneus aujourd'hui</div>
+                <div class="camera-kpi-value">{{ today_three_wheelers_count }}</div>
+                <div class="camera-muted">Tarif terrain spécifique à 5 000 FC</div>
             </article>
             <article class="camera-kpi">
                 <div class="camera-kpi-label">Recette attendue aujourd'hui</div>
@@ -427,7 +432,7 @@
             <div class="camera-card-head">
                 <div>
                     <h2 class="camera-title">Rapport caméra quotidien</h2>
-                    <p class="camera-subtitle">Saisissez d'abord les chiffres manuels. Le portail calcule automatiquement le total véhicules et la recette attendue avec 15 000 FC par voiture et 10 000 FC par moto.</p>
+                    <p class="camera-subtitle">Saisissez d'abord les chiffres manuels. Le portail calcule automatiquement le total véhicules et la recette attendue avec 15 000 FC par voiture, 3 000 FC par moto 2 pneus et 5 000 FC par moto à 3 pneus.</p>
                 </div>
                 {% if selected_report %}
                 <span class="camera-badge">Rapport existant</span>
@@ -459,6 +464,12 @@
                         {{ report_form.motos_count }}
                         <div class="camera-form-help">{{ report_form.motos_count.help_text }}</div>
                         {% if report_form.motos_count.errors %}<div class="text-danger small">{{ report_form.motos_count.errors|join:", " }}</div>{% endif %}
+                    </div>
+                    <div class="camera-field">
+                        <label for="{{ report_form.three_wheelers_count.id_for_label }}">{{ report_form.three_wheelers_count.label }}</label>
+                        {{ report_form.three_wheelers_count }}
+                        <div class="camera-form-help">{{ report_form.three_wheelers_count.help_text }}</div>
+                        {% if report_form.three_wheelers_count.errors %}<div class="text-danger small">{{ report_form.three_wheelers_count.errors|join:", " }}</div>{% endif %}
                     </div>
                     <div class="camera-field camera-field--full">
                         <label for="{{ report_form.notes.id_for_label }}">{{ report_form.notes.label }}</label>
@@ -591,7 +602,8 @@
             </div>
             <div class="camera-pill-row">
                 <span class="camera-badge">Voitures: {{ selected_month_cars_total }}</span>
-                <span class="camera-badge">Motos: {{ selected_month_motos_total }}</span>
+                <span class="camera-badge">Motos 2 pneus: {{ selected_month_motos_total }}</span>
+                <span class="camera-badge">Motos 3 pneus: {{ selected_month_three_wheelers_total }}</span>
                 <span class="camera-badge">Total: {{ selected_month_total_vehicles }}</span>
                 <span class="camera-badge">Recette: {{ selected_month_expected_revenue|fc_amount }} FC</span>
             </div>
@@ -606,7 +618,8 @@
                     </div>
                     <div class="camera-pill-row" style="margin-top:0;">
                         <span class="camera-badge">{{ report.cars_count }} voiture{{ report.cars_count|pluralize }}</span>
-                        <span class="camera-badge">{{ report.motos_count }} moto{{ report.motos_count|pluralize }}</span>
+                        <span class="camera-badge">{{ report.motos_count }} moto{{ report.motos_count|pluralize }} 2 pneus</span>
+                        <span class="camera-badge">{{ report.three_wheelers_count }} moto{{ report.three_wheelers_count|pluralize }} 3 pneus</span>
                         <span class="camera-badge">{{ report.evidence_count }} preuve{{ report.evidence_count|pluralize }}</span>
                     </div>
                 </div>
@@ -621,7 +634,7 @@
                     </div>
                     <div class="camera-mini-card">
                         <div class="camera-kpi-label">Version finale</div>
-                        <div class="camera-mini-value">{{ report.final_cars_count|default:report.cars_count }} voitures · {{ report.final_motos_count|default:report.motos_count }} motos</div>
+                        <div class="camera-mini-value">{{ report.final_cars_count|default:report.cars_count }} voitures · {{ report.final_motos_count|default:report.motos_count }} motos 2 pneus · {{ report.final_three_wheelers_count|default:report.three_wheelers_count }} motos 3 pneus</div>
                     </div>
                 </div>
                 {% if report.notes %}
@@ -645,12 +658,14 @@
     document.addEventListener('DOMContentLoaded', function () {
         const carsInput = document.getElementById('{{ report_form.cars_count.id_for_label }}');
         const motosInput = document.getElementById('{{ report_form.motos_count.id_for_label }}');
+        const threeWheelersInput = document.getElementById('{{ report_form.three_wheelers_count.id_for_label }}');
         const totalPreview = document.getElementById('camera-report-total-preview');
         const revenuePreview = document.getElementById('camera-report-revenue-preview');
         const CAR_PRICE = 15000;
-        const MOTO_PRICE = 10000;
+        const MOTO_PRICE = 3000;
+        const THREE_WHEELER_PRICE = 5000;
 
-        if (!carsInput || !motosInput || !totalPreview || !revenuePreview) {
+        if (!carsInput || !motosInput || !threeWheelersInput || !totalPreview || !revenuePreview) {
             return;
         }
 
@@ -661,14 +676,16 @@
         function refreshPreview() {
             const cars = parseInt(carsInput.value || '0', 10) || 0;
             const motos = parseInt(motosInput.value || '0', 10) || 0;
-            const total = cars + motos;
-            const revenue = (cars * CAR_PRICE) + (motos * MOTO_PRICE);
+            const threeWheelers = parseInt(threeWheelersInput.value || '0', 10) || 0;
+            const total = cars + motos + threeWheelers;
+            const revenue = (cars * CAR_PRICE) + (motos * MOTO_PRICE) + (threeWheelers * THREE_WHEELER_PRICE);
             totalPreview.textContent = total;
             revenuePreview.textContent = formatFc(revenue);
         }
 
         carsInput.addEventListener('input', refreshPreview);
         motosInput.addEventListener('input', refreshPreview);
+        threeWheelersInput.addEventListener('input', refreshPreview);
         refreshPreview();
     });
 </script>

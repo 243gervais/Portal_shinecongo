@@ -304,10 +304,11 @@
             <div>
                 <span class="evidence-kicker">Rapport caméra quotidien</span>
                 <h1>{{ report.date|date:"l d/m/Y"|capfirst }}</h1>
-                <p>{{ site.nom }} · Comptage manuel validé pour la journée active. Les champs IA sont prêts pour plus tard, mais les chiffres manuels restent la source de vérité pour le portail aujourd'hui.</p>
+                <p>{{ site.nom }} · Comptage manuel validé pour la journée active. Les champs IA sont prêts pour plus tard, mais les chiffres manuels restent la source de vérité pour le portail aujourd'hui, y compris les motos à 3 pneus.</p>
                 <div class="evidence-chip-row">
                     <span class="evidence-chip">{{ report.final_cars_count|default:report.cars_count }} voiture{{ report.final_cars_count|default:report.cars_count|pluralize }}</span>
-                    <span class="evidence-chip">{{ report.final_motos_count|default:report.motos_count }} moto{{ report.final_motos_count|default:report.motos_count|pluralize }}</span>
+                    <span class="evidence-chip">{{ report.final_motos_count|default:report.motos_count }} moto{{ report.final_motos_count|default:report.motos_count|pluralize }} 2 pneus</span>
+                    <span class="evidence-chip">{{ report.final_three_wheelers_count|default:report.three_wheelers_count }} moto{{ report.final_three_wheelers_count|default:report.three_wheelers_count|pluralize }} 3 pneus</span>
                     <span class="evidence-chip">{{ report.total_vehicles }} véhicule{{ report.total_vehicles|pluralize }}</span>
                     <span class="evidence-chip">{{ report.expected_revenue|fc_amount }} FC</span>
                 </div>
@@ -420,8 +421,12 @@
                     <div class="evidence-stat-value">{{ report.cars_count }}</div>
                 </div>
                 <div class="evidence-stat-box">
-                    <div class="evidence-stat-label">Motos manuelles</div>
+                    <div class="evidence-stat-label">Motos 2 pneus</div>
                     <div class="evidence-stat-value">{{ report.motos_count }}</div>
+                </div>
+                <div class="evidence-stat-box">
+                    <div class="evidence-stat-label">Motos 3 pneus</div>
+                    <div class="evidence-stat-value">{{ report.three_wheelers_count }}</div>
                 </div>
                 <div class="evidence-stat-box">
                     <div class="evidence-stat-label">Total véhicules</div>

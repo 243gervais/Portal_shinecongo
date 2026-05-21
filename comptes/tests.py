@@ -681,6 +681,7 @@ class SiteCameraMonitoringTests(TestCase):
                 "report-date": "2026-05-21",
                 "report-cars_count": "4",
                 "report-motos_count": "3",
+                "report-three_wheelers_count": "2",
                 "report-notes": "Comptage manuel de la journée.",
             },
         )
@@ -691,10 +692,11 @@ class SiteCameraMonitoringTests(TestCase):
             reverse("admin_site_camera_report_detail", args=[self.site.id, report.id]),
             fetch_redirect_response=False,
         )
-        self.assertEqual(report.total_vehicles, 7)
-        self.assertEqual(report.expected_revenue, Decimal("90000"))
+        self.assertEqual(report.total_vehicles, 9)
+        self.assertEqual(report.expected_revenue, Decimal("79000"))
         self.assertEqual(report.final_cars_count, 4)
         self.assertEqual(report.final_motos_count, 3)
+        self.assertEqual(report.final_three_wheelers_count, 2)
 
     def test_camera_report_detail_can_upload_evidence(self):
         camera = Camera.objects.create(
@@ -710,6 +712,7 @@ class SiteCameraMonitoringTests(TestCase):
             date=date(2026, 5, 21),
             cars_count=2,
             motos_count=1,
+            three_wheelers_count=1,
             created_by=self.admin_user,
         )
 
@@ -741,6 +744,7 @@ class SiteCameraMonitoringTests(TestCase):
         detail_response = self.client.get(reverse("admin_site_camera_report_detail", args=[self.site.id, report.id]))
         self.assertContains(detail_response, "Capture caisse matin")
         self.assertContains(detail_response, "Clips & captures du rapport")
+        self.assertContains(detail_response, "Motos 3 pneus")
 
 
 class SiteJournalEntryTests(TestCase):
