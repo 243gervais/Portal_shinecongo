@@ -1,8 +1,9 @@
 import logging
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives, send_mail
 from django.shortcuts import render, redirect, get_object_or_404
+from django.template.loader import render_to_string
 from django.utils import timezone
 from django.contrib import messages
 from django.http import JsonResponse
@@ -153,6 +154,56 @@ def _parse_daily_expenses_form(post_data):
     }
 
 
+def _format_fc_email_amount(amount):
+    return f"{Decimal(amount or 0):,.0f} FC".replace(",", " ")
+
+
+def _build_final_report_email_context(shift, computed_total_amount, issue_count, was_update):
+    employee_name = shift.employe.get_full_name() or shift.employe.username
+    action_label = "mis à jour" if was_update else "soumis"
+    declared_amount = Decimal(shift.total_amount_reported_fc or 0)
+    system_amount = Decimal(computed_total_amount or 0)
+    expenses_total = Decimal(shift.daily_expenses_total_fc or 0)
+    variance = declared_amount - system_amount
+    expense_items = [
+        {
+            "label": item["label"],
+            "amount_display": _format_fc_email_amount(item["amount_fc"]),
+        }
+        for item in shift.daily_expense_items
+    ]
+
+    if variance == 0:
+        variance_label = "Aucun écart"
+        variance_tone = "match"
+    elif variance > 0:
+        variance_label = f"Déclaration supérieure de {_format_fc_email_amount(variance)}"
+        variance_tone = "high"
+    else:
+        variance_label = f"Déclaration inférieure de {_format_fc_email_amount(abs(variance))}"
+        variance_tone = "low"
+
+    return {
+        "company_name": "Shine Congo",
+        "employee_name": employee_name,
+        "site_name": shift.site.nom,
+        "report_date": shift.date,
+        "action_label": action_label,
+        "action_copy": "Rapport mis à jour" if was_update else "Rapport envoyé",
+        "declared_amount_display": _format_fc_email_amount(declared_amount),
+        "system_amount_display": _format_fc_email_amount(system_amount),
+        "expenses_total_display": _format_fc_email_amount(expenses_total),
+        "variance_display": _format_fc_email_amount(abs(variance)),
+        "variance_label": variance_label,
+        "variance_tone": variance_tone,
+        "total_lavages_reported": shift.total_lavages_reported,
+        "issue_count": issue_count,
+        "expense_items": expense_items,
+        "expense_summary": shift.daily_expense_summary,
+        "submitted_at": timezone.localtime(shift.updated_at or timezone.now()),
+    }
+
+
 def _send_final_report_notification(shift, computed_total_amount, issue_count, was_update):
     recipient = (getattr(settings, "FINAL_REPORT_NOTIFICATION_EMAIL", "") or "").strip()
     if not recipient:
@@ -169,35 +220,24 @@ def _send_final_report_notification(shift, computed_total_amount, issue_count, w
         )
         return False
 
-    action_label = "mis à jour" if was_update else "soumis"
-    expense_summary = shift.daily_expense_summary
+    context = _build_final_report_email_context(shift, computed_total_amount, issue_count, was_update)
+    action_label = context["action_label"]
     subject = (
         f"Rapport de fin de journée {action_label} - "
         f"{shift.site.nom} - {shift.date.strftime('%d/%m/%Y')}"
     )
-    message = "\n".join([
-        f"Employé: {shift.employe.get_full_name() or shift.employe.username}",
-        f"Site: {shift.site.nom}",
-        f"Date: {shift.date.strftime('%d/%m/%Y')}",
-        f"Action: Rapport {'mis à jour' if was_update else 'envoyé'}",
-        "",
-        f"Montant déclaré: {shift.total_amount_reported_fc:,.0f} FC".replace(",", " "),
-        f"Montant système: {computed_total_amount:,.0f} FC".replace(",", " "),
-        f"Lavages déclarés: {shift.total_lavages_reported}",
-        f"Problèmes signalés: {issue_count}",
-        "",
-        f"Dépenses du jour: {shift.daily_expenses_total_fc:,.0f} FC".replace(",", " "),
-        f"Détail dépenses: {expense_summary}",
-    ])
+    message = render_to_string("emails/final_report_notification.txt", context)
+    html_message = render_to_string("emails/final_report_notification.html", context)
 
     try:
-        send_mail(
+        email_message = EmailMultiAlternatives(
             subject=subject,
-            message=message,
+            body=message,
             from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
-            recipient_list=[recipient],
-            fail_silently=False,
+            to=[recipient],
         )
+        email_message.attach_alternative(html_message, "text/html")
+        email_message.send(fail_silently=False)
         return True
     except Exception:
         logger.exception("Impossible d'envoyer la notification email du rapport de fin de journée")

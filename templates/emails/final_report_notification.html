@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ company_name }} · Rapport de fin de journée</title>
+</head>
+<body style="margin:0;padding:0;background:#eef3f8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:#10253a;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef3f8;margin:0;padding:24px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:680px;background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 16px 40px rgba(16,37,58,0.12);">
+          <tr>
+            <td style="padding:32px 32px 24px;background:linear-gradient(135deg,#0b2438 0%,#0a436b 55%,#1a73b8 100%);color:#ffffff;">
+              <div style="font-size:13px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.8;font-weight:700;">Shine Congo</div>
+              <h1 style="margin:14px 0 10px;font-size:30px;line-height:1.1;font-weight:800;">Rapport de fin de journée</h1>
+              <p style="margin:0;font-size:15px;line-height:1.6;opacity:0.9;">{{ action_copy }} pour <strong>{{ site_name }}</strong> le {{ report_date|date:"d/m/Y" }}.</p>
+              <div style="margin-top:18px;display:inline-block;padding:8px 14px;border-radius:999px;background:{% if variance_tone == 'match' %}rgba(15,157,88,0.18){% elif variance_tone == 'high' %}rgba(244,163,64,0.18){% else %}rgba(180,35,24,0.18){% endif %};font-size:13px;font-weight:700;">
+                {{ variance_label }}
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:28px 32px 0;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="padding:0 0 18px;">
+                    <div style="font-size:13px;color:#65758a;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;">Employé</div>
+                    <div style="margin-top:6px;font-size:20px;font-weight:800;color:#10253a;">{{ employee_name }}</div>
+                  </td>
+                  <td style="padding:0 0 18px;" align="right">
+                    <div style="font-size:13px;color:#65758a;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;">Horodatage</div>
+                    <div style="margin-top:6px;font-size:15px;font-weight:700;color:#10253a;">{{ submitted_at|date:"d/m/Y H:i" }}</div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 24px 0;">
+              <table role="presentation" width="100%" cellspacing="8" cellpadding="0">
+                <tr>
+                  <td width="50%" style="padding:0;vertical-align:top;">
+                    <div style="background:#f6f9fc;border:1px solid #dbe4ee;border-radius:18px;padding:18px 20px;">
+                      <div style="font-size:12px;color:#65758a;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;">Montant déclaré</div>
+                      <div style="margin-top:8px;font-size:28px;line-height:1.1;font-weight:800;color:#0a436b;">{{ declared_amount_display }}</div>
+                    </div>
+                  </td>
+                  <td width="50%" style="padding:0;vertical-align:top;">
+                    <div style="background:#f6f9fc;border:1px solid #dbe4ee;border-radius:18px;padding:18px 20px;">
+                      <div style="font-size:12px;color:#65758a;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;">Montant système</div>
+                      <div style="margin-top:8px;font-size:28px;line-height:1.1;font-weight:800;color:#0a436b;">{{ system_amount_display }}</div>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td width="50%" style="padding:0;vertical-align:top;">
+                    <div style="background:#f6f9fc;border:1px solid #dbe4ee;border-radius:18px;padding:18px 20px;">
+                      <div style="font-size:12px;color:#65758a;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;">Dépenses du jour</div>
+                      <div style="margin-top:8px;font-size:24px;line-height:1.1;font-weight:800;color:#10253a;">{{ expenses_total_display }}</div>
+                    </div>
+                  </td>
+                  <td width="50%" style="padding:0;vertical-align:top;">
+                    <div style="background:#f6f9fc;border:1px solid #dbe4ee;border-radius:18px;padding:18px 20px;">
+                      <div style="font-size:12px;color:#65758a;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;">Activité déclarée</div>
+                      <div style="margin-top:8px;font-size:24px;line-height:1.1;font-weight:800;color:#10253a;">{{ total_lavages_reported }} lavage{{ total_lavages_reported|pluralize }}</div>
+                      <div style="margin-top:6px;font-size:14px;color:#65758a;">{{ issue_count }} problème{{ issue_count|pluralize }} signalé{{ issue_count|pluralize }}</div>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:28px 32px 0;">
+              <h2 style="margin:0 0 14px;font-size:18px;line-height:1.3;color:#10253a;">Détail des dépenses</h2>
+              {% if expense_items %}
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;border:1px solid #dbe4ee;border-radius:18px;overflow:hidden;">
+                {% for item in expense_items %}
+                <tr>
+                  <td style="padding:14px 16px;border-bottom:{% if not forloop.last %}1px solid #e5edf5{% else %}0{% endif %};font-size:15px;color:#10253a;">{{ item.label }}</td>
+                  <td align="right" style="padding:14px 16px;border-bottom:{% if not forloop.last %}1px solid #e5edf5{% else %}0{% endif %};font-size:15px;font-weight:800;color:#0a436b;white-space:nowrap;">{{ item.amount_display }}</td>
+                </tr>
+                {% endfor %}
+              </table>
+              {% else %}
+              <div style="padding:16px 18px;border-radius:18px;background:#f6f9fc;border:1px dashed #dbe4ee;color:#65758a;font-size:15px;">Aucune dépense confirmée pour cette journée.</div>
+              {% endif %}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:28px 32px 32px;">
+              <div style="padding:18px 20px;border-radius:18px;background:#f6f9fc;border:1px solid #dbe4ee;">
+                <div style="font-size:12px;color:#65758a;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;">Résumé rapide</div>
+                <p style="margin:10px 0 0;font-size:15px;line-height:1.7;color:#10253a;">
+                  {{ employee_name }} a {{ action_label }} son rapport pour {{ site_name }}. Montant déclaré: <strong>{{ declared_amount_display }}</strong>.
+                  Montant système: <strong>{{ system_amount_display }}</strong>. Dépenses confirmées: <strong>{{ expenses_total_display }}</strong>.
+                </p>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

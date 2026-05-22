@@ -78,6 +78,12 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(mail.outbox[0].to, ["mbadunkokorigervais@gmail.com"])
         self.assertIn("Montant déclaré: 15 000 FC", mail.outbox[0].body)
         self.assertIn("Dépenses du jour: 16 000 FC", mail.outbox[0].body)
+        self.assertEqual(len(mail.outbox[0].alternatives), 1)
+        html_content, mimetype = mail.outbox[0].alternatives[0]
+        self.assertEqual(mimetype, "text/html")
+        self.assertIn("Rapport de fin de journée", html_content)
+        self.assertIn("Transport de Personnels", html_content)
+        self.assertIn("Achat eau", html_content)
 
     def test_final_report_auto_syncs_daily_total_expenses_and_bank_deposit(self):
         today = timezone.localdate()
@@ -411,6 +417,8 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(len(shift.daily_expense_items), 2)
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn("Rapport de fin de journée mis à jour", mail.outbox[0].subject)
+        self.assertEqual(len(mail.outbox[0].alternatives), 1)
+        self.assertIn("Gasoil", mail.outbox[0].alternatives[0][0])
 
     def test_unchecked_known_expenses_are_not_added_to_total(self):
         today = timezone.localdate()

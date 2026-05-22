@@ -1,0 +1,18 @@
+{{ company_name }}
+Rapport de fin de journée
+
+{{ action_copy }} pour {{ site_name }} le {{ report_date|date:"d/m/Y" }}
+Employé: {{ employee_name }}
+Horodatage: {{ submitted_at|date:"d/m/Y H:i" }}
+
+Montant déclaré: {{ declared_amount_display }}
+Montant système: {{ system_amount_display }}
+Dépenses du jour: {{ expenses_total_display }}
+Lavages déclarés: {{ total_lavages_reported }}
+Problèmes signalés: {{ issue_count }}
+Écart: {{ variance_label }}
+
+Détail des dépenses:
+{% if expense_items %}{% for item in expense_items %}- {{ item.label }}: {{ item.amount_display }}
+{% endfor %}{% else %}- Aucune dépense confirmée.
+{% endif %}
