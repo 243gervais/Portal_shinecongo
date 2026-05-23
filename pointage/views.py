@@ -11,7 +11,7 @@ from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
 from django.db.models import Sum
 from .models import ShiftDay
-from sites.models import Location, SiteWaterPurchase
+from sites.models import Location, SiteWaterPurchase, get_default_water_supplier
 from lavages.models import CarWash
 from problemes.models import IssueReport
 from .utils import get_client_ip, get_user_agent
@@ -276,6 +276,7 @@ def _send_water_purchase_notification(purchase):
     message = "\n".join([
         f"Employé: {reporter_name}",
         f"Site: {purchase.site.nom}",
+        f"Fournisseur: {purchase.supplier.name if purchase.supplier_id else 'Non renseigné'}",
         f"Date d'achat: {purchase.purchase_date.strftime('%d/%m/%Y')}",
         f"Mois rattaché: {purchase.billing_month.strftime('%m/%Y')}",
         f"Montant enregistré: {purchase.amount_fc:,.0f} FC".replace(",", " "),
@@ -355,10 +356,11 @@ def employe_water_purchase(request):
         return redirect("employe_dashboard")
 
     billing_month = today.replace(day=1)
-    default_amount = get_water_purchase_default_amount(billing_month)
+    default_supplier = get_default_water_supplier()
+    default_amount = get_water_purchase_default_amount(billing_month, supplier=default_supplier)
     today_purchase = (
         SiteWaterPurchase.objects.filter(site=site, purchase_date=today)
-        .select_related("created_by")
+        .select_related("created_by", "supplier")
         .order_by("-created_at")
         .first()
     )
@@ -374,6 +376,7 @@ def employe_water_purchase(request):
         reporter_name = user.get_full_name() or user.username
         purchase = SiteWaterPurchase.objects.create(
             site=site,
+            supplier=default_supplier,
             billing_month=billing_month,
             purchase_date=today,
             amount_fc=default_amount,
@@ -387,7 +390,8 @@ def employe_water_purchase(request):
             action="AUTRE",
             description=(
                 f"Achat d'eau signalé via portail employé: "
-                f"{site.nom} - {purchase.purchase_date} - {purchase.amount_fc:,.0f} FC"
+                f"{site.nom} - {default_supplier.name} - "
+                f"{purchase.purchase_date} - {purchase.amount_fc:,.0f} FC"
             ).replace(",", " "),
             ip_address=get_client_ip(request),
             user_agent=get_user_agent(request),
@@ -401,7 +405,7 @@ def employe_water_purchase(request):
 
     month_purchases_qs = (
         SiteWaterPurchase.objects.filter(site=site, billing_month=billing_month)
-        .select_related("created_by")
+        .select_related("created_by", "supplier")
         .order_by("-purchase_date", "-created_at")
     )
     month_purchase_count = month_purchases_qs.count()
@@ -413,6 +417,7 @@ def employe_water_purchase(request):
         "today": today,
         "billing_month": billing_month,
         "default_amount": default_amount,
+        "default_supplier": default_supplier,
         "today_purchase": today_purchase,
         "month_purchases": month_purchases,
         "month_purchase_count": month_purchase_count,
@@ -809,7 +814,7 @@ def employe_historique(request):
     if site:
         water_history_qs = (
             SiteWaterPurchase.objects.filter(site=site)
-            .select_related("created_by")
+            .select_related("created_by", "supplier")
             .order_by("-purchase_date", "-created_at")
         )
         water_history = list(water_history_qs[:20])

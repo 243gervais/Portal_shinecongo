@@ -1623,6 +1623,7 @@
                                             <thead>
                                                 <tr>
                                                     <th>Heure</th>
+                                                    <th>Fournisseur</th>
                                                     <th>Mois</th>
                                                     <th>Montant</th>
                                                     <th>Notes</th>
@@ -1632,6 +1633,7 @@
                                                 {% for purchase in water_purchases_date %}
                                                 <tr>
                                                     <td>{{ purchase.created_at|date:"H:i" }}</td>
+                                                    <td>{{ purchase.supplier.name }}</td>
                                                     <td>{{ purchase.billing_month|date:"m/Y" }}</td>
                                                     <td class="finance-table-money finance-table-money--warning">{{ purchase.amount_fc|fc_amount }} FC</td>
                                                     <td>{{ purchase.notes|default:"-" }}</td>
@@ -2249,6 +2251,7 @@
                                     <thead>
                                         <tr>
                                             <th>Date</th>
+                                            <th>Fournisseur</th>
                                             <th>Mois</th>
                                             <th>Montant</th>
                                             <th>Saisi par</th>
@@ -2258,6 +2261,7 @@
                                         {% for purchase in period_water_purchases %}
                                         <tr>
                                             <td>{{ purchase.purchase_date|date:"d/m/Y" }}</td>
+                                            <td>{{ purchase.supplier.name }}</td>
                                             <td>{{ purchase.billing_month|date:"m/Y" }}</td>
                                             <td class="finance-table-money finance-table-money--primary">{{ purchase.amount_fc|fc_amount }} FC</td>
                                             <td>{% if purchase.created_by %}{{ purchase.created_by.get_full_name|default:purchase.created_by.username }}{% else %}Admin{% endif %}</td>

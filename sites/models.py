@@ -12,6 +12,10 @@ def current_month_start():
     return today.replace(day=1)
 
 
+DEFAULT_WATER_SUPPLIER_NAME = "Honosha's Forage"
+DEFAULT_WATER_SUPPLIER_RATE_FC = Decimal("22000")
+
+
 class Location(models.Model):
     """
     Site/Location de lavage (ex: Station Texaco Gombe, Station Total Lemba, etc.)
@@ -96,6 +100,85 @@ class Location(models.Model):
         r = 6371000
         
         return c * r
+
+
+class WaterSupplier(models.Model):
+    """
+    Fournisseur/contracteur utilisé pour les remplissages d'eau.
+    """
+
+    name = models.CharField(max_length=200, unique=True, verbose_name="Nom")
+    price_per_tank_fc = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=DEFAULT_WATER_SUPPLIER_RATE_FC,
+        validators=[MinValueValidator(0)],
+        verbose_name="Prix par remplissage (FC)",
+    )
+    is_active = models.BooleanField(default=True, verbose_name="Actif")
+    is_default = models.BooleanField(default=False, verbose_name="Fournisseur par défaut")
+    notes = models.TextField(blank=True, verbose_name="Notes")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")
+
+    class Meta:
+        verbose_name = "Fournisseur d'eau"
+        verbose_name_plural = "Fournisseurs d'eau"
+        ordering = ["-is_default", "name"]
+
+    def save(self, *args, **kwargs):
+        if self.is_default and not self.is_active:
+            self.is_active = True
+
+        super().save(*args, **kwargs)
+
+        if self.is_default:
+            WaterSupplier.objects.exclude(pk=self.pk).filter(is_default=True).update(is_default=False)
+        elif not WaterSupplier.objects.exclude(pk=self.pk).filter(is_default=True).exists():
+            WaterSupplier.objects.filter(pk=self.pk).update(is_default=True)
+            self.is_default = True
+
+    def __str__(self):
+        return self.name
+
+
+def get_default_water_supplier():
+    supplier = WaterSupplier.objects.filter(is_default=True).order_by("name").first()
+    if supplier:
+        if not supplier.is_active:
+            supplier.is_active = True
+            supplier.save(update_fields=["is_active", "updated_at"])
+        return supplier
+
+    supplier = WaterSupplier.objects.filter(is_active=True).order_by("name").first()
+    if supplier:
+        supplier.is_default = True
+        supplier.save(update_fields=["is_default", "updated_at"])
+        return supplier
+
+    supplier, created = WaterSupplier.objects.get_or_create(
+        name=DEFAULT_WATER_SUPPLIER_NAME,
+        defaults={
+            "price_per_tank_fc": DEFAULT_WATER_SUPPLIER_RATE_FC,
+            "is_active": True,
+            "is_default": True,
+        },
+    )
+    supplier_changed = created is False and (
+        supplier.price_per_tank_fc != DEFAULT_WATER_SUPPLIER_RATE_FC
+        or not supplier.is_active
+        or not supplier.is_default
+    )
+    if supplier_changed:
+        supplier.price_per_tank_fc = DEFAULT_WATER_SUPPLIER_RATE_FC
+        supplier.is_active = True
+        supplier.is_default = True
+        supplier.save(update_fields=["price_per_tank_fc", "is_active", "is_default", "updated_at"])
+    return supplier
+
+
+def get_default_water_supplier_pk():
+    return get_default_water_supplier().pk
 
 
 class DailyBankDeposit(models.Model):
@@ -321,6 +404,13 @@ class SiteWaterPurchase(models.Model):
         related_name="water_purchases",
         verbose_name="Site",
     )
+    supplier = models.ForeignKey(
+        WaterSupplier,
+        on_delete=models.PROTECT,
+        related_name="water_purchases",
+        default=get_default_water_supplier_pk,
+        verbose_name="Fournisseur / forage",
+    )
     billing_month = models.DateField(
         default=current_month_start,
         verbose_name="Mois concerné",
@@ -330,7 +420,7 @@ class SiteWaterPurchase(models.Model):
     amount_fc = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        default=Decimal("24000"),
+        default=DEFAULT_WATER_SUPPLIER_RATE_FC,
         validators=[MinValueValidator(0)],
         verbose_name="Montant (FC)",
     )
@@ -357,7 +447,10 @@ class SiteWaterPurchase(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.site.nom} - {self.billing_month:%m/%Y} - {self.purchase_date} - {self.amount_fc} FC"
+        return (
+            f"{self.site.nom} - {self.supplier.name} - "
+            f"{self.billing_month:%m/%Y} - {self.purchase_date} - {self.amount_fc} FC"
+        )
 
 
 def site_document_path(instance, filename):

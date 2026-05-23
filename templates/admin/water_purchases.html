@@ -410,9 +410,6 @@
 {% block content %}
 <div
     class="water-shell"
-    data-water-rate-change-month="{{ rate_change_month|date:'Y-m' }}"
-    data-water-amount-before="{{ amount_before_change|floatformat:'0' }}"
-    data-water-amount-after="{{ amount_after_change|floatformat:'0' }}"
 >
     <section class="water-hero">
         <div class="water-hero-top">
@@ -420,13 +417,13 @@
                 <span class="water-hero-eyebrow">Operations eau</span>
                 <h1>Suivi eau</h1>
                 <p class="water-hero-copy">
-                    Suivi mensuel des achats d'eau, du mois facturé au propriétaire du forage, et de l'évolution du tarif appliqué.
-                    Cette page garde une lecture claire du coût par mois, du site concerné et du volume d'achats déjà enregistrés.
+                    Suivi mensuel des achats d'eau avec prise en compte du fournisseur ou contracteur utilisé pour chaque remplissage.
+                    Cette page garde une lecture claire du coût par mois, du site concerné, du prestataire retenu et du volume d'achats déjà enregistrés.
                 </p>
                 <div class="water-hero-chips">
                     <span class="water-chip">Mois affiché <strong>{{ selected_month|date:"m/Y" }}</strong></span>
-                    <span class="water-chip">Tarif avant 01/05/2026 <strong>{{ amount_before_change|fc_amount }} FC</strong></span>
-                    <span class="water-chip">Tarif depuis 01/05/2026 <strong>{{ amount_after_change|fc_amount }} FC</strong></span>
+                    <span class="water-chip">Fournisseur par défaut <strong>{{ default_supplier.name }}</strong></span>
+                    <span class="water-chip">Référence actuelle <strong>{{ default_supplier.price_per_tank_fc|fc_amount }} FC / remplissage</strong></span>
                 </div>
             </div>
             <div class="water-hero-actions">
@@ -465,27 +462,29 @@
         <article class="water-panel">
             <div class="water-panel-header">
                 <div>
-                    <h2 class="water-panel-title">Cadre tarifaire et lecture du mois</h2>
-                    <p class="water-panel-copy">Le système applique maintenant un montant conseillé par mois concerné, pour éviter les erreurs quand le prix change en cours d'année.</p>
+                    <h2 class="water-panel-title">Cadre fournisseurs et lecture du mois</h2>
+                    <p class="water-panel-copy">Le système suit maintenant le fournisseur d'eau utilisé pour chaque remplissage et propose automatiquement son tarif de référence.</p>
                 </div>
-                <span class="water-panel-meta">Mise à jour tarifaire</span>
+                <span class="water-panel-meta">Paramétrage actuel</span>
             </div>
 
             <div class="water-rate-grid">
                 <div class="water-rate-card">
-                    <div class="water-rate-label">Avant le 01/05/2026</div>
-                    <div class="water-rate-value">{{ amount_before_change|fc_amount }} FC</div>
-                    <div class="water-rate-note">Ancien prix standard par achat d'eau pour les mois d'avant mai 2026.</div>
+                    <div class="water-rate-label">Fournisseur par défaut</div>
+                    <div class="water-rate-value">{{ default_supplier.name }}</div>
+                    <div class="water-rate-note">Prestataire actuellement utilisé par défaut pour les remplissages du citerne.</div>
                 </div>
                 <div class="water-rate-card">
-                    <div class="water-rate-label">À partir du 01/05/2026</div>
-                    <div class="water-rate-value">{{ amount_after_change|fc_amount }} FC</div>
-                    <div class="water-rate-note">Nouveau prix standard convenu pour les achats d'eau à compter du 1er mai 2026.</div>
+                    <div class="water-rate-label">Fournisseurs actifs</div>
+                    <div class="water-rate-value">{{ active_suppliers|length }}</div>
+                    <div class="water-rate-note">Le suivi est prêt pour plusieurs vendeurs ou contracteurs même si un seul est utilisé pour l'instant.</div>
                 </div>
                 <div class="water-rate-card">
-                    <div class="water-rate-label">Tarif conseillé pour {{ selected_month|date:"m/Y" }}</div>
+                    <div class="water-rate-label">Tarif conseillé</div>
                     <div class="water-rate-value" data-water-selected-rate>{{ default_amount|fc_amount }} FC</div>
-                    <div class="water-rate-note">Ce montant est proposé automatiquement dans le formulaire mais reste modifiable si un achat diffère.</div>
+                    <div class="water-rate-note">
+                        <span data-water-selected-supplier>{{ default_supplier.name }}</span> est proposé automatiquement dans le formulaire, avec montant modifiable si un achat diffère.
+                    </div>
                 </div>
             </div>
 
@@ -514,7 +513,7 @@
             <div class="water-panel-header">
                 <div>
                     <h2 class="water-panel-title">Filtre et nouvel achat</h2>
-                    <p class="water-panel-copy">Choisissez d'abord le mois à superviser, puis enregistrez le remplissage avec le site, la date exacte et le montant appliqué.</p>
+                    <p class="water-panel-copy">Choisissez d'abord le mois à superviser, puis enregistrez le remplissage avec le site, le fournisseur retenu, la date exacte et le montant appliqué.</p>
                 </div>
                 <span class="water-panel-meta">Saisie admin</span>
             </div>
@@ -548,6 +547,10 @@
                         {{ form.site }}
                     </div>
                     <div class="form-group">
+                        <label for="{{ form.supplier.id_for_label }}">Fournisseur / forage</label>
+                        {{ form.supplier }}
+                    </div>
+                    <div class="form-group">
                         <label for="{{ form.billing_month.id_for_label }}">Mois concerné</label>
                         {{ form.billing_month }}
                         <div class="water-hint">{{ form.billing_month.help_text }}</div>
@@ -575,6 +578,38 @@
     </section>
 
     <section class="water-grid">
+        <article class="water-panel">
+            <div class="water-panel-header">
+                <div>
+                    <h2 class="water-panel-title">Répartition par fournisseur</h2>
+                    <p class="water-panel-copy">Lecture immédiate des fournisseurs réellement utilisés sur le mois affiché.</p>
+                </div>
+                <span class="water-panel-meta">{{ supplier_breakdown|length }} fournisseur{{ supplier_breakdown|length|pluralize }}</span>
+            </div>
+
+            {% if supplier_breakdown %}
+            <div class="water-breakdown-list">
+                {% for item in supplier_breakdown %}
+                <div class="water-breakdown-item">
+                    <div style="flex: 1 1 280px; min-width: 0;">
+                        <p class="water-breakdown-name">{{ item.supplier__name }}</p>
+                        <div class="water-breakdown-meta">{{ item.count }} achat{{ item.count|pluralize }} sur {{ selected_month|date:"m/Y" }}</div>
+                        <div class="water-bar">
+                            <div class="water-bar-fill" style="width: {{ item.bar_width }}%;"></div>
+                        </div>
+                    </div>
+                    <div class="water-breakdown-amount">
+                        {{ item.total|fc_amount }} FC
+                        <div class="water-breakdown-meta">~ ${{ item.total|usd_equivalent }} USD</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="water-empty">Aucun fournisseur utilisé pour {{ selected_month|date:"m/Y" }}.</div>
+            {% endif %}
+        </article>
+
         <article class="water-panel">
             <div class="water-panel-header">
                 <div>
@@ -687,6 +722,7 @@
                 <thead>
                     <tr>
                         <th>Site</th>
+                        <th>Fournisseur</th>
                         <th>Mois concerné</th>
                         <th>Date d'achat</th>
                         <th>Notes</th>
@@ -707,6 +743,10 @@
                                 Déclarant non renseigné
                                 {% endif %}
                             </div>
+                        </td>
+                        <td>
+                            <div>{{ purchase.supplier.name }}</div>
+                            <div class="water-ledger-subtext">{{ purchase.supplier.price_per_tank_fc|fc_amount }} FC / remplissage</div>
                         </td>
                         <td>
                             <div>{{ purchase.billing_month|date:"m/Y" }}</div>
@@ -744,41 +784,37 @@
 {% endblock %}
 
 {% block extra_js %}
+{{ supplier_rate_map|json_script:"water-supplier-rates" }}
 <script>
     (() => {
-        const root = document.querySelector('[data-water-rate-change-month]');
-        if (!root) {
-            return;
-        }
-
-        const billingMonthInput = document.getElementById('id_billing_month');
+        const supplierInput = document.getElementById('id_supplier');
         const amountInput = document.getElementById('id_amount_fc');
         const amountHint = document.querySelector('[data-water-amount-hint]');
         const selectedRate = document.querySelector('[data-water-selected-rate]');
-        const rateChangeMonth = root.dataset.waterRateChangeMonth || '2026-05';
-        const amountBefore = Number(root.dataset.waterAmountBefore || '24000');
-        const amountAfter = Number(root.dataset.waterAmountAfter || '22000');
+        const selectedSupplier = document.querySelector('[data-water-selected-supplier]');
+        const supplierRatesNode = document.getElementById('water-supplier-rates');
+        const supplierRates = supplierRatesNode ? JSON.parse(supplierRatesNode.textContent) : {};
 
-        if (!billingMonthInput || !amountInput) {
+        if (!supplierInput || !amountInput) {
             return;
         }
 
         const formatFc = (value) => new Intl.NumberFormat('fr-FR').format(value) + ' FC';
         const normalizeValue = (value) => Number(String(value || '').replace(/[^0-9.]/g, ''));
-        const getSuggestedAmount = (monthValue) => (monthValue && monthValue >= rateChangeMonth ? amountAfter : amountBefore);
+        const getSelectedSupplierData = () => supplierRates[supplierInput.value] || null;
+        const getSuggestedAmount = () => {
+            const supplierData = getSelectedSupplierData();
+            return supplierData ? Number(supplierData.amount_fc || '0') : 0;
+        };
 
-        amountInput.dataset.currentSuggestion = String(getSuggestedAmount(billingMonthInput.value));
-        amountInput.addEventListener('input', () => {
-            amountInput.dataset.userEdited = 'true';
-        });
-
-        billingMonthInput.addEventListener('change', () => {
+        const applySupplierSuggestion = (forceAmount) => {
             const previousSuggestion = Number(amountInput.dataset.currentSuggestion || '0');
-            const nextSuggestion = getSuggestedAmount(billingMonthInput.value);
+            const nextSuggestion = getSuggestedAmount();
             const currentAmount = normalizeValue(amountInput.value);
             const userEdited = amountInput.dataset.userEdited === 'true';
+            const supplierData = getSelectedSupplierData();
 
-            if (!userEdited || !currentAmount || currentAmount === previousSuggestion) {
+            if (forceAmount || !userEdited || !currentAmount || currentAmount === previousSuggestion) {
                 amountInput.value = nextSuggestion;
                 amountInput.dataset.userEdited = 'false';
             }
@@ -786,17 +822,29 @@
             amountInput.dataset.currentSuggestion = String(nextSuggestion);
 
             if (amountHint) {
-                if (billingMonthInput.value && billingMonthInput.value >= rateChangeMonth) {
-                    amountHint.textContent = 'Montant suggéré pour ce mois : ' + formatFc(nextSuggestion) + '. Depuis le 01/05/2026, le tarif d\'eau est passé de 24 000 FC à 22 000 FC. Vous pouvez toujours le modifier si nécessaire.';
-                } else {
-                    amountHint.textContent = 'Montant suggéré pour ce mois : ' + formatFc(nextSuggestion) + '. À partir du 01/05/2026, le tarif conseillé passera à 22 000 FC. Vous pouvez toujours le modifier si nécessaire.';
-                }
+                const supplierName = supplierData ? supplierData.name : 'ce fournisseur';
+                amountHint.textContent = 'Montant suggéré : ' + formatFc(nextSuggestion) + ' pour un remplissage du citerne avec ' + supplierName + '. Vous pouvez toujours le modifier si nécessaire.';
             }
 
             if (selectedRate) {
                 selectedRate.textContent = formatFc(nextSuggestion);
             }
+
+            if (selectedSupplier && supplierData) {
+                selectedSupplier.textContent = supplierData.name;
+            }
+        };
+
+        amountInput.dataset.currentSuggestion = String(getSuggestedAmount());
+        amountInput.addEventListener('input', () => {
+            amountInput.dataset.userEdited = 'true';
         });
+
+        supplierInput.addEventListener('change', () => {
+            applySupplierSuggestion(false);
+        });
+
+        applySupplierSuggestion(false);
     })();
 </script>
 {% endblock %}

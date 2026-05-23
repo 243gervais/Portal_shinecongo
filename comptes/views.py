@@ -31,9 +31,6 @@ from .forms import (
     SiteJournalEntryForm,
     SiteJournalEntryMoveForm,
     SiteWaterPurchaseForm,
-    WATER_RATE_CHANGE_MONTH,
-    WATER_DEFAULT_AMOUNT_BEFORE_CHANGE,
-    WATER_DEFAULT_AMOUNT_AFTER_CHANGE,
     VideoEvidenceForm,
     get_water_purchase_default_amount,
 )
@@ -47,6 +44,8 @@ from sites.models import (
     SiteJournalEntry,
     SiteWaterPurchase,
     VideoEvidence,
+    WaterSupplier,
+    get_default_water_supplier,
 )
 from lavages.models import CarWash, CarWashPhoto
 from problemes.models import IssueReport
@@ -1370,16 +1369,18 @@ def admin_dashboard(request):
     water_purchases_month_qs = SiteWaterPurchase.objects.filter(
         site__actif=True,
         billing_month=selected_water_month,
-    ).select_related("site").order_by("-purchase_date", "-created_at")
+    ).select_related("site", "supplier").order_by("-purchase_date", "-created_at")
     recent_water_purchases = list(
         SiteWaterPurchase.objects.filter(site__actif=True)
-        .select_related("site")
+        .select_related("site", "supplier")
         .order_by("-billing_month", "-purchase_date", "-created_at")[:6]
     )
+    current_water_supplier = get_default_water_supplier()
     water_purchase_summary = {
         "selected_month": selected_water_month,
         "month_total": water_purchases_month_qs.aggregate(total=Sum("amount_fc"))["total"] or Decimal("0"),
         "month_count": water_purchases_month_qs.count(),
+        "current_supplier": current_water_supplier,
         "site_breakdown": list(
             water_purchases_month_qs.values("site__nom")
             .annotate(total=Sum("amount_fc"), count=Count("id"))
@@ -1701,7 +1702,7 @@ def admin_water_purchases(request):
     selected_month = _parse_month_filter(request.GET.get("month"))
     purchases = (
         SiteWaterPurchase.objects.filter(site__actif=True, billing_month=selected_month)
-        .select_related("site", "created_by")
+        .select_related("site", "supplier", "created_by")
         .order_by("-purchase_date", "-created_at")
     )
 
@@ -1719,13 +1720,23 @@ def admin_water_purchases(request):
 
     month_total = purchases.aggregate(total=Sum("amount_fc"))["total"] or Decimal("0")
     month_count = purchases.count()
+    active_suppliers = list(
+        WaterSupplier.objects.filter(is_active=True)
+        .order_by("-is_default", "name")
+    )
+    default_supplier = get_default_water_supplier()
     by_site = list(
         purchases.values("site__nom")
         .annotate(total=Sum("amount_fc"), count=Count("id"))
         .order_by("-total", "site__nom")
     )
+    supplier_breakdown = list(
+        purchases.values("supplier__name")
+        .annotate(total=Sum("amount_fc"), count=Count("id"))
+        .order_by("-total", "supplier__name")
+    )
     average_purchase = (month_total / month_count) if month_count else Decimal("0")
-    default_amount = get_water_purchase_default_amount(selected_month)
+    default_amount = get_water_purchase_default_amount(selected_month, supplier=default_supplier)
     selected_sites_count = len(by_site)
     previous_month = _previous_month_start(selected_month)
     previous_month_total = (
@@ -1800,7 +1811,18 @@ def admin_water_purchases(request):
     for item in by_site:
         item_total = item["total"] or Decimal("0")
         item["bar_width"] = int((item_total / month_total) * 100) if month_total else 0
+    for item in supplier_breakdown:
+        item_total = item["total"] or Decimal("0")
+        item["bar_width"] = int((item_total / month_total) * 100) if month_total else 0
     site_leader = by_site[0] if by_site else None
+    supplier_rate_map = {
+        str(supplier.pk): {
+            "name": supplier.name,
+            "amount_fc": f"{supplier.price_per_tank_fc:.2f}",
+            "is_default": supplier.is_default,
+        }
+        for supplier in active_suppliers
+    }
 
     return render(
         request,
@@ -1814,8 +1836,11 @@ def admin_water_purchases(request):
             "month_total": month_total,
             "month_count": month_count,
             "site_breakdown": by_site,
+            "supplier_breakdown": supplier_breakdown,
             "average_purchase": average_purchase,
             "default_amount": default_amount,
+            "default_supplier": default_supplier,
+            "active_suppliers": active_suppliers,
             "selected_sites_count": selected_sites_count,
             "previous_month": previous_month,
             "previous_month_total": previous_month_total,
@@ -1824,9 +1849,7 @@ def admin_water_purchases(request):
             "weekly_breakdown": weekly_breakdown,
             "monthly_history": monthly_history,
             "site_leader": site_leader,
-            "rate_change_month": WATER_RATE_CHANGE_MONTH,
-            "amount_before_change": WATER_DEFAULT_AMOUNT_BEFORE_CHANGE,
-            "amount_after_change": WATER_DEFAULT_AMOUNT_AFTER_CHANGE,
+            "supplier_rate_map": supplier_rate_map,
         },
     )
 
@@ -2020,7 +2043,7 @@ def admin_site_detail(request, site_id):
     )
     water_purchases_date = (
         SiteWaterPurchase.objects.filter(site=site, purchase_date=detail_date)
-        .select_related('created_by')
+        .select_related('created_by', 'supplier')
         .order_by('-created_at')
     )
     journal_entries_date = (
@@ -2209,7 +2232,10 @@ def admin_site_detail(request, site_id):
 
     for purchase in water_purchases_date:
         purchase_actor = (purchase.created_by.get_full_name() or purchase.created_by.username) if purchase.created_by else ""
-        water_summary_parts = [f"Mois {purchase.billing_month.strftime('%m/%Y')}"]
+        water_summary_parts = [
+            purchase.supplier.name if purchase.supplier_id else "Fournisseur non renseigné",
+            f"Mois {purchase.billing_month.strftime('%m/%Y')}",
+        ]
         if purchase.notes:
             water_summary_parts.append(purchase.notes)
         _append_day_activity(
@@ -2401,7 +2427,7 @@ def admin_site_detail(request, site_id):
             site=site,
             purchase_date__gte=selected_date_start,
             purchase_date__lte=selected_date_end,
-        ).select_related("created_by").order_by("-purchase_date", "-created_at")
+        ).select_related("created_by", "supplier").order_by("-purchase_date", "-created_at")
         period_journal_entries_qs = SiteJournalEntry.objects.filter(
             site=site,
             entry_date__gte=selected_date_start,

@@ -447,6 +447,7 @@ class EmployeeDailyReportTests(TestCase):
         purchase = SiteWaterPurchase.objects.get(site=self.site, purchase_date=today)
         self.assertEqual(purchase.billing_month, today.replace(day=1))
         self.assertEqual(purchase.amount_fc, get_water_purchase_default_amount(today))
+        self.assertEqual(purchase.supplier.name, "Honosha's Forage")
         self.assertEqual(purchase.created_by, self.user)
         self.assertIn("Signalé via portail employé", purchase.notes)
         self.assertEqual(len(mail.outbox), 1)
@@ -454,6 +455,7 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(mail.outbox[0].to, ["mbadunkokorigervais@gmail.com"])
         self.assertIn("Employé: jules", mail.outbox[0].body)
         self.assertIn("Site: Ngaliema Test", mail.outbox[0].body)
+        self.assertIn("Fournisseur: Honosha's Forage", mail.outbox[0].body)
         self.assertIn("Montant enregistré: 22 000 FC", mail.outbox[0].body)
 
     def test_employee_water_purchase_page_renders(self):
@@ -463,6 +465,7 @@ class EmployeeDailyReportTests(TestCase):
         self.assertContains(response, "Gestion de l'eau du site")
         self.assertContains(response, "Confirmer que l'eau a été achetée aujourd'hui")
         self.assertContains(response, "Automatique")
+        self.assertContains(response, "Honosha")
         self.assertNotContains(response, "Tarif appliqué")
 
     def test_employee_water_purchase_prevents_same_day_duplicate(self):

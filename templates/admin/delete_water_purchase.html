@@ -7,7 +7,7 @@
 <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem;">
     <div>
         <h1 class="mt-2 mb-2">Supprimer l'achat d'eau</h1>
-        <p style="color: var(--text-secondary); margin: 0;">{{ purchase.site.nom }} • Mois concerné {{ purchase.billing_month|date:"m/Y" }}</p>
+        <p style="color: var(--text-secondary); margin: 0;">{{ purchase.site.nom }} • {{ purchase.supplier.name }} • Mois concerné {{ purchase.billing_month|date:"m/Y" }}</p>
     </div>
     <a href="{% url 'admin_water_purchases' %}?month={{ purchase.billing_month|date:'Y-m' }}" class="btn btn-secondary">Retour au suivi eau</a>
 </div>
@@ -18,6 +18,7 @@
     </div>
 
     <p><strong>Site :</strong> {{ purchase.site.nom }}</p>
+    <p><strong>Fournisseur :</strong> {{ purchase.supplier.name }}</p>
     <p><strong>Mois concerné :</strong> {{ purchase.billing_month|date:"m/Y" }}</p>
     <p><strong>Date :</strong> {{ purchase.purchase_date|date:"d/m/Y" }}</p>
     <p><strong>Montant :</strong> {{ purchase.amount_fc|fc_amount }} FC</p>

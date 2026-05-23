@@ -222,13 +222,14 @@
                 <span class="employee-water-chip">{{ site.nom }}</span>
                 <span class="employee-water-chip">Date du jour: {{ today|date:"d/m/Y" }}</span>
                 <span class="employee-water-chip">Mois rattaché: {{ billing_month|date:"m/Y" }}</span>
+                <span class="employee-water-chip">Fournisseur suivi: {{ default_supplier.name }}</span>
             </div>
         </div>
         <div class="employee-water-side">
             <div class="employee-water-side-card">
                 <div class="employee-water-side-label">Enregistrement</div>
                 <div class="employee-water-side-value">Automatique</div>
-                <div class="employee-water-side-copy">Le tarif du mois est appliqué côté administration sans afficher de montant ici.</div>
+                <div class="employee-water-side-copy">Le fournisseur par défaut est {{ default_supplier.name }}. Le montant reste appliqué côté administration sans s'afficher ici.</div>
             </div>
             <div class="employee-water-side-card">
                 <div class="employee-water-side-label">Statut du jour</div>
@@ -299,7 +300,7 @@
                     <h3 class="employee-water-row-title" style="margin-top: 0.75rem;">Achat enregistré pour {{ today_purchase.purchase_date|date:"d/m/Y" }}</h3>
                     <p class="employee-water-row-meta">
                         Déclaré par {% if today_purchase.created_by %}{{ today_purchase.created_by.get_full_name|default:today_purchase.created_by.username }}{% else %}un employé{% endif %}
-                        à {{ today_purchase.created_at|date:"H:i" }}. Si la date ou la catégorie est fausse, l'administrateur peut la corriger dans le suivi eau.
+                        à {{ today_purchase.created_at|date:"H:i" }} pour {{ today_purchase.supplier.name }}. Si la date ou la catégorie est fausse, l'administrateur peut la corriger dans le suivi eau.
                     </p>
                 </div>
                 <div class="employee-water-row-value">Transmis à l'admin</div>
@@ -337,6 +338,7 @@
                         {% if purchase.created_by %}
                         • {{ purchase.created_by.get_full_name|default:purchase.created_by.username }}
                         {% endif %}
+                        • {{ purchase.supplier.name }}
                     </div>
                 </div>
                 <div class="employee-water-row-value">Enregistré</div>

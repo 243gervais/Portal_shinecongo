@@ -542,7 +542,10 @@
                 <div class="admin-site-metric">
                     <div class="admin-site-label">Suivi complet</div>
                     <div class="admin-site-value">Eau</div>
-                    <div class="admin-site-subvalue">Ajout, historique, correction</div>
+                    <div class="admin-site-subvalue">
+                        Ajout, historique, correction
+                        {% if water_purchase_summary.current_supplier %}• {{ water_purchase_summary.current_supplier.name }}{% endif %}
+                    </div>
                 </div>
             </div>
 
@@ -571,7 +574,7 @@
                 <div class="admin-compact-item">
                     <div>
                         <div class="admin-compact-title">{{ purchase.site.nom }}</div>
-                        <div class="admin-compact-meta">Mois concerné: {{ purchase.billing_month|date:"m/Y" }} • Achat: {{ purchase.purchase_date|date:"d/m/Y" }}</div>
+                        <div class="admin-compact-meta">Fournisseur: {{ purchase.supplier.name }} • Mois concerné: {{ purchase.billing_month|date:"m/Y" }} • Achat: {{ purchase.purchase_date|date:"d/m/Y" }}</div>
                         {% if purchase.notes %}
                         <div class="admin-compact-meta">{{ purchase.notes|truncatechars:120 }}</div>
                         {% endif %}

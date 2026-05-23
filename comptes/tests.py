@@ -20,6 +20,7 @@ from sites.models import (
     SiteJournalEntry,
     SiteWaterPurchase,
     VideoEvidence,
+    get_default_water_supplier,
 )
 from sites.models import DailyBankDeposit, SiteLossEntry
 from pointage.models import ShiftDay
@@ -1179,6 +1180,7 @@ class WaterPurchaseTrackingTests(TestCase):
             ville="Kinshasa",
             actif=True,
         )
+        self.default_supplier = get_default_water_supplier()
         self.client.login(username="water_admin", password="AdminPass123!")
 
     def test_admin_can_create_water_purchase(self):
@@ -1186,6 +1188,7 @@ class WaterPurchaseTrackingTests(TestCase):
             reverse("admin_water_purchases"),
             data={
                 "site": str(self.site.id),
+                "supplier": str(self.default_supplier.id),
                 "billing_month": "2026-04",
                 "purchase_date": "2026-04-13",
                 "amount_fc": "24000",
@@ -1202,6 +1205,7 @@ class WaterPurchaseTrackingTests(TestCase):
         purchase = SiteWaterPurchase.objects.get(site=self.site)
         self.assertEqual(purchase.billing_month, date(2026, 4, 1))
         self.assertEqual(purchase.amount_fc, Decimal("24000"))
+        self.assertEqual(purchase.supplier, self.default_supplier)
         self.assertEqual(purchase.created_by, self.admin_user)
 
     def test_admin_dashboard_shows_water_purchase_summary(self):
@@ -1219,24 +1223,27 @@ class WaterPurchaseTrackingTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Achats d'eau")
         self.assertContains(response, "24 000")
+        self.assertContains(response, "Honosha")
         self.assertContains(response, reverse("admin_water_purchases"))
 
-    def test_water_purchase_page_uses_new_rate_for_may_2026(self):
+    def test_water_purchase_page_uses_default_supplier_rate(self):
         response = self.client.get(reverse("admin_water_purchases"), data={"month": "2026-05"})
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["default_amount"], Decimal("22000"))
         self.assertEqual(response.context["form"].fields["amount_fc"].initial, Decimal("22000"))
-        self.assertContains(response, "Depuis le 01/05/2026")
+        self.assertContains(response, "Honosha's Forage")
         self.assertContains(response, "22 000 FC")
+        self.assertContains(response, "Répartition par fournisseur")
 
-    def test_water_purchase_page_keeps_old_rate_for_april_2026(self):
+    def test_water_purchase_page_keeps_default_supplier_rate_for_other_months(self):
         response = self.client.get(reverse("admin_water_purchases"), data={"month": "2026-04"})
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["default_amount"], Decimal("24000"))
-        self.assertEqual(response.context["form"].fields["amount_fc"].initial, Decimal("24000"))
-        self.assertContains(response, "24 000 FC")
+        self.assertEqual(response.context["default_amount"], Decimal("22000"))
+        self.assertEqual(response.context["form"].fields["amount_fc"].initial, Decimal("22000"))
+        self.assertContains(response, "Honosha's Forage")
+        self.assertContains(response, "22 000 FC")
 
     def test_water_purchase_view_filters_by_selected_billing_month(self):
         SiteWaterPurchase.objects.create(

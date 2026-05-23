@@ -1,45 +1,58 @@
-from datetime import date, datetime
+from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 
 from django import forms
 from django.conf import settings
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.contrib.auth.models import User
+from django.db.models import Q
 from django.utils import timezone
 
 from shinecongo.currency import convert_cdf_to_usd, get_usd_to_cdf_rate
-from sites.models import Camera, DailyCameraReport, Location, SiteJournalEntry, SiteWaterPurchase, VideoEvidence
+from sites.models import (
+    Camera,
+    DailyCameraReport,
+    DEFAULT_WATER_SUPPLIER_NAME,
+    DEFAULT_WATER_SUPPLIER_RATE_FC,
+    Location,
+    SiteJournalEntry,
+    SiteWaterPurchase,
+    VideoEvidence,
+    WaterSupplier,
+    get_default_water_supplier,
+)
 
 from .models import AdminReminder, EmployeePayment, UserProfile
 
 
-WATER_RATE_CHANGE_MONTH = date(2026, 5, 1)
-WATER_DEFAULT_AMOUNT_BEFORE_CHANGE = Decimal("24000")
-WATER_DEFAULT_AMOUNT_AFTER_CHANGE = Decimal("22000")
+def get_water_purchase_default_supplier():
+    return get_default_water_supplier()
 
 
-def get_water_purchase_default_amount(target_month=None):
-    if target_month is None:
-        target_month = timezone.localdate()
-    month_start = target_month.replace(day=1)
-    if month_start >= WATER_RATE_CHANGE_MONTH:
-        return WATER_DEFAULT_AMOUNT_AFTER_CHANGE
-    return WATER_DEFAULT_AMOUNT_BEFORE_CHANGE
+def _resolve_water_supplier(supplier=None):
+    if isinstance(supplier, WaterSupplier):
+        return supplier
+    if supplier:
+        resolved_supplier = WaterSupplier.objects.filter(pk=supplier).first()
+        if resolved_supplier:
+            return resolved_supplier
+    return get_water_purchase_default_supplier()
 
 
-def get_water_purchase_amount_help_text(target_month=None):
-    month_start = (target_month or timezone.localdate()).replace(day=1)
-    suggested_amount = get_water_purchase_default_amount(month_start)
-    if month_start >= WATER_RATE_CHANGE_MONTH:
-        return (
-            f"Montant suggéré pour ce mois : {suggested_amount:,.0f} FC. "
-            "Depuis le 01/05/2026, le tarif d'eau est passé de 24 000 FC à 22 000 FC. "
-            "Vous pouvez toujours le modifier si nécessaire."
-        ).replace(",", " ")
+def get_water_purchase_default_amount(target_month=None, supplier=None):
+    resolved_supplier = _resolve_water_supplier(supplier)
+    if resolved_supplier:
+        return resolved_supplier.price_per_tank_fc
+    return DEFAULT_WATER_SUPPLIER_RATE_FC
+
+
+def get_water_purchase_amount_help_text(target_month=None, supplier=None):
+    resolved_supplier = _resolve_water_supplier(supplier)
+    supplier_name = resolved_supplier.name if resolved_supplier else DEFAULT_WATER_SUPPLIER_NAME
+    suggested_amount = get_water_purchase_default_amount(supplier=resolved_supplier)
     return (
-        f"Montant suggéré pour ce mois : {suggested_amount:,.0f} FC. "
-        "À partir du 01/05/2026, le tarif conseillé passera à 22 000 FC. "
-        "Vous pouvez toujours le modifier si nécessaire."
+        f"Montant suggéré : {suggested_amount:,.0f} FC pour un remplissage du citerne "
+        f"avec {supplier_name}. Vous pouvez toujours le modifier si nécessaire."
     ).replace(",", " ")
 
 
@@ -728,9 +741,10 @@ class SiteWaterPurchaseForm(forms.ModelForm):
 
     class Meta:
         model = SiteWaterPurchase
-        fields = ["site", "billing_month", "purchase_date", "amount_fc", "notes"]
+        fields = ["site", "supplier", "billing_month", "purchase_date", "amount_fc", "notes"]
         widgets = {
             "site": forms.Select(attrs={"class": "form-control"}),
+            "supplier": forms.Select(attrs={"class": "form-control"}),
             "purchase_date": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
             "amount_fc": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0"}),
             "notes": forms.Textarea(
@@ -745,23 +759,48 @@ class SiteWaterPurchaseForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         current_month = timezone.localdate().replace(day=1)
         selected_month = self._resolve_selected_month(current_month)
+        default_supplier = get_water_purchase_default_supplier()
+        supplier_queryset = WaterSupplier.objects.filter(is_active=True)
+        if self.instance and self.instance.pk and self.instance.supplier_id:
+            supplier_queryset = WaterSupplier.objects.filter(
+                Q(is_active=True) | Q(pk=self.instance.supplier_id)
+            )
+        supplier_queryset = supplier_queryset.order_by("-is_default", "name")
         self.fields["site"].queryset = Location.objects.filter(actif=True).order_by("nom")
+        self.fields["supplier"].queryset = supplier_queryset
+        self.fields["supplier"].required = False
+        selected_supplier = self._resolve_selected_supplier(default_supplier)
         if not self.is_bound:
             self.fields["billing_month"].initial = selected_month
             self.fields["purchase_date"].initial = self.initial.get("purchase_date") or timezone.localdate()
+            self.fields["supplier"].initial = (
+                self.instance.supplier if self.instance and self.instance.pk else selected_supplier
+            )
             if self.instance and self.instance.pk:
                 self.fields["amount_fc"].initial = self.instance.amount_fc
             else:
-                self.fields["amount_fc"].initial = get_water_purchase_default_amount(selected_month)
+                self.fields["amount_fc"].initial = get_water_purchase_default_amount(
+                    selected_month,
+                    supplier=selected_supplier,
+                )
 
-        self.fields["amount_fc"].help_text = get_water_purchase_amount_help_text(selected_month)
+        self.fields["amount_fc"].help_text = get_water_purchase_amount_help_text(
+            selected_month,
+            supplier=selected_supplier,
+        )
 
         if self.instance and self.instance.pk and self.instance.billing_month:
             self.initial["billing_month"] = self.instance.billing_month
+        if self.instance and self.instance.pk and self.instance.supplier_id:
+            self.initial["supplier"] = self.instance.supplier
 
     def clean_billing_month(self):
         billing_month = self.cleaned_data["billing_month"]
         return billing_month.replace(day=1)
+
+    def clean_supplier(self):
+        supplier = self.cleaned_data.get("supplier")
+        return supplier or get_water_purchase_default_supplier()
 
     def _resolve_selected_month(self, fallback_month):
         if self.instance and self.instance.pk and self.instance.billing_month:
@@ -779,6 +818,14 @@ class SiteWaterPurchaseForm(forms.ModelForm):
                 except ValueError:
                     return fallback_month
         return fallback_month
+
+    def _resolve_selected_supplier(self, fallback_supplier):
+        if self.instance and self.instance.pk and self.instance.supplier_id:
+            return self.instance.supplier
+
+        raw_supplier = self.data.get("supplier") if self.is_bound else self.initial.get("supplier")
+        resolved_supplier = _resolve_water_supplier(raw_supplier)
+        return resolved_supplier or fallback_supplier
 
 
 class CameraForm(forms.ModelForm):

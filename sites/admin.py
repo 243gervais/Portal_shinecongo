@@ -5,8 +5,10 @@ from .models import (
     DailyCameraReport,
     Location,
     SiteDocument,
+    SiteWaterPurchase,
     SiteLossEntry,
     VideoEvidence,
+    WaterSupplier,
 )
 
 
@@ -90,6 +92,50 @@ class SiteDocumentAdmin(admin.ModelAdmin):
     def get_file_size(self, obj):
         return f"{obj.file_size_mb()} MB"
     get_file_size.short_description = "Taille"
+
+
+@admin.register(WaterSupplier)
+class WaterSupplierAdmin(admin.ModelAdmin):
+    list_display = ("name", "price_per_tank_fc", "is_default", "is_active", "updated_at")
+    list_filter = ("is_default", "is_active")
+    search_fields = ("name", "notes")
+    ordering = ("-is_default", "name")
+    readonly_fields = ("created_at", "updated_at")
+
+    fieldsets = (
+        ("Informations", {
+            "fields": ("name", "price_per_tank_fc", "is_default", "is_active")
+        }),
+        ("Détails", {
+            "fields": ("notes",)
+        }),
+        ("Métadonnées", {
+            "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",)
+        }),
+    )
+
+
+@admin.register(SiteWaterPurchase)
+class SiteWaterPurchaseAdmin(admin.ModelAdmin):
+    list_display = ("site", "supplier", "billing_month", "purchase_date", "amount_fc", "created_by")
+    list_filter = ("billing_month", "purchase_date", "supplier", "site")
+    search_fields = ("site__nom", "supplier__name", "notes")
+    ordering = ("-billing_month", "-purchase_date", "-created_at")
+    readonly_fields = ("created_at", "updated_at")
+
+    fieldsets = (
+        ("Informations", {
+            "fields": ("site", "supplier", "billing_month", "purchase_date", "amount_fc")
+        }),
+        ("Détails", {
+            "fields": ("notes", "created_by")
+        }),
+        ("Métadonnées", {
+            "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",)
+        }),
+    )
 
 
 @admin.register(SiteLossEntry)
