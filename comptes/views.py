@@ -31,6 +31,7 @@ from .forms import (
     SiteJournalEntryForm,
     SiteJournalEntryMoveForm,
     SiteWaterPurchaseForm,
+    WaterSupplierForm,
     VideoEvidenceForm,
     get_water_purchase_default_amount,
 )
@@ -1688,43 +1689,24 @@ def admin_change_user_password(request, user_id):
     )
 
 
-@login_required
-@no_cache_view
-def admin_water_purchases(request):
-    user = request.user
-    ensure_superuser_admin_profile(user)
-
-    if not is_admin_user(user):
-        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
-        return redirect("dashboard")
-
+def _build_admin_water_purchase_context(selected_month, form, supplier_form):
     today = timezone.localdate()
-    selected_month = _parse_month_filter(request.GET.get("month"))
     purchases = (
         SiteWaterPurchase.objects.filter(site__actif=True, billing_month=selected_month)
         .select_related("site", "supplier", "created_by")
         .order_by("-purchase_date", "-created_at")
     )
 
-    if request.method == "POST":
-        form = SiteWaterPurchaseForm(request.POST)
-        if form.is_valid():
-            purchase = form.save(commit=False)
-            purchase.created_by = user
-            purchase.save()
-            messages.success(request, "L'achat d'eau a été enregistré.")
-            month_query = purchase.billing_month.strftime("%Y-%m")
-            return redirect(f"{reverse('admin_water_purchases')}?month={month_query}")
-    else:
-        form = SiteWaterPurchaseForm(initial={"billing_month": selected_month})
-
     month_total = purchases.aggregate(total=Sum("amount_fc"))["total"] or Decimal("0")
     month_count = purchases.count()
+    default_supplier = get_default_water_supplier()
     active_suppliers = list(
         WaterSupplier.objects.filter(is_active=True)
         .order_by("-is_default", "name")
     )
-    default_supplier = get_default_water_supplier()
+    all_suppliers = list(
+        WaterSupplier.objects.order_by("-is_default", "-is_active", "name")
+    )
     by_site = list(
         purchases.values("site__nom")
         .annotate(total=Sum("amount_fc"), count=Count("id"))
@@ -1814,6 +1796,26 @@ def admin_water_purchases(request):
     for item in supplier_breakdown:
         item_total = item["total"] or Decimal("0")
         item["bar_width"] = int((item_total / month_total) * 100) if month_total else 0
+
+    supplier_usage_map = {
+        item["supplier_id"]: {
+            "count": item["count"] or 0,
+            "total": item["total"] or Decimal("0"),
+        }
+        for item in purchases.values("supplier_id").annotate(
+            count=Count("id"),
+            total=Sum("amount_fc"),
+        )
+    }
+    supplier_catalog = [
+        {
+            "supplier": supplier,
+            "month_count": supplier_usage_map.get(supplier.id, {}).get("count", 0),
+            "month_total": supplier_usage_map.get(supplier.id, {}).get("total", Decimal("0")),
+        }
+        for supplier in all_suppliers
+    ]
+
     site_leader = by_site[0] if by_site else None
     supplier_rate_map = {
         str(supplier.pk): {
@@ -1824,33 +1826,77 @@ def admin_water_purchases(request):
         for supplier in active_suppliers
     }
 
+    return {
+        "form": form,
+        "supplier_form": supplier_form,
+        "purchases": purchases[:30],
+        "today": today,
+        "selected_month": selected_month,
+        "selected_month_input": selected_month.strftime("%Y-%m"),
+        "month_total": month_total,
+        "month_count": month_count,
+        "site_breakdown": by_site,
+        "supplier_breakdown": supplier_breakdown,
+        "average_purchase": average_purchase,
+        "default_amount": default_amount,
+        "default_supplier": default_supplier,
+        "active_suppliers": active_suppliers,
+        "supplier_catalog": supplier_catalog,
+        "selected_sites_count": selected_sites_count,
+        "previous_month": previous_month,
+        "previous_month_total": previous_month_total,
+        "previous_month_count": previous_month_count,
+        "month_total_delta": month_total_delta,
+        "weekly_breakdown": weekly_breakdown,
+        "monthly_history": monthly_history,
+        "site_leader": site_leader,
+        "supplier_rate_map": supplier_rate_map,
+    }
+
+
+@login_required
+@no_cache_view
+def admin_water_purchases(request):
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect("dashboard")
+
+    selected_month = _parse_month_filter(request.GET.get("month"))
+
+    if request.method == "POST":
+        submitted_form = request.POST.get("form_type")
+        if submitted_form == "supplier":
+            form = SiteWaterPurchaseForm(initial={"billing_month": selected_month})
+            supplier_form = WaterSupplierForm(request.POST, prefix="supplier_setup")
+            if supplier_form.is_valid():
+                supplier = supplier_form.save()
+                messages.success(request, f'Le fournisseur "{supplier.name}" a été ajouté.')
+                return redirect(f"{reverse('admin_water_purchases')}?month={selected_month.strftime('%Y-%m')}")
+        else:
+            form = SiteWaterPurchaseForm(request.POST)
+            supplier_form = WaterSupplierForm(prefix="supplier_setup")
+            if form.is_valid():
+                purchase = form.save(commit=False)
+                purchase.created_by = user
+                purchase.save()
+                messages.success(request, "L'achat d'eau a été enregistré.")
+                month_query = purchase.billing_month.strftime("%Y-%m")
+                return redirect(f"{reverse('admin_water_purchases')}?month={month_query}")
+    else:
+        form = SiteWaterPurchaseForm(initial={"billing_month": selected_month})
+        supplier_form = WaterSupplierForm(prefix="supplier_setup")
+
     return render(
         request,
         "admin/water_purchases.html",
-        {
-            "form": form,
-            "purchases": purchases[:30],
-            "today": today,
-            "selected_month": selected_month,
-            "selected_month_input": selected_month.strftime("%Y-%m"),
-            "month_total": month_total,
-            "month_count": month_count,
-            "site_breakdown": by_site,
-            "supplier_breakdown": supplier_breakdown,
-            "average_purchase": average_purchase,
-            "default_amount": default_amount,
-            "default_supplier": default_supplier,
-            "active_suppliers": active_suppliers,
-            "selected_sites_count": selected_sites_count,
-            "previous_month": previous_month,
-            "previous_month_total": previous_month_total,
-            "previous_month_count": previous_month_count,
-            "month_total_delta": month_total_delta,
-            "weekly_breakdown": weekly_breakdown,
-            "monthly_history": monthly_history,
-            "site_leader": site_leader,
-            "supplier_rate_map": supplier_rate_map,
-        },
+        _build_admin_water_purchase_context(
+            selected_month=selected_month,
+            form=form,
+            supplier_form=supplier_form,
+        ),
     )
 
 
@@ -1881,6 +1927,55 @@ def admin_edit_water_purchase(request, purchase_id):
         {
             "purchase": purchase,
             "form": form,
+        },
+    )
+
+
+@login_required
+@no_cache_view
+def admin_edit_water_supplier(request, supplier_id):
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect("dashboard")
+
+    selected_month = _parse_month_filter(request.GET.get("month"))
+    supplier = get_object_or_404(WaterSupplier, id=supplier_id)
+
+    if request.method == "POST":
+        form = WaterSupplierForm(request.POST, instance=supplier)
+        if form.is_valid():
+            updated_supplier = form.save()
+            messages.success(request, f'Le fournisseur "{updated_supplier.name}" a été mis à jour.')
+            return redirect(
+                f"{reverse('admin_water_purchases')}?month={selected_month.strftime('%Y-%m')}"
+            )
+    else:
+        form = WaterSupplierForm(instance=supplier)
+
+    monthly_usage = supplier.water_purchases.filter(billing_month=selected_month).aggregate(
+        count=Count("id"),
+        total=Sum("amount_fc"),
+    )
+    total_usage = supplier.water_purchases.aggregate(
+        count=Count("id"),
+        total=Sum("amount_fc"),
+    )
+
+    return render(
+        request,
+        "admin/edit_water_supplier.html",
+        {
+            "supplier": supplier,
+            "form": form,
+            "selected_month": selected_month,
+            "selected_month_input": selected_month.strftime("%Y-%m"),
+            "monthly_usage_count": monthly_usage["count"] or 0,
+            "monthly_usage_total": monthly_usage["total"] or Decimal("0"),
+            "total_usage_count": total_usage["count"] or 0,
+            "total_usage_total": total_usage["total"] or Decimal("0"),
         },
     )
 

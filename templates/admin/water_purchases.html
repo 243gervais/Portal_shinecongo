@@ -248,19 +248,102 @@
         margin-top: 1.1rem;
     }
 
+    .water-form-status {
+        margin-bottom: 1rem;
+    }
+
+    .water-form-status div + div {
+        margin-top: 0.3rem;
+    }
+
+    .water-form-toggles {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.85rem;
+        margin-top: 1rem;
+    }
+
+    .water-toggle {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.7rem;
+        padding: 0.95rem 1rem;
+        border-radius: 18px;
+        background: rgba(7, 45, 79, 0.03);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .water-toggle input {
+        margin-top: 0.25rem;
+    }
+
+    .water-toggle strong {
+        display: block;
+        color: var(--primary-dark);
+    }
+
+    .water-toggle span {
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+        line-height: 1.5;
+    }
+
     .water-breakdown-list,
-    .water-history-list {
+    .water-history-list,
+    .water-supplier-list {
         display: grid;
         gap: 0.85rem;
         margin-top: 1rem;
     }
 
     .water-breakdown-item,
-    .water-history-item {
+    .water-history-item,
+    .water-supplier-card {
         padding: 0.95rem 1rem;
         border-radius: 18px;
         background: rgba(7, 45, 79, 0.03);
         border: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .water-supplier-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .water-supplier-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+
+    .water-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.4rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .water-badge--default {
+        background: rgba(21, 128, 61, 0.12);
+        color: #166534;
+    }
+
+    .water-badge--active {
+        background: rgba(29, 167, 255, 0.12);
+        color: #0a5e93;
+    }
+
+    .water-badge--inactive {
+        background: rgba(180, 35, 24, 0.12);
+        color: #b42318;
     }
 
     .water-breakdown-name,
@@ -400,6 +483,10 @@
             grid-template-columns: 1fr;
         }
 
+        .water-form-toggles {
+            grid-template-columns: 1fr;
+        }
+
         .water-hero {
             padding: 1.35rem;
         }
@@ -533,10 +620,16 @@
 
             <form method="post" style="margin-top: 1.2rem;">
                 {% csrf_token %}
-                {% if form.non_field_errors %}
-                <div class="alert alert-danger" style="margin-bottom: 1rem;">
+                <input type="hidden" name="form_type" value="purchase">
+                {% if form.errors %}
+                <div class="alert alert-danger water-form-status">
                     {% for error in form.non_field_errors %}
                     <div>{{ error }}</div>
+                    {% endfor %}
+                    {% for field in form %}
+                        {% for error in field.errors %}
+                    <div>{{ field.label }} : {{ error }}</div>
+                        {% endfor %}
                     {% endfor %}
                 </div>
                 {% endif %}
@@ -574,6 +667,117 @@
                     <button type="submit" class="btn btn-primary">Enregistrer l'achat d'eau</button>
                 </div>
             </form>
+        </article>
+    </section>
+
+    <section class="water-grid">
+        <article class="water-panel">
+            <div class="water-panel-header">
+                <div>
+                    <h2 class="water-panel-title">Ajouter un fournisseur</h2>
+                    <p class="water-panel-copy">Ajoutez ici un nouveau forage ou contracteur avec son tarif de référence pour qu'il apparaisse immédiatement dans le suivi eau.</p>
+                </div>
+                <span class="water-panel-meta">Nouveau fournisseur</span>
+            </div>
+
+            <form method="post" style="margin-top: 1rem;">
+                {% csrf_token %}
+                <input type="hidden" name="form_type" value="supplier">
+                {% if supplier_form.errors %}
+                <div class="alert alert-danger water-form-status">
+                    {% for error in supplier_form.non_field_errors %}
+                    <div>{{ error }}</div>
+                    {% endfor %}
+                    {% for field in supplier_form %}
+                        {% for error in field.errors %}
+                    <div>{{ field.label }} : {{ error }}</div>
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <div class="water-form-grid">
+                    <div class="form-group">
+                        <label for="{{ supplier_form.name.id_for_label }}">Nom du fournisseur</label>
+                        {{ supplier_form.name }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ supplier_form.price_per_tank_fc.id_for_label }}">Tarif par remplissage (FC)</label>
+                        {{ supplier_form.price_per_tank_fc }}
+                        <div class="water-hint">Ce tarif sera proposé automatiquement quand ce fournisseur sera sélectionné dans un achat d'eau.</div>
+                    </div>
+                    <div class="form-group form-group--full">
+                        <label for="{{ supplier_form.notes.id_for_label }}">Notes</label>
+                        {{ supplier_form.notes }}
+                    </div>
+                </div>
+
+                <div class="water-form-toggles">
+                    <label class="water-toggle" for="{{ supplier_form.is_active.id_for_label }}">
+                        {{ supplier_form.is_active }}
+                        <span>
+                            <strong>Actif</strong>
+                            Le fournisseur apparaîtra dans la liste de choix lors de l'enregistrement d'un achat.
+                        </span>
+                    </label>
+                    <label class="water-toggle" for="{{ supplier_form.is_default.id_for_label }}">
+                        {{ supplier_form.is_default }}
+                        <span>
+                            <strong>Définir comme fournisseur par défaut</strong>
+                            Utilisez cette option si ce prestataire doit devenir la référence proposée en premier.
+                        </span>
+                    </label>
+                </div>
+
+                <div class="water-form-actions">
+                    <button type="submit" class="btn btn-primary">Ajouter le fournisseur</button>
+                </div>
+            </form>
+        </article>
+
+        <article class="water-panel">
+            <div class="water-panel-header">
+                <div>
+                    <h2 class="water-panel-title">Catalogue fournisseurs</h2>
+                    <p class="water-panel-copy">Chaque fournisseur reste modifiable pour ajuster son tarif, changer le défaut ou le désactiver sans supprimer l'historique des achats déjà saisis.</p>
+                </div>
+                <span class="water-panel-meta">{{ supplier_catalog|length }} fournisseur{{ supplier_catalog|length|pluralize }}</span>
+            </div>
+
+            {% if supplier_catalog %}
+            <div class="water-supplier-list">
+                {% for item in supplier_catalog %}
+                <div class="water-supplier-card">
+                    <div class="water-supplier-top">
+                        <div style="flex: 1 1 280px; min-width: 0;">
+                            <p class="water-breakdown-name">{{ item.supplier.name }}</p>
+                            <div class="water-breakdown-meta">{{ item.supplier.price_per_tank_fc|fc_amount }} FC / remplissage</div>
+                            <div class="water-supplier-badges">
+                                {% if item.supplier.is_default %}
+                                <span class="water-badge water-badge--default">Par défaut</span>
+                                {% endif %}
+                                {% if item.supplier.is_active %}
+                                <span class="water-badge water-badge--active">Actif</span>
+                                {% else %}
+                                <span class="water-badge water-badge--inactive">Inactif</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <a href="{% url 'admin_edit_water_supplier' item.supplier.id %}?month={{ selected_month_input }}" class="btn btn-secondary">Modifier</a>
+                    </div>
+
+                    <div class="water-breakdown-meta">
+                        Utilisé {{ item.month_count }} fois sur {{ selected_month|date:"m/Y" }}{% if item.month_count %} pour {{ item.month_total|fc_amount }} FC{% endif %}.
+                    </div>
+                    {% if item.supplier.notes %}
+                    <div class="water-hint">{{ item.supplier.notes|linebreaksbr }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="water-empty">Aucun fournisseur d'eau n'est encore configuré.</div>
+            {% endif %}
         </article>
     </section>
 

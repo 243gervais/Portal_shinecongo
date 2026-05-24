@@ -134,9 +134,24 @@ class WaterSupplier(models.Model):
 
         if self.is_default:
             WaterSupplier.objects.exclude(pk=self.pk).filter(is_default=True).update(is_default=False)
-        elif not WaterSupplier.objects.exclude(pk=self.pk).filter(is_default=True).exists():
-            WaterSupplier.objects.filter(pk=self.pk).update(is_default=True)
-            self.is_default = True
+            return
+
+        if WaterSupplier.objects.exclude(pk=self.pk).filter(is_default=True).exists():
+            return
+
+        replacement = (
+            WaterSupplier.objects.exclude(pk=self.pk)
+            .filter(is_active=True)
+            .order_by("name")
+            .first()
+        )
+        if replacement:
+            WaterSupplier.objects.filter(pk=replacement.pk).update(is_default=True)
+            return
+
+        WaterSupplier.objects.filter(pk=self.pk).update(is_default=True, is_active=True)
+        self.is_default = True
+        self.is_active = True
 
     def __str__(self):
         return self.name

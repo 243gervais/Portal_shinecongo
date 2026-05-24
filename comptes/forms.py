@@ -728,6 +728,47 @@ class SiteJournalEntryMoveForm(forms.Form):
         return entry
 
 
+class WaterSupplierForm(forms.ModelForm):
+    class Meta:
+        model = WaterSupplier
+        fields = ["name", "price_per_tank_fc", "is_default", "is_active", "notes"]
+        widgets = {
+            "name": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": "Ex: Forage Kintambo"}
+            ),
+            "price_per_tank_fc": forms.NumberInput(
+                attrs={"class": "form-control", "step": "0.01", "min": "0"}
+            ),
+            "is_default": forms.CheckboxInput(),
+            "is_active": forms.CheckboxInput(),
+            "notes": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 3,
+                    "placeholder": "Optionnel: zone desservie, contact, consignes de paiement...",
+                }
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.instance.pk and not self.is_bound:
+            self.fields["is_active"].initial = True
+
+    def clean(self):
+        cleaned_data = super().clean()
+        is_active = cleaned_data.get("is_active")
+        other_active_suppliers = WaterSupplier.objects.exclude(pk=self.instance.pk).filter(is_active=True)
+
+        if is_active is False and not other_active_suppliers.exists():
+            self.add_error(
+                "is_active",
+                "Gardez au moins un fournisseur actif pour continuer à enregistrer les achats d'eau.",
+            )
+
+        return cleaned_data
+
+
 class SiteWaterPurchaseForm(forms.ModelForm):
     billing_month = forms.DateField(
         label="Mois concerné",

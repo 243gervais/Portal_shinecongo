@@ -20,6 +20,7 @@ from sites.models import (
     SiteJournalEntry,
     SiteWaterPurchase,
     VideoEvidence,
+    WaterSupplier,
     get_default_water_supplier,
 )
 from sites.models import DailyBankDeposit, SiteLossEntry
@@ -1207,6 +1208,102 @@ class WaterPurchaseTrackingTests(TestCase):
         self.assertEqual(purchase.amount_fc, Decimal("24000"))
         self.assertEqual(purchase.supplier, self.default_supplier)
         self.assertEqual(purchase.created_by, self.admin_user)
+
+    def test_admin_can_create_water_supplier_from_water_page(self):
+        response = self.client.post(
+            f"{reverse('admin_water_purchases')}?month=2026-04",
+            data={
+                "form_type": "supplier",
+                "supplier_setup-name": "Forage Kintambo",
+                "supplier_setup-price_per_tank_fc": "27500",
+                "supplier_setup-is_active": "on",
+                "supplier_setup-notes": "Disponible pour Kintambo et Ngaliema.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(
+            response,
+            f"{reverse('admin_water_purchases')}?month=2026-04",
+            fetch_redirect_response=False,
+        )
+
+        supplier = WaterSupplier.objects.get(name="Forage Kintambo")
+        self.assertEqual(supplier.price_per_tank_fc, Decimal("27500"))
+        self.assertTrue(supplier.is_active)
+        self.assertFalse(supplier.is_default)
+
+    def test_water_purchase_page_shows_supplier_management_actions(self):
+        response = self.client.get(reverse("admin_water_purchases"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Ajouter un fournisseur")
+        self.assertContains(response, "Catalogue fournisseurs")
+        self.assertContains(
+            response,
+            reverse("admin_edit_water_supplier", args=[self.default_supplier.id]),
+        )
+
+    def test_admin_can_edit_water_supplier_and_make_it_default(self):
+        secondary_supplier = WaterSupplier.objects.create(
+            name="Forage Binza",
+            price_per_tank_fc=Decimal("26000"),
+            is_active=True,
+        )
+
+        response = self.client.post(
+            f"{reverse('admin_edit_water_supplier', args=[secondary_supplier.id])}?month=2026-04",
+            data={
+                "name": "Forage Binza Premium",
+                "price_per_tank_fc": "28500",
+                "is_active": "on",
+                "is_default": "on",
+                "notes": "Nouveau tarif négocié.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(
+            response,
+            f"{reverse('admin_water_purchases')}?month=2026-04",
+            fetch_redirect_response=False,
+        )
+
+        secondary_supplier.refresh_from_db()
+        self.default_supplier.refresh_from_db()
+        self.assertEqual(secondary_supplier.name, "Forage Binza Premium")
+        self.assertEqual(secondary_supplier.price_per_tank_fc, Decimal("28500"))
+        self.assertTrue(secondary_supplier.is_default)
+        self.assertFalse(self.default_supplier.is_default)
+
+    def test_disabling_default_supplier_promotes_another_active_supplier(self):
+        replacement_supplier = WaterSupplier.objects.create(
+            name="Forage Yolo",
+            price_per_tank_fc=Decimal("24500"),
+            is_active=True,
+        )
+
+        response = self.client.post(
+            f"{reverse('admin_edit_water_supplier', args=[self.default_supplier.id])}?month=2026-04",
+            data={
+                "name": self.default_supplier.name,
+                "price_per_tank_fc": "22000",
+                "notes": "Ancien fournisseur principal.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(
+            response,
+            f"{reverse('admin_water_purchases')}?month=2026-04",
+            fetch_redirect_response=False,
+        )
+
+        self.default_supplier.refresh_from_db()
+        replacement_supplier.refresh_from_db()
+        self.assertFalse(self.default_supplier.is_active)
+        self.assertFalse(self.default_supplier.is_default)
+        self.assertTrue(replacement_supplier.is_default)
 
     def test_admin_dashboard_shows_water_purchase_summary(self):
         SiteWaterPurchase.objects.create(
