@@ -14,6 +14,9 @@ from comptes.models import AdminReminder, EmployeePayment
 from lavages.models import CarWash
 from sites.models import (
     Camera,
+    CameraObservation,
+    CameraObservationEvidence,
+    CameraOperatorDailyReport,
     DailyCameraReport,
     Location,
     SiteDocument,
@@ -302,6 +305,30 @@ class AdminReminderDashboardTests(TestCase):
 
         dashboard_after_open = self.client.get(reverse("admin_dashboard"))
         self.assertEqual(dashboard_after_open.context["admin_messages_unread_total"], 0)
+
+
+class DashboardRoleRedirectTests(TestCase):
+    def setUp(self):
+        self.site = Location.objects.create(
+            nom="Site Camera Role",
+            adresse="Adresse Camera Role",
+            ville="Kinshasa",
+            actif=True,
+        )
+
+    def test_camera_controller_is_redirected_to_camera_portal(self):
+        user = User.objects.create_user(
+            username="camera_controller",
+            password="CameraPass123!",
+        )
+        user.userprofile.role = "CONTROLE_CAMERA"
+        user.userprofile.site = self.site
+        user.userprofile.save()
+        self.client.login(username="camera_controller", password="CameraPass123!")
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertRedirects(response, reverse("camera_dashboard"), fetch_redirect_response=False)
 
 
 class AdminPasswordManagementTests(TestCase):
@@ -604,6 +631,7 @@ class AdminSiteEmployeeFormTests(TestCase):
         response = self.client.post(
             reverse("admin_add_site_employee", args=[self.site.id]),
             data={
+                "role": "EMPLOYE",
                 "username": "mike_photo",
                 "first_name": "Mike",
                 "last_name": "Mwana-Ntambwe",
@@ -631,6 +659,34 @@ class AdminSiteEmployeeFormTests(TestCase):
         employee = User.objects.get(username="mike_photo")
         employee.userprofile.refresh_from_db()
         self.assertTrue(employee.userprofile.profile_photo.name.endswith(".gif"))
+
+    def test_admin_can_create_camera_controller_account(self):
+        response = self.client.post(
+            reverse("admin_add_site_employee", args=[self.site.id]),
+            data={
+                "role": "CONTROLE_CAMERA",
+                "username": "camera_staff",
+                "first_name": "Grace",
+                "last_name": "Kanku",
+                "email": "grace.camera@example.com",
+                "telephone": "0999999998",
+                "mpesa_numero": "243999999998",
+                "date_embauche": "2026-05-19",
+                "salaire_mensuel_usd": "90.00",
+                "password": "CameraPass123!",
+                "is_active": "on",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(
+            response,
+            reverse("admin_site_employees", args=[self.site.id]),
+            fetch_redirect_response=False,
+        )
+        camera_staff = User.objects.get(username="camera_staff")
+        self.assertEqual(camera_staff.userprofile.role, "CONTROLE_CAMERA")
+        self.assertEqual(camera_staff.userprofile.site, self.site)
 
 
 @override_settings(MEDIA_ROOT="/private/tmp/portal_shinecongo_camera_test_media")
@@ -747,6 +803,122 @@ class SiteCameraMonitoringTests(TestCase):
         self.assertContains(detail_response, "Capture caisse matin")
         self.assertContains(detail_response, "Clips & captures du rapport")
         self.assertContains(detail_response, "Motos 3 pneus")
+
+
+@override_settings(MEDIA_ROOT="/private/tmp/portal_shinecongo_camera_operator_test_media")
+class CameraControllerPortalTests(TestCase):
+    def setUp(self):
+        self.site = Location.objects.create(
+            nom="Site Contrôle Camera",
+            adresse="Adresse Controle Camera",
+            ville="Kinshasa",
+            actif=True,
+        )
+        self.admin_user = User.objects.create_superuser(
+            username="camera_portal_admin",
+            email="camera_portal_admin@example.com",
+            password="AdminPass123!",
+        )
+        self.controller = User.objects.create_user(
+            username="camera_agent",
+            email="camera_agent@example.com",
+            password="CameraPass123!",
+            first_name="Aline",
+        )
+        self.controller.userprofile.role = "CONTROLE_CAMERA"
+        self.controller.userprofile.site = self.site
+        self.controller.userprofile.actif = True
+        self.controller.userprofile.save()
+        self.camera = Camera.objects.create(
+            site=self.site,
+            name="Caméra Entrée",
+            camera_number=1,
+            camera_position="GATE",
+            app_name="V380",
+            is_active=True,
+        )
+        self.client.login(username="camera_agent", password="CameraPass123!")
+
+    def test_camera_controller_can_record_observation_and_submit_final_report(self):
+        response = self.client.post(
+            reverse("camera_daily_report"),
+            data={
+                "action": "add_observation",
+                "camera": str(self.camera.id),
+                "vehicle_type": "CAR",
+                "observed_time": "08:45",
+                "screenshots": [
+                    SimpleUploadedFile("camera-1.gif", TEST_GIF_BYTES, content_type="image/gif"),
+                    SimpleUploadedFile("camera-2.gif", TEST_GIF_BYTES, content_type="image/gif"),
+                ],
+                "time_proof": SimpleUploadedFile("time-proof.gif", TEST_GIF_BYTES, content_type="image/gif"),
+                "notes": "Voiture vue à l'entrée du tunnel de lavage.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        report = CameraOperatorDailyReport.objects.get(site=self.site, controller=self.controller, date=timezone.localdate())
+        observation = CameraObservation.objects.get(report=report)
+        self.assertEqual(CameraObservationEvidence.objects.filter(observation=observation).count(), 3)
+        self.assertEqual(report.cars_count, 1)
+        self.assertEqual(report.total_vehicles, 1)
+        self.assertEqual(report.screenshots_count, 2)
+        self.assertEqual(report.time_proof_count, 1)
+        self.assertEqual(report.expected_revenue, Decimal("15000"))
+
+        submit_response = self.client.post(
+            reverse("camera_daily_report"),
+            data={
+                "action": "submit_final_report",
+                "notes": "RAS. Caméra entrée stable toute la journée.",
+            },
+        )
+
+        self.assertEqual(submit_response.status_code, 302)
+        report.refresh_from_db()
+        self.assertTrue(report.is_submitted)
+        self.assertIsNotNone(report.submitted_at)
+        self.assertEqual(report.notes, "RAS. Caméra entrée stable toute la journée.")
+
+    def test_camera_controller_report_is_visible_in_admin_monitoring(self):
+        report = CameraOperatorDailyReport.objects.create(
+            site=self.site,
+            controller=self.controller,
+            date=timezone.localdate(),
+            notes="Rapport final caméra.",
+            is_submitted=True,
+            submitted_at=timezone.now(),
+        )
+        observation = CameraObservation.objects.create(
+            report=report,
+            camera=self.camera,
+            vehicle_type="MOTO",
+            observed_time=timezone.localtime().time().replace(second=0, microsecond=0),
+            notes="Moto vue à l'entrée.",
+        )
+        CameraObservationEvidence.objects.create(
+            observation=observation,
+            evidence_kind="SCREENSHOT",
+            file=SimpleUploadedFile("proof.gif", TEST_GIF_BYTES, content_type="image/gif"),
+        )
+        report.refresh_from_db()
+
+        admin_client = self.client_class()
+        admin_client.login(username="camera_portal_admin", password="AdminPass123!")
+
+        monitoring_response = admin_client.get(reverse("admin_site_camera_monitoring", args=[self.site.id]))
+        detail_response = admin_client.get(reverse("admin_camera_operator_report_detail", args=[self.site.id, report.id]))
+
+        self.assertContains(monitoring_response, "Rapports contrôleurs caméra")
+        self.assertContains(monitoring_response, "Aline")
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertContains(detail_response, "Moto vue")
+        self.assertContains(detail_response, "Captures")
+
+    def test_camera_controller_is_blocked_from_employee_dashboard(self):
+        response = self.client.get(reverse("employe_dashboard"), follow=True)
+
+        self.assertRedirects(response, reverse("camera_dashboard"))
 
 
 class SiteJournalEntryTests(TestCase):

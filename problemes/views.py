@@ -15,6 +15,17 @@ from pointage.utils import get_client_ip, get_user_agent
 logger = logging.getLogger(__name__)
 
 
+def _resolve_employee_portal_profile(request):
+    profile = getattr(request.user, "userprofile", None)
+    if not profile or not profile.is_employe():
+        messages.error(request, "Accès refusé. Ce portail est réservé aux employés lavage.")
+        return None
+    if not profile.site:
+        messages.error(request, "Aucun site n'est associé à votre profil.")
+        return None
+    return profile
+
+
 def _build_issue_report_email_context(probleme):
     reporter_name = (
         probleme.employe.get_full_name() or probleme.employe.username
@@ -84,10 +95,14 @@ def signaler_probleme(request):
     """
     Signaler un nouveau problème
     """
+    profile = _resolve_employee_portal_profile(request)
+    if not profile:
+        return redirect("dashboard")
+
     if request.method == 'POST':
         try:
             user = request.user
-            site = user.userprofile.site
+            site = profile.site
             
             categorie = request.POST.get('categorie')
             description = request.POST.get('description')
@@ -129,6 +144,9 @@ def mes_problemes(request):
     """
     Liste des problèmes signalés par l'employé
     """
+    profile = _resolve_employee_portal_profile(request)
+    if not profile:
+        return redirect("dashboard")
     user = request.user
     problemes = user.problemes_signales.all().order_by('-created_at')
     
@@ -144,6 +162,9 @@ def detail_probleme(request, probleme_id):
     """
     Détail d'un problème
     """
+    profile = _resolve_employee_portal_profile(request)
+    if not profile:
+        return redirect("dashboard")
     probleme = get_object_or_404(
         IssueReport,
         id=probleme_id,

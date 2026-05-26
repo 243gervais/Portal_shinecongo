@@ -1071,6 +1071,9 @@
                         {{ admin_site_search_items|json_script:"admin-site-search-data" }}
                     </div>
                     {% endif %}
+                {% elif user.userprofile.is_camera_controller %}
+                    <a href="{% url 'camera_dashboard' %}" class="employee-mobile-hide">Tableau de bord</a>
+                    <a href="{% url 'camera_daily_report' %}">Rapport caméra</a>
                 {% elif user.userprofile.is_employe %}
                     <a href="{% url 'employe_dashboard' %}" class="employee-mobile-hide">Tableau de bord</a>
                     <a href="{% url 'ajouter_lavage' %}" class="employee-mobile-hide">Ajouter lavage</a>
@@ -1454,22 +1457,25 @@
             });
         })();
 
-        {% if show_admin_box or user.userprofile.is_employe %}
+        {% if show_admin_box or user.userprofile.is_employe or user.userprofile.is_camera_controller %}
         (() => {
             const isAdminInstantNav = {% if show_admin_box %}true{% else %}false{% endif %};
             const isEmployeeInstantNav = {% if user.is_authenticated and user.userprofile.is_employe %}true{% else %}false{% endif %};
-            if (!isAdminInstantNav && !isEmployeeInstantNav) {
+            const isCameraInstantNav = {% if user.is_authenticated and user.userprofile.is_camera_controller %}true{% else %}false{% endif %};
+            if (!isAdminInstantNav && !isEmployeeInstantNav && !isCameraInstantNav) {
                 return;
             }
 
             const dataNode = isAdminInstantNav ? document.getElementById('admin-site-search-data') : null;
-            const CACHE_PREFIX = isAdminInstantNav ? 'portal-instant-admin:' : 'portal-instant-employee:';
+            const CACHE_PREFIX = isAdminInstantNav
+                ? 'portal-instant-admin:'
+                : (isCameraInstantNav ? 'portal-instant-camera:' : 'portal-instant-employee:');
             const CACHE_TTL_MS = isAdminInstantNav ? 90 * 1000 : 45 * 1000;
             const MAX_CACHE_ENTRIES = isAdminInstantNav ? 24 : 20;
             const MAX_WARMUP_URLS = isAdminInstantNav ? 28 : 20;
             const CACHED_RENDER_KEY = `${CACHE_PREFIX}__cached-render__`;
             const pendingRequests = new Map();
-            const allowedPrefixes = isAdminInstantNav ? ['/admin-dashboard/'] : ['/employe/'];
+            const allowedPrefixes = isAdminInstantNav ? ['/admin-dashboard/'] : (isCameraInstantNav ? ['/camera/'] : ['/employe/']);
             const currentPageRevision = document.querySelector('meta[name="portal-activity-revision"]')?.content || '';
             const employeeWarmupUrls = isEmployeeInstantNav ? [
                 '{% url "employe_dashboard" %}',
@@ -1480,6 +1486,10 @@
                 '{% url "employe_water_purchase" %}',
                 '{% url "mes_lavages" %}',
                 '{% url "mes_problemes" %}',
+            ] : [];
+            const cameraWarmupUrls = isCameraInstantNav ? [
+                '{% url "camera_dashboard" %}',
+                '{% url "camera_daily_report" %}',
             ] : [];
 
             const normalizeUrl = (href) => {
@@ -1776,9 +1786,9 @@
                     visibleAnchors.push(link.href);
                 });
 
-                if (isEmployeeInstantNav) {
+                if (isEmployeeInstantNav || isCameraInstantNav) {
                     visibleAnchors.forEach((value) => pushUrl(value));
-                    employeeWarmupUrls.forEach((value) => pushUrl(value));
+                    (isCameraInstantNav ? cameraWarmupUrls : employeeWarmupUrls).forEach((value) => pushUrl(value));
                 } else {
                     employeeWarmupUrls.forEach((value) => pushUrl(value));
 

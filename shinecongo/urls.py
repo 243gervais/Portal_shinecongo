@@ -93,6 +93,12 @@ from pointage.views_manager import (
 )
 from lavages.views import ajouter_lavage, mes_lavages, detail_lavage
 from problemes.views import signaler_probleme, mes_problemes, detail_probleme
+from sites.views import (
+    admin_camera_operator_report_detail,
+    camera_dashboard,
+    camera_daily_report,
+    camera_delete_observation,
+)
 
 urlpatterns = [
     # Admin Django
@@ -120,6 +126,9 @@ urlpatterns = [
     path("employe/rapport-journee/", employe_daily_report, name="employe_daily_report"),
     path("employe/eau/", employe_water_purchase, name="employe_water_purchase"),
     path("employe/historique/", employe_historique, name="employe_historique"),
+    path("camera/", camera_dashboard, name="camera_dashboard"),
+    path("camera/rapport/", camera_daily_report, name="camera_daily_report"),
+    path("camera/observations/<int:observation_id>/delete/", camera_delete_observation, name="camera_delete_observation"),
     
     # Scan QR fixe (URL publique pour le QR code)
     path("scan/<uuid:site_token>/", scan_qr_fixe, name="scan_qr_fixe"),
@@ -177,6 +186,7 @@ urlpatterns = [
     path("admin-dashboard/site/<uuid:site_id>/camera-monitoring/", admin_site_camera_monitoring, name="admin_site_camera_monitoring"),
     path("admin-dashboard/site/<uuid:site_id>/cameras/<int:camera_id>/edit/", admin_edit_site_camera, name="admin_edit_site_camera"),
     path("admin-dashboard/site/<uuid:site_id>/camera-reports/<int:report_id>/", admin_site_camera_report_detail, name="admin_site_camera_report_detail"),
+    path("admin-dashboard/site/<uuid:site_id>/camera-operator-reports/<int:report_id>/", admin_camera_operator_report_detail, name="admin_camera_operator_report_detail"),
     path("admin-dashboard/site/<uuid:site_id>/camera-evidence/<int:evidence_id>/delete/", admin_delete_video_evidence, name="admin_delete_video_evidence"),
     path("admin-dashboard/site/<uuid:site_id>/employees/", admin_site_employees, name="admin_site_employees"),
     path("admin-dashboard/site/<uuid:site_id>/journal/", admin_site_journal, name="admin_site_journal"),

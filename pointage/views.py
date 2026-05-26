@@ -32,6 +32,23 @@ KNOWN_DAILY_EXPENSES = [
 ]
 
 
+def _resolve_employee_portal_profile(request, json_response=False):
+    profile = getattr(request.user, "userprofile", None)
+    if not profile or not profile.is_employe():
+        message = "Accès refusé. Ce portail est réservé aux employés lavage."
+        if json_response:
+            return None, JsonResponse({"success": False, "message": message}, status=403)
+        messages.error(request, message)
+        return None, redirect("dashboard")
+    if not profile.site:
+        message = "Aucun site n'est associé à votre profil."
+        if json_response:
+            return None, JsonResponse({"success": False, "message": message}, status=403)
+        messages.error(request, message)
+        return None, redirect("dashboard")
+    return profile, None
+
+
 def _normalize_fc_amount(value):
     amount = Decimal(str(value or "0")).quantize(Decimal("0.01"))
     if amount < 0:
@@ -317,6 +334,10 @@ def employe_dashboard(request):
     """
     user = request.user
     today = timezone.localdate()
+    profile, failure_response = _resolve_employee_portal_profile(request)
+    if failure_response:
+        return failure_response
+    site = profile.site
 
     # Lavages du jour
     lavages_today = user.lavages.filter(date=today).count()
@@ -324,20 +345,18 @@ def employe_dashboard(request):
     # Problèmes ouverts de l'employé
     problemes_ouverts = user.problemes_signales.filter(statut="OUVERT").count()
     shift_today = ShiftDay.objects.filter(employe=user, date=today).first()
-    site = getattr(getattr(user, "userprofile", None), "site", None)
     water_purchase_today = None
     water_purchase_month_count = 0
-    if site:
-        water_purchase_today = (
-            SiteWaterPurchase.objects.filter(site=site, purchase_date=today)
-            .select_related("created_by")
-            .order_by("-created_at")
-            .first()
-        )
-        water_purchase_month_count = SiteWaterPurchase.objects.filter(
-            site=site,
-            billing_month=today.replace(day=1),
-        ).count()
+    water_purchase_today = (
+        SiteWaterPurchase.objects.filter(site=site, purchase_date=today)
+        .select_related("created_by")
+        .order_by("-created_at")
+        .first()
+    )
+    water_purchase_month_count = SiteWaterPurchase.objects.filter(
+        site=site,
+        billing_month=today.replace(day=1),
+    ).count()
     
     context = {
         'lavages_today': lavages_today,
@@ -359,12 +378,10 @@ def employe_water_purchase(request):
     """
     user = request.user
     today = timezone.localdate()
-    profile = getattr(user, "userprofile", None)
-    site = getattr(profile, "site", None)
-
-    if not site:
-        messages.error(request, "Aucun site n'est associé à votre profil.")
-        return redirect("employe_dashboard")
+    profile, failure_response = _resolve_employee_portal_profile(request)
+    if failure_response:
+        return failure_response
+    site = profile.site
 
     billing_month = today.replace(day=1)
     default_supplier = get_default_water_supplier()
@@ -445,12 +462,10 @@ def employe_daily_report(request):
     """
     user = request.user
     today = timezone.localdate()
-
-    if not hasattr(user, 'userprofile') or not user.userprofile.site:
-        messages.error(request, "Aucun site n'est associé à votre profil.")
-        return redirect('employe_dashboard')
-
-    site = user.userprofile.site
+    profile, failure_response = _resolve_employee_portal_profile(request)
+    if failure_response:
+        return failure_response
+    site = profile.site
     shift, _created = ShiftDay.objects.get_or_create(
         employe=user,
         date=today,
@@ -549,6 +564,9 @@ def scan_qr_clock_in(request):
         site_token = request.POST.get('site_token')
         user = request.user
         today = timezone.localdate()
+        profile, failure_response = _resolve_employee_portal_profile(request, json_response=True)
+        if failure_response:
+            return failure_response
         
         # Vérifier si déjà pointé aujourd'hui
         existing_shift = ShiftDay.objects.filter(employe=user, date=today).first()
@@ -569,7 +587,7 @@ def scan_qr_clock_in(request):
             })
         
         # Vérifier que le site correspond à l'employé
-        employee_site = user.userprofile.site
+        employee_site = profile.site
         if employee_site and employee_site.id != site.id:
             return JsonResponse({
                 'success': False,
@@ -663,6 +681,9 @@ def scan_qr_clock_out(request):
         total_lavages = request.POST.get('total_lavages', 0)
         user = request.user
         today = timezone.localdate()
+        profile, failure_response = _resolve_employee_portal_profile(request, json_response=True)
+        if failure_response:
+            return failure_response
         
         # Vérifier qu'il y a un pointage d'entrée
         shift = ShiftDay.objects.filter(employe=user, date=today).first()
@@ -689,7 +710,7 @@ def scan_qr_clock_out(request):
             })
         
         # Vérifier que le site correspond à l'employé
-        employee_site = user.userprofile.site
+        employee_site = profile.site
         if employee_site and employee_site.id != site.id:
             return JsonResponse({
                 'success': False,
@@ -771,10 +792,13 @@ def scan_qr_fixe(request, site_token):
     Cette URL est encodée dans le QR code
     """
     try:
+        profile, failure_response = _resolve_employee_portal_profile(request)
+        if failure_response:
+            return failure_response
         site = Location.objects.get(site_token=site_token, actif=True)
     except Location.DoesNotExist:
         messages.error(request, 'QR code invalide ou non reconnu.')
-        return redirect('employe_dashboard')
+        return redirect('dashboard')
     
     # Si l'utilisateur n'est pas connecté, rediriger vers la connexion
     if not request.user.is_authenticated:
@@ -782,10 +806,10 @@ def scan_qr_fixe(request, site_token):
         return redirect('login')
     
     # Vérifier que le site correspond à l'employé
-    employee_site = request.user.userprofile.site
+    employee_site = profile.site
     if employee_site and employee_site.id != site.id:
         messages.error(request, 'Ce QR ne correspond pas à votre site.')
-        return redirect('employe_dashboard')
+        return redirect('dashboard')
     
     # Rediriger vers le dashboard employé (qui gérera le scan)
     return redirect('employe_dashboard')
@@ -799,8 +823,10 @@ def employe_historique(request):
     """
     user = request.user
     today = timezone.localdate()
-    profile = getattr(user, "userprofile", None)
-    site = getattr(profile, "site", None)
+    profile, failure_response = _resolve_employee_portal_profile(request)
+    if failure_response:
+        return failure_response
+    site = profile.site
     
     # Pointages récents (30 derniers jours)
     pointages = (
@@ -820,18 +846,15 @@ def employe_historique(request):
     # Problèmes signalés
     problemes = user.problemes_signales.all().order_by('-created_at')[:20]
 
-    water_history = []
-    water_history_month_count = 0
-    if site:
-        water_history_qs = (
-            SiteWaterPurchase.objects.filter(site=site)
-            .select_related("created_by", "supplier")
-            .order_by("-purchase_date", "-created_at")
-        )
-        water_history = list(water_history_qs[:20])
-        water_history_month_count = water_history_qs.filter(
-            billing_month=today.replace(day=1),
-        ).count()
+    water_history_qs = (
+        SiteWaterPurchase.objects.filter(site=site)
+        .select_related("created_by", "supplier")
+        .order_by("-purchase_date", "-created_at")
+    )
+    water_history = list(water_history_qs[:20])
+    water_history_month_count = water_history_qs.filter(
+        billing_month=today.replace(day=1),
+    ).count()
 
     report_count = ShiftDay.objects.filter(
         employe=user,

@@ -229,9 +229,17 @@ class SiteCreationForm(forms.ModelForm):
 
 class SiteEmployeeForm(forms.Form):
     """
-    Création / mise à jour d'un employé rattaché à un site.
+    Création / mise à jour d'un membre rattaché à un site.
     """
 
+    role = forms.ChoiceField(
+        label="Rôle du compte",
+        choices=[
+            (UserProfile.EMPLOYEE_ROLE, "Employé lavage"),
+            (UserProfile.CAMERA_CONTROLLER_ROLE, "Contrôle caméra"),
+        ],
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
     username = forms.CharField(
         label="Identifiant",
         max_length=150,
@@ -310,6 +318,7 @@ class SiteEmployeeForm(forms.Form):
         self.profile_instance = profile_instance
         super().__init__(*args, **kwargs)
 
+        self.fields["role"].initial = UserProfile.EMPLOYEE_ROLE
         if self.user_instance:
             self.fields["username"].initial = self.user_instance.username
             self.fields["first_name"].initial = self.user_instance.first_name
@@ -317,6 +326,7 @@ class SiteEmployeeForm(forms.Form):
             self.fields["email"].initial = self.user_instance.email
             self.fields["is_active"].initial = self.user_instance.is_active
         if self.profile_instance:
+            self.fields["role"].initial = self.profile_instance.role
             self.fields["telephone"].initial = self.profile_instance.telephone
             self.fields["mpesa_numero"].initial = self.profile_instance.mpesa_numero
             self.fields["date_embauche"].initial = self.profile_instance.date_embauche
@@ -349,6 +359,13 @@ class SiteEmployeeForm(forms.Form):
             raise forms.ValidationError("Le mot de passe est obligatoire à la création.")
         return password
 
+    def clean_role(self):
+        role = self.cleaned_data["role"]
+        allowed_roles = {UserProfile.EMPLOYEE_ROLE, UserProfile.CAMERA_CONTROLLER_ROLE}
+        if role not in allowed_roles:
+            raise forms.ValidationError("Choisissez un rôle valide pour ce compte.")
+        return role
+
     def save(self, site):
         if self.user_instance:
             user = self.user_instance
@@ -370,7 +387,7 @@ class SiteEmployeeForm(forms.Form):
         user.save()
 
         profile, _ = UserProfile.objects.get_or_create(user=user)
-        profile.role = "EMPLOYE"
+        profile.role = self.cleaned_data["role"]
         profile.site = site
         profile.telephone = self.cleaned_data.get("telephone", "")
         profile.mpesa_numero = self.cleaned_data.get("mpesa_numero", "")

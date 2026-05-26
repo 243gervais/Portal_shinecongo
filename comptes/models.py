@@ -31,10 +31,17 @@ class UserProfile(models.Model):
     """
     Profil utilisateur étendu avec rôle et site
     """
+    EMPLOYEE_ROLE = "EMPLOYE"
+    CAMERA_CONTROLLER_ROLE = "CONTROLE_CAMERA"
+    MANAGER_ROLE = "MANAGER"
+    ADMIN_ROLE = "ADMIN"
+    SITE_STAFF_ROLES = [EMPLOYEE_ROLE, CAMERA_CONTROLLER_ROLE]
+
     ROLE_CHOICES = [
-        ("EMPLOYE", "Employé"),
-        ("MANAGER", "Manager"),
-        ("ADMIN", "Administrateur"),
+        (EMPLOYEE_ROLE, "Employé"),
+        (CAMERA_CONTROLLER_ROLE, "Contrôle caméra"),
+        (MANAGER_ROLE, "Manager"),
+        (ADMIN_ROLE, "Administrateur"),
     ]
     
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="userprofile")
@@ -92,13 +99,19 @@ class UserProfile(models.Model):
         return f"{self.user.get_full_name() or self.user.username} - {self.get_role_display()}"
     
     def is_employe(self):
-        return self.role == "EMPLOYE"
+        return self.role == self.EMPLOYEE_ROLE
+
+    def is_camera_controller(self):
+        return self.role == self.CAMERA_CONTROLLER_ROLE
+
+    def is_site_staff(self):
+        return self.role in self.SITE_STAFF_ROLES
     
     def is_manager(self):
-        return self.role == "MANAGER"
+        return self.role == self.MANAGER_ROLE
     
     def is_admin(self):
-        return self.role == "ADMIN"
+        return self.role == self.ADMIN_ROLE
 
     def anciennete_jours(self):
         if not self.date_embauche:

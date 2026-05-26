@@ -11,28 +11,33 @@ from pointage.utils import get_client_ip, get_user_agent
 from pointage.report_sync import sync_site_finance_from_daily_reports
 
 
+def _resolve_employee_portal_profile(request):
+    profile = getattr(request.user, "userprofile", None)
+    if not profile or not profile.is_employe():
+        messages.error(request, "Accès refusé. Ce portail est réservé aux employés lavage.")
+        return None
+    if not profile.site:
+        messages.error(
+            request,
+            "Erreur: Aucun site n'est assigné à votre compte. Veuillez contacter votre manager ou l'administrateur pour assigner un site.",
+        )
+        return None
+    return profile
+
+
 @login_required
 def ajouter_lavage(request):
     """
     Ajouter un nouveau lavage
     """
+    profile = _resolve_employee_portal_profile(request)
+    if not profile:
+        return redirect("dashboard")
+
     if request.method == 'POST':
         try:
             user = request.user
-            
-            # Vérifier que l'utilisateur a un profil et un site assigné
-            if not hasattr(user, 'userprofile'):
-                messages.error(request, 'Erreur: Votre profil utilisateur n\'existe pas. Veuillez contacter l\'administrateur.')
-                return render(request, 'employe/ajouter_lavage.html', {
-                    'types_service': CarWash.TYPE_SERVICE_CHOICES
-                })
-            
-            site = user.userprofile.site
-            if not site:
-                messages.error(request, 'Erreur: Aucun site n\'est assigné à votre compte. Veuillez contacter votre manager ou l\'administrateur pour assigner un site.')
-                return render(request, 'employe/ajouter_lavage.html', {
-                    'types_service': CarWash.TYPE_SERVICE_CHOICES
-                })
+            site = profile.site
             
             # Récupérer les données du formulaire
             type_service = request.POST.get('type_service')
@@ -158,6 +163,9 @@ def mes_lavages(request):
     """
     Liste des lavages de l'employé
     """
+    profile = _resolve_employee_portal_profile(request)
+    if not profile:
+        return redirect("dashboard")
     user = request.user
     lavages = user.lavages.all().order_by('-created_at').prefetch_related('photos')
     
@@ -176,6 +184,9 @@ def detail_lavage(request, lavage_id):
     """
     Détail d'un lavage (avec photos)
     """
+    profile = _resolve_employee_portal_profile(request)
+    if not profile:
+        return redirect("dashboard")
     lavage = get_object_or_404(CarWash, id=lavage_id, employe=request.user)
     
     context = {

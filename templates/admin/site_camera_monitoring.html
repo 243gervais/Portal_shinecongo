@@ -650,6 +650,71 @@
             {% endfor %}
         </div>
     </section>
+
+    <section class="camera-card">
+        <div class="camera-card-head">
+            <div>
+                <h2 class="camera-title">Rapports contrôleurs caméra</h2>
+                <p class="camera-subtitle">Suivez les rapports finaux envoyés depuis le portail dédié contrôle caméra, avec le nombre de véhicules observés et les captures jointes.</p>
+            </div>
+            <div class="camera-pill-row">
+                <span class="camera-badge">Rapports: {{ operator_reports_count }}</span>
+                <span class="camera-badge">Véhicules: {{ operator_total_vehicles }}</span>
+                <span class="camera-badge">Captures: {{ operator_total_screenshots }}</span>
+                <span class="camera-badge">Preuves horaires: {{ operator_total_time_proofs }}</span>
+            </div>
+        </div>
+        {% if selected_operator_reports %}
+        <div class="camera-callout">
+            {{ selected_operator_reports|length }} rapport{{ selected_operator_reports|length|pluralize }} final{{ selected_operator_reports|length|pluralize }}
+            déjà soumis pour le {{ selected_date|date:"d/m/Y" }} depuis le portail contrôle caméra.
+        </div>
+        {% endif %}
+        <div class="camera-report-list">
+            {% for report in operator_reports %}
+            <article class="camera-report-item">
+                <div class="camera-report-meta">
+                    <div>
+                        <div class="camera-report-date">{{ report.date|date:"l d/m/Y"|capfirst }}</div>
+                        <div class="camera-muted">Soumis par {{ report.controller.get_full_name|default:report.controller.username }}</div>
+                    </div>
+                    <div class="camera-pill-row" style="margin-top:0;">
+                        <span class="camera-badge">{{ report.cars_count }} voiture{{ report.cars_count|pluralize }}</span>
+                        <span class="camera-badge">{{ report.motos_count }} moto{{ report.motos_count|pluralize }} 2 roues</span>
+                        <span class="camera-badge">{{ report.three_wheelers_count }} moto{{ report.three_wheelers_count|pluralize }} 3 roues</span>
+                    </div>
+                </div>
+                <div class="camera-mini-grid">
+                    <div class="camera-mini-card">
+                        <div class="camera-kpi-label">Total véhicules</div>
+                        <div class="camera-mini-value">{{ report.total_vehicles }}</div>
+                    </div>
+                    <div class="camera-mini-card">
+                        <div class="camera-kpi-label">Captures</div>
+                        <div class="camera-mini-value">{{ report.screenshots_count }}</div>
+                    </div>
+                    <div class="camera-mini-card">
+                        <div class="camera-kpi-label">Preuves horaires</div>
+                        <div class="camera-mini-value">{{ report.time_proof_count }}</div>
+                    </div>
+                    <div class="camera-mini-card">
+                        <div class="camera-kpi-label">Recette attendue</div>
+                        <div class="camera-mini-value">{{ report.expected_revenue|fc_amount }} FC</div>
+                    </div>
+                </div>
+                {% if report.notes %}
+                <div class="camera-muted">{{ report.notes|truncatechars:180 }}</div>
+                {% endif %}
+                <div class="camera-report-actions">
+                    <a href="{% url 'admin_camera_operator_report_detail' site.id report.id %}" class="btn btn-primary">Voir le détail</a>
+                    <a href="{% url 'admin_site_camera_monitoring' site.id %}?date={{ report.date|date:'Y-m-d' }}" class="btn btn-secondary">Ouvrir la date</a>
+                </div>
+            </article>
+            {% empty %}
+            <div class="camera-empty">Aucun rapport final n'a encore été soumis par un contrôleur caméra pour {{ selected_month_label }}.</div>
+            {% endfor %}
+        </div>
+    </section>
 </div>
 {% endblock %}
 

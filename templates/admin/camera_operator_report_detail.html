@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+{% load currency_tags %}
+
+{% block title %}Rapport contrôleur caméra - {{ site.nom }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .camera-admin-shell {
+        display: grid;
+        gap: 1.25rem;
+    }
+
+    .camera-admin-hero,
+    .camera-admin-card,
+    .camera-admin-observation {
+        padding: 1.2rem;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.98);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        box-shadow: 0 18px 44px rgba(11, 31, 53, 0.08);
+    }
+
+    .camera-admin-hero {
+        position: relative;
+        overflow: hidden;
+        color: #f8fbff;
+        background:
+            radial-gradient(circle at top left, rgba(255, 193, 7, 0.2), transparent 28%),
+            radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.22), transparent 22%),
+            linear-gradient(135deg, #081522 0%, #10304d 46%, #1a5a7c 100%);
+        box-shadow: 0 26px 72px rgba(8, 21, 34, 0.24);
+    }
+
+    .camera-admin-hero::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+            linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+        background-size: 24px 24px;
+        mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.36), transparent 86%);
+        pointer-events: none;
+    }
+
+    .camera-admin-hero > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .camera-admin-top,
+    .camera-admin-actions,
+    .camera-admin-card-head,
+    .camera-admin-observation-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .camera-admin-kicker,
+    .camera-admin-chip,
+    .camera-admin-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        border-radius: 999px;
+        font-weight: 700;
+    }
+
+    .camera-admin-kicker,
+    .camera-admin-chip {
+        padding: 0.42rem 0.82rem;
+        background: rgba(255, 255, 255, 0.12);
+        color: rgba(248, 251, 255, 0.94);
+        font-size: 0.82rem;
+    }
+
+    .camera-admin-badge {
+        padding: 0.32rem 0.68rem;
+        background: rgba(10, 67, 107, 0.08);
+        color: var(--primary-dark);
+        font-size: 0.8rem;
+    }
+
+    .camera-admin-hero h1,
+    .camera-admin-title,
+    .camera-admin-value,
+    .camera-admin-observation-title {
+        color: var(--primary-dark);
+        font-weight: 800;
+    }
+
+    .camera-admin-hero h1 {
+        color: #fff;
+        margin: 0.85rem 0 0.35rem;
+        font-size: clamp(2rem, 3vw, 2.8rem);
+    }
+
+    .camera-admin-hero p {
+        margin: 0;
+        color: rgba(248, 251, 255, 0.82);
+        max-width: 58rem;
+        line-height: 1.6;
+    }
+
+    .camera-admin-chip-row,
+    .camera-admin-pill-row,
+    .camera-admin-actions {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+
+    .camera-admin-title {
+        margin: 0;
+        font-size: 1.12rem;
+    }
+
+    .camera-admin-label,
+    .camera-admin-copy,
+    .camera-admin-muted {
+        color: var(--text-secondary);
+        font-size: 0.84rem;
+    }
+
+    .camera-admin-grid,
+    .camera-admin-summary-grid,
+    .camera-admin-evidence-grid,
+    .camera-admin-observation-list {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .camera-admin-summary-grid {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+
+    .camera-admin-value {
+        margin-top: 0.35rem;
+        font-size: 1.62rem;
+    }
+
+    .camera-admin-observation-list {
+        gap: 0.9rem;
+    }
+
+    .camera-admin-observation {
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .camera-admin-evidence-grid {
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    }
+
+    .camera-admin-evidence-card {
+        display: grid;
+        gap: 0.45rem;
+        padding: 0.75rem;
+        border-radius: 18px;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        background: rgba(255, 255, 255, 0.88);
+    }
+
+    .camera-admin-evidence-card img {
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        object-fit: cover;
+        border-radius: 14px;
+        background: rgba(7, 26, 44, 0.05);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="camera-admin-shell">
+    <section class="camera-admin-hero">
+        <div class="camera-admin-top">
+            <div>
+                <span class="camera-admin-kicker">Camera Controller Report</span>
+                <h1>Rapport du {{ report.date|date:"d/m/Y" }}</h1>
+                <p>Rapport final transmis depuis le portail contrôle caméra pour <strong>{{ site.nom }}</strong>.</p>
+                <div class="camera-admin-chip-row">
+                    <span class="camera-admin-chip">Contrôleur: {{ report.controller.get_full_name|default:report.controller.username }}</span>
+                    <span class="camera-admin-chip">Soumis le: {{ report.submitted_at|date:"d/m/Y H:i"|default:"-" }}</span>
+                </div>
+            </div>
+            <div class="camera-admin-actions">
+                <a href="{% url 'admin_site_camera_monitoring' site.id %}?date={{ report.date|date:'Y-m-d' }}" class="btn btn-secondary">Retour au hub caméras</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="camera-admin-card">
+        <div class="camera-admin-card-head">
+            <div>
+                <h2 class="camera-admin-title">Synthèse du rapport</h2>
+                <p class="camera-admin-copy">Les totaux sont calculés automatiquement depuis les observations du contrôleur.</p>
+            </div>
+        </div>
+        <div class="camera-admin-summary-grid">
+            <div>
+                <div class="camera-admin-label">Voitures</div>
+                <div class="camera-admin-value">{{ report.cars_count }}</div>
+            </div>
+            <div>
+                <div class="camera-admin-label">Motos 2 roues</div>
+                <div class="camera-admin-value">{{ report.motos_count }}</div>
+            </div>
+            <div>
+                <div class="camera-admin-label">Motos 3 roues</div>
+                <div class="camera-admin-value">{{ report.three_wheelers_count }}</div>
+            </div>
+            <div>
+                <div class="camera-admin-label">Total véhicules</div>
+                <div class="camera-admin-value">{{ report.total_vehicles }}</div>
+            </div>
+            <div>
+                <div class="camera-admin-label">Captures</div>
+                <div class="camera-admin-value">{{ report.screenshots_count }}</div>
+            </div>
+            <div>
+                <div class="camera-admin-label">Preuves horaires</div>
+                <div class="camera-admin-value">{{ report.time_proof_count }}</div>
+            </div>
+            <div>
+                <div class="camera-admin-label">Recette attendue</div>
+                <div class="camera-admin-value">{{ report.expected_revenue|fc_amount }} FC</div>
+            </div>
+        </div>
+        {% if report.notes %}
+        <div class="camera-admin-copy">{{ report.notes }}</div>
+        {% endif %}
+    </section>
+
+    <section class="camera-admin-card">
+        <div class="camera-admin-card-head">
+            <div>
+                <h2 class="camera-admin-title">Observations détaillées</h2>
+                <p class="camera-admin-copy">Chaque observation contient le véhicule repéré, la caméra utilisée et toutes les pièces jointes associées.</p>
+            </div>
+            <span class="camera-admin-badge">{{ observations|length }} observation{{ observations|length|pluralize }}</span>
+        </div>
+        <div class="camera-admin-observation-list">
+            {% for observation in observations %}
+            <article class="camera-admin-observation">
+                <div class="camera-admin-observation-top">
+                    <div>
+                        <div class="camera-admin-observation-title">{{ observation.get_vehicle_type_display }} · Caméra {{ observation.camera.camera_number }}</div>
+                        <div class="camera-admin-muted">
+                            {{ observation.camera.name }}
+                            {% if observation.observed_time %}
+                            • heure vue {{ observation.observed_time|time:"H:i" }}
+                            {% endif %}
+                            • créée le {{ observation.created_at|date:"d/m/Y H:i" }}
+                        </div>
+                    </div>
+                    <div class="camera-admin-pill-row" style="margin-top:0;">
+                        <span class="camera-admin-badge">{{ observation.screenshot_count }} capture{{ observation.screenshot_count|pluralize }}</span>
+                        <span class="camera-admin-badge">{{ observation.time_proof_count }} preuve{{ observation.time_proof_count|pluralize }} horaire{{ observation.time_proof_count|pluralize }}</span>
+                    </div>
+                </div>
+                {% if observation.notes %}
+                <div class="camera-admin-copy">{{ observation.notes }}</div>
+                {% endif %}
+                <div class="camera-admin-evidence-grid">
+                    {% for evidence in observation.evidences.all %}
+                    <div class="camera-admin-evidence-card">
+                        <img src="{{ evidence.file.url }}" alt="{{ evidence.get_evidence_kind_display }}">
+                        <div class="camera-admin-label">{{ evidence.get_evidence_kind_display }}</div>
+                        <div class="camera-admin-muted">{{ evidence.filename }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </article>
+            {% empty %}
+            <div class="camera-admin-copy">Aucune observation n'est liée à ce rapport.</div>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+{% endblock %}

@@ -462,17 +462,18 @@
                 <span class="people-eyebrow">Site workforce</span>
                 <h1>Gestion des employés</h1>
                 <p class="people-hero-copy">
-                    Hub RH et opérationnel de <strong>{{ site.nom }}</strong>. Cette page centralise les employés du site,
-                    leurs salaires, leur productivité, leurs paiements et l'accès direct aux portails individuels.
+                    Hub RH et opérationnel de <strong>{{ site.nom }}</strong>. Cette page centralise les employés lavage,
+                    les contrôleurs caméra, leurs salaires, leurs paiements et l'accès direct au portail adapté à chaque rôle.
                 </p>
                 <div class="people-chips">
                     <span class="people-chip">Site <strong>{{ site.nom }}</strong></span>
                     <span class="people-chip">Actifs <strong>{{ active_employee_count }}</strong></span>
+                    <span class="people-chip">Contrôle caméra <strong>{{ camera_controller_count }}</strong></span>
                     <span class="people-chip">Salaires définis <strong>{{ salary_defined_count }}</strong></span>
                 </div>
             </div>
             <div class="people-hero-actions">
-                <a href="{% url 'admin_add_site_employee' site.id %}" class="btn btn-info">👤 Ajouter un employé</a>
+                <a href="{% url 'admin_add_site_employee' site.id %}" class="btn btn-info">👤 Ajouter un membre</a>
                 <a href="{% url 'admin_site_documents' site.id %}" class="btn btn-success">📁 Documents du site</a>
                 <a href="{% url 'admin_site_detail' site.id %}" class="btn btn-primary">← Retour au site</a>
             </div>
@@ -483,7 +484,7 @@
         <article class="people-kpi">
             <div class="people-kpi-label">Équipe du site</div>
             <div class="people-kpi-value">{{ site_employees|length }}</div>
-            <div class="people-kpi-copy">{{ active_employee_count }} actifs • {{ inactive_employee_count }} inactifs</div>
+            <div class="people-kpi-copy">{{ wash_employee_count }} lavage • {{ camera_controller_count }} caméra • {{ inactive_employee_count }} inactifs</div>
         </article>
         <article class="people-kpi">
             <div class="people-kpi-label">Productivité du mois</div>
@@ -522,11 +523,11 @@
             <div class="people-card-head">
                 <div>
                     <h2 class="people-card-title">Vue équipe</h2>
-                    <p class="people-card-copy">Chaque carte expose les données RH et la production utile pour gérer le site sans ouvrir les documents.</p>
+                    <p class="people-card-copy">Chaque carte expose les données RH et les indicateurs utiles selon le rôle: production lavage ou contrôle caméra.</p>
                 </div>
                 <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
                     <span class="people-card-badge">Cash flow total équipe: {{ team_total_cash_flow|fc_amount }} FC</span>
-                    <a href="{% url 'admin_add_site_employee' site.id %}" class="btn btn-info">+ Nouvel employé</a>
+                    <a href="{% url 'admin_add_site_employee' site.id %}" class="btn btn-info">+ Nouveau membre</a>
                 </div>
             </div>
 
@@ -540,13 +541,17 @@
                             <div>
                                 <h3 class="people-employee-name">{{ row.profile.user.get_full_name|default:row.profile.user.username }}</h3>
                                 <div class="people-employee-meta">@{{ row.profile.user.username }} • {{ row.profile.telephone|default:"Sans téléphone" }}</div>
+                                <div class="people-payment-copy">{{ row.role_label }}</div>
                             </div>
                         </div>
-                        {% if row.profile.actif and row.profile.user.is_active %}
-                        <span class="people-status people-status--active">Actif</span>
-                        {% else %}
-                        <span class="people-status people-status--inactive">Inactif</span>
-                        {% endif %}
+                        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:flex-end;">
+                            <span class="people-card-badge">{{ row.role_label }}</span>
+                            {% if row.profile.actif and row.profile.user.is_active %}
+                            <span class="people-status people-status--active">Actif</span>
+                            {% else %}
+                            <span class="people-status people-status--inactive">Inactif</span>
+                            {% endif %}
+                        </div>
                     </div>
 
                     <div class="people-employee-details">
@@ -582,9 +587,15 @@
                             {% endif %}
                         </div>
                         <div class="people-detail-box">
+                            {% if row.profile.is_camera_controller %}
+                            <div class="people-stat-label">Contrôles du mois</div>
+                            <div class="people-detail-value">{{ row.month_camera_vehicles }}</div>
+                            <div class="people-payment-copy">{{ row.month_camera_reports }} rapport{{ row.month_camera_reports|pluralize }} soumis</div>
+                            {% else %}
                             <div class="people-stat-label">Productivité du mois</div>
                             <div class="people-detail-value">{{ row.month_fc|fc_amount }} FC</div>
                             <div class="people-payment-copy">{{ row.month_lavages }} lavage{{ row.month_lavages|pluralize }}</div>
+                            {% endif %}
                         </div>
                         <div class="people-detail-box">
                             <div class="people-stat-label">Paiements cumulés</div>
@@ -595,12 +606,22 @@
 
                     <div class="people-employee-metrics">
                         <div class="people-metric">
+                            {% if row.profile.is_camera_controller %}
+                            <div class="people-stat-label">Rapports caméra</div>
+                            <div class="people-metric-value">{{ row.month_camera_reports }} ce mois • {{ row.total_camera_reports }} total</div>
+                            {% else %}
                             <div class="people-stat-label">Rapports</div>
                             <div class="people-metric-value">{{ row.month_reports }} ce mois • {{ row.total_reports }} total</div>
+                            {% endif %}
                         </div>
                         <div class="people-metric">
+                            {% if row.profile.is_camera_controller %}
+                            <div class="people-stat-label">Captures & preuves</div>
+                            <div class="people-metric-value">{{ row.total_camera_screenshots }} capture{{ row.total_camera_screenshots|pluralize }} • {{ row.total_camera_vehicles }} véhicule{{ row.total_camera_vehicles|pluralize }}</div>
+                            {% else %}
                             <div class="people-stat-label">Problèmes</div>
                             <div class="people-metric-value">{{ row.open_issues }} ouvert{{ row.open_issues|pluralize }} • {{ row.total_issues }} total</div>
+                            {% endif %}
                         </div>
                         <div class="people-metric">
                             <div class="people-stat-label">Dernière activité</div>
@@ -619,9 +640,9 @@
             </div>
             {% else %}
             <div class="people-empty">
-                Aucun employé n'est encore rattaché à ce site.
+                Aucun membre n'est encore rattaché à ce site.
                 <div style="margin-top: 0.9rem;">
-                    <a href="{% url 'admin_add_site_employee' site.id %}" class="btn btn-info">Ajouter le premier employé</a>
+                    <a href="{% url 'admin_add_site_employee' site.id %}" class="btn btn-info">Ajouter le premier membre</a>
                 </div>
             </div>
             {% endif %}
@@ -643,10 +664,10 @@
                 <div class="form-group">
                     <label for="employee">Filtrer par employé</label>
                     <select id="employee" name="employee" class="form-control">
-                        <option value="">Tous les employés</option>
+                        <option value="">Tous les membres</option>
                         {% for profile in site_employees %}
                         <option value="{{ profile.id }}" {% if selected_employee == profile.id|stringformat:"s" %}selected{% endif %}>
-                            {{ profile.user.get_full_name|default:profile.user.username }}
+                            {{ profile.user.get_full_name|default:profile.user.username }} · {{ profile.get_role_display }}
                         </option>
                         {% endfor %}
                     </select>

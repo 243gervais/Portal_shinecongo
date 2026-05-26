@@ -48,7 +48,7 @@ def _build_admin_site_navigation(request):
     today = timezone.localdate()
 
     employee_profiles = (
-        UserProfile.objects.filter(site__in=sites, role="EMPLOYE", actif=True)
+        UserProfile.objects.filter(site__in=sites, role__in=UserProfile.SITE_STAFF_ROLES, actif=True)
         .select_related("site", "user")
         .order_by("site__nom", "user__first_name", "user__last_name", "user__username")
     )
@@ -93,8 +93,8 @@ def _build_admin_site_navigation(request):
         build_search_item(
             "Mots de passe",
             reverse("admin_password_management"),
-            description="Changer les mots de passe des comptes admin, managers et employés",
-            keywords="mot de passe password comptes admin manager employe site",
+            description="Changer les mots de passe des comptes admin, managers, employés et contrôleurs caméra",
+            keywords="mot de passe password comptes admin manager employe camera controleur site",
         ),
         build_search_item(
             "Convertisseur USD/FC",
@@ -144,8 +144,8 @@ def _build_admin_site_navigation(request):
             {
                 "label": "Gestion des employés",
                 "url": reverse("admin_site_employees", kwargs={"site_id": site.id}),
-                "description": "Salaires, paiements et productivité",
-                "keywords": "employes equipe salaire productivite paiements mpesa rh",
+                "description": "Équipe site, salaires, paiements et rôles",
+                "keywords": "employes equipe camera controle salaire productivite paiements mpesa rh",
             },
             {
                 "label": "Caméras & comptage",
@@ -214,10 +214,10 @@ def _build_admin_site_navigation(request):
                 "keywords": "photos lavage galerie images",
             },
             {
-                "label": "Ajouter employé",
+                "label": "Ajouter membre",
                 "url": reverse("admin_add_site_employee", kwargs={"site_id": site.id}),
-                "description": "Créer un employé pour le site",
-                "keywords": "employe ajouter salaire mpesa",
+                "description": "Créer un employé lavage ou un contrôleur caméra",
+                "keywords": "employe camera controleur ajouter salaire mpesa",
             },
         ]
 
@@ -230,17 +230,17 @@ def _build_admin_site_navigation(request):
             )
             employee_links.append(
                 {
-                    "label": employee_name,
+                    "label": f"{employee_name} · {profile.get_role_display()}",
                     "url": employee_url,
                 }
             )
             search_items.append(
                 build_search_item(
-                    f"Employé {employee_name}",
+                    f"Équipe {employee_name}",
                     employee_url,
                     site_name=site.nom,
-                    description="Portail employé",
-                    keywords=f"employe salaire paiement mpesa fiche {employee_name}",
+                    description=f"Portail {profile.get_role_display().lower()}",
+                    keywords=f"employe camera salaire paiement mpesa fiche {employee_name}",
                 )
             )
 

@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+{% load currency_tags %}
+
+{% block title %}Portail contrôle caméra - {{ site.nom }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .camera-portal-shell {
+        display: grid;
+        gap: 1.25rem;
+    }
+
+    .camera-portal-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 30px;
+        padding: 1.9rem;
+        color: #f8fbff;
+        background:
+            radial-gradient(circle at top left, rgba(255, 202, 58, 0.24), transparent 26%),
+            radial-gradient(circle at bottom right, rgba(56, 189, 248, 0.22), transparent 24%),
+            linear-gradient(135deg, #081622 0%, #10304d 46%, #1b5a86 100%);
+        box-shadow: 0 26px 72px rgba(8, 22, 34, 0.24);
+    }
+
+    .camera-portal-hero::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+            linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+        background-size: 26px 26px;
+        mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.36), transparent 86%);
+        pointer-events: none;
+    }
+
+    .camera-portal-hero > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .camera-portal-hero-top,
+    .camera-portal-actions,
+    .camera-portal-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .camera-portal-kicker,
+    .camera-portal-chip,
+    .camera-portal-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        border-radius: 999px;
+        font-weight: 700;
+    }
+
+    .camera-portal-kicker,
+    .camera-portal-chip {
+        padding: 0.42rem 0.82rem;
+        background: rgba(255, 255, 255, 0.12);
+        color: rgba(248, 251, 255, 0.94);
+        font-size: 0.82rem;
+    }
+
+    .camera-portal-hero h1 {
+        margin: 0.85rem 0 0.35rem;
+        font-size: clamp(2rem, 3.1vw, 2.9rem);
+        color: #fff;
+        line-height: 1.04;
+    }
+
+    .camera-portal-hero p {
+        margin: 0;
+        max-width: 56rem;
+        color: rgba(248, 251, 255, 0.82);
+        line-height: 1.6;
+    }
+
+    .camera-portal-chip-row,
+    .camera-portal-actions,
+    .camera-portal-pill-row {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+
+    .camera-portal-kpis,
+    .camera-portal-grid,
+    .camera-portal-mini-grid {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .camera-portal-kpis,
+    .camera-portal-mini-grid {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+
+    .camera-portal-grid {
+        grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+    }
+
+    .camera-portal-card,
+    .camera-portal-kpi,
+    .camera-portal-report {
+        padding: 1.15rem;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.98);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        box-shadow: 0 18px 44px rgba(11, 31, 53, 0.08);
+    }
+
+    .camera-portal-card {
+        display: grid;
+        gap: 0.95rem;
+    }
+
+    .camera-portal-title,
+    .camera-portal-value,
+    .camera-portal-report-date {
+        color: var(--primary-dark);
+        font-weight: 800;
+    }
+
+    .camera-portal-title {
+        margin: 0;
+        font-size: 1.12rem;
+    }
+
+    .camera-portal-label,
+    .camera-portal-copy,
+    .camera-portal-muted {
+        color: var(--text-secondary);
+        font-size: 0.84rem;
+    }
+
+    .camera-portal-value {
+        margin-top: 0.35rem;
+        font-size: 1.68rem;
+    }
+
+    .camera-portal-badge {
+        padding: 0.32rem 0.68rem;
+        background: rgba(10, 67, 107, 0.08);
+        color: var(--primary-dark);
+        font-size: 0.8rem;
+    }
+
+    .camera-portal-mini-card {
+        padding: 0.9rem;
+        border-radius: 16px;
+        background: rgba(7, 26, 44, 0.03);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .camera-portal-report-list {
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .camera-portal-report {
+        display: grid;
+        gap: 0.8rem;
+    }
+
+    .camera-portal-empty {
+        padding: 1rem;
+        border-radius: 18px;
+        background: rgba(10, 67, 107, 0.04);
+        border: 1px dashed rgba(10, 67, 107, 0.16);
+        color: var(--text-secondary);
+    }
+
+    @media (max-width: 960px) {
+        .camera-portal-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .camera-portal-hero,
+        .camera-portal-card,
+        .camera-portal-kpi,
+        .camera-portal-report {
+            padding: 1rem;
+            border-radius: 22px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="camera-portal-shell">
+    <section class="camera-portal-hero">
+        <div class="camera-portal-hero-top">
+            <div>
+                <span class="camera-portal-kicker">Camera Control</span>
+                <h1>Portail contrôle caméra</h1>
+                <p>Enregistrez chaque véhicule vu au lavage avec une ou plusieurs captures, ajoutez une preuve d'heure si nécessaire, puis soumettez le rapport final de la journée sans passer par le portail employé lavage.</p>
+                <div class="camera-portal-chip-row">
+                    <span class="camera-portal-chip">Site: {{ site.nom }}</span>
+                    <span class="camera-portal-chip">Date du jour: {{ today|date:"d/m/Y" }}</span>
+                    <span class="camera-portal-chip">Rapports récents: {{ month_reports_count }}</span>
+                </div>
+            </div>
+            <div class="camera-portal-actions">
+                <a href="{% url 'camera_daily_report' %}" class="btn btn-primary">Ouvrir le rapport du jour</a>
+            </div>
+        </div>
+
+        <div class="camera-portal-kpis">
+            <article class="camera-portal-kpi">
+                <div class="camera-portal-label">Rapport du jour</div>
+                <div class="camera-portal-value">{% if today_report %}{{ today_report.total_vehicles }}{% else %}0{% endif %}</div>
+                <div class="camera-portal-muted">
+                    {% if today_report and today_report.is_submitted %}
+                    Déjà soumis à {{ today_report.submitted_at|date:"H:i" }}
+                    {% elif today_report %}
+                    Brouillon en cours
+                    {% else %}
+                    Aucun brouillon pour aujourd'hui
+                    {% endif %}
+                </div>
+            </article>
+            <article class="camera-portal-kpi">
+                <div class="camera-portal-label">Observations du jour</div>
+                <div class="camera-portal-value">{{ today_observations_count }}</div>
+                <div class="camera-portal-muted">Chaque observation correspond à un véhicule repéré.</div>
+            </article>
+            <article class="camera-portal-kpi">
+                <div class="camera-portal-label">Captures du jour</div>
+                <div class="camera-portal-value">{{ today_screenshots_count }}</div>
+                <div class="camera-portal-muted">Une observation peut contenir plusieurs captures.</div>
+            </article>
+            <article class="camera-portal-kpi">
+                <div class="camera-portal-label">Véhicules du mois</div>
+                <div class="camera-portal-value">{{ month_vehicles_count }}</div>
+                <div class="camera-portal-muted">Sur les rapports déjà finalisés.</div>
+            </article>
+            <article class="camera-portal-kpi">
+                <div class="camera-portal-label">Captures du mois</div>
+                <div class="camera-portal-value">{{ month_screenshots_count }}</div>
+                <div class="camera-portal-muted">Archive visuelle envoyée à l'admin.</div>
+            </article>
+        </div>
+    </section>
+
+    <div class="camera-portal-grid">
+        <section class="camera-portal-card">
+            <div class="camera-portal-head">
+                <div>
+                    <h2 class="camera-portal-title">Point de départ</h2>
+                    <p class="camera-portal-copy">Commencez par le rapport du jour, ajoutez une observation par véhicule, puis soumettez le résumé final en fin de journée.</p>
+                </div>
+                <span class="camera-portal-badge">Workflow dédié</span>
+            </div>
+            <div class="camera-portal-mini-grid">
+                <div class="camera-portal-mini-card">
+                    <div class="camera-portal-label">1. Ajouter les véhicules</div>
+                    <div class="camera-portal-copy">Choisissez la caméra, le type de véhicule et joignez au moins une capture.</div>
+                </div>
+                <div class="camera-portal-mini-card">
+                    <div class="camera-portal-label">2. Ajouter la preuve horaire</div>
+                    <div class="camera-portal-copy">Optionnel, si vous avez une capture montrant l'heure ou l'horodatage.</div>
+                </div>
+                <div class="camera-portal-mini-card">
+                    <div class="camera-portal-label">3. Soumettre le rapport final</div>
+                    <div class="camera-portal-copy">Le total de fin de journée est calculé automatiquement depuis vos observations.</div>
+                </div>
+            </div>
+            <div>
+                <a href="{% url 'camera_daily_report' %}" class="btn btn-primary">Aller au rapport du jour</a>
+            </div>
+        </section>
+
+        <section class="camera-portal-card">
+            <div class="camera-portal-head">
+                <div>
+                    <h2 class="camera-portal-title">Historique récent</h2>
+                    <p class="camera-portal-copy">Derniers rapports finaux déjà envoyés à l'administration.</p>
+                </div>
+                <span class="camera-portal-badge">{{ recent_reports|length }} rapport{{ recent_reports|length|pluralize }}</span>
+            </div>
+            <div class="camera-portal-report-list">
+                {% for report in recent_reports %}
+                <article class="camera-portal-report">
+                    <div class="camera-portal-report-date">{{ report.date|date:"l d/m/Y"|capfirst }}</div>
+                    <div class="camera-portal-pill-row">
+                        <span class="camera-portal-badge">{{ report.total_vehicles }} véhicule{{ report.total_vehicles|pluralize }}</span>
+                        <span class="camera-portal-badge">{{ report.screenshots_count }} capture{{ report.screenshots_count|pluralize }}</span>
+                        <span class="camera-portal-badge">{{ report.expected_revenue|fc_amount }} FC</span>
+                    </div>
+                    {% if report.notes %}
+                    <div class="camera-portal-muted">{{ report.notes|truncatechars:160 }}</div>
+                    {% endif %}
+                </article>
+                {% empty %}
+                <div class="camera-portal-empty">Aucun rapport final n'a encore été soumis depuis ce portail.</div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

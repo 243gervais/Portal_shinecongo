@@ -488,6 +488,21 @@ def camera_evidence_path(instance, filename):
     return f"sites/{site_id}/camera-evidence/{report_date}/{camera_segment}/{title_slug}{safe_ext}"
 
 
+def camera_observation_evidence_path(instance, filename):
+    """Chemin de sauvegarde des captures fournies par les contrôleurs caméra."""
+    report = instance.observation.report
+    site_id = str(report.site_id)
+    report_date = report.date.strftime("%Y-%m-%d")
+    ext = os.path.splitext(filename)[1].lower()
+    safe_ext = ext or ".jpg"
+    observation_segment = f"observation-{instance.observation_id or 'new'}"
+    evidence_segment = instance.evidence_kind.lower()
+    return (
+        f"sites/{site_id}/camera-operator-evidence/{report_date}/"
+        f"{observation_segment}/{evidence_segment}{safe_ext}"
+    )
+
+
 class SiteDocument(models.Model):
     """
     Documents et fichiers liés à un site
@@ -794,3 +809,205 @@ class VideoEvidence(models.Model):
             if resolved_url and self.s3_url != resolved_url:
                 type(self).objects.filter(pk=self.pk).update(s3_url=resolved_url)
                 self.s3_url = resolved_url
+
+
+class CameraOperatorDailyReport(models.Model):
+    CAR_PRICE_FC = DailyCameraReport.CAR_PRICE_FC
+    MOTO_PRICE_FC = DailyCameraReport.MOTO_PRICE_FC
+    THREE_WHEELER_PRICE_FC = DailyCameraReport.THREE_WHEELER_PRICE_FC
+
+    site = models.ForeignKey(
+        Location,
+        on_delete=models.CASCADE,
+        related_name="camera_operator_reports",
+        verbose_name="Site",
+    )
+    controller = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="camera_operator_reports",
+        verbose_name="Contrôleur caméra",
+    )
+    date = models.DateField(verbose_name="Date")
+    cars_count = models.PositiveIntegerField(default=0, verbose_name="Voitures")
+    motos_count = models.PositiveIntegerField(default=0, verbose_name="Motos 2 roues")
+    three_wheelers_count = models.PositiveIntegerField(default=0, verbose_name="Motos 3 roues")
+    total_vehicles = models.PositiveIntegerField(default=0, verbose_name="Total véhicules")
+    screenshots_count = models.PositiveIntegerField(default=0, verbose_name="Captures véhicule")
+    time_proof_count = models.PositiveIntegerField(default=0, verbose_name="Preuves horaires")
+    expected_revenue = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0"),
+        verbose_name="Recette attendue (FC)",
+    )
+    notes = models.TextField(blank=True, verbose_name="Notes de fin de journée")
+    is_submitted = models.BooleanField(default=False, verbose_name="Rapport final soumis")
+    submitted_at = models.DateTimeField(null=True, blank=True, verbose_name="Soumis le")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")
+
+    class Meta:
+        verbose_name = "Rapport contrôleur caméra"
+        verbose_name_plural = "Rapports contrôleurs caméra"
+        ordering = ["-date", "-updated_at"]
+        unique_together = [["site", "controller", "date"]]
+        indexes = [
+            models.Index(fields=["site", "date"]),
+            models.Index(fields=["controller", "date"]),
+            models.Index(fields=["site", "is_submitted"]),
+        ]
+
+    def __str__(self):
+        controller_name = self.controller.get_full_name() or self.controller.username
+        return f"{self.site.nom} - {controller_name} - {self.date:%d/%m/%Y}"
+
+    def sync_observation_totals(self, save=True):
+        observations = list(self.observations.all())
+        cars_count = sum(1 for item in observations if item.vehicle_type == CameraObservation.VEHICLE_CAR)
+        motos_count = sum(1 for item in observations if item.vehicle_type == CameraObservation.VEHICLE_MOTO)
+        three_wheelers_count = sum(
+            1 for item in observations if item.vehicle_type == CameraObservation.VEHICLE_THREE_WHEELER
+        )
+        screenshot_total = sum(item.screenshot_count for item in observations)
+        time_proof_total = sum(item.time_proof_count for item in observations)
+
+        self.cars_count = cars_count
+        self.motos_count = motos_count
+        self.three_wheelers_count = three_wheelers_count
+        self.total_vehicles = cars_count + motos_count + three_wheelers_count
+        self.screenshots_count = screenshot_total
+        self.time_proof_count = time_proof_total
+        self.expected_revenue = (
+            Decimal(cars_count) * self.CAR_PRICE_FC
+            + Decimal(motos_count) * self.MOTO_PRICE_FC
+            + Decimal(three_wheelers_count) * self.THREE_WHEELER_PRICE_FC
+        )
+
+        if save and self.pk:
+            self.save(
+                update_fields=[
+                    "cars_count",
+                    "motos_count",
+                    "three_wheelers_count",
+                    "total_vehicles",
+                    "screenshots_count",
+                    "time_proof_count",
+                    "expected_revenue",
+                    "updated_at",
+                ]
+            )
+
+
+class CameraObservation(models.Model):
+    VEHICLE_CAR = "CAR"
+    VEHICLE_MOTO = "MOTO"
+    VEHICLE_THREE_WHEELER = "THREE_WHEELER"
+    VEHICLE_TYPE_CHOICES = [
+        (VEHICLE_CAR, "Voiture"),
+        (VEHICLE_MOTO, "Moto 2 roues"),
+        (VEHICLE_THREE_WHEELER, "Moto 3 roues"),
+    ]
+
+    report = models.ForeignKey(
+        CameraOperatorDailyReport,
+        on_delete=models.CASCADE,
+        related_name="observations",
+        verbose_name="Rapport contrôleur caméra",
+    )
+    camera = models.ForeignKey(
+        Camera,
+        on_delete=models.CASCADE,
+        related_name="operator_observations",
+        verbose_name="Caméra",
+    )
+    vehicle_type = models.CharField(
+        max_length=20,
+        choices=VEHICLE_TYPE_CHOICES,
+        default=VEHICLE_CAR,
+        verbose_name="Type de véhicule",
+    )
+    observed_time = models.TimeField(null=True, blank=True, verbose_name="Heure observée")
+    notes = models.TextField(blank=True, verbose_name="Notes")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")
+
+    class Meta:
+        verbose_name = "Observation caméra"
+        verbose_name_plural = "Observations caméra"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["report", "vehicle_type"]),
+            models.Index(fields=["camera", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.report.site.nom} - {self.get_vehicle_type_display()} - {self.report.date:%d/%m/%Y}"
+
+    @property
+    def screenshot_count(self):
+        return self.evidences.filter(evidence_kind=CameraObservationEvidence.KIND_SCREENSHOT).count()
+
+    @property
+    def time_proof_count(self):
+        return self.evidences.filter(evidence_kind=CameraObservationEvidence.KIND_TIME_PROOF).count()
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.report.sync_observation_totals()
+
+    def delete(self, *args, **kwargs):
+        report = self.report
+        super().delete(*args, **kwargs)
+        report.sync_observation_totals()
+
+
+class CameraObservationEvidence(models.Model):
+    KIND_SCREENSHOT = "SCREENSHOT"
+    KIND_TIME_PROOF = "TIME_PROOF"
+    EVIDENCE_KIND_CHOICES = [
+        (KIND_SCREENSHOT, "Capture véhicule"),
+        (KIND_TIME_PROOF, "Preuve horaire"),
+    ]
+
+    observation = models.ForeignKey(
+        CameraObservation,
+        on_delete=models.CASCADE,
+        related_name="evidences",
+        verbose_name="Observation",
+    )
+    evidence_kind = models.CharField(
+        max_length=20,
+        choices=EVIDENCE_KIND_CHOICES,
+        default=KIND_SCREENSHOT,
+        verbose_name="Type de preuve",
+    )
+    file = models.ImageField(
+        upload_to=camera_observation_evidence_path,
+        max_length=255,
+        verbose_name="Capture",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
+
+    class Meta:
+        verbose_name = "Preuve observation caméra"
+        verbose_name_plural = "Preuves observation caméra"
+        ordering = ["created_at"]
+        indexes = [
+            models.Index(fields=["observation", "evidence_kind"]),
+        ]
+
+    def __str__(self):
+        return f"{self.observation} - {self.get_evidence_kind_display()}"
+
+    def filename(self):
+        return os.path.basename(self.file.name) if self.file else ""
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.observation.report.sync_observation_totals()
+
+    def delete(self, *args, **kwargs):
+        report = self.observation.report
+        super().delete(*args, **kwargs)
+        report.sync_observation_totals()

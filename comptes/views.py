@@ -38,6 +38,7 @@ from .forms import (
 from sites.models import (
     Camera,
     DailyCameraReport,
+    CameraOperatorDailyReport,
     Location,
     DailyBankDeposit,
     SiteDocument,
@@ -490,6 +491,8 @@ def dashboard(request):
         return redirect('admin_dashboard')
     elif profile and profile.is_manager():
         return redirect('manager_dashboard')
+    elif profile and profile.is_camera_controller():
+        return redirect('camera_dashboard')
     elif profile and profile.is_employe():
         return redirect('employe_dashboard')
     else:
@@ -1094,13 +1097,14 @@ def _build_admin_password_overview(current_user):
         .distinct()
     )
 
-    role_order = {"ADMIN": 0, "MANAGER": 1, "EMPLOYE": 2, "AUTRE": 3}
-    grouped_accounts = {"ADMIN": [], "MANAGER": [], "EMPLOYE": [], "AUTRE": []}
+    role_order = {"ADMIN": 0, "MANAGER": 1, "EMPLOYE": 2, "CONTROLE_CAMERA": 3, "AUTRE": 4}
+    grouped_accounts = {"ADMIN": [], "MANAGER": [], "EMPLOYE": [], "CONTROLE_CAMERA": [], "AUTRE": []}
     summary = {
         "total_accounts": 0,
         "admin_accounts": 0,
         "manager_accounts": 0,
         "employee_accounts": 0,
+        "camera_accounts": 0,
         "active_accounts": 0,
         "pending_accounts": 0,
     }
@@ -1117,6 +1121,9 @@ def _build_admin_password_overview(current_user):
         elif profile and profile.role == "EMPLOYE":
             role_code = "EMPLOYE"
             role_label = "Employé"
+        elif profile and profile.role == UserProfile.CAMERA_CONTROLLER_ROLE:
+            role_code = UserProfile.CAMERA_CONTROLLER_ROLE
+            role_label = "Contrôle caméra"
         else:
             role_code = "AUTRE"
             role_label = "Compte"
@@ -1154,6 +1161,9 @@ def _build_admin_password_overview(current_user):
             summary["manager_accounts"] += 1
         elif role_code == "EMPLOYE":
             summary["employee_accounts"] += 1
+        elif role_code == UserProfile.CAMERA_CONTROLLER_ROLE:
+            summary["camera_accounts"] += 1
+            summary["employee_accounts"] += 1
 
         if account["is_current_user"]:
             current_account = account
@@ -1185,6 +1195,11 @@ def _build_admin_password_overview(current_user):
             "title": "Employés",
             "accounts": grouped_accounts["EMPLOYE"],
             "empty_label": "Aucun employé n'est enregistré.",
+        },
+        {
+            "title": "Contrôle caméra",
+            "accounts": grouped_accounts[UserProfile.CAMERA_CONTROLLER_ROLE],
+            "empty_label": "Aucun contrôleur caméra n'est enregistré.",
         },
     ]
 
@@ -4416,12 +4431,14 @@ def _build_site_employee_management_context(request, site):
     site_employees = list(
         UserProfile.objects.filter(
             site=site,
-            role='EMPLOYE',
+            role__in=UserProfile.SITE_STAFF_ROLES,
         ).select_related('user').order_by('-actif', 'user__first_name', 'user__last_name', 'user__username')
     )
     active_employee_count = sum(1 for profile in site_employees if profile.actif and profile.user.is_active)
     inactive_employee_count = len(site_employees) - active_employee_count
     salary_defined_count = sum(1 for profile in site_employees if profile.salaire_mensuel_usd)
+    wash_employee_count = sum(1 for profile in site_employees if profile.is_employe())
+    camera_controller_count = sum(1 for profile in site_employees if profile.is_camera_controller())
 
     selected_employee = request.GET.get('employee')
     if selected_employee and active_tab == 'team':
@@ -4521,6 +4538,30 @@ def _build_site_employee_management_context(request, site):
             last_payment_date=Max('payment_date'),
         )
     }
+    camera_report_totals = {
+        item['controller_id']: item
+        for item in CameraOperatorDailyReport.objects.filter(
+            site=site,
+            is_submitted=True,
+        ).values('controller_id').annotate(
+            total_camera_reports=Count('id'),
+            total_camera_vehicles=Sum('total_vehicles'),
+            total_camera_screenshots=Sum('screenshots_count'),
+            last_camera_report_date=Max('date'),
+        )
+    }
+    camera_report_month_totals = {
+        item['controller_id']: item
+        for item in CameraOperatorDailyReport.objects.filter(
+            site=site,
+            is_submitted=True,
+            date__gte=month_start,
+            date__lte=today,
+        ).values('controller_id').annotate(
+            month_camera_reports=Count('id'),
+            month_camera_vehicles=Sum('total_vehicles'),
+        )
+    }
 
     employee_rows = []
     for profile in site_employees:
@@ -4530,14 +4571,20 @@ def _build_site_employee_management_context(request, site):
         month_report_stats = reports_month_totals.get(profile.user_id, {})
         issue_stats = issues_totals.get(profile.user_id, {})
         payment_stats = payment_totals.get(profile.id, {})
+        camera_stats = camera_report_totals.get(profile.user_id, {})
+        camera_month_stats = camera_report_month_totals.get(profile.user_id, {})
 
         last_activity = total_stats.get('last_lavage_date') or report_stats.get('last_report_date')
         report_date = report_stats.get('last_report_date')
         if report_date and (not last_activity or report_date > last_activity):
             last_activity = report_date
+        camera_report_date = camera_stats.get('last_camera_report_date')
+        if camera_report_date and (not last_activity or camera_report_date > last_activity):
+            last_activity = camera_report_date
 
         employee_rows.append({
             'profile': profile,
+            'role_label': profile.get_role_display(),
             'total_lavages': total_stats.get('total_lavages', 0) or 0,
             'total_fc': total_stats.get('total_fc') or Decimal("0"),
             'month_lavages': month_stats.get('month_lavages', 0) or 0,
@@ -4546,6 +4593,11 @@ def _build_site_employee_management_context(request, site):
             'month_reports': month_report_stats.get('month_reports', 0) or 0,
             'total_issues': issue_stats.get('total_issues', 0) or 0,
             'open_issues': issue_stats.get('open_issues', 0) or 0,
+            'total_camera_reports': camera_stats.get('total_camera_reports', 0) or 0,
+            'month_camera_reports': camera_month_stats.get('month_camera_reports', 0) or 0,
+            'total_camera_vehicles': camera_stats.get('total_camera_vehicles', 0) or 0,
+            'month_camera_vehicles': camera_month_stats.get('month_camera_vehicles', 0) or 0,
+            'total_camera_screenshots': camera_stats.get('total_camera_screenshots', 0) or 0,
             'total_payments': payment_stats.get('total_payments', 0) or 0,
             'total_paid_usd': payment_stats.get('total_paid_usd') or Decimal("0"),
             'last_payment_date': payment_stats.get('last_payment_date'),
@@ -4574,6 +4626,8 @@ def _build_site_employee_management_context(request, site):
         'active_employee_count': active_employee_count,
         'inactive_employee_count': inactive_employee_count,
         'salary_defined_count': salary_defined_count,
+        'wash_employee_count': wash_employee_count,
+        'camera_controller_count': camera_controller_count,
         'payment_records': payment_records,
         'payment_total_usd': payment_total_usd,
         'payment_records_count': len(payment_records),
@@ -4651,6 +4705,19 @@ def _build_camera_monitoring_context(request, site, selected_date, camera_form=N
         .annotate(evidence_count=Count("video_evidences"))
         .order_by("-date", "-created_at")
     )
+    operator_reports_qs = CameraOperatorDailyReport.objects.filter(
+        site=site,
+        date__gte=selected_month_start,
+        date__lte=selected_month_end,
+        is_submitted=True,
+    )
+    operator_reports = list(
+        operator_reports_qs.select_related("controller", "controller__userprofile")
+        .order_by("-date", "controller__first_name", "controller__last_name", "controller__username")
+    )
+    selected_operator_reports = [
+        report for report in operator_reports if report.date == selected_date
+    ]
     today_report = reports_qs.filter(date=today).first()
     weekly_totals = reports_qs.filter(date__gte=week_start, date__lte=week_end).aggregate(
         total_vehicles=Sum("total_vehicles"),
@@ -4677,6 +4744,12 @@ def _build_camera_monitoring_context(request, site, selected_date, camera_form=N
         expected_revenue=Sum("expected_revenue"),
     )
     total_evidence_count = VideoEvidence.objects.filter(daily_report__site=site).count()
+    operator_month_totals = operator_reports_qs.aggregate(
+        total_reports=Count("id"),
+        total_vehicles=Sum("total_vehicles"),
+        total_screenshots=Sum("screenshots_count"),
+        total_time_proofs=Sum("time_proof_count"),
+    )
 
     if camera_form is None:
         camera_form = CameraForm(prefix="camera", initial={"is_active": True})
@@ -4700,9 +4773,15 @@ def _build_camera_monitoring_context(request, site, selected_date, camera_form=N
         "selected_report": selected_report,
         "selected_report_evidences": list(selected_report.video_evidences.all()) if selected_report else [],
         "month_reports": month_reports,
+        "operator_reports": operator_reports,
+        "selected_operator_reports": selected_operator_reports,
         "active_camera_count": sum(1 for camera in cameras if camera.is_active),
         "inactive_camera_count": sum(1 for camera in cameras if not camera.is_active),
         "total_evidence_count": total_evidence_count,
+        "operator_reports_count": operator_month_totals["total_reports"] or 0,
+        "operator_total_vehicles": operator_month_totals["total_vehicles"] or 0,
+        "operator_total_screenshots": operator_month_totals["total_screenshots"] or 0,
+        "operator_total_time_proofs": operator_month_totals["total_time_proofs"] or 0,
         "today_cars_count": (
             today_report.final_cars_count
             if today_report and today_report.final_cars_count is not None
@@ -5107,7 +5186,7 @@ def admin_site_employees(request, site_id):
 @no_cache_view
 def admin_site_employee_portal(request, site_id, profile_id):
     """
-    Portail détaillé d'un employé (infos, CV, paiements, performance).
+    Portail détaillé d'un membre du site (infos, CV, paiements, performance).
     """
     user = request.user
     ensure_superuser_admin_profile(user)
@@ -5120,7 +5199,7 @@ def admin_site_employee_portal(request, site_id, profile_id):
         UserProfile.objects.select_related('user', 'site'),
         id=profile_id,
         site=site,
-        role='EMPLOYE',
+        role__in=UserProfile.SITE_STAFF_ROLES,
     )
 
     if request.method == 'POST':
@@ -5298,10 +5377,14 @@ def admin_site_employee_portal(request, site_id, profile_id):
         payment_date__lte=today,
     ).aggregate(total=Sum('amount_paid_usd'))['total'] or 0
     last_payment = payment_records.first()
+    camera_reports_qs = CameraOperatorDailyReport.objects.filter(site=site, controller=profile.user)
+    camera_reports_submitted_qs = camera_reports_qs.filter(is_submitted=True)
 
     context = {
         'site': site,
         'employee_profile': profile,
+        'staff_role_label': profile.get_role_display(),
+        'is_camera_controller': profile.is_camera_controller(),
         'today': today,
         'month_start': month_start,
         'total_lavages': total_lavages,
@@ -5323,6 +5406,15 @@ def admin_site_employee_portal(request, site_id, profile_id):
         'total_paid_usd': total_paid_usd,
         'total_paid_this_year_usd': total_paid_this_year_usd,
         'last_payment': last_payment,
+        'camera_reports_count': camera_reports_submitted_qs.count(),
+        'camera_reports_month': camera_reports_submitted_qs.filter(date__gte=month_start, date__lte=today).count(),
+        'camera_total_vehicles': camera_reports_submitted_qs.aggregate(total=Sum('total_vehicles'))['total'] or 0,
+        'camera_month_vehicles': camera_reports_submitted_qs.filter(
+            date__gte=month_start,
+            date__lte=today,
+        ).aggregate(total=Sum('total_vehicles'))['total'] or 0,
+        'camera_total_screenshots': camera_reports_qs.aggregate(total=Sum('screenshots_count'))['total'] or 0,
+        'latest_camera_report': camera_reports_submitted_qs.order_by('-date', '-submitted_at').first(),
     }
     return render(request, 'admin/site_employee_portal.html', context)
 
@@ -5331,7 +5423,7 @@ def admin_site_employee_portal(request, site_id, profile_id):
 @no_cache_view
 def admin_add_site_employee(request, site_id):
     """
-    Ajouter un employé pour un site.
+    Ajouter un membre d'équipe pour un site.
     """
     user = request.user
     ensure_superuser_admin_profile(user)
@@ -5349,12 +5441,12 @@ def admin_add_site_employee(request, site_id):
             AuditLog.log(
                 user=user,
                 action="CREER",
-                description=f"Employé ajouté sur {site.nom}: {employee_name}",
+                description=f"Compte équipe ajouté sur {site.nom}: {employee_name} ({profile.get_role_display()})",
                 content_object=profile,
                 ip_address=get_client_ip(request),
                 user_agent=get_user_agent(request),
             )
-            messages.success(request, f'Employé "{employee_name}" ajouté avec succès.')
+            messages.success(request, f'Compte "{employee_name}" ajouté avec succès.')
             return redirect('admin_site_employees', site_id=site.id)
     else:
         form = SiteEmployeeForm()
@@ -5370,7 +5462,7 @@ def admin_add_site_employee(request, site_id):
 @no_cache_view
 def admin_edit_site_employee(request, site_id, profile_id):
     """
-    Modifier les informations d'un employé rattaché à un site.
+    Modifier les informations d'un membre rattaché à un site.
     """
     user = request.user
     ensure_superuser_admin_profile(user)
@@ -5383,7 +5475,7 @@ def admin_edit_site_employee(request, site_id, profile_id):
         UserProfile.objects.select_related('user'),
         id=profile_id,
         site=site,
-        role='EMPLOYE',
+        role__in=UserProfile.SITE_STAFF_ROLES,
     )
 
     if request.method == 'POST':
@@ -5399,7 +5491,7 @@ def admin_edit_site_employee(request, site_id, profile_id):
             AuditLog.log(
                 user=user,
                 action="MODIFIER",
-                description=f"Employé modifié sur {site.nom}: {employee_name}",
+                description=f"Compte équipe modifié sur {site.nom}: {employee_name} ({updated_profile.get_role_display()})",
                 content_object=updated_profile,
                 ip_address=get_client_ip(request),
                 user_agent=get_user_agent(request),
@@ -5421,7 +5513,7 @@ def admin_edit_site_employee(request, site_id, profile_id):
 @no_cache_view
 def admin_remove_site_employee(request, site_id, profile_id):
     """
-    Retirer un employé d'un site (désactivation du compte).
+    Retirer un membre d'équipe d'un site (désactivation du compte).
     """
     user = request.user
     ensure_superuser_admin_profile(user)
@@ -5434,7 +5526,7 @@ def admin_remove_site_employee(request, site_id, profile_id):
         UserProfile.objects.select_related('user'),
         id=profile_id,
         site=site,
-        role='EMPLOYE',
+        role__in=UserProfile.SITE_STAFF_ROLES,
     )
     employee_name = profile.user.get_full_name() or profile.user.username
 
@@ -5449,7 +5541,7 @@ def admin_remove_site_employee(request, site_id, profile_id):
         AuditLog.log(
             user=user,
             action="MODIFIER",
-            description=f"Employé retiré du site {site.nom}: {employee_name}",
+            description=f"Compte équipe retiré du site {site.nom}: {employee_name} ({profile.get_role_display()})",
             content_object=profile,
             ip_address=get_client_ip(request),
             user_agent=get_user_agent(request),
@@ -5467,7 +5559,7 @@ def admin_remove_site_employee(request, site_id, profile_id):
 @no_cache_view
 def admin_create_employee_payment(request, site_id, profile_id):
     """
-    Enregistrer un paiement employé puis générer une fiche de paiement.
+    Enregistrer un paiement équipe puis générer une fiche de paiement.
     """
     user = request.user
     ensure_superuser_admin_profile(user)
@@ -5480,7 +5572,7 @@ def admin_create_employee_payment(request, site_id, profile_id):
         UserProfile.objects.select_related('user'),
         id=profile_id,
         site=site,
-        role='EMPLOYE',
+        role__in=UserProfile.SITE_STAFF_ROLES,
     )
 
     if request.method == 'POST':

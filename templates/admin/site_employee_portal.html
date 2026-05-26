@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 {% load currency_tags %}
 
-{% block title %}Portail employé - {{ employee_profile.user.get_full_name|default:employee_profile.user.username }}{% endblock %}
+{% block title %}Portail équipe - {{ employee_profile.user.get_full_name|default:employee_profile.user.username }}{% endblock %}
 
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; gap: 0.75rem; flex-wrap: wrap;">
     <div>
-        <h1 class="mt-2 mb-2">👤 Portail employé</h1>
+        <h1 class="mt-2 mb-2">👤 Portail équipe</h1>
         <p style="color: var(--text-secondary); margin: 0;">
-            {{ employee_profile.user.get_full_name|default:employee_profile.user.username }} • {{ site.nom }}
+            {{ employee_profile.user.get_full_name|default:employee_profile.user.username }} • {{ staff_role_label }} • {{ site.nom }}
         </p>
     </div>
     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
@@ -21,7 +21,7 @@
 <div class="card mb-4">
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem;">
         <div>
-            <h3 style="margin: 0 0 0.5rem 0; color: var(--primary-color);">Photo employé</h3>
+            <h3 style="margin: 0 0 0.5rem 0; color: var(--primary-color);">Photo du membre</h3>
             {% if employee_profile.profile_photo %}
                 <div style="width: 100%; max-width: 220px; aspect-ratio: 1/1; border-radius: 12px; border: 1px solid var(--border-color); overflow: hidden; background: #f7f9fc; margin-bottom: 0.6rem;">
                     <img src="{{ employee_profile.profile_photo.url }}" alt="Photo de {{ employee_profile.user.get_full_name|default:employee_profile.user.username }}" style="width: 100%; height: 100%; object-fit: cover;">
@@ -55,6 +55,7 @@
             <p style="margin: 0.2rem 0;"><strong>Nom:</strong> {{ employee_profile.user.get_full_name|default:employee_profile.user.username }}</p>
             <p style="margin: 0.2rem 0;"><strong>Identifiant:</strong> {{ employee_profile.user.username }}</p>
             <p style="margin: 0.2rem 0;"><strong>Email:</strong> {{ employee_profile.user.email|default:"-" }}</p>
+            <p style="margin: 0.2rem 0;"><strong>Rôle:</strong> {{ staff_role_label }}</p>
             <p style="margin: 0.2rem 0;"><strong>Téléphone:</strong> {{ employee_profile.telephone|default:"-" }}</p>
             <p style="margin: 0.2rem 0;"><strong>M-Pesa:</strong> {{ employee_profile.mpesa_numero|default:"-" }}</p>
             <p style="margin: 0.2rem 0;"><strong>Embauche:</strong> {{ employee_profile.date_embauche|date:"d/m/Y"|default:"Non renseignée" }}</p>
@@ -252,7 +253,7 @@
         </table>
     </div>
     {% else %}
-    <p style="color: var(--text-secondary); margin: 0;">Aucun paiement enregistré pour cet employé.</p>
+    <p style="color: var(--text-secondary); margin: 0;">Aucun paiement enregistré pour ce membre.</p>
     {% endif %}
 </div>
 

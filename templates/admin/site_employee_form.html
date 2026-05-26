@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}{% if mode == 'edit' %}Modifier employé{% else %}Ajouter employé{% endif %} - {{ site.nom }}{% endblock %}
+{% block title %}{% if mode == 'edit' %}Modifier membre{% else %}Ajouter membre{% endif %} - {{ site.nom }}{% endblock %}
 
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; gap: 1rem; flex-wrap: wrap;">
     <div>
-        <h1 class="mt-2 mb-2">{% if mode == 'edit' %}✏️ Modifier un employé{% else %}👤 Ajouter un employé{% endif %}</h1>
+        <h1 class="mt-2 mb-2">{% if mode == 'edit' %}✏️ Modifier un membre{% else %}👤 Ajouter un membre{% endif %}</h1>
         <p style="color: var(--text-secondary); margin: 0;">Site: {{ site.nom }} - {{ site.adresse }}</p>
     </div>
     <a href="{% url 'admin_site_employees' site.id %}" class="btn btn-secondary">← Retour</a>
@@ -31,6 +31,15 @@
                 <label for="id_last_name">Nom *</label>
                 {{ form.last_name }}
                 {% if form.last_name.errors %}<small style="color: var(--error-color);">{{ form.last_name.errors.0 }}</small>{% endif %}
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+            <div class="form-group">
+                <label for="id_role">Rôle du compte *</label>
+                {{ form.role }}
+                {% if form.role.errors %}<small style="color: var(--error-color);">{{ form.role.errors.0 }}</small>{% endif %}
+                <small style="color: var(--text-secondary); display:block; margin-top:0.35rem;">Le rôle détermine automatiquement le portail qui s'ouvre après connexion.</small>
             </div>
         </div>
 
@@ -112,7 +121,7 @@
 
         <div class="mt-3">
             <button type="submit" class="btn btn-primary btn-block">
-                {% if mode == 'edit' %}✅ Enregistrer les modifications{% else %}✅ Créer l'employé{% endif %}
+                {% if mode == 'edit' %}✅ Enregistrer les modifications{% else %}✅ Créer le compte{% endif %}
             </button>
             <a href="{% url 'admin_site_employees' site.id %}" class="btn btn-danger btn-block mt-2">Annuler</a>
         </div>
