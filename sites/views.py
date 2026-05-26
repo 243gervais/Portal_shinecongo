@@ -106,7 +106,6 @@ def camera_daily_report(request):
             if observation_form.is_valid():
                 observation = CameraObservation.objects.create(
                     report=report,
-                    camera=observation_form.cleaned_data["camera"],
                     vehicle_type=observation_form.cleaned_data["vehicle_type"],
                     plate_number=observation_form.cleaned_data["plate_number"],
                     observed_time=observation_form.cleaned_data["observed_time"],
@@ -126,7 +125,7 @@ def camera_daily_report(request):
                         f"Vérification lavage ajoutée sur {site.nom}: "
                         f"{observation.get_vehicle_type_display()}"
                         f"{f' - {observation.plate_number}' if observation.plate_number else ''} "
-                        f"via caméra {observation.camera.camera_number}"
+                        f"par contrôleur caméra"
                     ),
                     content_object=observation,
                     ip_address=get_client_ip(request),

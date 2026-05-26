@@ -896,7 +896,9 @@ class CameraControllerPortalTests(TestCase):
         self.assertContains(verification_response, "Clôture finale de la journée")
         self.assertContains(verification_response, "Plaque")
         self.assertContains(verification_response, "Vérifications enregistrées")
+        self.assertNotContains(verification_response, "Choisissez la caméra")
         self.assertNotContains(verification_response, "Preuve horaire")
+        self.assertNotContains(verification_response, 'name="camera"', html=False)
         self.assertNotContains(verification_response, "Recette")
         self.assertNotContains(verification_response, "Tarif")
         self.assertNotContains(verification_response, "FC")
@@ -906,18 +908,18 @@ class CameraControllerPortalTests(TestCase):
             reverse("camera_lavage_verification"),
             data={
                 "action": "add_observation",
-                "camera": str(self.camera.id),
                 "vehicle_type": "CAR",
                 "plate_number": " ab1234 ",
                 "observed_time": "08:45",
-                "notes": "Voiture vue à l'entrée du tunnel de lavage.",
             },
         )
 
         self.assertRedirects(response, reverse("camera_lavage_verification"), fetch_redirect_response=False)
         report = CameraOperatorDailyReport.objects.get(site=self.site, controller=self.controller, date=timezone.localdate())
         observation = CameraObservation.objects.get(report=report)
+        self.assertIsNone(observation.camera)
         self.assertEqual(observation.plate_number, "AB1234")
+        self.assertEqual(observation.notes, "")
         self.assertEqual(CameraObservationEvidence.objects.filter(observation=observation).count(), 0)
         self.assertEqual(report.cars_count, 1)
         self.assertEqual(report.total_vehicles, 1)
@@ -950,7 +952,6 @@ class CameraControllerPortalTests(TestCase):
         )
         observation = CameraObservation.objects.create(
             report=report,
-            camera=self.camera,
             vehicle_type="MOTO",
             plate_number="AA1022",
             observed_time=timezone.localtime().time().replace(second=0, microsecond=0),
@@ -975,6 +976,7 @@ class CameraControllerPortalTests(TestCase):
         self.assertContains(detail_response, "Moto vue")
         self.assertContains(detail_response, "Captures")
         self.assertContains(detail_response, "Plaque AA1022")
+        self.assertContains(detail_response, "Caméra non renseignée")
 
     def test_camera_controller_is_blocked_from_employee_dashboard(self):
         response = self.client.get(reverse("employe_dashboard"), follow=True)

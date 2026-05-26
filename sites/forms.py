@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Camera, CameraObservation, CameraOperatorDailyReport
+from .models import CameraObservation, CameraOperatorDailyReport
 
 
 class MultipleImageInput(forms.ClearableFileInput):
@@ -20,11 +20,6 @@ class MultipleImageField(forms.ImageField):
 
 
 class CameraObservationForm(forms.Form):
-    camera = forms.ModelChoiceField(
-        queryset=Camera.objects.none(),
-        label="Caméra",
-        widget=forms.Select(attrs={"class": "form-control"}),
-    )
     vehicle_type = forms.ChoiceField(
         label="Type de véhicule",
         choices=CameraObservation.VEHICLE_TYPE_CHOICES,
@@ -73,16 +68,6 @@ class CameraObservationForm(forms.Form):
     def __init__(self, *args, site=None, **kwargs):
         self.site = site
         super().__init__(*args, **kwargs)
-        if self.site:
-            self.fields["camera"].queryset = Camera.objects.filter(site=self.site, is_active=True).order_by(
-                "camera_number", "name"
-            )
-
-    def clean_camera(self):
-        camera = self.cleaned_data["camera"]
-        if self.site and camera.site_id != self.site.id:
-            raise forms.ValidationError("Choisissez une caméra du site concerné.")
-        return camera
 
     def clean_screenshots(self):
         return self.cleaned_data.get("screenshots") or []

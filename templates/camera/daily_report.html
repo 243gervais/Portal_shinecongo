@@ -265,7 +265,7 @@
             <div>
                 <span class="camera-day-kicker">Lavage Verification</span>
                 <h1>Vérifications du {{ today|date:"d/m/Y" }}</h1>
-                <p>Enregistrez ici chaque lavage repéré sur la caméra, un par un. Pour chaque voiture ou moto, ajoutez la fiche manuelle, la plaque si elle est visible et des captures si vous en avez. Le rapport final n'intervient qu'à la fin de la journée.</p>
+                <p>Enregistrez ici chaque lavage repéré, un par un. Pour chaque voiture ou moto, ajoutez la fiche manuelle, la plaque si elle est visible et des captures si vous en avez. Le rapport final n'intervient qu'à la fin de la journée.</p>
                 <div class="camera-day-chip-row">
                     <span class="camera-day-chip">Site: {{ site.nom }}</span>
                     <span class="camera-day-chip">Compteur actuel: {{ report.total_vehicles }}</span>
@@ -312,7 +312,7 @@
             <div class="camera-day-card-head">
                 <div>
                     <h2 class="camera-day-title">Lavage verification</h2>
-                    <p class="camera-day-copy">Déclarez un seul lavage à la fois. Choisissez la caméra, indiquez s'il s'agit d'une voiture ou d'une moto, ajoutez la plaque si elle est visible, puis chargez des captures seulement si vous en avez besoin.</p>
+                    <p class="camera-day-copy">Déclarez un seul lavage à la fois. Indiquez s'il s'agit d'une voiture ou d'une moto, ajoutez la plaque si elle est visible, puis chargez des captures seulement si vous en avez besoin.</p>
                 </div>
                 <span class="camera-day-badge">1 véhicule = 1 fiche de vérification</span>
             </div>
@@ -323,11 +323,6 @@
                 <div class="alert alert-danger">{{ observation_form.non_field_errors }}</div>
                 {% endif %}
                 <div class="camera-day-form-grid">
-                    <div class="camera-day-field">
-                        <label for="{{ observation_form.camera.id_for_label }}">{{ observation_form.camera.label }}</label>
-                        {{ observation_form.camera }}
-                        {% if observation_form.camera.errors %}<div class="text-danger small">{{ observation_form.camera.errors|join:", " }}</div>{% endif %}
-                    </div>
                     <div class="camera-day-field">
                         <label for="{{ observation_form.vehicle_type.id_for_label }}">{{ observation_form.vehicle_type.label }}</label>
                         {{ observation_form.vehicle_type }}
@@ -354,6 +349,7 @@
                     <div class="camera-day-field camera-day-field--full">
                         <label for="{{ observation_form.notes.id_for_label }}">{{ observation_form.notes.label }}</label>
                         {{ observation_form.notes }}
+                        <div class="camera-day-form-help">Optionnel. Ajoutez une note seulement si elle est utile pour la verification.</div>
                         {% if observation_form.notes.errors %}<div class="text-danger small">{{ observation_form.notes.errors|join:", " }}</div>{% endif %}
                     </div>
                 </div>
@@ -405,13 +401,15 @@
             <article class="camera-day-observation">
                 <div class="camera-day-observation-top">
                     <div>
-                        <div class="camera-day-observation-title">{{ observation.get_vehicle_type_display }} · Caméra {{ observation.camera.camera_number }}</div>
+                        <div class="camera-day-observation-title">{{ observation.get_vehicle_type_display }}</div>
                         <div class="camera-day-muted">
-                            {{ observation.camera.name }}
                             {% if observation.observed_time %}
-                            • vue à {{ observation.observed_time|time:"H:i" }}
+                            Vue à {{ observation.observed_time|time:"H:i" }}
                             {% endif %}
-                            • ajoutée le {{ observation.created_at|date:"H:i" }}
+                            {% if observation.observed_time %}
+                            •
+                            {% endif %}
+                            Ajoutée le {{ observation.created_at|date:"H:i" }}
                         </div>
                     </div>
                     <div class="camera-day-pill-row" style="margin-top:0;">

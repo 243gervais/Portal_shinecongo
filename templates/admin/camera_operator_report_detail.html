@@ -240,7 +240,7 @@
         <div class="camera-admin-card-head">
             <div>
                 <h2 class="camera-admin-title">Observations détaillées</h2>
-                <p class="camera-admin-copy">Chaque vérification contient le véhicule repéré, la caméra utilisée, la plaque quand elle est disponible et toutes les pièces jointes associées.</p>
+                <p class="camera-admin-copy">Chaque vérification contient le véhicule repéré, la plaque quand elle est disponible et toutes les pièces jointes associées. La caméra peut rester non renseignée sur les nouvelles saisies contrôleur.</p>
             </div>
             <span class="camera-admin-badge">{{ observations|length }} observation{{ observations|length|pluralize }}</span>
         </div>
@@ -249,9 +249,18 @@
             <article class="camera-admin-observation">
                 <div class="camera-admin-observation-top">
                     <div>
-                        <div class="camera-admin-observation-title">{{ observation.get_vehicle_type_display }} · Caméra {{ observation.camera.camera_number }}</div>
+                        <div class="camera-admin-observation-title">
+                            {{ observation.get_vehicle_type_display }}
+                            {% if observation.camera %}
+                            · Caméra {{ observation.camera.camera_number }}
+                            {% endif %}
+                        </div>
                         <div class="camera-admin-muted">
+                            {% if observation.camera %}
                             {{ observation.camera.name }}
+                            {% else %}
+                            Caméra non renseignée
+                            {% endif %}
                             {% if observation.observed_time %}
                             • heure vue {{ observation.observed_time|time:"H:i" }}
                             {% endif %}

@@ -919,6 +919,8 @@ class CameraObservation(models.Model):
         Camera,
         on_delete=models.CASCADE,
         related_name="operator_observations",
+        null=True,
+        blank=True,
         verbose_name="Caméra",
     )
     vehicle_type = models.CharField(
