@@ -1,6 +1,4 @@
 {% extends "base.html" %}
-{% load currency_tags %}
-
 {% block title %}Lavage verification - {{ site.nom }}{% endblock %}
 
 {% block extra_css %}
@@ -272,7 +270,6 @@
                     <span class="camera-day-chip">Site: {{ site.nom }}</span>
                     <span class="camera-day-chip">Compteur actuel: {{ report.total_vehicles }}</span>
                     <span class="camera-day-chip">Captures: {{ report.screenshots_count }}</span>
-                    <span class="camera-day-chip">Recette estimée: {{ report.expected_revenue|fc_amount }} FC</span>
                 </div>
             </div>
             <div class="camera-day-actions">
@@ -284,17 +281,17 @@
             <article class="camera-day-kpi">
                 <div class="camera-day-label">Voitures</div>
                 <div class="camera-day-value">{{ report.cars_count }}</div>
-                <div class="camera-day-muted">Tarif estimé: 15 000 FC</div>
+                <div class="camera-day-muted">Nombre de voitures verifiees aujourd'hui.</div>
             </article>
             <article class="camera-day-kpi">
                 <div class="camera-day-label">Motos 2 roues</div>
                 <div class="camera-day-value">{{ report.motos_count }}</div>
-                <div class="camera-day-muted">Tarif estimé: 3 000 FC</div>
+                <div class="camera-day-muted">Nombre de motos 2 roues verifiees aujourd'hui.</div>
             </article>
             <article class="camera-day-kpi">
                 <div class="camera-day-label">Motos 3 roues</div>
                 <div class="camera-day-value">{{ report.three_wheelers_count }}</div>
-                <div class="camera-day-muted">Tarif estimé: 5 000 FC</div>
+                <div class="camera-day-muted">Nombre de motos 3 roues verifiees aujourd'hui.</div>
             </article>
             <article class="camera-day-kpi">
                 <div class="camera-day-label">Statut</div>
@@ -395,10 +392,6 @@
                         <div class="camera-day-label">Preuves horaires</div>
                         <div class="camera-day-value">{{ report.time_proof_count }}</div>
                     </div>
-                    <div>
-                        <div class="camera-day-label">Recette attendue</div>
-                        <div class="camera-day-value">{{ report.expected_revenue|fc_amount }} FC</div>
-                    </div>
                 </div>
             </div>
             <div class="camera-day-final-box">
@@ -485,10 +478,6 @@
                     <div class="camera-day-label">Preuves horaires</div>
                     <div class="camera-day-value">{{ report.time_proof_count }}</div>
                 </div>
-                <div>
-                    <div class="camera-day-label">Recette attendue</div>
-                    <div class="camera-day-value">{{ report.expected_revenue|fc_amount }} FC</div>
-                </div>
             </div>
         </div>
         <form method="post">
@@ -521,7 +510,7 @@
                     <span class="camera-day-badge">{{ weekly_report.total_vehicles }} véhicule{{ weekly_report.total_vehicles|pluralize }}</span>
                     <span class="camera-day-badge">{{ weekly_report.screenshots_count }} capture{{ weekly_report.screenshots_count|pluralize }}</span>
                 </div>
-                <div class="camera-day-muted">{{ weekly_report.expected_revenue|fc_amount }} FC attendus</div>
+                <div class="camera-day-muted">Rapport final deja transmis pour cette journee.</div>
             </article>
             {% empty %}
             <div class="camera-day-empty">Aucun rapport final n'a encore été soumis cette semaine.</div>

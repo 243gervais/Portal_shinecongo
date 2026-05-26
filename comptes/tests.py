@@ -888,11 +888,17 @@ class CameraControllerPortalTests(TestCase):
         self.assertEqual(dashboard_response.status_code, 200)
         self.assertContains(dashboard_response, "Lavage verification")
         self.assertContains(dashboard_response, "Travaillez lavage par lavage")
+        self.assertNotContains(dashboard_response, "Recette")
+        self.assertNotContains(dashboard_response, "Tarif")
+        self.assertNotContains(dashboard_response, "FC")
         self.assertEqual(verification_response.status_code, 200)
         self.assertContains(verification_response, "Enregistrer la vérification")
         self.assertContains(verification_response, "Clôture finale de la journée")
         self.assertContains(verification_response, "Plaque")
         self.assertContains(verification_response, "Vérifications enregistrées")
+        self.assertNotContains(verification_response, "Recette")
+        self.assertNotContains(verification_response, "Tarif")
+        self.assertNotContains(verification_response, "FC")
 
     def test_camera_controller_can_record_observation_and_submit_final_report(self):
         response = self.client.post(

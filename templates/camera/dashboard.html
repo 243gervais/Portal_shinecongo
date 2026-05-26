@@ -1,6 +1,4 @@
 {% extends "base.html" %}
-{% load currency_tags %}
-
 {% block title %}Portail contrôle caméra - {{ site.nom }}{% endblock %}
 
 {% block extra_css %}
@@ -295,7 +293,6 @@
                     <div class="camera-portal-pill-row">
                         <span class="camera-portal-badge">{{ report.total_vehicles }} véhicule{{ report.total_vehicles|pluralize }}</span>
                         <span class="camera-portal-badge">{{ report.screenshots_count }} capture{{ report.screenshots_count|pluralize }}</span>
-                        <span class="camera-portal-badge">{{ report.expected_revenue|fc_amount }} FC</span>
                     </div>
                     {% if report.notes %}
                     <div class="camera-portal-muted">{{ report.notes|truncatechars:160 }}</div>
