@@ -1,0 +1,15 @@
+{% autoescape off %}{{ company_name }}
+Problème signalé
+
+Nouveau signalement reçu pour {{ site_name }} le {{ reported_at|date:"d/m/Y" }}
+Employé: {{ reporter_name }}
+Site: {{ site_name }}
+Horodatage: {{ reported_at|date:"d/m/Y H:i" }}
+
+Catégorie: {{ category_label }}
+Statut: {{ status_label }}
+Photo: {% if has_photo %}Photo fournie{% else %}Aucune photo{% endif %}
+
+Description:
+{{ description }}
+{% endautoescape %}

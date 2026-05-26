@@ -1,7 +1,7 @@
 import logging
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
-from django.core.mail import EmailMultiAlternatives, send_mail
+from django.core.mail import EmailMultiAlternatives
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -244,6 +244,28 @@ def _send_final_report_notification(shift, computed_total_amount, issue_count, w
         return False
 
 
+def _build_water_purchase_email_context(purchase):
+    reporter_name = (
+        purchase.created_by.get_full_name() or purchase.created_by.username
+        if purchase.created_by else
+        "Employé non précisé"
+    )
+    notes = (purchase.notes or "").strip()
+
+    return {
+        "company_name": "Shine Congo",
+        "reporter_name": reporter_name,
+        "site_name": purchase.site.nom,
+        "supplier_name": purchase.supplier.name if purchase.supplier_id else "Non renseigné",
+        "purchase_date": purchase.purchase_date,
+        "billing_month": purchase.billing_month,
+        "amount_display": _format_fc_email_amount(purchase.amount_fc),
+        "notes": notes or "Aucune note",
+        "has_notes": bool(notes),
+        "created_at": timezone.localtime(purchase.created_at or timezone.now()),
+    }
+
+
 def _send_water_purchase_notification(purchase):
     recipient = (
         getattr(settings, "WATER_PURCHASE_NOTIFICATION_EMAIL", "")
@@ -264,34 +286,23 @@ def _send_water_purchase_notification(purchase):
         )
         return False
 
-    reporter_name = (
-        purchase.created_by.get_full_name() or purchase.created_by.username
-        if purchase.created_by else
-        "Employé non précisé"
-    )
+    context = _build_water_purchase_email_context(purchase)
     subject = (
         f"Achat d'eau signalé - "
         f"{purchase.site.nom} - {purchase.purchase_date.strftime('%d/%m/%Y')}"
     )
-    message = "\n".join([
-        f"Employé: {reporter_name}",
-        f"Site: {purchase.site.nom}",
-        f"Fournisseur: {purchase.supplier.name if purchase.supplier_id else 'Non renseigné'}",
-        f"Date d'achat: {purchase.purchase_date.strftime('%d/%m/%Y')}",
-        f"Mois rattaché: {purchase.billing_month.strftime('%m/%Y')}",
-        f"Montant enregistré: {purchase.amount_fc:,.0f} FC".replace(",", " "),
-        "",
-        f"Notes: {purchase.notes or 'Aucune note'}",
-    ])
+    message = render_to_string("emails/water_purchase_notification.txt", context)
+    html_message = render_to_string("emails/water_purchase_notification.html", context)
 
     try:
-        send_mail(
+        email_message = EmailMultiAlternatives(
             subject=subject,
-            message=message,
+            body=message,
             from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
-            recipient_list=[recipient],
-            fail_silently=False,
+            to=[recipient],
         )
+        email_message.attach_alternative(html_message, "text/html")
+        email_message.send(fail_silently=False)
         return True
     except Exception:
         logger.exception("Impossible d'envoyer la notification email de l'achat d'eau")

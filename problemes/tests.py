@@ -52,3 +52,9 @@ class EmployeeIssueReportNotificationTests(TestCase):
         self.assertIn("Site: Ngaliema Test", mail.outbox[0].body)
         self.assertIn("Catégorie: Eau", mail.outbox[0].body)
         self.assertIn("Le tuyau d'arrivée fuit près du réservoir.", mail.outbox[0].body)
+        self.assertEqual(len(mail.outbox[0].alternatives), 1)
+        html_content, mimetype = mail.outbox[0].alternatives[0]
+        self.assertEqual(mimetype, "text/html")
+        self.assertIn("Problème signalé", html_content)
+        self.assertIn("Catégorie", html_content)
+        self.assertIn("Le tuyau d&#x27;arrivée fuit près du réservoir.", html_content)

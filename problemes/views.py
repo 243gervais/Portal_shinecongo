@@ -3,14 +3,35 @@ import logging
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives
 from django.shortcuts import render, redirect, get_object_or_404
+from django.template.loader import render_to_string
+from django.utils import timezone
 
 from .models import IssueReport
 from audit.models import AuditLog
 from pointage.utils import get_client_ip, get_user_agent
 
 logger = logging.getLogger(__name__)
+
+
+def _build_issue_report_email_context(probleme):
+    reporter_name = (
+        probleme.employe.get_full_name() or probleme.employe.username
+        if probleme.employe_id else
+        "Employé non précisé"
+    )
+
+    return {
+        "company_name": "Shine Congo",
+        "reporter_name": reporter_name,
+        "site_name": probleme.site.nom,
+        "reported_at": timezone.localtime(probleme.created_at or timezone.now()),
+        "category_label": probleme.get_categorie_display(),
+        "status_label": probleme.get_statut_display(),
+        "description": probleme.description,
+        "has_photo": bool(probleme.photo),
+    }
 
 
 def _send_issue_report_notification(probleme):
@@ -35,33 +56,23 @@ def _send_issue_report_notification(probleme):
         )
         return False
 
-    reporter_name = (
-        probleme.employe.get_full_name() or probleme.employe.username
-        if probleme.employe_id else
-        "Employé non précisé"
-    )
+    context = _build_issue_report_email_context(probleme)
     subject = (
         f"Problème signalé - "
         f"{probleme.site.nom} - {probleme.created_at.strftime('%d/%m/%Y')}"
     )
-    message = "\n".join([
-        f"Employé: {reporter_name}",
-        f"Site: {probleme.site.nom}",
-        f"Date: {probleme.created_at.strftime('%d/%m/%Y %H:%M')}",
-        f"Catégorie: {probleme.get_categorie_display()}",
-        f"Statut: {probleme.get_statut_display()}",
-        "",
-        f"Description: {probleme.description}",
-    ])
+    message = render_to_string("emails/issue_report_notification.txt", context)
+    html_message = render_to_string("emails/issue_report_notification.html", context)
 
     try:
-        send_mail(
+        email_message = EmailMultiAlternatives(
             subject=subject,
-            message=message,
+            body=message,
             from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
-            recipient_list=[recipient],
-            fail_silently=False,
+            to=[recipient],
         )
+        email_message.attach_alternative(html_message, "text/html")
+        email_message.send(fail_silently=False)
         return True
     except Exception:
         logger.exception("Impossible d'envoyer la notification email du problème signalé")

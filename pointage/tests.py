@@ -457,6 +457,12 @@ class EmployeeDailyReportTests(TestCase):
         self.assertIn("Site: Ngaliema Test", mail.outbox[0].body)
         self.assertIn("Fournisseur: Honosha's Forage", mail.outbox[0].body)
         self.assertIn("Montant enregistré: 22 000 FC", mail.outbox[0].body)
+        self.assertEqual(len(mail.outbox[0].alternatives), 1)
+        html_content, mimetype = mail.outbox[0].alternatives[0]
+        self.assertEqual(mimetype, "text/html")
+        self.assertIn("Achat d'eau signalé", html_content)
+        self.assertIn("Honosha", html_content)
+        self.assertIn("22 000 FC", html_content)
 
     def test_employee_water_purchase_page_renders(self):
         response = self.client.get(reverse("employe_water_purchase"))
