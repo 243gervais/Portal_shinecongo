@@ -881,13 +881,27 @@ class CameraControllerPortalTests(TestCase):
         )
         self.client.login(username="camera_agent", password="CameraPass123!")
 
+    def test_camera_controller_sees_verification_first_workflow(self):
+        dashboard_response = self.client.get(reverse("camera_dashboard"))
+        verification_response = self.client.get(reverse("camera_lavage_verification"))
+
+        self.assertEqual(dashboard_response.status_code, 200)
+        self.assertContains(dashboard_response, "Lavage verification")
+        self.assertContains(dashboard_response, "Travaillez lavage par lavage")
+        self.assertEqual(verification_response.status_code, 200)
+        self.assertContains(verification_response, "Enregistrer la vérification")
+        self.assertContains(verification_response, "Clôture finale de la journée")
+        self.assertContains(verification_response, "Plaque")
+        self.assertContains(verification_response, "Vérifications enregistrées")
+
     def test_camera_controller_can_record_observation_and_submit_final_report(self):
         response = self.client.post(
-            reverse("camera_daily_report"),
+            reverse("camera_lavage_verification"),
             data={
                 "action": "add_observation",
                 "camera": str(self.camera.id),
                 "vehicle_type": "CAR",
+                "plate_number": " ab1234 ",
                 "observed_time": "08:45",
                 "screenshots": [
                     SimpleUploadedFile("camera-1.gif", TEST_GIF_BYTES, content_type="image/gif"),
@@ -898,9 +912,10 @@ class CameraControllerPortalTests(TestCase):
             },
         )
 
-        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse("camera_lavage_verification"), fetch_redirect_response=False)
         report = CameraOperatorDailyReport.objects.get(site=self.site, controller=self.controller, date=timezone.localdate())
         observation = CameraObservation.objects.get(report=report)
+        self.assertEqual(observation.plate_number, "AB1234")
         self.assertEqual(CameraObservationEvidence.objects.filter(observation=observation).count(), 3)
         self.assertEqual(report.cars_count, 1)
         self.assertEqual(report.total_vehicles, 1)
@@ -909,14 +924,14 @@ class CameraControllerPortalTests(TestCase):
         self.assertEqual(report.expected_revenue, Decimal("15000"))
 
         submit_response = self.client.post(
-            reverse("camera_daily_report"),
+            reverse("camera_lavage_verification"),
             data={
                 "action": "submit_final_report",
                 "notes": "RAS. Caméra entrée stable toute la journée.",
             },
         )
 
-        self.assertEqual(submit_response.status_code, 302)
+        self.assertRedirects(submit_response, reverse("camera_lavage_verification"), fetch_redirect_response=False)
         report.refresh_from_db()
         self.assertTrue(report.is_submitted)
         self.assertIsNotNone(report.submitted_at)
@@ -935,6 +950,7 @@ class CameraControllerPortalTests(TestCase):
             report=report,
             camera=self.camera,
             vehicle_type="MOTO",
+            plate_number="AA1022",
             observed_time=timezone.localtime().time().replace(second=0, microsecond=0),
             notes="Moto vue à l'entrée.",
         )
@@ -956,6 +972,7 @@ class CameraControllerPortalTests(TestCase):
         self.assertEqual(detail_response.status_code, 200)
         self.assertContains(detail_response, "Moto vue")
         self.assertContains(detail_response, "Captures")
+        self.assertContains(detail_response, "Plaque AA1022")
 
     def test_camera_controller_is_blocked_from_employee_dashboard(self):
         response = self.client.get(reverse("employe_dashboard"), follow=True)

@@ -927,6 +927,11 @@ class CameraObservation(models.Model):
         default=VEHICLE_CAR,
         verbose_name="Type de véhicule",
     )
+    plate_number = models.CharField(
+        max_length=30,
+        blank=True,
+        verbose_name="Plaque",
+    )
     observed_time = models.TimeField(null=True, blank=True, verbose_name="Heure observée")
     notes = models.TextField(blank=True, verbose_name="Notes")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
@@ -942,7 +947,8 @@ class CameraObservation(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.report.site.nom} - {self.get_vehicle_type_display()} - {self.report.date:%d/%m/%Y}"
+        plate_suffix = f" - {self.plate_number}" if self.plate_number else ""
+        return f"{self.report.site.nom} - {self.get_vehicle_type_display()}{plate_suffix} - {self.report.date:%d/%m/%Y}"
 
     @property
     def screenshot_count(self):

@@ -127,6 +127,7 @@ urlpatterns = [
     path("employe/eau/", employe_water_purchase, name="employe_water_purchase"),
     path("employe/historique/", employe_historique, name="employe_historique"),
     path("camera/", camera_dashboard, name="camera_dashboard"),
+    path("camera/lavage-verification/", camera_daily_report, name="camera_lavage_verification"),
     path("camera/rapport/", camera_daily_report, name="camera_daily_report"),
     path("camera/observations/<int:observation_id>/delete/", camera_delete_observation, name="camera_delete_observation"),
     

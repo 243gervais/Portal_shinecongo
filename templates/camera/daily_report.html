@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load currency_tags %}
 
-{% block title %}Rapport caméra du jour - {{ site.nom }}{% endblock %}
+{% block title %}Lavage verification - {{ site.nom }}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -265,14 +265,14 @@
     <section class="camera-day-hero">
         <div class="camera-day-hero-top">
             <div>
-                <span class="camera-day-kicker">Daily Camera Report</span>
-                <h1>Rapport caméra du {{ today|date:"d/m/Y" }}</h1>
-                <p>Ajoutez une observation par véhicule repéré sur les caméras. Chaque observation demande au moins une capture du véhicule. La preuve de l'heure reste optionnelle.</p>
+                <span class="camera-day-kicker">Lavage Verification</span>
+                <h1>Vérifications du {{ today|date:"d/m/Y" }}</h1>
+                <p>Enregistrez ici chaque lavage repéré sur la caméra, un par un. Pour chaque voiture ou moto, ajoutez la fiche manuelle avec les captures, la plaque si elle est visible et, si besoin, la preuve de l'heure. Le rapport final n'intervient qu'à la fin de la journée.</p>
                 <div class="camera-day-chip-row">
                     <span class="camera-day-chip">Site: {{ site.nom }}</span>
-                    <span class="camera-day-chip">Observations: {{ report.total_vehicles }}</span>
+                    <span class="camera-day-chip">Compteur actuel: {{ report.total_vehicles }}</span>
                     <span class="camera-day-chip">Captures: {{ report.screenshots_count }}</span>
-                    <span class="camera-day-chip">Recette attendue: {{ report.expected_revenue|fc_amount }} FC</span>
+                    <span class="camera-day-chip">Recette estimée: {{ report.expected_revenue|fc_amount }} FC</span>
                 </div>
             </div>
             <div class="camera-day-actions">
@@ -303,7 +303,7 @@
                     {% if report.is_submitted and report.submitted_at %}
                     Envoyé à {{ report.submitted_at|date:"H:i" }}
                     {% else %}
-                    Le rapport final reste modifiable jusqu'à la nouvelle soumission.
+                    La clôture finale reste ouverte tant que vous continuez les vérifications.
                     {% endif %}
                 </div>
             </article>
@@ -311,13 +311,13 @@
     </section>
 
     <div class="camera-day-grid">
-        <section class="camera-day-card">
+        <section class="camera-day-card" id="lavage-verification-form">
             <div class="camera-day-card-head">
                 <div>
-                    <h2 class="camera-day-title">Ajouter une observation</h2>
-                    <p class="camera-day-copy">Choisissez la caméra, le type de véhicule et joignez une ou plusieurs captures. Ajoutez une preuve horaire seulement si vous en avez besoin.</p>
+                    <h2 class="camera-day-title">Lavage verification</h2>
+                    <p class="camera-day-copy">Déclarez un seul lavage à la fois. Choisissez la caméra, indiquez s'il s'agit d'une voiture ou d'une moto, ajoutez la plaque si elle est visible, puis chargez une ou plusieurs captures.</p>
                 </div>
-                <span class="camera-day-badge">1 véhicule = 1 observation</span>
+                <span class="camera-day-badge">1 véhicule = 1 fiche de vérification</span>
             </div>
             <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
@@ -335,6 +335,12 @@
                         <label for="{{ observation_form.vehicle_type.id_for_label }}">{{ observation_form.vehicle_type.label }}</label>
                         {{ observation_form.vehicle_type }}
                         {% if observation_form.vehicle_type.errors %}<div class="text-danger small">{{ observation_form.vehicle_type.errors|join:", " }}</div>{% endif %}
+                    </div>
+                    <div class="camera-day-field">
+                        <label for="{{ observation_form.plate_number.id_for_label }}">{{ observation_form.plate_number.label }}</label>
+                        {{ observation_form.plate_number }}
+                        <div class="camera-day-form-help">Optionnel. Ajoutez la plaque seulement si elle est lisible sur les captures.</div>
+                        {% if observation_form.plate_number.errors %}<div class="text-danger small">{{ observation_form.plate_number.errors|join:", " }}</div>{% endif %}
                     </div>
                     <div class="camera-day-field">
                         <label for="{{ observation_form.observed_time.id_for_label }}">{{ observation_form.observed_time.label }}</label>
@@ -360,7 +366,7 @@
                     </div>
                 </div>
                 <div class="camera-day-observation-actions">
-                    <button type="submit" class="btn btn-primary">Ajouter l'observation</button>
+                    <button type="submit" class="btn btn-primary">Enregistrer la vérification</button>
                 </div>
             </form>
         </section>
@@ -368,11 +374,11 @@
         <section class="camera-day-card">
             <div class="camera-day-card-head">
                 <div>
-                    <h2 class="camera-day-title">Clôture de la journée</h2>
-                    <p class="camera-day-copy">Le système reprend automatiquement les chiffres saisis. Vous pouvez ajouter une note globale avant de soumettre.</p>
+                    <h2 class="camera-day-title">Compteur automatique</h2>
+                    <p class="camera-day-copy">Chaque vérification enregistrée met ce compteur à jour automatiquement. Continuez à saisir les lavages ici, puis passez à la clôture finale uniquement quand tout est complet.</p>
                 </div>
                 <span class="camera-day-state {% if report.is_submitted %}camera-day-state--success{% else %}camera-day-state--draft{% endif %}">
-                    {% if report.is_submitted %}Soumis{% else %}Brouillon{% endif %}
+                    {% if report.is_submitted %}Clôturé{% else %}En cours{% endif %}
                 </span>
             </div>
             <div class="camera-day-preview">
@@ -395,28 +401,20 @@
                     </div>
                 </div>
             </div>
-            <form method="post">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="submit_final_report">
-                <div class="camera-day-field">
-                    <label for="{{ final_form.notes.id_for_label }}">{{ final_form.notes.label|default:"Notes de fin de journée" }}</label>
-                    {{ final_form.notes }}
-                    {% if final_form.notes.errors %}<div class="text-danger small">{{ final_form.notes.errors|join:", " }}</div>{% endif %}
-                </div>
-                <div class="camera-day-observation-actions">
-                    <button type="submit" class="btn btn-success btn-block">Soumettre le rapport final</button>
-                </div>
-            </form>
+            <div class="camera-day-final-box">
+                <div class="camera-day-label">Prochaine étape</div>
+                <div class="camera-day-copy">Une fois toutes les voitures et motos saisies ci-dessous, descendez vers la section de clôture finale pour envoyer le rapport du jour à l'administration.</div>
+            </div>
         </section>
     </div>
 
     <section class="camera-day-card">
         <div class="camera-day-card-head">
             <div>
-                <h2 class="camera-day-title">Observations du jour</h2>
-                <p class="camera-day-copy">Chaque bloc représente un véhicule signalé, avec toutes les captures liées.</p>
+                <h2 class="camera-day-title">Vérifications enregistrées</h2>
+                <p class="camera-day-copy">Chaque bloc représente un lavage signalé, avec les captures enregistrées et la plaque quand elle a pu être relevée.</p>
             </div>
-            <span class="camera-day-badge">{{ observations|length }} observation{{ observations|length|pluralize }}</span>
+            <span class="camera-day-badge">{{ observations|length }} vérification{{ observations|length|pluralize }}</span>
         </div>
         <div class="camera-day-observation-list">
             {% for observation in observations %}
@@ -433,6 +431,9 @@
                         </div>
                     </div>
                     <div class="camera-day-pill-row" style="margin-top:0;">
+                        {% if observation.plate_number %}
+                        <span class="camera-day-badge">Plaque {{ observation.plate_number }}</span>
+                        {% endif %}
                         <span class="camera-day-badge">{{ observation.screenshot_count }} capture{{ observation.screenshot_count|pluralize }}</span>
                         <span class="camera-day-badge">{{ observation.time_proof_count }} preuve{{ observation.time_proof_count|pluralize }} horaire{{ observation.time_proof_count|pluralize }}</span>
                     </div>
@@ -451,13 +452,57 @@
                 </div>
                 <form method="post" action="{% url 'camera_delete_observation' observation.id %}">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-danger">Supprimer cette observation</button>
+                    <button type="submit" class="btn btn-danger">Supprimer cette vérification</button>
                 </form>
             </article>
             {% empty %}
-            <div class="camera-day-empty">Aucune observation n'a encore été ajoutée aujourd'hui.</div>
+            <div class="camera-day-empty">Aucune vérification n'a encore été enregistrée aujourd'hui.</div>
             {% endfor %}
         </div>
+    </section>
+
+    <section class="camera-day-card" id="final-report-form">
+        <div class="camera-day-card-head">
+            <div>
+                <h2 class="camera-day-title">Clôture finale de la journée</h2>
+                <p class="camera-day-copy">Quand toutes les vérifications sont saisies, le système reprend automatiquement les chiffres ci-dessous. Ajoutez une note globale si nécessaire, puis envoyez le rapport final.</p>
+            </div>
+            <span class="camera-day-state {% if report.is_submitted %}camera-day-state--success{% else %}camera-day-state--draft{% endif %}">
+                {% if report.is_submitted %}Soumis{% else %}En attente{% endif %}
+            </span>
+        </div>
+        <div class="camera-day-preview">
+            <div class="camera-day-summary-grid">
+                <div>
+                    <div class="camera-day-label">Total véhicules</div>
+                    <div class="camera-day-value">{{ report.total_vehicles }}</div>
+                </div>
+                <div>
+                    <div class="camera-day-label">Captures</div>
+                    <div class="camera-day-value">{{ report.screenshots_count }}</div>
+                </div>
+                <div>
+                    <div class="camera-day-label">Preuves horaires</div>
+                    <div class="camera-day-value">{{ report.time_proof_count }}</div>
+                </div>
+                <div>
+                    <div class="camera-day-label">Recette attendue</div>
+                    <div class="camera-day-value">{{ report.expected_revenue|fc_amount }} FC</div>
+                </div>
+            </div>
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="submit_final_report">
+            <div class="camera-day-field">
+                <label for="{{ final_form.notes.id_for_label }}">{{ final_form.notes.label|default:"Notes de fin de journée" }}</label>
+                {{ final_form.notes }}
+                {% if final_form.notes.errors %}<div class="text-danger small">{{ final_form.notes.errors|join:", " }}</div>{% endif %}
+            </div>
+            <div class="camera-day-observation-actions">
+                <button type="submit" class="btn btn-success btn-block">Clôturer et envoyer le rapport final</button>
+            </div>
+        </form>
     </section>
 
     <section class="camera-day-card">

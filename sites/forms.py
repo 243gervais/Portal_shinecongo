@@ -30,6 +30,17 @@ class CameraObservationForm(forms.Form):
         choices=CameraObservation.VEHICLE_TYPE_CHOICES,
         widget=forms.Select(attrs={"class": "form-control"}),
     )
+    plate_number = forms.CharField(
+        label="Plaque",
+        required=False,
+        max_length=30,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Optionnel: AB1234, 123CD...",
+            }
+        ),
+    )
     observed_time = forms.TimeField(
         label="Heure observée",
         required=False,
@@ -88,6 +99,10 @@ class CameraObservationForm(forms.Form):
         if not screenshots:
             raise forms.ValidationError("Ajoutez au moins une capture pour enregistrer cette observation.")
         return screenshots
+
+    def clean_plate_number(self):
+        plate_number = (self.cleaned_data.get("plate_number") or "").strip().upper()
+        return plate_number
 
 
 class CameraOperatorDailyReportFinalForm(forms.ModelForm):

@@ -1073,7 +1073,7 @@
                     {% endif %}
                 {% elif user.userprofile.is_camera_controller %}
                     <a href="{% url 'camera_dashboard' %}" class="employee-mobile-hide">Tableau de bord</a>
-                    <a href="{% url 'camera_daily_report' %}">Rapport caméra</a>
+                    <a href="{% url 'camera_lavage_verification' %}">Lavage verification</a>
                 {% elif user.userprofile.is_employe %}
                     <a href="{% url 'employe_dashboard' %}" class="employee-mobile-hide">Tableau de bord</a>
                     <a href="{% url 'ajouter_lavage' %}" class="employee-mobile-hide">Ajouter lavage</a>
@@ -1489,7 +1489,7 @@
             ] : [];
             const cameraWarmupUrls = isCameraInstantNav ? [
                 '{% url "camera_dashboard" %}',
-                '{% url "camera_daily_report" %}',
+                '{% url "camera_lavage_verification" %}',
             ] : [];
 
             const normalizeUrl = (href) => {

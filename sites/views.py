@@ -108,6 +108,7 @@ def camera_daily_report(request):
                     report=report,
                     camera=observation_form.cleaned_data["camera"],
                     vehicle_type=observation_form.cleaned_data["vehicle_type"],
+                    plate_number=observation_form.cleaned_data["plate_number"],
                     observed_time=observation_form.cleaned_data["observed_time"],
                     notes=observation_form.cleaned_data["notes"],
                 )
@@ -129,20 +130,22 @@ def camera_daily_report(request):
                     user=request.user,
                     action="CREER",
                     description=(
-                        f"Observation caméra ajoutée sur {site.nom}: "
-                        f"{observation.get_vehicle_type_display()} via caméra {observation.camera.camera_number}"
+                        f"Vérification lavage ajoutée sur {site.nom}: "
+                        f"{observation.get_vehicle_type_display()}"
+                        f"{f' - {observation.plate_number}' if observation.plate_number else ''} "
+                        f"via caméra {observation.camera.camera_number}"
                     ),
                     content_object=observation,
                     ip_address=get_client_ip(request),
                     user_agent=get_user_agent(request),
                 )
-                messages.success(request, "Observation caméra enregistrée.")
+                messages.success(request, "Vérification lavage enregistrée. Le compteur du jour a été mis à jour.")
                 if report.is_submitted:
                     messages.info(
                         request,
                         "Le rapport final était déjà soumis. Soumettez-le à nouveau pour actualiser la version de fin de journée.",
                     )
-                return redirect("camera_daily_report")
+                return redirect("camera_lavage_verification")
 
         elif action == "submit_final_report":
             final_form = CameraOperatorDailyReportFinalForm(request.POST, instance=report)
@@ -164,7 +167,7 @@ def camera_daily_report(request):
                         user_agent=get_user_agent(request),
                     )
                     messages.success(request, "Rapport final caméra soumis avec succès.")
-                    return redirect("camera_daily_report")
+                    return redirect("camera_lavage_verification")
 
     observations = list(
         report.observations.select_related("camera").prefetch_related("evidences").order_by("-created_at")
@@ -222,7 +225,7 @@ def camera_delete_observation(request, observation_id):
         )
         messages.success(request, "Observation supprimée.")
 
-    return redirect("camera_daily_report")
+    return redirect("camera_lavage_verification")
 
 
 @login_required

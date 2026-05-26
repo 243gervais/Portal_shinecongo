@@ -201,38 +201,38 @@
     <section class="camera-portal-hero">
         <div class="camera-portal-hero-top">
             <div>
-                <span class="camera-portal-kicker">Camera Control</span>
+                <span class="camera-portal-kicker">Lavage Verification</span>
                 <h1>Portail contrôle caméra</h1>
-                <p>Enregistrez chaque véhicule vu au lavage avec une ou plusieurs captures, ajoutez une preuve d'heure si nécessaire, puis soumettez le rapport final de la journée sans passer par le portail employé lavage.</p>
+                <p>Travaillez lavage par lavage. Chaque véhicule repéré doit d'abord être enregistré avec une <strong>lavage verification</strong>, ses captures et sa plaque si elle est visible. Le système garde ensuite le compteur du jour à jour jusqu'à la clôture finale.</p>
                 <div class="camera-portal-chip-row">
                     <span class="camera-portal-chip">Site: {{ site.nom }}</span>
                     <span class="camera-portal-chip">Date du jour: {{ today|date:"d/m/Y" }}</span>
-                    <span class="camera-portal-chip">Rapports récents: {{ month_reports_count }}</span>
+                    <span class="camera-portal-chip">Jours clôturés ce mois: {{ month_reports_count }}</span>
                 </div>
             </div>
             <div class="camera-portal-actions">
-                <a href="{% url 'camera_daily_report' %}" class="btn btn-primary">Ouvrir le rapport du jour</a>
+                <a href="{% url 'camera_lavage_verification' %}#lavage-verification-form" class="btn btn-primary">Lavage verification</a>
             </div>
         </div>
 
         <div class="camera-portal-kpis">
             <article class="camera-portal-kpi">
-                <div class="camera-portal-label">Rapport du jour</div>
+                <div class="camera-portal-label">Compteur du jour</div>
                 <div class="camera-portal-value">{% if today_report %}{{ today_report.total_vehicles }}{% else %}0{% endif %}</div>
                 <div class="camera-portal-muted">
                     {% if today_report and today_report.is_submitted %}
-                    Déjà soumis à {{ today_report.submitted_at|date:"H:i" }}
+                    Journée déjà clôturée à {{ today_report.submitted_at|date:"H:i" }}
                     {% elif today_report %}
-                    Brouillon en cours
+                    Vérifications manuelles en cours
                     {% else %}
-                    Aucun brouillon pour aujourd'hui
+                    Aucune vérification manuelle enregistrée pour l'instant
                     {% endif %}
                 </div>
             </article>
             <article class="camera-portal-kpi">
-                <div class="camera-portal-label">Observations du jour</div>
+                <div class="camera-portal-label">Vérifications du jour</div>
                 <div class="camera-portal-value">{{ today_observations_count }}</div>
-                <div class="camera-portal-muted">Chaque observation correspond à un véhicule repéré.</div>
+                <div class="camera-portal-muted">Chaque soumission ajoute un véhicule vérifié au compteur.</div>
             </article>
             <article class="camera-portal-kpi">
                 <div class="camera-portal-label">Captures du jour</div>
@@ -256,27 +256,27 @@
         <section class="camera-portal-card">
             <div class="camera-portal-head">
                 <div>
-                    <h2 class="camera-portal-title">Point de départ</h2>
-                    <p class="camera-portal-copy">Commencez par le rapport du jour, ajoutez une observation par véhicule, puis soumettez le résumé final en fin de journée.</p>
+                    <h2 class="camera-portal-title">Lavage verification</h2>
+                    <p class="camera-portal-copy">Le flux commence ici: ouvrez la fiche de vérification, déclarez la voiture ou la moto, ajoutez la plaque si vous l'avez, joignez les captures, puis laissez le compteur avancer à chaque enregistrement.</p>
                 </div>
-                <span class="camera-portal-badge">Workflow dédié</span>
+                <span class="camera-portal-badge">1 soumission = 1 lavage vérifié</span>
             </div>
             <div class="camera-portal-mini-grid">
                 <div class="camera-portal-mini-card">
-                    <div class="camera-portal-label">1. Ajouter les véhicules</div>
-                    <div class="camera-portal-copy">Choisissez la caméra, le type de véhicule et joignez au moins une capture.</div>
+                    <div class="camera-portal-label">1. Démarrer la vérification</div>
+                    <div class="camera-portal-copy">Cliquez sur le bouton Lavage verification pour ouvrir la fiche manuelle du véhicule observé.</div>
                 </div>
                 <div class="camera-portal-mini-card">
-                    <div class="camera-portal-label">2. Ajouter la preuve horaire</div>
-                    <div class="camera-portal-copy">Optionnel, si vous avez une capture montrant l'heure ou l'horodatage.</div>
+                    <div class="camera-portal-label">2. Remplir la fiche</div>
+                    <div class="camera-portal-copy">Renseignez voiture ou moto, la plaque si disponible, puis chargez une ou plusieurs captures avant d'enregistrer.</div>
                 </div>
                 <div class="camera-portal-mini-card">
-                    <div class="camera-portal-label">3. Soumettre le rapport final</div>
-                    <div class="camera-portal-copy">Le total de fin de journée est calculé automatiquement depuis vos observations.</div>
+                    <div class="camera-portal-label">3. Clôturer la journée</div>
+                    <div class="camera-portal-copy">En fin de journée seulement, ouvrez la clôture finale et envoyez le rapport calculé à partir de toutes les vérifications enregistrées.</div>
                 </div>
             </div>
             <div>
-                <a href="{% url 'camera_daily_report' %}" class="btn btn-primary">Aller au rapport du jour</a>
+                <a href="{% url 'camera_lavage_verification' %}#lavage-verification-form" class="btn btn-primary">Lavage verification</a>
             </div>
         </section>
 

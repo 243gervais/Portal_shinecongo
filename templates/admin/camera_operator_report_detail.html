@@ -240,7 +240,7 @@
         <div class="camera-admin-card-head">
             <div>
                 <h2 class="camera-admin-title">Observations détaillées</h2>
-                <p class="camera-admin-copy">Chaque observation contient le véhicule repéré, la caméra utilisée et toutes les pièces jointes associées.</p>
+                <p class="camera-admin-copy">Chaque vérification contient le véhicule repéré, la caméra utilisée, la plaque quand elle est disponible et toutes les pièces jointes associées.</p>
             </div>
             <span class="camera-admin-badge">{{ observations|length }} observation{{ observations|length|pluralize }}</span>
         </div>
@@ -259,6 +259,9 @@
                         </div>
                     </div>
                     <div class="camera-admin-pill-row" style="margin-top:0;">
+                        {% if observation.plate_number %}
+                        <span class="camera-admin-badge">Plaque {{ observation.plate_number }}</span>
+                        {% endif %}
                         <span class="camera-admin-badge">{{ observation.screenshot_count }} capture{{ observation.screenshot_count|pluralize }}</span>
                         <span class="camera-admin-badge">{{ observation.time_proof_count }} preuve{{ observation.time_proof_count|pluralize }} horaire{{ observation.time_proof_count|pluralize }}</span>
                     </div>
