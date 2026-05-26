@@ -1,23 +1,45 @@
 {% extends "base.html" %}
 
-{% block title %}{% if mode == 'edit' %}Modifier membre{% else %}Ajouter membre{% endif %} - {{ site.nom }}{% endblock %}
+{% block title %}{% if mode == 'edit' %}Modifier membre{% else %}{% if requested_role == 'CONTROLE_CAMERA' %}Ajouter contrôleur caméra{% else %}Ajouter membre{% endif %}{% endif %} - {{ site.nom }}{% endblock %}
 
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; gap: 1rem; flex-wrap: wrap;">
     <div>
-        <h1 class="mt-2 mb-2">{% if mode == 'edit' %}✏️ Modifier un membre{% else %}👤 Ajouter un membre{% endif %}</h1>
+        <h1 class="mt-2 mb-2">
+            {% if mode == 'edit' %}
+            ✏️ Modifier un membre
+            {% elif requested_role == 'CONTROLE_CAMERA' %}
+            📹 Ajouter un contrôleur caméra
+            {% else %}
+            👤 Ajouter un membre
+            {% endif %}
+        </h1>
         <p style="color: var(--text-secondary); margin: 0;">Site: {{ site.nom }} - {{ site.adresse }}</p>
     </div>
-    <a href="{% url 'admin_site_employees' site.id %}" class="btn btn-secondary">← Retour</a>
+    <a href="{% if next_url %}{{ next_url }}{% else %}{% url 'admin_site_employees' site.id %}{% endif %}" class="btn btn-secondary">← Retour</a>
 </div>
 
 <div class="card">
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
+        {% if next_url %}
+        <input type="hidden" name="next" value="{{ next_url }}">
+        {% endif %}
 
         {% if form.non_field_errors %}
         <div class="alert alert-error">
             {{ form.non_field_errors }}
+        </div>
+        {% endif %}
+
+        {% if mode == 'create' %}
+        <div class="alert alert-info" style="margin-bottom: 1rem;">
+            Ce compte sera rattaché au site <strong>{{ site.nom }}</strong>.
+            {% if requested_role == 'CONTROLE_CAMERA' %}
+            Un contrôleur caméra doit toujours être assigné à un site dès la création pour que son portail dédié s'ouvre correctement après connexion.
+            {% else %}
+            Le site assigné détermine le périmètre opérationnel du compte.
+            {% endif %}
         </div>
         {% endif %}
 
@@ -121,9 +143,9 @@
 
         <div class="mt-3">
             <button type="submit" class="btn btn-primary btn-block">
-                {% if mode == 'edit' %}✅ Enregistrer les modifications{% else %}✅ Créer le compte{% endif %}
+                {% if mode == 'edit' %}✅ Enregistrer les modifications{% elif requested_role == 'CONTROLE_CAMERA' %}✅ Créer le contrôleur caméra{% else %}✅ Créer le compte{% endif %}
             </button>
-            <a href="{% url 'admin_site_employees' site.id %}" class="btn btn-danger btn-block mt-2">Annuler</a>
+            <a href="{% if next_url %}{{ next_url }}{% else %}{% url 'admin_site_employees' site.id %}{% endif %}" class="btn btn-danger btn-block mt-2">Annuler</a>
         </div>
     </form>
 </div>

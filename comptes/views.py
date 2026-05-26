@@ -1219,6 +1219,38 @@ def _build_admin_password_overview(current_user):
     }
 
 
+def _build_password_creation_actions(request):
+    """
+    Prépare les accès rapides de création de comptes depuis la page mots de passe.
+    """
+    next_url = reverse("admin_password_management")
+    active_sites = (
+        Location.objects.filter(actif=True)
+        .annotate(site_staff_count=Count("userprofile", filter=Q(userprofile__role__in=UserProfile.SITE_STAFF_ROLES)))
+        .order_by("nom")
+    )
+
+    creation_sites = []
+    for site in active_sites:
+        creation_sites.append(
+            {
+                "site": site,
+                "site_name": site.nom,
+                "site_city": site.ville,
+                "site_staff_count": site.site_staff_count,
+                "camera_create_url": (
+                    f"{reverse('admin_add_site_employee', kwargs={'site_id': site.id})}"
+                    f"?role={UserProfile.CAMERA_CONTROLLER_ROLE}&next={quote(next_url)}"
+                ),
+            }
+        )
+
+    return {
+        "creation_sites": creation_sites,
+        "creation_sites_count": len(creation_sites),
+    }
+
+
 @login_required
 @no_cache_view
 def admin_dashboard(request):
@@ -1625,6 +1657,7 @@ def admin_password_management(request):
         return redirect("dashboard")
 
     password_overview = _build_admin_password_overview(user)
+    creation_actions = _build_password_creation_actions(request)
 
     return render(
         request,
@@ -1633,6 +1666,8 @@ def admin_password_management(request):
             "password_summary": password_overview["summary"],
             "current_account": password_overview["current_account"],
             "password_sections": password_overview["sections"],
+            "password_creation_sites": creation_actions["creation_sites"],
+            "password_creation_sites_count": creation_actions["creation_sites_count"],
         },
     )
 
@@ -5432,9 +5467,14 @@ def admin_add_site_employee(request, site_id):
         return redirect('dashboard')
 
     site = get_object_or_404(Location, id=site_id)
+    next_url = _safe_next_url(request) or ""
+    requested_role = (request.GET.get("role") or request.POST.get("role") or "").strip()
+    if requested_role not in {UserProfile.EMPLOYEE_ROLE, UserProfile.CAMERA_CONTROLLER_ROLE}:
+        requested_role = UserProfile.EMPLOYEE_ROLE
+    creation_mode_label = "contrôleur caméra" if requested_role == UserProfile.CAMERA_CONTROLLER_ROLE else "membre"
 
     if request.method == 'POST':
-        form = SiteEmployeeForm(request.POST, request.FILES)
+        form = SiteEmployeeForm(request.POST, request.FILES, initial_role=requested_role)
         if form.is_valid():
             profile = form.save(site=site)
             employee_name = profile.user.get_full_name() or profile.user.username
@@ -5447,14 +5487,17 @@ def admin_add_site_employee(request, site_id):
                 user_agent=get_user_agent(request),
             )
             messages.success(request, f'Compte "{employee_name}" ajouté avec succès.')
-            return redirect('admin_site_employees', site_id=site.id)
+            return redirect(next_url or reverse('admin_site_employees', kwargs={'site_id': site.id}))
     else:
-        form = SiteEmployeeForm()
+        form = SiteEmployeeForm(initial={"role": requested_role}, initial_role=requested_role)
 
     return render(request, 'admin/site_employee_form.html', {
         'site': site,
         'form': form,
         'mode': 'create',
+        'next_url': next_url,
+        'requested_role': requested_role,
+        'creation_mode_label': creation_mode_label,
     })
 
 

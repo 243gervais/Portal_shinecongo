@@ -7,6 +7,7 @@ from django.utils import timezone
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from urllib.parse import urlparse
+from urllib.parse import quote
 
 from comptes.forms import ApprovalAuthenticationForm
 from comptes.views import _daily_funding_snapshot
@@ -382,6 +383,26 @@ class AdminPasswordManagementTests(TestCase):
         self.assertContains(response, "employee_portal")
         self.assertContains(response, "manager_portal")
         self.assertContains(response, "Site Passwords")
+        self.assertContains(response, "Créer un contrôleur caméra")
+        self.assertContains(response, "Chaque contrôleur caméra doit être assigné à un site")
+        self.assertContains(
+            response,
+            f"{reverse('admin_add_site_employee', args=[self.site.id])}?role=CONTROLE_CAMERA&amp;next={quote(reverse('admin_password_management'))}",
+            html=False,
+        )
+
+    def test_password_management_links_to_prefilled_camera_controller_form(self):
+        response = self.client.get(
+            reverse("admin_add_site_employee", args=[self.site.id]),
+            {"role": "CONTROLE_CAMERA", "next": reverse("admin_password_management")},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["requested_role"], "CONTROLE_CAMERA")
+        self.assertEqual(response.context["next_url"], reverse("admin_password_management"))
+        self.assertContains(response, "Ajouter un contrôleur caméra")
+        self.assertContains(response, "Ce compte sera rattaché au site")
+        self.assertContains(response, "Un contrôleur caméra doit toujours être assigné à un site")
 
     def test_admin_can_change_employee_password(self):
         response = self.client.post(
@@ -417,6 +438,27 @@ class AdminPasswordManagementTests(TestCase):
         follow_up = self.client.get(reverse("admin_password_management"))
         self.assertEqual(follow_up.status_code, 200)
         self.assertContains(follow_up, "Gestion des mots de passe")
+
+    def test_admin_can_create_camera_controller_and_return_to_password_page(self):
+        response = self.client.post(
+            reverse("admin_add_site_employee", args=[self.site.id]),
+            data={
+                "next": reverse("admin_password_management"),
+                "role": "CONTROLE_CAMERA",
+                "username": "camera_from_passwords",
+                "first_name": "Nadia",
+                "last_name": "Monitor",
+                "email": "nadia.monitor@example.com",
+                "telephone": "0888888888",
+                "password": "CameraPass123!",
+                "is_active": "on",
+            },
+        )
+
+        self.assertRedirects(response, reverse("admin_password_management"), fetch_redirect_response=False)
+        created_user = User.objects.get(username="camera_from_passwords")
+        self.assertEqual(created_user.userprofile.role, "CONTROLE_CAMERA")
+        self.assertEqual(created_user.userprofile.site, self.site)
 
 
 class SiteDocumentUploadTests(TestCase):

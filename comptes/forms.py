@@ -313,12 +313,13 @@ class SiteEmployeeForm(forms.Form):
         initial=True,
     )
 
-    def __init__(self, *args, user_instance=None, profile_instance=None, **kwargs):
+    def __init__(self, *args, user_instance=None, profile_instance=None, initial_role=None, **kwargs):
         self.user_instance = user_instance
         self.profile_instance = profile_instance
         super().__init__(*args, **kwargs)
 
-        self.fields["role"].initial = UserProfile.EMPLOYEE_ROLE
+        preset_role = initial_role or self.initial.get("role") or UserProfile.EMPLOYEE_ROLE
+        self.fields["role"].initial = preset_role
         if self.user_instance:
             self.fields["username"].initial = self.user_instance.username
             self.fields["first_name"].initial = self.user_instance.first_name
