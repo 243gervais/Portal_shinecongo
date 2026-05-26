@@ -118,13 +118,6 @@ def camera_daily_report(request):
                         evidence_kind=CameraObservationEvidence.KIND_SCREENSHOT,
                         file=screenshot,
                     )
-                time_proof = observation_form.cleaned_data.get("time_proof")
-                if time_proof:
-                    CameraObservationEvidence.objects.create(
-                        observation=observation,
-                        evidence_kind=CameraObservationEvidence.KIND_TIME_PROOF,
-                        file=time_proof,
-                    )
 
                 AuditLog.log(
                     user=request.user,

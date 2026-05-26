@@ -896,6 +896,7 @@ class CameraControllerPortalTests(TestCase):
         self.assertContains(verification_response, "Clôture finale de la journée")
         self.assertContains(verification_response, "Plaque")
         self.assertContains(verification_response, "Vérifications enregistrées")
+        self.assertNotContains(verification_response, "Preuve horaire")
         self.assertNotContains(verification_response, "Recette")
         self.assertNotContains(verification_response, "Tarif")
         self.assertNotContains(verification_response, "FC")
@@ -909,11 +910,6 @@ class CameraControllerPortalTests(TestCase):
                 "vehicle_type": "CAR",
                 "plate_number": " ab1234 ",
                 "observed_time": "08:45",
-                "screenshots": [
-                    SimpleUploadedFile("camera-1.gif", TEST_GIF_BYTES, content_type="image/gif"),
-                    SimpleUploadedFile("camera-2.gif", TEST_GIF_BYTES, content_type="image/gif"),
-                ],
-                "time_proof": SimpleUploadedFile("time-proof.gif", TEST_GIF_BYTES, content_type="image/gif"),
                 "notes": "Voiture vue à l'entrée du tunnel de lavage.",
             },
         )
@@ -922,11 +918,11 @@ class CameraControllerPortalTests(TestCase):
         report = CameraOperatorDailyReport.objects.get(site=self.site, controller=self.controller, date=timezone.localdate())
         observation = CameraObservation.objects.get(report=report)
         self.assertEqual(observation.plate_number, "AB1234")
-        self.assertEqual(CameraObservationEvidence.objects.filter(observation=observation).count(), 3)
+        self.assertEqual(CameraObservationEvidence.objects.filter(observation=observation).count(), 0)
         self.assertEqual(report.cars_count, 1)
         self.assertEqual(report.total_vehicles, 1)
-        self.assertEqual(report.screenshots_count, 2)
-        self.assertEqual(report.time_proof_count, 1)
+        self.assertEqual(report.screenshots_count, 0)
+        self.assertEqual(report.time_proof_count, 0)
         self.assertEqual(report.expected_revenue, Decimal("15000"))
 
         submit_response = self.client.post(

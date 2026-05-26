@@ -48,23 +48,13 @@ class CameraObservationForm(forms.Form):
     )
     screenshots = MultipleImageField(
         label="Captures du véhicule",
-        required=True,
-        help_text="Ajoutez une ou plusieurs captures pour ce véhicule.",
+        required=False,
+        help_text="Optionnel. Ajoutez une ou plusieurs captures si vous en avez besoin.",
         widget=MultipleImageInput(
             attrs={
                 "class": "form-control",
                 "accept": ".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif",
                 "multiple": True,
-            }
-        ),
-    )
-    time_proof = forms.ImageField(
-        label="Preuve horaire (optionnel)",
-        required=False,
-        widget=forms.ClearableFileInput(
-            attrs={
-                "class": "form-control",
-                "accept": ".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif",
             }
         ),
     )
@@ -95,10 +85,7 @@ class CameraObservationForm(forms.Form):
         return camera
 
     def clean_screenshots(self):
-        screenshots = self.cleaned_data.get("screenshots") or []
-        if not screenshots:
-            raise forms.ValidationError("Ajoutez au moins une capture pour enregistrer cette observation.")
-        return screenshots
+        return self.cleaned_data.get("screenshots") or []
 
     def clean_plate_number(self):
         plate_number = (self.cleaned_data.get("plate_number") or "").strip().upper()

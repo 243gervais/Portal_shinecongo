@@ -265,7 +265,7 @@
             <div>
                 <span class="camera-day-kicker">Lavage Verification</span>
                 <h1>Vérifications du {{ today|date:"d/m/Y" }}</h1>
-                <p>Enregistrez ici chaque lavage repéré sur la caméra, un par un. Pour chaque voiture ou moto, ajoutez la fiche manuelle avec les captures, la plaque si elle est visible et, si besoin, la preuve de l'heure. Le rapport final n'intervient qu'à la fin de la journée.</p>
+                <p>Enregistrez ici chaque lavage repéré sur la caméra, un par un. Pour chaque voiture ou moto, ajoutez la fiche manuelle, la plaque si elle est visible et des captures si vous en avez. Le rapport final n'intervient qu'à la fin de la journée.</p>
                 <div class="camera-day-chip-row">
                     <span class="camera-day-chip">Site: {{ site.nom }}</span>
                     <span class="camera-day-chip">Compteur actuel: {{ report.total_vehicles }}</span>
@@ -312,7 +312,7 @@
             <div class="camera-day-card-head">
                 <div>
                     <h2 class="camera-day-title">Lavage verification</h2>
-                    <p class="camera-day-copy">Déclarez un seul lavage à la fois. Choisissez la caméra, indiquez s'il s'agit d'une voiture ou d'une moto, ajoutez la plaque si elle est visible, puis chargez une ou plusieurs captures.</p>
+                    <p class="camera-day-copy">Déclarez un seul lavage à la fois. Choisissez la caméra, indiquez s'il s'agit d'une voiture ou d'une moto, ajoutez la plaque si elle est visible, puis chargez des captures seulement si vous en avez besoin.</p>
                 </div>
                 <span class="camera-day-badge">1 véhicule = 1 fiche de vérification</span>
             </div>
@@ -352,11 +352,6 @@
                         {% if observation_form.screenshots.errors %}<div class="text-danger small">{{ observation_form.screenshots.errors|join:", " }}</div>{% endif %}
                     </div>
                     <div class="camera-day-field camera-day-field--full">
-                        <label for="{{ observation_form.time_proof.id_for_label }}">{{ observation_form.time_proof.label }}</label>
-                        {{ observation_form.time_proof }}
-                        {% if observation_form.time_proof.errors %}<div class="text-danger small">{{ observation_form.time_proof.errors|join:", " }}</div>{% endif %}
-                    </div>
-                    <div class="camera-day-field camera-day-field--full">
                         <label for="{{ observation_form.notes.id_for_label }}">{{ observation_form.notes.label }}</label>
                         {{ observation_form.notes }}
                         {% if observation_form.notes.errors %}<div class="text-danger small">{{ observation_form.notes.errors|join:", " }}</div>{% endif %}
@@ -387,10 +382,6 @@
                     <div>
                         <div class="camera-day-label">Captures</div>
                         <div class="camera-day-value">{{ report.screenshots_count }}</div>
-                    </div>
-                    <div>
-                        <div class="camera-day-label">Preuves horaires</div>
-                        <div class="camera-day-value">{{ report.time_proof_count }}</div>
                     </div>
                 </div>
             </div>
@@ -428,7 +419,6 @@
                         <span class="camera-day-badge">Plaque {{ observation.plate_number }}</span>
                         {% endif %}
                         <span class="camera-day-badge">{{ observation.screenshot_count }} capture{{ observation.screenshot_count|pluralize }}</span>
-                        <span class="camera-day-badge">{{ observation.time_proof_count }} preuve{{ observation.time_proof_count|pluralize }} horaire{{ observation.time_proof_count|pluralize }}</span>
                     </div>
                 </div>
                 {% if observation.notes %}
@@ -473,10 +463,6 @@
                 <div>
                     <div class="camera-day-label">Captures</div>
                     <div class="camera-day-value">{{ report.screenshots_count }}</div>
-                </div>
-                <div>
-                    <div class="camera-day-label">Preuves horaires</div>
-                    <div class="camera-day-value">{{ report.time_proof_count }}</div>
                 </div>
             </div>
         </div>
