@@ -446,7 +446,7 @@
         <div class="camera-day-card-head">
             <div>
                 <h2 class="camera-day-title">Clôture finale de la journée</h2>
-                <p class="camera-day-copy">Quand toutes les vérifications sont saisies, le système reprend automatiquement les chiffres ci-dessous. Ajoutez une note globale si nécessaire, puis envoyez le rapport final.</p>
+                <p class="camera-day-copy">Quand toutes les vérifications sont saisies, le système reprend automatiquement les chiffres ci-dessous. Ajoutez une note globale si nécessaire, prévisualisez le rapport, puis confirmez l'envoi final.</p>
             </div>
             <span class="camera-day-state {% if report.is_submitted %}camera-day-state--success{% else %}camera-day-state--draft{% endif %}">
                 {% if report.is_submitted %}Soumis{% else %}En attente{% endif %}
@@ -466,16 +466,104 @@
         </div>
         <form method="post">
             {% csrf_token %}
-            <input type="hidden" name="action" value="submit_final_report">
+            <input type="hidden" name="action" value="preview_final_report">
             <div class="camera-day-field">
                 <label for="{{ final_form.notes.id_for_label }}">{{ final_form.notes.label|default:"Notes de fin de journée" }}</label>
                 {{ final_form.notes }}
                 {% if final_form.notes.errors %}<div class="text-danger small">{{ final_form.notes.errors|join:", " }}</div>{% endif %}
             </div>
             <div class="camera-day-observation-actions">
-                <button type="submit" class="btn btn-success btn-block">Clôturer et envoyer le rapport final</button>
+                <button type="submit" class="btn btn-success btn-block">Prévisualiser le rapport final</button>
             </div>
         </form>
+        {% if final_report_preview %}
+        <div class="camera-day-final-box">
+                <div class="camera-day-card-head">
+                    <div>
+                        <h3 class="camera-day-title">Prévisualisation avant confirmation</h3>
+                    <p class="camera-day-copy">Le rapport n'est pas encore envoyé. Vérifiez le résumé ci-dessous, puis confirmez le rapport final.</p>
+                    </div>
+                    <span class="camera-day-badge">{{ final_report_preview.status_label }}</span>
+                </div>
+            <div class="camera-day-summary-grid">
+                <div>
+                    <div class="camera-day-label">Total véhicules</div>
+                    <div class="camera-day-value">{{ final_report_preview.total_vehicles }}</div>
+                </div>
+                <div>
+                    <div class="camera-day-label">Voitures</div>
+                    <div class="camera-day-value">{{ final_report_preview.cars_count }}</div>
+                </div>
+                <div>
+                    <div class="camera-day-label">Motos 2 roues</div>
+                    <div class="camera-day-value">{{ final_report_preview.motos_count }}</div>
+                </div>
+                <div>
+                    <div class="camera-day-label">Motos 3 roues</div>
+                    <div class="camera-day-value">{{ final_report_preview.three_wheelers_count }}</div>
+                </div>
+                <div>
+                    <div class="camera-day-label">Captures</div>
+                    <div class="camera-day-value">{{ final_report_preview.screenshots_count }}</div>
+                </div>
+            </div>
+            <div class="camera-day-preview">
+                <div class="camera-day-label">Notes finales</div>
+                <div class="camera-day-copy">{{ final_report_preview.notes_display|linebreaksbr }}</div>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="confirm_final_report">
+                <textarea name="notes" style="display:none;">{{ final_report_preview.notes_value }}</textarea>
+                <div class="camera-day-observation-actions">
+                    <button type="submit" class="btn btn-success btn-block">Confirmer l'envoi du rapport final</button>
+                    <a href="#final-report-form" class="btn btn-secondary">Modifier avant envoi</a>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+    </section>
+
+    <section class="camera-day-card">
+        <div class="camera-day-card-head">
+            <div>
+                <h2 class="camera-day-title">Historique des vérifications</h2>
+                <p class="camera-day-copy">Retrouvez ici les dernières vérifications déjà saisies sur les autres journées, avec leur date et leur statut de rapport final.</p>
+            </div>
+            <span class="camera-day-badge">{{ verification_history|length }} entrée{{ verification_history|length|pluralize }}</span>
+        </div>
+        <div class="camera-day-observation-list">
+            {% for history_item in verification_history %}
+            <article class="camera-day-observation">
+                <div class="camera-day-observation-top">
+                    <div>
+                        <div class="camera-day-observation-title">{{ history_item.report.date|date:"d/m/Y" }} · {{ history_item.get_vehicle_type_display }}</div>
+                        <div class="camera-day-muted">
+                            {% if history_item.observed_time %}
+                            Vue à {{ history_item.observed_time|time:"H:i" }}
+                            {% endif %}
+                            {% if history_item.observed_time %}
+                            •
+                            {% endif %}
+                            Ajoutée le {{ history_item.created_at|date:"d/m/Y H:i" }}
+                        </div>
+                    </div>
+                    <div class="camera-day-pill-row" style="margin-top:0;">
+                        <span class="camera-day-badge">{% if history_item.report.is_submitted %}Rapport final soumis{% else %}Rapport non finalisé{% endif %}</span>
+                        {% if history_item.plate_number %}
+                        <span class="camera-day-badge">Plaque {{ history_item.plate_number }}</span>
+                        {% endif %}
+                        <span class="camera-day-badge">{{ history_item.screenshot_count }} capture{{ history_item.screenshot_count|pluralize }}</span>
+                    </div>
+                </div>
+                {% if history_item.notes %}
+                <div class="camera-day-muted">{{ history_item.notes }}</div>
+                {% endif %}
+            </article>
+            {% empty %}
+            <div class="camera-day-empty">Aucune ancienne vérification n'est encore disponible dans votre historique.</div>
+            {% endfor %}
+        </div>
     </section>
 
     <section class="camera-day-card">

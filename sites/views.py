@@ -136,6 +136,25 @@ def _send_camera_final_report_notification(report, was_update):
         return False
 
 
+def _build_camera_final_report_preview(report, notes_value):
+    cleaned_notes = (notes_value or "").strip()
+    is_update = bool(report.is_submitted)
+
+    return {
+        "action_label": "mise à jour" if is_update else "envoi",
+        "action_copy": "mettre à jour" if is_update else "envoyer",
+        "status_label": "Rapport déjà soumis" if is_update else "Prêt pour l'envoi",
+        "total_vehicles": report.total_vehicles,
+        "cars_count": report.cars_count,
+        "motos_count": report.motos_count,
+        "three_wheelers_count": report.three_wheelers_count,
+        "screenshots_count": report.screenshots_count,
+        "notes_value": notes_value or "",
+        "notes_display": cleaned_notes or "Aucune note",
+        "has_notes": bool(cleaned_notes),
+    }
+
+
 @login_required
 @never_cache
 def camera_dashboard(request):
@@ -165,6 +184,7 @@ def camera_daily_report(request):
 
     observation_form = CameraObservationForm(site=site)
     final_form = CameraOperatorDailyReportFinalForm(instance=report)
+    final_report_preview = None
 
     if request.method == "POST":
         action = (request.POST.get("action") or "").strip()
@@ -207,7 +227,19 @@ def camera_daily_report(request):
                     )
                 return redirect("camera_lavage_verification")
 
-        elif action == "submit_final_report":
+        elif action == "preview_final_report":
+            final_form = CameraOperatorDailyReportFinalForm(request.POST, instance=report)
+            if final_form.is_valid():
+                report.sync_observation_totals()
+                if report.total_vehicles <= 0:
+                    messages.error(request, "Ajoutez au moins une observation avant de soumettre le rapport final.")
+                else:
+                    final_report_preview = _build_camera_final_report_preview(
+                        report,
+                        final_form.cleaned_data["notes"],
+                    )
+
+        elif action == "confirm_final_report":
             final_form = CameraOperatorDailyReportFinalForm(request.POST, instance=report)
             if final_form.is_valid():
                 report.sync_observation_totals()
@@ -244,6 +276,16 @@ def camera_daily_report(request):
             is_submitted=True,
         ).order_by("-date")
     )
+    verification_history = list(
+        CameraObservation.objects.filter(
+            report__controller=request.user,
+            report__site=site,
+        )
+        .exclude(report=report)
+        .select_related("report", "camera")
+        .prefetch_related("evidences")
+        .order_by("-report__date", "-created_at")[:18]
+    )
 
     context = {
         "site": site,
@@ -252,6 +294,8 @@ def camera_daily_report(request):
         "observations": observations,
         "observation_form": observation_form,
         "final_form": final_form,
+        "final_report_preview": final_report_preview,
+        "verification_history": verification_history,
         "weekly_reports": weekly_reports,
     }
     return render(request, "camera/daily_report.html", context)

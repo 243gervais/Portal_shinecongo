@@ -933,10 +933,26 @@ class CameraControllerPortalTests(TestCase):
         self.assertEqual(report.time_proof_count, 0)
         self.assertEqual(report.expected_revenue, Decimal("15000"))
 
+        preview_response = self.client.post(
+            reverse("camera_lavage_verification"),
+            data={
+                "action": "preview_final_report",
+                "notes": "RAS. Caméra entrée stable toute la journée.",
+            },
+        )
+
+        self.assertEqual(preview_response.status_code, 200)
+        report.refresh_from_db()
+        self.assertFalse(report.is_submitted)
+        self.assertContains(preview_response, "Prévisualisation avant confirmation")
+        self.assertContains(preview_response, "Confirmer l'envoi du rapport final")
+        self.assertContains(preview_response, "RAS. Caméra entrée stable toute la journée.")
+        self.assertEqual(len(mail.outbox), 0)
+
         submit_response = self.client.post(
             reverse("camera_lavage_verification"),
             data={
-                "action": "submit_final_report",
+                "action": "confirm_final_report",
                 "notes": "RAS. Caméra entrée stable toute la journée.",
             },
         )
@@ -957,6 +973,31 @@ class CameraControllerPortalTests(TestCase):
         self.assertEqual(mimetype, "text/html")
         self.assertIn("Rapport final caméra", html_content)
         self.assertIn("Aline", html_content)
+
+    def test_camera_controller_sees_verification_history(self):
+        previous_report = CameraOperatorDailyReport.objects.create(
+            site=self.site,
+            controller=self.controller,
+            date=timezone.localdate() - timedelta(days=1),
+            notes="Rapport de la veille.",
+            is_submitted=True,
+            submitted_at=timezone.now() - timedelta(days=1),
+        )
+        CameraObservation.objects.create(
+            report=previous_report,
+            vehicle_type="THREE_WHEELER",
+            plate_number="HIST123",
+            observed_time=timezone.localtime().time().replace(second=0, microsecond=0),
+            notes="Historique de verification.",
+        )
+
+        response = self.client.get(reverse("camera_lavage_verification"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Historique des vérifications")
+        self.assertContains(response, "HIST123")
+        self.assertContains(response, "Historique de verification.")
+        self.assertContains(response, "Rapport final soumis")
 
     def test_camera_controller_report_is_visible_in_admin_monitoring(self):
         report = CameraOperatorDailyReport.objects.create(
