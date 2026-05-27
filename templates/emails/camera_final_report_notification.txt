@@ -1,0 +1,17 @@
+{{ company_name }}
+Rapport final caméra
+
+{{ action_copy }} pour {{ site_name }} le {{ report_date|date:"d/m/Y" }}
+Contrôleur: {{ controller_name }}
+Horodatage: {{ submitted_at|date:"d/m/Y H:i" }}
+
+Voitures: {{ cars_count }}
+Motos 2 roues: {{ motos_count }}
+Motos 3 roues: {{ three_wheelers_count }}
+Total véhicules: {{ total_vehicles }}
+Captures: {{ screenshots_count }}
+
+{% if has_notes %}Notes:
+{{ notes }}
+{% else %}Notes: Aucune note
+{% endif %}

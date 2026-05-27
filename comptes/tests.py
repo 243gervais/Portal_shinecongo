@@ -2,6 +2,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from datetime import date, datetime, timedelta
@@ -847,7 +848,12 @@ class SiteCameraMonitoringTests(TestCase):
         self.assertContains(detail_response, "Motos 3 pneus")
 
 
-@override_settings(MEDIA_ROOT="/private/tmp/portal_shinecongo_camera_operator_test_media")
+@override_settings(
+    MEDIA_ROOT="/private/tmp/portal_shinecongo_camera_operator_test_media",
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    DEFAULT_FROM_EMAIL="noreply@example.com",
+    FINAL_REPORT_NOTIFICATION_EMAIL="mbadunkokorigervais@gmail.com",
+)
 class CameraControllerPortalTests(TestCase):
     def setUp(self):
         self.site = Location.objects.create(
@@ -940,6 +946,17 @@ class CameraControllerPortalTests(TestCase):
         self.assertTrue(report.is_submitted)
         self.assertIsNotNone(report.submitted_at)
         self.assertEqual(report.notes, "RAS. Caméra entrée stable toute la journée.")
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("Rapport final caméra soumis", mail.outbox[0].subject)
+        self.assertEqual(mail.outbox[0].to, ["mbadunkokorigervais@gmail.com"])
+        self.assertIn("Contrôleur: Aline", mail.outbox[0].body)
+        self.assertIn("Total véhicules: 1", mail.outbox[0].body)
+        self.assertIn("Voitures: 1", mail.outbox[0].body)
+        self.assertEqual(len(mail.outbox[0].alternatives), 1)
+        html_content, mimetype = mail.outbox[0].alternatives[0]
+        self.assertEqual(mimetype, "text/html")
+        self.assertIn("Rapport final caméra", html_content)
+        self.assertIn("Aline", html_content)
 
     def test_camera_controller_report_is_visible_in_admin_monitoring(self):
         report = CameraOperatorDailyReport.objects.create(

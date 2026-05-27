@@ -1,8 +1,12 @@
+import logging
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.mail import EmailMultiAlternatives
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 
@@ -17,6 +21,8 @@ from .models import (
     CameraOperatorDailyReport,
     Location,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _is_camera_controller(user):
@@ -66,6 +72,68 @@ def _build_camera_dashboard_context(user, site):
         "month_screenshots_count": sum(item.screenshots_count for item in month_reports_qs),
         "recent_reports": recent_reports,
     }
+
+
+def _build_camera_final_report_email_context(report, was_update):
+    controller_name = report.controller.get_full_name() or report.controller.username
+    notes = (report.notes or "").strip()
+
+    return {
+        "company_name": "Shine Congo",
+        "controller_name": controller_name,
+        "site_name": report.site.nom,
+        "report_date": report.date,
+        "submitted_at": timezone.localtime(report.submitted_at or timezone.now()),
+        "action_label": "mis à jour" if was_update else "soumis",
+        "action_copy": "Rapport final mis à jour" if was_update else "Rapport final envoyé",
+        "cars_count": report.cars_count,
+        "motos_count": report.motos_count,
+        "three_wheelers_count": report.three_wheelers_count,
+        "total_vehicles": report.total_vehicles,
+        "screenshots_count": report.screenshots_count,
+        "notes": notes or "Aucune note",
+        "has_notes": bool(notes),
+    }
+
+
+def _send_camera_final_report_notification(report, was_update):
+    recipient = (getattr(settings, "FINAL_REPORT_NOTIFICATION_EMAIL", "") or "").strip()
+    if not recipient:
+        return False
+
+    email_backend = getattr(settings, "EMAIL_BACKEND", "")
+    uses_smtp_backend = email_backend.endswith("smtp.EmailBackend")
+    if uses_smtp_backend and (
+        not getattr(settings, "EMAIL_HOST", "")
+        or not getattr(settings, "EMAIL_HOST_USER", "")
+        or not getattr(settings, "EMAIL_HOST_PASSWORD", "")
+    ):
+        logger.warning(
+            "Notification email skipped for camera final report because SMTP settings are incomplete"
+        )
+        return False
+
+    context = _build_camera_final_report_email_context(report, was_update)
+    subject = (
+        f"Rapport final caméra {context['action_label']} - "
+        f"{report.site.nom} - {report.date.strftime('%d/%m/%Y')}"
+    )
+    message = render_to_string("emails/camera_final_report_notification.txt", context)
+    html_message = render_to_string("emails/camera_final_report_notification.html", context)
+
+    try:
+        email_message = EmailMultiAlternatives(
+            subject=subject,
+            body=message,
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            to=[recipient],
+        )
+        email_message.attach_alternative(html_message, "text/html")
+        email_message.send(fail_silently=False)
+        return True
+    except Exception:
+        logger.exception("Impossible d'envoyer la notification email du rapport final caméra")
+        return False
 
 
 @login_required
@@ -146,10 +214,12 @@ def camera_daily_report(request):
                 if report.total_vehicles <= 0:
                     messages.error(request, "Ajoutez au moins une observation avant de soumettre le rapport final.")
                 else:
+                    was_update = report.is_submitted
                     report = final_form.save(commit=False)
                     report.is_submitted = True
                     report.submitted_at = timezone.now()
                     report.save(update_fields=["notes", "is_submitted", "submitted_at", "updated_at"])
+                    _send_camera_final_report_notification(report, was_update)
                     AuditLog.log(
                         user=request.user,
                         action="CREER",
