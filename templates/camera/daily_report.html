@@ -51,6 +51,15 @@
         flex-wrap: wrap;
     }
 
+    .camera-day-hero-top > *,
+    .camera-day-actions > *,
+    .camera-day-card-head > *,
+    .camera-day-observation-top > *,
+    .camera-day-observation-actions > *,
+    .camera-day-evidence-row > * {
+        min-width: 0;
+    }
+
     .camera-day-kicker,
     .camera-day-chip,
     .camera-day-badge,
@@ -154,6 +163,7 @@
     .camera-day-form-help {
         color: var(--text-secondary);
         font-size: 0.84rem;
+        overflow-wrap: anywhere;
     }
 
     .camera-day-value {
@@ -180,11 +190,15 @@
         background: rgba(10, 67, 107, 0.08);
         color: var(--primary-dark);
         font-size: 0.8rem;
+        max-width: 100%;
+        overflow-wrap: anywhere;
     }
 
     .camera-day-state {
         padding: 0.38rem 0.72rem;
         font-size: 0.8rem;
+        max-width: 100%;
+        overflow-wrap: anywhere;
     }
 
     .camera-day-state--success {
@@ -253,6 +267,58 @@
         .camera-day-week-report {
             padding: 1rem;
             border-radius: 22px;
+        }
+
+        .camera-day-hero-top,
+        .camera-day-card-head,
+        .camera-day-observation-top {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .camera-day-actions,
+        .camera-day-observation-actions {
+            width: 100%;
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .camera-day-actions > *,
+        .camera-day-observation-actions > *,
+        .camera-day-card-head > .camera-day-badge,
+        .camera-day-card-head > .camera-day-state {
+            width: 100%;
+        }
+
+        .camera-day-form-grid,
+        .camera-day-evidence-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .camera-day-hero h1 {
+            font-size: clamp(1.7rem, 9vw, 2.15rem);
+        }
+    }
+
+    @media (max-width: 520px) {
+        .camera-day-kpis,
+        .camera-day-summary-grid,
+        .camera-day-week-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .camera-day-chip-row,
+        .camera-day-pill-row {
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+
+        .camera-day-chip,
+        .camera-day-badge,
+        .camera-day-state {
+            width: 100%;
+            justify-content: center;
+            text-align: center;
         }
     }
 </style>
