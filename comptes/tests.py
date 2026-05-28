@@ -1527,11 +1527,19 @@ class WaterPurchaseTrackingTests(TestCase):
         self.assertFalse(supplier.is_default)
 
     def test_water_purchase_page_shows_supplier_management_actions(self):
+        purchase = SiteWaterPurchase.objects.create(
+            site=self.site,
+            billing_month=date(2026, 5, 1),
+            purchase_date=date(2026, 5, 10),
+            amount_fc=Decimal("22000"),
+            created_by=self.admin_user,
+        )
         response = self.client.get(reverse("admin_water_purchases"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Ajouter un fournisseur")
         self.assertContains(response, "Catalogue fournisseurs")
+        self.assertContains(response, reverse("admin_move_water_purchase", args=[purchase.id]))
         self.assertContains(
             response,
             reverse("admin_edit_water_supplier", args=[self.default_supplier.id]),
@@ -1697,6 +1705,101 @@ class WaterPurchaseTrackingTests(TestCase):
         self.assertEqual(response.context["weekly_breakdown"][0]["count"], 2)
         self.assertEqual(response.context["weekly_breakdown"][0]["total"], Decimal("48000"))
         self.assertEqual(response.context["weekly_breakdown"][2]["count"], 1)
+
+    def test_water_purchase_view_places_out_of_month_purchase_in_general_bucket(self):
+        SiteWaterPurchase.objects.create(
+            site=self.site,
+            billing_month=date(2026, 5, 1),
+            purchase_date=date(2026, 6, 2),
+            amount_fc=Decimal("22000"),
+            notes="Achat deja regle pour mai",
+            created_by=self.admin_user,
+        )
+
+        response = self.client.get(reverse("admin_water_purchases"), data={"month": "2026-05"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "General du mois")
+        self.assertEqual(response.context["general_breakdown"]["count"], 1)
+        self.assertEqual(response.context["general_breakdown"]["total"], Decimal("22000"))
+
+    def test_admin_can_migrate_water_purchase_to_general_month(self):
+        purchase = SiteWaterPurchase.objects.create(
+            site=self.site,
+            billing_month=date(2026, 5, 1),
+            purchase_date=date(2026, 5, 29),
+            amount_fc=Decimal("22000"),
+            notes="Dernier achat de mai",
+            created_by=self.admin_user,
+        )
+
+        response = self.client.post(
+            f"{reverse('admin_move_water_purchase', args=[purchase.id])}?month=2026-05",
+            data={
+                "billing_month": "2026-06",
+                "assignment_scope": "GENERAL",
+                "reporting_week_date": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(
+            response,
+            f"{reverse('admin_water_purchases')}?month=2026-06",
+            fetch_redirect_response=False,
+        )
+
+        purchase.refresh_from_db()
+        self.assertEqual(purchase.billing_month, date(2026, 6, 1))
+        self.assertEqual(purchase.purchase_date, date(2026, 5, 29))
+        self.assertIsNone(purchase.reporting_week_date)
+
+        june_response = self.client.get(reverse("admin_water_purchases"), data={"month": "2026-06"})
+        self.assertContains(june_response, "General du mois")
+        self.assertEqual(june_response.context["general_breakdown"]["count"], 1)
+
+    def test_admin_can_migrate_water_purchase_to_specific_week(self):
+        purchase = SiteWaterPurchase.objects.create(
+            site=self.site,
+            billing_month=date(2026, 5, 1),
+            purchase_date=date(2026, 5, 29),
+            amount_fc=Decimal("22000"),
+            notes="Dernier achat de mai",
+            created_by=self.admin_user,
+        )
+
+        response = self.client.post(
+            f"{reverse('admin_move_water_purchase', args=[purchase.id])}?month=2026-05",
+            data={
+                "billing_month": "2026-06",
+                "assignment_scope": "WEEK",
+                "reporting_week_date": "2026-06-10",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(
+            response,
+            f"{reverse('admin_water_purchases')}?month=2026-06",
+            fetch_redirect_response=False,
+        )
+
+        purchase.refresh_from_db()
+        self.assertEqual(purchase.billing_month, date(2026, 6, 1))
+        self.assertEqual(purchase.purchase_date, date(2026, 5, 29))
+        self.assertEqual(purchase.reporting_week_date, date(2026, 6, 10))
+
+        june_response = self.client.get(reverse("admin_water_purchases"), data={"month": "2026-06"})
+        self.assertEqual(june_response.context["general_breakdown"]["count"], 0)
+        self.assertContains(june_response, "Semaine du 08/06 au 14/06")
+        self.assertTrue(
+            any(
+                item["week_start"] == date(2026, 6, 8)
+                and item["count"] == 1
+                and item["total"] == Decimal("22000")
+                for item in june_response.context["weekly_breakdown"]
+            )
+        )
 
 
 class FundingSnapshotTests(TestCase):

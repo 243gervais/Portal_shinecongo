@@ -31,6 +31,7 @@ from .forms import (
     SiteJournalEntryForm,
     SiteJournalEntryMoveForm,
     SiteWaterPurchaseForm,
+    SiteWaterPurchaseMoveForm,
     WaterSupplierForm,
     VideoEvidenceForm,
     get_water_purchase_default_amount,
@@ -660,6 +661,30 @@ def _month_label(month_start):
     Libellé mois/année cohérent pour les vues historiques.
     """
     return f"{MONTH_NAMES[month_start.month - 1]} {month_start.year}"
+
+
+def _date_is_in_month(value, month_start):
+    return bool(
+        value
+        and month_start
+        and value.year == month_start.year
+        and value.month == month_start.month
+    )
+
+
+def _water_week_bounds_for_month(month_start, target_date):
+    month_last_day = date(
+        month_start.year,
+        month_start.month,
+        calendar.monthrange(month_start.year, month_start.month)[1],
+    )
+    week_cursor = month_start
+    while week_cursor <= month_last_day:
+        week_end = min(week_cursor + timedelta(days=(6 - week_cursor.weekday())), month_last_day)
+        if week_cursor <= target_date <= week_end:
+            return week_cursor, week_end
+        week_cursor = week_end + timedelta(days=1)
+    return None, None
 
 
 def _summarize_daily_reports(queryset):
@@ -1741,14 +1766,15 @@ def admin_change_user_password(request, user_id):
 
 def _build_admin_water_purchase_context(selected_month, form, supplier_form):
     today = timezone.localdate()
-    purchases = (
+    purchase_qs = (
         SiteWaterPurchase.objects.filter(site__actif=True, billing_month=selected_month)
         .select_related("site", "supplier", "created_by")
         .order_by("-purchase_date", "-created_at")
     )
+    purchases = list(purchase_qs)
 
-    month_total = purchases.aggregate(total=Sum("amount_fc"))["total"] or Decimal("0")
-    month_count = purchases.count()
+    month_total = purchase_qs.aggregate(total=Sum("amount_fc"))["total"] or Decimal("0")
+    month_count = len(purchases)
     default_supplier = get_default_water_supplier()
     active_suppliers = list(
         WaterSupplier.objects.filter(is_active=True)
@@ -1758,12 +1784,12 @@ def _build_admin_water_purchase_context(selected_month, form, supplier_form):
         WaterSupplier.objects.order_by("-is_default", "-is_active", "name")
     )
     by_site = list(
-        purchases.values("site__nom")
+        purchase_qs.values("site__nom")
         .annotate(total=Sum("amount_fc"), count=Count("id"))
         .order_by("-total", "site__nom")
     )
     supplier_breakdown = list(
-        purchases.values("supplier__name")
+        purchase_qs.values("supplier__name")
         .annotate(total=Sum("amount_fc"), count=Count("id"))
         .order_by("-total", "supplier__name")
     )
@@ -1786,16 +1812,42 @@ def _build_admin_water_purchase_context(selected_month, form, supplier_form):
         selected_month.month,
         calendar.monthrange(selected_month.year, selected_month.month)[1],
     )
-    purchases_by_date = {
-        item["purchase_date"]: {
-            "count": item["count"] or 0,
-            "total": item["total"] or Decimal("0"),
-        }
-        for item in purchases.values("purchase_date").annotate(
-            count=Count("id"),
-            total=Sum("amount_fc"),
-        )
+    purchases_by_reporting_date = {}
+    general_breakdown = {
+        "label": "General du mois",
+        "count": 0,
+        "total": Decimal("0"),
+        "is_active": False,
+        "bar_width": 0,
     }
+    for purchase in purchases:
+        reporting_week_date = purchase.get_reporting_week_date()
+        purchase.reporting_week_date_resolved = reporting_week_date
+        if reporting_week_date:
+            week_start, week_end = _water_week_bounds_for_month(selected_month, reporting_week_date)
+            purchase.reporting_label = (
+                f"Semaine du {week_start.strftime('%d/%m')} au {week_end.strftime('%d/%m')}"
+                if week_start and week_end
+                else "Semaine du mois"
+            )
+            purchase.reporting_note = (
+                "Semaine choisie manuellement par l'administrateur."
+                if purchase.reporting_week_date and _date_is_in_month(purchase.reporting_week_date, purchase.billing_month)
+                else "Imputation basee sur la date reelle du remplissage."
+            )
+            bucket = purchases_by_reporting_date.setdefault(
+                reporting_week_date,
+                {"count": 0, "total": Decimal("0")},
+            )
+            bucket["count"] += 1
+            bucket["total"] += purchase.amount_fc or Decimal("0")
+        else:
+            purchase.reporting_label = "General du mois"
+            purchase.reporting_note = "Non rattache a une semaine precise du mois facture."
+            general_breakdown["count"] += 1
+            general_breakdown["total"] += purchase.amount_fc or Decimal("0")
+
+    general_breakdown["is_active"] = general_breakdown["count"] > 0
     weekly_breakdown = []
     week_cursor = selected_month
     while week_cursor <= month_last_day:
@@ -1804,7 +1856,7 @@ def _build_admin_water_purchase_context(selected_month, form, supplier_form):
         week_total = Decimal("0")
         day_cursor = week_cursor
         while day_cursor <= week_end:
-            day_data = purchases_by_date.get(day_cursor)
+            day_data = purchases_by_reporting_date.get(day_cursor)
             if day_data:
                 week_count += day_data["count"]
                 week_total += day_data["total"] or Decimal("0")
@@ -1820,9 +1872,15 @@ def _build_admin_water_purchase_context(selected_month, form, supplier_form):
             }
         )
         week_cursor = week_end + timedelta(days=1)
-    max_weekly_count = max((item["count"] for item in weekly_breakdown), default=0)
+    max_assignment_count = max(
+        [general_breakdown["count"]] + [item["count"] for item in weekly_breakdown],
+        default=0,
+    )
     for item in weekly_breakdown:
-        item["bar_width"] = int((item["count"] / max_weekly_count) * 100) if max_weekly_count else 0
+        item["bar_width"] = int((item["count"] / max_assignment_count) * 100) if max_assignment_count else 0
+    general_breakdown["bar_width"] = (
+        int((general_breakdown["count"] / max_assignment_count) * 100) if max_assignment_count else 0
+    )
     monthly_history = list(
         SiteWaterPurchase.objects.filter(site__actif=True)
         .values("billing_month")
@@ -1852,7 +1910,7 @@ def _build_admin_water_purchase_context(selected_month, form, supplier_form):
             "count": item["count"] or 0,
             "total": item["total"] or Decimal("0"),
         }
-        for item in purchases.values("supplier_id").annotate(
+        for item in purchase_qs.values("supplier_id").annotate(
             count=Count("id"),
             total=Sum("amount_fc"),
         )
@@ -1898,6 +1956,7 @@ def _build_admin_water_purchase_context(selected_month, form, supplier_form):
         "previous_month_count": previous_month_count,
         "month_total_delta": month_total_delta,
         "weekly_breakdown": weekly_breakdown,
+        "general_breakdown": general_breakdown,
         "monthly_history": monthly_history,
         "site_leader": site_leader,
         "supplier_rate_map": supplier_rate_map,
@@ -1977,6 +2036,49 @@ def admin_edit_water_purchase(request, purchase_id):
         {
             "purchase": purchase,
             "form": form,
+        },
+    )
+
+
+@login_required
+@no_cache_view
+def admin_move_water_purchase(request, purchase_id):
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Acces refuse. Cette page est reservee aux administrateurs.")
+        return redirect("dashboard")
+
+    purchase = get_object_or_404(SiteWaterPurchase, id=purchase_id)
+    month_query = request.GET.get("month") or purchase.billing_month.strftime("%Y-%m")
+    current_reporting_week_date = purchase.get_reporting_week_date()
+    current_reporting_label = "General du mois"
+    if current_reporting_week_date:
+        week_start, week_end = _water_week_bounds_for_month(purchase.billing_month, current_reporting_week_date)
+        if week_start and week_end:
+            current_reporting_label = (
+                f"Semaine du {week_start.strftime('%d/%m')} au {week_end.strftime('%d/%m')}"
+            )
+
+    if request.method == "POST":
+        form = SiteWaterPurchaseMoveForm(request.POST, purchase_instance=purchase)
+        if form.is_valid():
+            moved_purchase = form.save(purchase)
+            messages.success(request, "L'achat d'eau a ete migre vers le nouveau mois/placement.")
+            destination_month = moved_purchase.billing_month.strftime("%Y-%m")
+            return redirect(f"{reverse('admin_water_purchases')}?month={destination_month}")
+    else:
+        form = SiteWaterPurchaseMoveForm(purchase_instance=purchase)
+
+    return render(
+        request,
+        "admin/move_water_purchase.html",
+        {
+            "purchase": purchase,
+            "form": form,
+            "month_query": month_query,
+            "current_reporting_label": current_reporting_label,
         },
     )
 

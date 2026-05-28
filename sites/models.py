@@ -432,6 +432,12 @@ class SiteWaterPurchase(models.Model):
         help_text="Le mois à facturer au propriétaire du forage.",
     )
     purchase_date = models.DateField(verbose_name="Date d'achat")
+    reporting_week_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Semaine imputee",
+        help_text="Optionnel: choisissez un jour de la semaine du mois concerne pour y rattacher cet achat.",
+    )
     amount_fc = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -460,6 +466,28 @@ class SiteWaterPurchase(models.Model):
             models.Index(fields=["site", "purchase_date"]),
             models.Index(fields=["-created_at"]),
         ]
+
+    def _date_is_in_billing_month(self, value):
+        return bool(
+            value
+            and self.billing_month
+            and value.year == self.billing_month.year
+            and value.month == self.billing_month.month
+        )
+
+    def get_reporting_week_date(self):
+        if self._date_is_in_billing_month(self.reporting_week_date):
+            return self.reporting_week_date
+        if self._date_is_in_billing_month(self.purchase_date):
+            return self.purchase_date
+        return None
+
+    def save(self, *args, **kwargs):
+        if self.billing_month:
+            self.billing_month = self.billing_month.replace(day=1)
+        if self.reporting_week_date and not self._date_is_in_billing_month(self.reporting_week_date):
+            self.reporting_week_date = None
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return (

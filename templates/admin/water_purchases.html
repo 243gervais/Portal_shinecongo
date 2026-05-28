@@ -393,7 +393,7 @@
     .water-ledger-table {
         width: 100%;
         border-collapse: collapse;
-        min-width: 780px;
+        min-width: 920px;
     }
 
     .water-ledger-table th,
@@ -883,13 +883,28 @@
         <div class="water-panel-header">
             <div>
                 <h2 class="water-panel-title">Rythme hebdomadaire du mois</h2>
-                <p class="water-panel-copy">Quand vous ouvrez un mois, cette lecture montre combien de fois l'eau a été achetée chaque semaine, avec le total correspondant.</p>
+                <p class="water-panel-copy">Quand vous ouvrez un mois, cette lecture montre combien de fois l'eau a ete achetee chaque semaine, avec un bloc General du mois pour les achats que l'admin ne veut pas rattacher a une semaine precise.</p>
             </div>
             <span class="water-panel-meta">{{ weekly_breakdown|length }} semaine{{ weekly_breakdown|length|pluralize }}</span>
         </div>
 
         {% if weekly_breakdown %}
         <div class="water-history-list">
+            {% if general_breakdown.is_active %}
+            <div class="water-history-item">
+                <div style="flex: 1 1 280px; min-width: 0;">
+                    <p class="water-history-name">{{ general_breakdown.label }}</p>
+                    <div class="water-history-meta">{{ general_breakdown.count }} achat{{ general_breakdown.count|pluralize }} garde{{ general_breakdown.count|pluralize }} au niveau general du mois</div>
+                    <div class="water-bar">
+                        <div class="water-bar-fill" style="width: {{ general_breakdown.bar_width }}%;"></div>
+                    </div>
+                </div>
+                <div class="water-history-amount">
+                    {{ general_breakdown.total|fc_amount }} FC
+                    <div class="water-history-meta">Non rattache a une semaine</div>
+                </div>
+            </div>
+            {% endif %}
             {% for item in weekly_breakdown %}
             <div class="water-history-item" style="{% if not item.is_active %}opacity: 0.72;{% endif %}">
                 <div style="flex: 1 1 280px; min-width: 0;">
@@ -915,7 +930,7 @@
         <div class="water-panel-header">
             <div>
                 <h2 class="water-panel-title">Journal détaillé du mois {{ selected_month|date:"m/Y" }}</h2>
-                <p class="water-panel-copy">Chaque ligne garde le site, la date d'achat, le mois facturé et le montant exact pour pouvoir corriger ou supprimer rapidement.</p>
+                <p class="water-panel-copy">Chaque ligne garde le site, la date d'achat, le mois facture et l'imputation hebdomadaire pour pouvoir migrer rapidement un achat vers General du mois ou vers une semaine precise.</p>
             </div>
             <span class="water-panel-meta">{{ purchases|length }} ligne{{ purchases|length|pluralize }} affichée{{ purchases|length|pluralize }}</span>
         </div>
@@ -929,6 +944,7 @@
                         <th>Fournisseur</th>
                         <th>Mois concerné</th>
                         <th>Date d'achat</th>
+                        <th>Imputation</th>
                         <th>Notes</th>
                         <th>Montant</th>
                         <th>Actions</th>
@@ -961,6 +977,10 @@
                             <div class="water-ledger-subtext">Date réelle du remplissage</div>
                         </td>
                         <td>
+                            <div>{{ purchase.reporting_label }}</div>
+                            <div class="water-ledger-subtext">{{ purchase.reporting_note }}</div>
+                        </td>
+                        <td>
                             <div class="water-ledger-subtext">{% if purchase.notes %}{{ purchase.notes|linebreaksbr }}{% else %}Aucune note{% endif %}</div>
                         </td>
                         <td>
@@ -971,6 +991,7 @@
                         </td>
                         <td>
                             <div class="water-ledger-actions">
+                                <a href="{% url 'admin_move_water_purchase' purchase.id %}?month={{ selected_month_input }}" class="btn btn-secondary">Migrer</a>
                                 <a href="{% url 'admin_edit_water_purchase' purchase.id %}?month={{ selected_month_input }}" class="btn btn-info">Modifier</a>
                                 <a href="{% url 'admin_delete_water_purchase' purchase.id %}?month={{ selected_month_input }}" class="btn btn-danger">Supprimer</a>
                             </div>

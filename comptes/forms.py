@@ -746,6 +746,82 @@ class SiteJournalEntryMoveForm(forms.Form):
         return entry
 
 
+class SiteWaterPurchaseMoveForm(forms.Form):
+    ASSIGNMENT_SCOPE_CHOICES = [
+        ("GENERAL", "General du mois"),
+        ("WEEK", "Affecter a une semaine"),
+    ]
+
+    billing_month = forms.DateField(
+        label="Nouveau mois concerne",
+        input_formats=["%Y-%m"],
+        widget=forms.DateInput(
+            format="%Y-%m",
+            attrs={"class": "form-control", "type": "month"},
+        ),
+    )
+    assignment_scope = forms.ChoiceField(
+        label="Imputation dans le mois",
+        choices=ASSIGNMENT_SCOPE_CHOICES,
+        widget=forms.Select(attrs={"class": "form-control"}),
+        help_text="Choisissez General du mois pour sortir cet achat du detail hebdomadaire, ou une semaine precise pour le rattacher a un bloc hebdomadaire.",
+    )
+    reporting_week_date = forms.DateField(
+        label="Jour de la semaine cible",
+        required=False,
+        widget=forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+        help_text="Choisissez n'importe quel jour de la semaine cible dans le mois concerne.",
+    )
+
+    def __init__(self, *args, purchase_instance=None, **kwargs):
+        self.purchase_instance = purchase_instance
+        super().__init__(*args, **kwargs)
+
+        if self.purchase_instance and not self.is_bound:
+            effective_reporting_date = self.purchase_instance.get_reporting_week_date()
+            self.fields["billing_month"].initial = self.purchase_instance.billing_month
+            self.fields["assignment_scope"].initial = "WEEK" if effective_reporting_date else "GENERAL"
+            self.fields["reporting_week_date"].initial = effective_reporting_date
+
+    def clean_billing_month(self):
+        billing_month = self.cleaned_data["billing_month"]
+        return billing_month.replace(day=1)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        billing_month = cleaned_data.get("billing_month")
+        assignment_scope = cleaned_data.get("assignment_scope")
+        reporting_week_date = cleaned_data.get("reporting_week_date")
+
+        if assignment_scope == "WEEK":
+            if not reporting_week_date:
+                self.add_error(
+                    "reporting_week_date",
+                    "Choisissez un jour dans la semaine cible pour rattacher cet achat.",
+                )
+            elif (
+                billing_month
+                and (
+                    reporting_week_date.year != billing_month.year
+                    or reporting_week_date.month != billing_month.month
+                )
+            ):
+                self.add_error(
+                    "reporting_week_date",
+                    "La semaine choisie doit appartenir au mois concerne.",
+                )
+        else:
+            cleaned_data["reporting_week_date"] = None
+
+        return cleaned_data
+
+    def save(self, purchase):
+        purchase.billing_month = self.cleaned_data["billing_month"]
+        purchase.reporting_week_date = self.cleaned_data.get("reporting_week_date")
+        purchase.save(update_fields=["billing_month", "reporting_week_date", "updated_at"])
+        return purchase
+
+
 class WaterSupplierForm(forms.ModelForm):
     class Meta:
         model = WaterSupplier

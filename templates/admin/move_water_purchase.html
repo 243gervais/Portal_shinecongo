@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Migrer achat d'eau{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem;">
+    <div>
+        <h1 class="mt-2 mb-2">Migrer l'achat d'eau</h1>
+        <p style="color: var(--text-secondary); margin: 0;">
+            {{ purchase.site.nom }} • {{ purchase.supplier.name }} • Achat réel {{ purchase.purchase_date|date:"d/m/Y" }}
+        </p>
+    </div>
+    <a href="{% url 'admin_water_purchases' %}?month={{ month_query }}" class="btn btn-secondary">Retour au suivi eau</a>
+</div>
+
+<div class="card">
+    <div style="padding: 1rem 1rem 0;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.9rem;">
+            <div style="padding: 0.9rem 1rem; border-radius: 16px; background: rgba(7, 45, 79, 0.03); border: 1px solid rgba(10, 67, 107, 0.08);">
+                <div style="color: var(--text-secondary); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.06em;">Mois actuel</div>
+                <div style="margin-top: 0.35rem; font-weight: 800; color: var(--primary-dark);">{{ purchase.billing_month|date:"m/Y" }}</div>
+            </div>
+            <div style="padding: 0.9rem 1rem; border-radius: 16px; background: rgba(7, 45, 79, 0.03); border: 1px solid rgba(10, 67, 107, 0.08);">
+                <div style="color: var(--text-secondary); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.06em;">Placement actuel</div>
+                <div style="margin-top: 0.35rem; font-weight: 800; color: var(--primary-dark);">{{ current_reporting_label }}</div>
+            </div>
+        </div>
+        <p style="margin: 1rem 0 0; color: var(--text-secondary); line-height: 1.6;">
+            Cette migration change le mois facture et son placement dans le suivi hebdomadaire. La date d'achat reelle du remplissage ne change pas.
+            Utilisez <strong>General du mois</strong> si l'eau est deja payee pour le mois et que vous ne voulez pas l'attacher a une semaine precise.
+        </p>
+    </div>
+
+    <form method="post" style="padding: 1rem;">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger" style="margin-bottom: 1rem;">
+            {% for error in form.non_field_errors %}
+            <div>{{ error }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
+            <div class="form-group">
+                <label for="{{ form.billing_month.id_for_label }}">Nouveau mois concerne</label>
+                {{ form.billing_month }}
+                {% if form.billing_month.errors %}
+                <div class="text-danger" style="margin-top: 0.35rem;">{{ form.billing_month.errors|join:", " }}</div>
+                {% endif %}
+            </div>
+            <div class="form-group">
+                <label for="{{ form.assignment_scope.id_for_label }}">Imputation dans le mois</label>
+                {{ form.assignment_scope }}
+                <div style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.35rem;">{{ form.assignment_scope.help_text }}</div>
+                {% if form.assignment_scope.errors %}
+                <div class="text-danger" style="margin-top: 0.35rem;">{{ form.assignment_scope.errors|join:", " }}</div>
+                {% endif %}
+            </div>
+            <div class="form-group" data-reporting-week-group>
+                <label for="{{ form.reporting_week_date.id_for_label }}">Jour de la semaine cible</label>
+                {{ form.reporting_week_date }}
+                <div style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.35rem;">{{ form.reporting_week_date.help_text }}</div>
+                {% if form.reporting_week_date.errors %}
+                <div class="text-danger" style="margin-top: 0.35rem;">{{ form.reporting_week_date.errors|join:", " }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Enregistrer la migration</button>
+        <a href="{% url 'admin_water_purchases' %}?month={{ month_query }}" class="btn btn-secondary btn-block mt-2">Annuler</a>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    (() => {
+        const assignmentField = document.getElementById("id_assignment_scope");
+        const reportingWeekGroup = document.querySelector("[data-reporting-week-group]");
+        const reportingWeekInput = document.getElementById("id_reporting_week_date");
+
+        if (!assignmentField || !reportingWeekGroup || !reportingWeekInput) {
+            return;
+        }
+
+        const syncWeekField = () => {
+            const isWeekMode = assignmentField.value === "WEEK";
+            reportingWeekGroup.style.display = isWeekMode ? "" : "none";
+            reportingWeekInput.disabled = !isWeekMode;
+            if (!isWeekMode) {
+                reportingWeekInput.value = "";
+            }
+        };
+
+        syncWeekField();
+        assignmentField.addEventListener("change", syncWeekField);
+    })();
+</script>
+{% endblock %}
