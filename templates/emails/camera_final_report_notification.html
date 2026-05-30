@@ -1,3 +1,4 @@
+{% load currency_tags %}
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -73,6 +74,15 @@
 
           <tr>
             <td style="padding:28px 32px 32px;">
+              <div style="padding:18px 20px;border-radius:18px;background:linear-gradient(135deg,#0b2438 0%,#0a436b 55%,#1a73b8 100%);color:#ffffff;margin-bottom:18px;">
+                <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;opacity:0.82;">Montant attendu</div>
+                <div style="margin-top:10px;font-size:30px;line-height:1.1;font-weight:800;">{{ expected_revenue|fc_amount }} FC</div>
+                <div style="margin-top:8px;font-size:14px;line-height:1.6;opacity:0.88;">
+                  Calculé automatiquement à partir de {{ cars_count }} voiture{{ cars_count|pluralize }},
+                  {{ motos_count }} moto{{ motos_count|pluralize }} 2 roues et
+                  {{ three_wheelers_count }} moto{{ three_wheelers_count|pluralize }} 3 roues.
+                </div>
+              </div>
               <div style="padding:18px 20px;border-radius:18px;background:#f6f9fc;border:1px solid #dbe4ee;">
                 <div style="font-size:12px;color:#65758a;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;">Notes du rapport</div>
                 <p style="margin:10px 0 0;font-size:15px;line-height:1.7;color:#10253a;">

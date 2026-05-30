@@ -1,3 +1,4 @@
+{% load currency_tags %}
 {{ company_name }}
 Rapport final caméra
 
@@ -10,6 +11,7 @@ Motos 2 roues: {{ motos_count }}
 Motos 3 roues: {{ three_wheelers_count }}
 Total véhicules: {{ total_vehicles }}
 Captures: {{ screenshots_count }}
+Montant attendu: {{ expected_revenue|fc_amount }} FC
 
 {% if has_notes %}Notes:
 {{ notes }}

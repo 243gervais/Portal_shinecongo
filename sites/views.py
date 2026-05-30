@@ -91,6 +91,7 @@ def _build_camera_final_report_email_context(report, was_update):
         "three_wheelers_count": report.three_wheelers_count,
         "total_vehicles": report.total_vehicles,
         "screenshots_count": report.screenshots_count,
+        "expected_revenue": report.expected_revenue,
         "notes": notes or "Aucune note",
         "has_notes": bool(notes),
     }

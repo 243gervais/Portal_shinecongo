@@ -968,11 +968,16 @@ class CameraControllerPortalTests(TestCase):
         self.assertIn("Contrôleur: Aline", mail.outbox[0].body)
         self.assertIn("Total véhicules: 1", mail.outbox[0].body)
         self.assertIn("Voitures: 1", mail.outbox[0].body)
+        self.assertIn("Motos 2 roues: 0", mail.outbox[0].body)
+        self.assertIn("Motos 3 roues: 0", mail.outbox[0].body)
+        self.assertIn("Montant attendu: 15 000 FC", mail.outbox[0].body)
         self.assertEqual(len(mail.outbox[0].alternatives), 1)
         html_content, mimetype = mail.outbox[0].alternatives[0]
         self.assertEqual(mimetype, "text/html")
         self.assertIn("Rapport final caméra", html_content)
         self.assertIn("Aline", html_content)
+        self.assertIn("Montant attendu", html_content)
+        self.assertIn("15 000 FC", html_content)
 
     def test_camera_controller_sees_verification_history(self):
         previous_report = CameraOperatorDailyReport.objects.create(
