@@ -25,15 +25,13 @@
     }
 
     .login-container {
-        --login-ink: #06111d;
         --login-navy: #0a1929;
         --login-blue: #001e3c;
         --login-surface: #132f4c;
         --login-line: #1e3a5f;
-        --login-accent: #0066ff;
-        --login-cyan: #00d9ff;
-        --login-gold: #f5aa45;
         --login-copy: #b2bac2;
+        --login-accent: #0066ff;
+        --login-gold: #f5aa45;
         position: fixed;
         inset: 0;
         z-index: 9999;
@@ -41,7 +39,7 @@
         background:
             radial-gradient(circle at top left, rgba(0, 217, 255, 0.16), transparent 26%),
             radial-gradient(circle at bottom right, rgba(245, 170, 69, 0.16), transparent 24%),
-            linear-gradient(135deg, var(--login-navy) 0%, var(--login-blue) 52%, #08233f 100%);
+            linear-gradient(135deg, var(--login-navy) 0%, var(--login-blue) 55%, #08233f 100%);
     }
 
     .login-container::before {
@@ -51,270 +49,111 @@
         background:
             linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
             linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-        background-size: 44px 44px;
+        background-size: 40px 40px;
         mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.52), transparent 92%);
-        opacity: 0.42;
+        opacity: 0.4;
         pointer-events: none;
     }
 
-    .login-layout {
+    .login-shell {
         position: relative;
         z-index: 1;
         min-height: 100vh;
         display: grid;
-        grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
+        place-items: center;
+        padding: 1.5rem;
+    }
+
+    .login-panel {
+        width: min(100%, 430px);
         padding: 2rem;
-        gap: 1.4rem;
-    }
-
-    .login-showcase,
-    .login-panel {
-        border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 32px;
-        backdrop-filter: blur(14px);
-        box-shadow: 0 28px 72px rgba(0, 0, 0, 0.22);
-        overflow: hidden;
-    }
-
-    .login-showcase {
-        position: relative;
-        display: grid;
-        align-items: stretch;
-        background:
-            linear-gradient(160deg, rgba(19, 47, 76, 0.94) 0%, rgba(10, 25, 41, 0.88) 100%);
-    }
-
-    .login-showcase::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background:
-            radial-gradient(circle at 15% 16%, rgba(0, 102, 255, 0.24), transparent 20%),
-            radial-gradient(circle at 78% 24%, rgba(0, 217, 255, 0.2), transparent 22%),
-            linear-gradient(135deg, transparent 0%, rgba(245, 170, 69, 0.08) 100%);
-        pointer-events: none;
-    }
-
-    .login-showcase-inner {
-        position: relative;
-        z-index: 1;
-        min-height: 100%;
-        padding: 3rem;
-        display: grid;
-        gap: 2rem;
-        align-content: space-between;
-    }
-
-    .login-brand {
-        max-width: 37rem;
-        animation: login-float-up 0.55s ease-out;
-    }
-
-    .login-brand-badge,
-    .login-module-badge,
-    .login-form-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.45rem;
-        border-radius: 999px;
-        font-weight: 700;
-    }
-
-    .login-brand-badge,
-    .login-module-badge {
-        background: rgba(255, 255, 255, 0.12);
-        color: rgba(255, 255, 255, 0.94);
-    }
-
-    .login-brand-badge {
-        padding: 0.5rem 0.9rem;
-        font-size: 0.84rem;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-    }
-
-    .login-brand h1 {
-        margin: 1.25rem 0 0.85rem;
-        font-size: clamp(2.6rem, 5vw, 4.6rem);
-        line-height: 0.96;
-        color: #ffffff;
-        letter-spacing: -0.04em;
-        font-family: "Avenir Next", "Trebuchet MS", sans-serif;
-    }
-
-    .login-brand p {
-        margin: 0;
-        max-width: 34rem;
-        color: rgba(255, 255, 255, 0.82);
-        font-size: 1.05rem;
-        line-height: 1.7;
-    }
-
-    .login-brand-copy {
-        color: rgba(255, 255, 255, 0.68) !important;
-        margin-top: 1rem !important;
-        font-size: 0.94rem !important;
-        max-width: 29rem !important;
-    }
-
-    .login-showcase-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 1rem;
-        align-items: stretch;
-    }
-
-    .login-story-card,
-    .login-stat-card {
-        position: relative;
-        padding: 1.2rem;
-        border-radius: 24px;
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .login-story-card {
-        display: grid;
-        gap: 0.7rem;
-    }
-
-    .login-story-card h2,
-    .login-stat-number,
-    .login-panel-title {
-        color: #ffffff;
-        font-family: "Avenir Next", "Trebuchet MS", sans-serif;
-    }
-
-    .login-story-card h2 {
-        margin: 0;
-        font-size: 1.15rem;
-    }
-
-    .login-story-card p,
-    .login-stat-copy {
-        margin: 0;
-        color: rgba(255, 255, 255, 0.72);
-        line-height: 1.6;
-    }
-
-    .login-module-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.65rem;
-    }
-
-    .login-module-badge {
-        padding: 0.42rem 0.8rem;
-        font-size: 0.82rem;
-    }
-
-    .login-stat-wrap {
-        display: grid;
-        gap: 1rem;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .login-stat-card {
-        display: grid;
-        gap: 0.35rem;
-        align-content: start;
-    }
-
-    .login-stat-number {
-        font-size: clamp(1.9rem, 4vw, 2.6rem);
-        font-weight: 800;
-        line-height: 1;
-    }
-
-    .login-stat-copy strong {
-        color: #ffffff;
-    }
-
-    .login-showcase-foot {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-end;
-        gap: 1rem;
-        flex-wrap: wrap;
-    }
-
-    .login-showcase-note {
-        max-width: 22rem;
-        color: rgba(255, 255, 255, 0.62);
-        font-size: 0.9rem;
-        line-height: 1.6;
-    }
-
-    .login-panel {
-        display: grid;
-        align-items: center;
         background:
             linear-gradient(180deg, rgba(19, 47, 76, 0.96) 0%, rgba(10, 25, 41, 0.96) 100%);
-    }
-
-    .login-panel-inner {
-        padding: 3rem;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 28px 72px rgba(0, 0, 0, 0.24);
+        backdrop-filter: blur(14px);
         display: grid;
-        gap: 1.7rem;
-        animation: login-float-up 0.55s ease-out;
-    }
-
-    .login-form-badge {
-        width: fit-content;
-        padding: 0.44rem 0.82rem;
-        background: rgba(0, 102, 255, 0.18);
-        color: #8cc4ff;
-        font-size: 0.82rem;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
+        gap: 1.5rem;
+        animation: login-float-up 0.45s ease-out;
     }
 
     .login-panel-head {
         display: grid;
-        gap: 0.75rem;
+        justify-items: center;
+        gap: 0.9rem;
+        text-align: center;
     }
 
-    .login-panel-logo {
-        width: min(170px, 46%);
+    .login-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.45rem 0.85rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        color: rgba(255, 255, 255, 0.94);
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .login-logo-wrap {
+        width: 132px;
+        height: 132px;
+        border-radius: 28px;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    .login-logo {
+        width: 100px;
         height: auto;
-        filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.24));
+        filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.2));
     }
 
-    .login-panel-title {
+    .login-title {
         margin: 0;
-        font-size: clamp(2rem, 4vw, 2.7rem);
+        color: #ffffff;
+        font-size: clamp(2rem, 5vw, 2.7rem);
         line-height: 1;
+        letter-spacing: -0.03em;
+        font-family: "Avenir Next", "Trebuchet MS", sans-serif;
     }
 
-    .login-panel-copy {
+    .login-subtitle {
         margin: 0;
         color: var(--login-copy);
-        line-height: 1.65;
+        font-size: 0.98rem;
+        line-height: 1.6;
     }
 
     .login-form-shell {
-        padding: 1.25rem;
-        border-radius: 28px;
-        background: rgba(6, 17, 29, 0.56);
+        padding: 1.1rem;
+        border-radius: 26px;
+        background: rgba(6, 17, 29, 0.52);
         border: 1px solid rgba(255, 255, 255, 0.08);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
     }
 
     .login-form-grid {
         display: grid;
-        gap: 1.05rem;
+        gap: 1rem;
     }
 
     .form-group {
         display: grid;
-        gap: 0.5rem;
+        gap: 0.45rem;
     }
 
     .form-group label {
         color: #e4eef7;
         font-size: 0.92rem;
         font-weight: 700;
-        letter-spacing: 0.01em;
     }
 
     .form-control {
@@ -322,10 +161,10 @@
         border: 1px solid var(--login-line);
         border-radius: 16px;
         padding: 0.95rem 1rem;
-        background: rgba(10, 25, 41, 0.92);
+        background: rgba(10, 25, 41, 0.94);
         color: #ffffff;
         font-size: 1rem;
-        transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+        transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
     }
 
     .form-control::placeholder {
@@ -345,13 +184,12 @@
         border-radius: 18px;
         padding: 1rem 1.1rem;
         background: linear-gradient(135deg, var(--login-gold) 0%, #f39a29 100%);
-        color: var(--login-ink);
+        color: #06111d;
         font-size: 1.02rem;
         font-weight: 800;
-        letter-spacing: 0.01em;
         cursor: pointer;
-        transition: transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease;
         box-shadow: 0 16px 32px rgba(243, 154, 41, 0.22);
+        transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease;
     }
 
     .login-submit:hover {
@@ -375,8 +213,7 @@
     }
 
     .login-footer {
-        padding-top: 1rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        padding-top: 0.2rem;
         color: var(--login-copy);
     }
 
@@ -395,11 +232,14 @@
         color: #8cc4ff;
     }
 
-    .login-footer a:hover {
-        color: #c7e5ff;
+    .login-footer a:hover,
+    .admin-link a:hover {
+        color: #ffffff;
     }
 
     .admin-link {
+        padding-top: 1rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
         color: var(--login-copy);
         font-size: 0.9rem;
     }
@@ -412,16 +252,12 @@
         color: #8cc4ff;
     }
 
-    .admin-link a:hover {
-        color: #ffffff;
-    }
-
     .alert {
         padding: 0.95rem 1rem;
         border-radius: 16px;
         border: 1px solid transparent;
         line-height: 1.55;
-        animation: login-slide-down 0.25s ease-out;
+        animation: login-slide-down 0.24s ease-out;
     }
 
     .alert-error {
@@ -464,19 +300,7 @@
         }
     }
 
-    @media (max-width: 1080px) {
-        .login-layout {
-            grid-template-columns: 1fr;
-            padding: 1.25rem;
-        }
-
-        .login-showcase-inner,
-        .login-panel-inner {
-            padding: 2rem;
-        }
-    }
-
-    @media (max-width: 768px) {
+    @media (max-width: 640px) {
         body {
             overflow: auto;
         }
@@ -486,52 +310,37 @@
             min-height: 100vh;
         }
 
-        .login-layout {
+        .login-shell {
             min-height: auto;
             padding: 1rem;
         }
 
-        .login-showcase-grid,
-        .login-stat-wrap {
-            grid-template-columns: 1fr;
+        .login-panel {
+            padding: 1.15rem;
+            border-radius: 26px;
         }
 
-        .login-showcase-inner,
-        .login-panel-inner {
-            padding: 1.35rem;
+        .login-logo-wrap {
+            width: 112px;
+            height: 112px;
         }
 
-        .login-brand h1 {
-            font-size: 2.4rem;
-        }
-
-        .login-panel-logo {
-            width: 132px;
+        .login-logo {
+            width: 86px;
         }
     }
 
-    @media (max-width: 480px) {
-        .login-layout {
-            gap: 0.9rem;
+    @media (max-width: 420px) {
+        .login-shell {
             padding: 0.75rem;
         }
 
-        .login-showcase,
         .login-panel {
-            border-radius: 24px;
-        }
-
-        .login-showcase-inner,
-        .login-panel-inner,
-        .login-form-shell,
-        .login-story-card,
-        .login-stat-card {
             padding: 1rem;
+            gap: 1.2rem;
         }
 
-        .login-brand-badge,
-        .login-module-badge,
-        .login-form-badge {
+        .login-badge {
             width: 100%;
             justify-content: center;
             text-align: center;
@@ -542,115 +351,71 @@
 
 {% block content %}
 <div class="login-container">
-    <div class="login-layout">
-        <section class="login-showcase">
-            <div class="login-showcase-inner">
-                <div class="login-brand">
-                    <span class="login-brand-badge">Portail Operations Employes</span>
-                    <h1>Le terrain, la caisse et le suivi dans un seul portail.</h1>
-                    <p>Connectez-vous pour pointer les equipes, suivre l'eau, verifier les lavages et garder une lecture operationnelle claire de chaque site.</p>
-                    <p class="login-brand-copy">Le logo et la palette Shine Congo restent au centre, mais l'entree du portail prend une forme plus structurée et plus lisible sur mobile comme sur desktop.</p>
-                </div>
-
-                <div class="login-showcase-grid">
-                    <article class="login-story-card">
-                        <h2>Vue operationnelle</h2>
-                        <p>Un acces direct aux actions quotidiennes sans chercher entre plusieurs ecrans.</p>
-                        <div class="login-module-row">
-                            <span class="login-module-badge">Pointage</span>
-                            <span class="login-module-badge">Suivi eau</span>
-                            <span class="login-module-badge">Camera</span>
-                        </div>
-                    </article>
-                    <article class="login-story-card">
-                        <h2>Rythme du site</h2>
-                        <p>Chaque connexion ouvre le portail qui correspond au role reel de l'utilisateur sur le terrain.</p>
-                    </article>
-                </div>
-
-                <div class="login-showcase-foot">
-                    <div class="login-stat-wrap">
-                        <article class="login-stat-card">
-                            <div class="login-stat-number">01</div>
-                            <div class="login-stat-copy"><strong>Connexion simple</strong><br>Identifiant et mot de passe, sans surcharge.</div>
-                        </article>
-                        <article class="login-stat-card">
-                            <div class="login-stat-number">24h</div>
-                            <div class="login-stat-copy"><strong>Suivi quotidien</strong><br>Pour les lavages, depenses, pointages et rapports.</div>
-                        </article>
-                    </div>
-                    <div class="login-showcase-note">
-                        Shine Congo<br>
-                        Votre voiture, notre fierte.
-                    </div>
-                </div>
-            </div>
-        </section>
-
+    <div class="login-shell">
         <section class="login-panel">
-            <div class="login-panel-inner">
-                <div class="login-panel-head">
-                    <span class="login-form-badge">Connexion securisee</span>
-                    <img src="{% static 'favicon.png' %}" alt="Shine Congo Logo" class="login-panel-logo">
-                    <h1 class="login-panel-title">Connexion</h1>
-                    <p class="login-panel-copy">Entrez vos acces pour ouvrir votre portail Shine Congo.</p>
+            <div class="login-panel-head">
+                <span class="login-badge">Portail Operations Employes</span>
+                <div class="login-logo-wrap">
+                    <img src="{% static 'favicon.png' %}" alt="Shine Congo Logo" class="login-logo">
                 </div>
+                <h1 class="login-title">Connexion</h1>
+                <p class="login-subtitle">Entrez vos acces.</p>
+            </div>
 
-                <div class="login-form-shell">
-                    <form method="post" class="login-form-grid">
-                        {% csrf_token %}
-                        {% if next %}
-                        <input type="hidden" name="next" value="{{ next }}">
-                        {% endif %}
+            <div class="login-form-shell">
+                <form method="post" class="login-form-grid">
+                    {% csrf_token %}
+                    {% if next %}
+                    <input type="hidden" name="next" value="{{ next }}">
+                    {% endif %}
 
-                        {% if form.errors %}
-                        <div class="alert alert-error">
-                            {% for field, errors in form.errors.items %}
-                                {% for error in errors %}
-                                    {{ error }}
-                                {% endfor %}
+                    {% if form.errors %}
+                    <div class="alert alert-error">
+                        {% for field, errors in form.errors.items %}
+                            {% for error in errors %}
+                                {{ error }}
                             {% endfor %}
-                            {% if form.non_field_errors %}
-                                {% for error in form.non_field_errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            {% else %}
-                                Identifiant ou mot de passe incorrect.
-                            {% endif %}
-                        </div>
-                        {% endif %}
-
-                        {% if messages %}
-                            {% for message in messages %}
-                                <div class="alert alert-{{ message.tags }}">
-                                    {{ message }}
-                                </div>
+                        {% endfor %}
+                        {% if form.non_field_errors %}
+                            {% for error in form.non_field_errors %}
+                                {{ error }}
                             {% endfor %}
+                        {% else %}
+                            Identifiant ou mot de passe incorrect.
                         {% endif %}
+                    </div>
+                    {% endif %}
 
-                        <div class="form-group">
-                            <label for="username">Identifiant</label>
-                            <input type="text" class="form-control" id="username" name="username" required autofocus placeholder="Entrez votre identifiant" value="{{ request.POST.username|default:'' }}">
-                        </div>
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
 
-                        <div class="form-group">
-                            <label for="password">Mot de passe</label>
-                            <input type="password" class="form-control" id="password" name="password" required placeholder="Entrez votre mot de passe">
-                        </div>
+                    <div class="form-group">
+                        <label for="username">Identifiant</label>
+                        <input type="text" class="form-control" id="username" name="username" required autofocus placeholder="Entrez votre identifiant" value="{{ request.POST.username|default:'' }}">
+                    </div>
 
-                        <button type="submit" class="login-submit">Se connecter</button>
-                    </form>
-                </div>
+                    <div class="form-group">
+                        <label for="password">Mot de passe</label>
+                        <input type="password" class="form-control" id="password" name="password" required placeholder="Entrez votre mot de passe">
+                    </div>
 
-                <div class="login-footer">
-                    <p>Pas encore de compte ? <a href="{% url 'register' %}">Creer un compte</a></p>
-                </div>
+                    <button type="submit" class="login-submit">Se connecter</button>
+                </form>
+            </div>
 
-                <div class="admin-link">
-                    <a href="{% url 'admin_dashboard' %}">Dashboard Admin Portal</a>
-                    <span>|</span>
-                    <a href="{% url 'admin:index' %}">Django Admin</a>
-                </div>
+            <div class="login-footer">
+                <p>Pas encore de compte ? <a href="{% url 'register' %}">Creer un compte</a></p>
+            </div>
+
+            <div class="admin-link">
+                <a href="{% url 'admin_dashboard' %}">Dashboard Admin Portal</a>
+                <span>|</span>
+                <a href="{% url 'admin:index' %}">Django Admin</a>
             </div>
         </section>
     </div>
