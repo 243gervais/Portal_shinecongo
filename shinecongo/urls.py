@@ -95,6 +95,7 @@ from pointage.views_manager import (
 from lavages.views import ajouter_lavage, mes_lavages, detail_lavage
 from problemes.views import signaler_probleme, mes_problemes, detail_probleme
 from sites.views import (
+    admin_camera_controller_portal,
     admin_camera_operator_report_detail,
     camera_dashboard,
     camera_daily_report,
@@ -189,6 +190,7 @@ urlpatterns = [
     path("admin-dashboard/site/<uuid:site_id>/camera-monitoring/", admin_site_camera_monitoring, name="admin_site_camera_monitoring"),
     path("admin-dashboard/site/<uuid:site_id>/cameras/<int:camera_id>/edit/", admin_edit_site_camera, name="admin_edit_site_camera"),
     path("admin-dashboard/site/<uuid:site_id>/camera-reports/<int:report_id>/", admin_site_camera_report_detail, name="admin_site_camera_report_detail"),
+    path("admin-dashboard/site/<uuid:site_id>/camera-controllers/<int:profile_id>/portal/", admin_camera_controller_portal, name="admin_camera_controller_portal"),
     path("admin-dashboard/site/<uuid:site_id>/camera-operator-reports/<int:report_id>/", admin_camera_operator_report_detail, name="admin_camera_operator_report_detail"),
     path("admin-dashboard/site/<uuid:site_id>/camera-evidence/<int:evidence_id>/delete/", admin_delete_video_evidence, name="admin_delete_video_evidence"),
     path("admin-dashboard/site/<uuid:site_id>/employees/", admin_site_employees, name="admin_site_employees"),

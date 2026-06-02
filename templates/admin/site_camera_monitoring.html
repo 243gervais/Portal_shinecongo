@@ -257,6 +257,16 @@
         color: #b42318;
     }
 
+    .camera-state--draft {
+        background: rgba(255, 193, 7, 0.16);
+        color: #9a6700;
+    }
+
+    .camera-state--idle {
+        background: rgba(7, 26, 44, 0.08);
+        color: var(--text-secondary);
+    }
+
     .camera-list,
     .camera-report-list {
         display: grid;
@@ -351,7 +361,7 @@
             <div>
                 <span class="camera-kicker">Camera Monitoring</span>
                 <h1>Caméras & comptage</h1>
-                <p>Supervisez les caméras du site, enregistrez le comptage manuel voitures, motos 2 pneus et motos à 3 pneus, puis rattachez les clips et captures importants au bon jour sans sortir du portail admin.</p>
+                <p>Supervisez les caméras du site, gérez le portail des contrôleurs caméra, corrigez leurs vérifications au besoin et gardez le comptage manuel ainsi que les preuves importantes dans le même espace admin.</p>
                 <div class="camera-hero-chips">
                     <span class="camera-chip">Site: {{ site.nom }}</span>
                     <span class="camera-chip">Date active: {{ selected_date|date:"d/m/Y" }}</span>
@@ -654,11 +664,90 @@
     <section class="camera-card">
         <div class="camera-card-head">
             <div>
-                <h2 class="camera-title">Rapports contrôleurs caméra</h2>
-                <p class="camera-subtitle">Suivez les rapports finaux envoyés depuis le portail dédié contrôle caméra, avec le nombre de véhicules observés et les captures jointes.</p>
+                <h2 class="camera-title">Gestion contrôleurs caméra · {{ selected_date|date:"d/m/Y" }}</h2>
+                <p class="camera-subtitle">Retrouvez ici les contrôleurs caméra du site, l'état de leur journée et l'accès direct au portail admin de correction pour revoir chaque vérification ou le rapport final.</p>
+            </div>
+            <div class="camera-pill-row">
+                <span class="camera-badge">Contrôleurs site: {{ controllers_on_site_count }}</span>
+                <span class="camera-badge">Avec activité du jour: {{ controllers_with_activity_count }}</span>
+                <span class="camera-badge">Rapports du jour: {{ selected_date_operator_reports_count }}</span>
+                <span class="camera-badge">Finalisés: {{ selected_date_operator_submitted_count }}</span>
+                <span class="camera-badge">Véhicules du jour: {{ selected_date_operator_total_vehicles }}</span>
+            </div>
+        </div>
+        <div class="camera-report-list">
+            {% for item in controller_activity %}
+            <article class="camera-report-item">
+                <div class="camera-report-meta">
+                    <div>
+                        <div class="camera-report-date">{{ item.profile.user.get_full_name|default:item.profile.user.username }}</div>
+                        <div class="camera-muted">
+                            {% if item.last_activity_at %}
+                            Dernière activité: {{ item.last_activity_at|date:"d/m/Y H:i" }}
+                            {% else %}
+                            Aucun mouvement contrôleur encore enregistré pour cette journée.
+                            {% endif %}
+                        </div>
+                    </div>
+                    <span class="camera-state {{ item.status_class }}">{{ item.status_label }}</span>
+                </div>
+                {% if item.report %}
+                <div class="camera-pill-row" style="margin-top:0;">
+                    <span class="camera-badge">{{ item.report.cars_count }} voiture{{ item.report.cars_count|pluralize }}</span>
+                    <span class="camera-badge">{{ item.report.motos_count }} moto{{ item.report.motos_count|pluralize }} 2 roues</span>
+                    <span class="camera-badge">{{ item.report.three_wheelers_count }} moto{{ item.report.three_wheelers_count|pluralize }} 3 roues</span>
+                </div>
+                <div class="camera-mini-grid">
+                    <div class="camera-mini-card">
+                        <div class="camera-kpi-label">Total véhicules</div>
+                        <div class="camera-mini-value">{{ item.report.total_vehicles }}</div>
+                    </div>
+                    <div class="camera-mini-card">
+                        <div class="camera-kpi-label">Captures</div>
+                        <div class="camera-mini-value">{{ item.report.screenshots_count }}</div>
+                    </div>
+                    <div class="camera-mini-card">
+                        <div class="camera-kpi-label">Preuves horaires</div>
+                        <div class="camera-mini-value">{{ item.report.time_proof_count }}</div>
+                    </div>
+                    <div class="camera-mini-card">
+                        <div class="camera-kpi-label">Rapport final</div>
+                        <div class="camera-mini-value">{% if item.report.is_submitted %}Soumis{% else %}En attente{% endif %}</div>
+                    </div>
+                </div>
+                {% if item.latest_observation %}
+                <div class="camera-muted">
+                    Dernière vérification: {{ item.latest_observation.get_vehicle_type_display }}
+                    {% if item.latest_observation.plate_number %}· plaque {{ item.latest_observation.plate_number }}{% endif %}
+                    {% if item.latest_observation.observed_time %}· vue à {{ item.latest_observation.observed_time|time:"H:i" }}{% endif %}
+                </div>
+                {% elif item.report.notes %}
+                <div class="camera-muted">{{ item.report.notes|truncatechars:180 }}</div>
+                {% endif %}
+                {% else %}
+                <div class="camera-empty">Aucun rapport contrôleur n'a encore été ouvert pour cette date. Ouvrez le portail admin si vous devez reprendre ou démarrer la journée côté administration.</div>
+                {% endif %}
+                <div class="camera-report-actions">
+                    <a href="{{ item.manage_url }}" class="btn btn-primary">Gérer le portail</a>
+                    <a href="{{ item.manage_url }}#final-report-form" class="btn btn-secondary">Voir le rapport final</a>
+                </div>
+            </article>
+            {% empty %}
+            <div class="camera-empty">Aucun contrôleur caméra actif n'est actuellement rattaché à ce site.</div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="camera-card">
+        <div class="camera-card-head">
+            <div>
+                <h2 class="camera-title">Historique contrôleurs caméra</h2>
+                <p class="camera-subtitle">Retrouvez tous les brouillons et rapports finaux du mois, avec leur statut, les volumes remontés par le contrôleur et l'accès à la correction admin du portail.</p>
             </div>
             <div class="camera-pill-row">
                 <span class="camera-badge">Rapports: {{ operator_reports_count }}</span>
+                <span class="camera-badge">Finalisés: {{ operator_submitted_reports_count }}</span>
+                <span class="camera-badge">Brouillons: {{ operator_draft_reports_count }}</span>
                 <span class="camera-badge">Véhicules: {{ operator_total_vehicles }}</span>
                 <span class="camera-badge">Captures: {{ operator_total_screenshots }}</span>
                 <span class="camera-badge">Preuves horaires: {{ operator_total_time_proofs }}</span>
@@ -666,8 +755,8 @@
         </div>
         {% if selected_operator_reports %}
         <div class="camera-callout">
-            {{ selected_operator_reports|length }} rapport{{ selected_operator_reports|length|pluralize }} final{{ selected_operator_reports|length|pluralize }}
-            déjà soumis pour le {{ selected_date|date:"d/m/Y" }} depuis le portail contrôle caméra.
+            {{ selected_operator_reports_count }} suivi{{ selected_operator_reports_count|pluralize }} contrôleur chargé{{ selected_operator_reports_count|pluralize }}
+            pour le {{ selected_date|date:"d/m/Y" }}, dont {{ selected_date_operator_submitted_count }} rapport{{ selected_date_operator_submitted_count|pluralize }} finalisé{{ selected_date_operator_submitted_count|pluralize }}.
         </div>
         {% endif %}
         <div class="camera-report-list">
@@ -676,13 +765,21 @@
                 <div class="camera-report-meta">
                     <div>
                         <div class="camera-report-date">{{ report.date|date:"l d/m/Y"|capfirst }}</div>
-                        <div class="camera-muted">Soumis par {{ report.controller.get_full_name|default:report.controller.username }}</div>
+                        <div class="camera-muted">
+                            {{ report.controller.get_full_name|default:report.controller.username }}
+                            {% if report.is_submitted and report.submitted_at %}
+                            · soumis le {{ report.submitted_at|date:"d/m/Y H:i" }}
+                            {% else %}
+                            · brouillon mis à jour le {{ report.updated_at|date:"d/m/Y H:i" }}
+                            {% endif %}
+                        </div>
                     </div>
-                    <div class="camera-pill-row" style="margin-top:0;">
-                        <span class="camera-badge">{{ report.cars_count }} voiture{{ report.cars_count|pluralize }}</span>
-                        <span class="camera-badge">{{ report.motos_count }} moto{{ report.motos_count|pluralize }} 2 roues</span>
-                        <span class="camera-badge">{{ report.three_wheelers_count }} moto{{ report.three_wheelers_count|pluralize }} 3 roues</span>
-                    </div>
+                    <span class="camera-state {{ report.status_class }}">{{ report.status_label }}</span>
+                </div>
+                <div class="camera-pill-row" style="margin-top:0;">
+                    <span class="camera-badge">{{ report.cars_count }} voiture{{ report.cars_count|pluralize }}</span>
+                    <span class="camera-badge">{{ report.motos_count }} moto{{ report.motos_count|pluralize }} 2 roues</span>
+                    <span class="camera-badge">{{ report.three_wheelers_count }} moto{{ report.three_wheelers_count|pluralize }} 3 roues</span>
                 </div>
                 <div class="camera-mini-grid">
                     <div class="camera-mini-card">
@@ -704,14 +801,19 @@
                 </div>
                 {% if report.notes %}
                 <div class="camera-muted">{{ report.notes|truncatechars:180 }}</div>
+                {% elif report.latest_observation %}
+                <div class="camera-muted">
+                    Dernière vérification: {{ report.latest_observation.get_vehicle_type_display }}
+                    {% if report.latest_observation.plate_number %}· plaque {{ report.latest_observation.plate_number }}{% endif %}
+                </div>
                 {% endif %}
                 <div class="camera-report-actions">
-                    <a href="{% url 'admin_camera_operator_report_detail' site.id report.id %}" class="btn btn-primary">Voir le détail</a>
-                    <a href="{% url 'admin_site_camera_monitoring' site.id %}?date={{ report.date|date:'Y-m-d' }}" class="btn btn-secondary">Ouvrir la date</a>
+                    <a href="{{ report.manage_url }}" class="btn btn-primary">Gérer le rapport</a>
+                    <a href="{{ report.manage_url }}#final-report-form" class="btn btn-secondary">Voir le rapport final</a>
                 </div>
             </article>
             {% empty %}
-            <div class="camera-empty">Aucun rapport final n'a encore été soumis par un contrôleur caméra pour {{ selected_month_label }}.</div>
+            <div class="camera-empty">Aucun brouillon ni rapport final n'a encore été créé par un contrôleur caméra pour {{ selected_month_label }}.</div>
             {% endfor %}
         </div>
     </section>

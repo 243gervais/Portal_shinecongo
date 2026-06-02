@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import CameraObservation, CameraOperatorDailyReport
+from .models import Camera, CameraObservation, CameraOperatorDailyReport
 
 
 class MultipleImageInput(forms.ClearableFileInput):
@@ -90,3 +90,21 @@ class CameraOperatorDailyReportFinalForm(forms.ModelForm):
                 }
             ),
         }
+
+
+class AdminCameraObservationForm(CameraObservationForm):
+    camera = forms.ModelChoiceField(
+        label="Caméra",
+        queryset=Camera.objects.none(),
+        required=False,
+        empty_label="Caméra non renseignée",
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+
+    def __init__(self, *args, site=None, **kwargs):
+        super().__init__(*args, site=site, **kwargs)
+        if site is not None:
+            self.fields["camera"].queryset = Camera.objects.filter(site=site).order_by("camera_number", "name")
+        self.order_fields(
+            ["camera", "vehicle_type", "plate_number", "observed_time", "screenshots", "notes"]
+        )

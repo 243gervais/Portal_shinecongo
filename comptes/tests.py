@@ -12,7 +12,7 @@ from urllib.parse import quote
 
 from comptes.forms import ApprovalAuthenticationForm
 from comptes.views import _daily_funding_snapshot
-from comptes.models import AdminReminder, EmployeePayment
+from comptes.models import AdminReminder, EmployeePayment, UserProfile
 from lavages.models import CarWash
 from sites.models import (
     Camera,
@@ -847,6 +847,44 @@ class SiteCameraMonitoringTests(TestCase):
         self.assertContains(detail_response, "Clips & captures du rapport")
         self.assertContains(detail_response, "Motos 3 pneus")
 
+    def test_admin_monitoring_shows_camera_controller_management_for_draft_activity(self):
+        controller = User.objects.create_user(
+            username="camera_draft_agent",
+            email="camera_draft_agent@example.com",
+            password="CameraPass123!",
+            first_name="Brice",
+        )
+        controller.userprofile.role = UserProfile.CAMERA_CONTROLLER_ROLE
+        controller.userprofile.site = self.site
+        controller.userprofile.actif = True
+        controller.userprofile.save()
+
+        report = CameraOperatorDailyReport.objects.create(
+            site=self.site,
+            controller=controller,
+            date=date(2026, 5, 21),
+        )
+        CameraObservation.objects.create(
+            report=report,
+            vehicle_type="MOTO",
+            plate_number="CD1234",
+            notes="Contrôle en cours.",
+        )
+
+        response = self.client.get(
+            reverse("admin_site_camera_monitoring", args=[self.site.id]),
+            data={"date": "2026-05-21", "month": "2026-05"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Gestion contrôleurs caméra")
+        self.assertContains(response, "Brice")
+        self.assertContains(response, "Brouillon en cours")
+        self.assertContains(
+            response,
+            reverse("admin_camera_controller_portal", args=[self.site.id, controller.userprofile.id]),
+        )
+
 
 @override_settings(
     MEDIA_ROOT="/private/tmp/portal_shinecongo_camera_operator_test_media",
@@ -1033,13 +1071,55 @@ class CameraControllerPortalTests(TestCase):
         monitoring_response = admin_client.get(reverse("admin_site_camera_monitoring", args=[self.site.id]))
         detail_response = admin_client.get(reverse("admin_camera_operator_report_detail", args=[self.site.id, report.id]))
 
-        self.assertContains(monitoring_response, "Rapports contrôleurs caméra")
+        self.assertContains(monitoring_response, "Gestion contrôleurs caméra")
         self.assertContains(monitoring_response, "Aline")
         self.assertEqual(detail_response.status_code, 200)
         self.assertContains(detail_response, "Moto vue")
         self.assertContains(detail_response, "Captures")
         self.assertContains(detail_response, "Plaque AA1022")
         self.assertContains(detail_response, "Caméra non renseignée")
+
+    def test_admin_can_correct_controller_report_from_admin_portal(self):
+        report = CameraOperatorDailyReport.objects.create(
+            site=self.site,
+            controller=self.controller,
+            date=timezone.localdate(),
+        )
+        observation = CameraObservation.objects.create(
+            report=report,
+            vehicle_type="MOTO",
+            plate_number=" old99 ",
+            notes="Saisie initiale.",
+        )
+
+        admin_client = self.client_class()
+        admin_client.login(username="camera_portal_admin", password="AdminPass123!")
+
+        response = admin_client.post(
+            reverse("admin_camera_controller_portal", args=[self.site.id, self.controller.userprofile.id]),
+            data={
+                "action": "save_observation",
+                "selected_date": timezone.localdate().isoformat(),
+                "observation_id": str(observation.id),
+                "camera": str(self.camera.id),
+                "vehicle_type": "CAR",
+                "plate_number": " ab9090 ",
+                "observed_time": "09:15",
+                "notes": "Correction admin.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        observation.refresh_from_db()
+        report.refresh_from_db()
+        self.assertEqual(observation.camera, self.camera)
+        self.assertEqual(observation.vehicle_type, "CAR")
+        self.assertEqual(observation.plate_number, "AB9090")
+        self.assertEqual(observation.notes, "Correction admin.")
+        self.assertEqual(report.cars_count, 1)
+        self.assertEqual(report.motos_count, 0)
+        self.assertEqual(report.total_vehicles, 1)
+        self.assertEqual(report.expected_revenue, Decimal("15000"))
 
     def test_camera_controller_is_blocked_from_employee_dashboard(self):
         response = self.client.get(reverse("employe_dashboard"), follow=True)

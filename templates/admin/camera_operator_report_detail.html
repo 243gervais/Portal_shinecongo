@@ -1,37 +1,29 @@
 {% extends "base.html" %}
 {% load currency_tags %}
 
-{% block title %}Rapport contrôleur caméra - {{ site.nom }}{% endblock %}
+{% block title %}Gestion contrôleur caméra - {{ site.nom }}{% endblock %}
 
 {% block extra_css %}
 <style>
-    .camera-admin-shell {
+    .camera-admin-day-shell {
         display: grid;
         gap: 1.25rem;
     }
 
-    .camera-admin-hero,
-    .camera-admin-card,
-    .camera-admin-observation {
-        padding: 1.2rem;
-        border-radius: 24px;
-        background: rgba(255, 255, 255, 0.98);
-        border: 1px solid rgba(10, 67, 107, 0.08);
-        box-shadow: 0 18px 44px rgba(11, 31, 53, 0.08);
-    }
-
-    .camera-admin-hero {
+    .camera-admin-day-hero {
         position: relative;
         overflow: hidden;
+        border-radius: 30px;
+        padding: 1.9rem;
         color: #f8fbff;
         background:
-            radial-gradient(circle at top left, rgba(255, 193, 7, 0.2), transparent 28%),
-            radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.22), transparent 22%),
-            linear-gradient(135deg, #081522 0%, #10304d 46%, #1a5a7c 100%);
-        box-shadow: 0 26px 72px rgba(8, 21, 34, 0.24);
+            radial-gradient(circle at top left, rgba(255, 193, 7, 0.2), transparent 26%),
+            radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.22), transparent 24%),
+            linear-gradient(135deg, #08131d 0%, #0f2c44 44%, #1a5878 100%);
+        box-shadow: 0 26px 72px rgba(8, 19, 29, 0.24);
     }
 
-    .camera-admin-hero::after {
+    .camera-admin-day-hero::after {
         content: "";
         position: absolute;
         inset: 0;
@@ -39,19 +31,20 @@
             linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
             linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
         background-size: 24px 24px;
-        mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.36), transparent 86%);
+        mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.34), transparent 84%);
         pointer-events: none;
     }
 
-    .camera-admin-hero > * {
+    .camera-admin-day-hero > * {
         position: relative;
         z-index: 1;
     }
 
-    .camera-admin-top,
-    .camera-admin-actions,
-    .camera-admin-card-head,
-    .camera-admin-observation-top {
+    .camera-admin-day-hero-top,
+    .camera-admin-day-actions,
+    .camera-admin-day-card-head,
+    .camera-admin-day-observation-top,
+    .camera-admin-day-observation-actions {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
@@ -59,237 +52,650 @@
         flex-wrap: wrap;
     }
 
-    .camera-admin-kicker,
-    .camera-admin-chip,
-    .camera-admin-badge {
+    .camera-admin-day-kicker,
+    .camera-admin-day-chip,
+    .camera-admin-day-badge,
+    .camera-admin-day-state {
         display: inline-flex;
         align-items: center;
         gap: 0.45rem;
         border-radius: 999px;
         font-weight: 700;
+        white-space: normal;
     }
 
-    .camera-admin-kicker,
-    .camera-admin-chip {
+    .camera-admin-day-kicker,
+    .camera-admin-day-chip {
         padding: 0.42rem 0.82rem;
         background: rgba(255, 255, 255, 0.12);
         color: rgba(248, 251, 255, 0.94);
         font-size: 0.82rem;
     }
 
-    .camera-admin-badge {
+    .camera-admin-day-badge {
         padding: 0.32rem 0.68rem;
         background: rgba(10, 67, 107, 0.08);
         color: var(--primary-dark);
         font-size: 0.8rem;
     }
 
-    .camera-admin-hero h1,
-    .camera-admin-title,
-    .camera-admin-value,
-    .camera-admin-observation-title {
-        color: var(--primary-dark);
-        font-weight: 800;
+    .camera-admin-day-state {
+        padding: 0.38rem 0.72rem;
+        font-size: 0.8rem;
     }
 
-    .camera-admin-hero h1 {
-        color: #fff;
+    .camera-admin-day-state--success {
+        background: rgba(15, 157, 88, 0.12);
+        color: #0f9d58;
+    }
+
+    .camera-admin-day-state--draft {
+        background: rgba(255, 193, 7, 0.14);
+        color: #9a6700;
+    }
+
+    .camera-admin-day-state--idle {
+        background: rgba(255, 255, 255, 0.16);
+        color: rgba(248, 251, 255, 0.88);
+    }
+
+    .camera-admin-day-hero h1 {
         margin: 0.85rem 0 0.35rem;
         font-size: clamp(2rem, 3vw, 2.8rem);
+        color: #fff;
+        line-height: 1.04;
     }
 
-    .camera-admin-hero p {
+    .camera-admin-day-hero p {
         margin: 0;
+        max-width: 60rem;
         color: rgba(248, 251, 255, 0.82);
-        max-width: 58rem;
         line-height: 1.6;
     }
 
-    .camera-admin-chip-row,
-    .camera-admin-pill-row,
-    .camera-admin-actions {
+    .camera-admin-day-chip-row,
+    .camera-admin-day-actions,
+    .camera-admin-day-pill-row {
         display: flex;
         gap: 0.65rem;
         flex-wrap: wrap;
         margin-top: 1rem;
     }
 
-    .camera-admin-title {
-        margin: 0;
-        font-size: 1.12rem;
-    }
-
-    .camera-admin-label,
-    .camera-admin-copy,
-    .camera-admin-muted {
-        color: var(--text-secondary);
-        font-size: 0.84rem;
-    }
-
-    .camera-admin-grid,
-    .camera-admin-summary-grid,
-    .camera-admin-evidence-grid,
-    .camera-admin-observation-list {
+    .camera-admin-day-grid,
+    .camera-admin-day-form-grid,
+    .camera-admin-day-summary-grid,
+    .camera-admin-day-week-grid,
+    .camera-admin-day-evidence-grid,
+    .camera-admin-day-observation-list {
         display: grid;
         gap: 1rem;
     }
 
-    .camera-admin-summary-grid {
+    .camera-admin-day-grid {
+        grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+        align-items: start;
+    }
+
+    .camera-admin-day-form-grid {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .camera-admin-day-summary-grid,
+    .camera-admin-day-week-grid {
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     }
 
-    .camera-admin-value {
-        margin-top: 0.35rem;
-        font-size: 1.62rem;
+    .camera-admin-day-card,
+    .camera-admin-day-observation,
+    .camera-admin-day-week-report {
+        padding: 1.2rem;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.98);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        box-shadow: 0 18px 44px rgba(11, 31, 53, 0.08);
     }
 
-    .camera-admin-observation-list {
-        gap: 0.9rem;
-    }
-
-    .camera-admin-observation {
+    .camera-admin-day-card,
+    .camera-admin-day-observation,
+    .camera-admin-day-week-report {
         display: grid;
-        gap: 0.9rem;
+        gap: 0.95rem;
+        min-width: 0;
     }
 
-    .camera-admin-evidence-grid {
-        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    .camera-admin-day-title,
+    .camera-admin-day-value,
+    .camera-admin-day-observation-title {
+        color: var(--primary-dark);
+        font-weight: 800;
     }
 
-    .camera-admin-evidence-card {
+    .camera-admin-day-title {
+        margin: 0;
+        font-size: 1.12rem;
+    }
+
+    .camera-admin-day-label,
+    .camera-admin-day-copy,
+    .camera-admin-day-muted,
+    .camera-admin-day-form-help {
+        color: var(--text-secondary);
+        font-size: 0.84rem;
+        overflow-wrap: anywhere;
+    }
+
+    .camera-admin-day-value {
+        margin-top: 0.35rem;
+        font-size: 1.68rem;
+    }
+
+    .camera-admin-day-field {
+        display: grid;
+        gap: 0.35rem;
+    }
+
+    .camera-admin-day-field label {
+        font-weight: 700;
+        color: var(--primary-dark);
+    }
+
+    .camera-admin-day-field input,
+    .camera-admin-day-field select,
+    .camera-admin-day-field textarea,
+    .camera-admin-day-field .form-control,
+    .camera-admin-day-field button {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .camera-admin-day-field--full {
+        grid-column: 1 / -1;
+    }
+
+    .camera-admin-day-preview,
+    .camera-admin-day-final-box {
+        padding: 1rem;
+        border-radius: 18px;
+        background: rgba(7, 26, 44, 0.03);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .camera-admin-day-evidence-grid {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
+
+    .camera-admin-day-evidence-card {
         display: grid;
         gap: 0.45rem;
         padding: 0.75rem;
         border-radius: 18px;
         border: 1px solid rgba(10, 67, 107, 0.08);
         background: rgba(255, 255, 255, 0.88);
+        overflow: hidden;
     }
 
-    .camera-admin-evidence-card img {
+    .camera-admin-day-evidence-card img {
         width: 100%;
         aspect-ratio: 1 / 1;
         object-fit: cover;
         border-radius: 14px;
         background: rgba(7, 26, 44, 0.05);
     }
+
+    .camera-admin-day-empty {
+        padding: 1rem;
+        border-radius: 18px;
+        background: rgba(10, 67, 107, 0.04);
+        border: 1px dashed rgba(10, 67, 107, 0.16);
+        color: var(--text-secondary);
+    }
+
+    .camera-admin-day-filter-form {
+        display: grid;
+        gap: 0.9rem;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        align-items: end;
+    }
+
+    @media (max-width: 980px) {
+        .camera-admin-day-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .camera-admin-day-hero,
+        .camera-admin-day-card,
+        .camera-admin-day-observation,
+        .camera-admin-day-week-report,
+        .camera-admin-day-preview,
+        .camera-admin-day-final-box {
+            padding: 1rem;
+            border-radius: 22px;
+        }
+
+        .camera-admin-day-hero-top,
+        .camera-admin-day-card-head,
+        .camera-admin-day-observation-top,
+        .camera-admin-day-observation-actions {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .camera-admin-day-actions {
+            width: 100%;
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .camera-admin-day-actions > *,
+        .camera-admin-day-observation-actions > *,
+        .camera-admin-day-card .btn {
+            width: 100%;
+        }
+
+        .camera-admin-day-form-grid,
+        .camera-admin-day-evidence-grid,
+        .camera-admin-day-summary-grid,
+        .camera-admin-day-week-grid {
+            grid-template-columns: 1fr;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="camera-admin-shell">
-    <section class="camera-admin-hero">
-        <div class="camera-admin-top">
+<div class="camera-admin-day-shell">
+    <section class="camera-admin-day-hero">
+        <div class="camera-admin-day-hero-top">
             <div>
-                <span class="camera-admin-kicker">Camera Controller Report</span>
-                <h1>Rapport du {{ report.date|date:"d/m/Y" }}</h1>
-                <p>Rapport final transmis depuis le portail contrôle caméra pour <strong>{{ site.nom }}</strong>.</p>
-                <div class="camera-admin-chip-row">
-                    <span class="camera-admin-chip">Contrôleur: {{ report.controller.get_full_name|default:report.controller.username }}</span>
-                    <span class="camera-admin-chip">Soumis le: {{ report.submitted_at|date:"d/m/Y H:i"|default:"-" }}</span>
+                <span class="camera-admin-day-kicker">Gestion contrôleur caméra</span>
+                <h1>{{ controller_user.get_full_name|default:controller_user.username }} · {{ selected_date|date:"d/m/Y" }}</h1>
+                <p>Le portail admin reprend ici les mêmes vérifications que le contrôleur caméra. Vous pouvez corriger les fiches, compléter une caméra, supprimer une erreur et renvoyer le rapport final depuis cet écran.</p>
+                <div class="camera-admin-day-chip-row">
+                    <span class="camera-admin-day-chip">Site: {{ site.nom }}</span>
+                    <span class="camera-admin-day-chip">Contrôleur: {{ controller_user.get_full_name|default:controller_user.username }}</span>
+                    <span class="camera-admin-day-chip">
+                        Statut:
+                        {% if report.pk %}
+                            {% if report.is_submitted %}Rapport final soumis{% else %}Brouillon en cours{% endif %}
+                        {% else %}
+                            Pas encore démarré
+                        {% endif %}
+                    </span>
                 </div>
             </div>
-            <div class="camera-admin-actions">
-                <a href="{% url 'admin_site_camera_monitoring' site.id %}?date={{ report.date|date:'Y-m-d' }}" class="btn btn-secondary">Retour au hub caméras</a>
+            <div class="camera-admin-day-actions">
+                <a href="{% url 'admin_site_camera_monitoring' site.id %}?date={{ selected_date|date:'Y-m-d' }}" class="btn btn-secondary">Retour au hub caméras</a>
             </div>
         </div>
     </section>
 
-    <section class="camera-admin-card">
-        <div class="camera-admin-card-head">
+    <section class="camera-admin-day-card">
+        <div class="camera-admin-day-card-head">
             <div>
-                <h2 class="camera-admin-title">Synthèse du rapport</h2>
-                <p class="camera-admin-copy">Les totaux sont calculés automatiquement depuis les observations du contrôleur.</p>
+                <h2 class="camera-admin-day-title">Changer de journée</h2>
+                <p class="camera-admin-day-copy">Sélectionnez une autre date pour gérer le même contrôleur caméra sur une autre journée sans quitter l'espace admin.</p>
             </div>
         </div>
-        <div class="camera-admin-summary-grid">
-            <div>
-                <div class="camera-admin-label">Voitures</div>
-                <div class="camera-admin-value">{{ report.cars_count }}</div>
+        <form method="get" action="{{ page_base_url }}" class="camera-admin-day-filter-form">
+            <div class="camera-admin-day-field">
+                <label for="controller-report-date">Date active</label>
+                <input id="controller-report-date" type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" class="form-control">
             </div>
-            <div>
-                <div class="camera-admin-label">Motos 2 roues</div>
-                <div class="camera-admin-value">{{ report.motos_count }}</div>
+            <div class="camera-admin-day-field">
+                <button type="submit" class="btn btn-primary">Afficher cette journée</button>
             </div>
-            <div>
-                <div class="camera-admin-label">Motos 3 roues</div>
-                <div class="camera-admin-value">{{ report.three_wheelers_count }}</div>
-            </div>
-            <div>
-                <div class="camera-admin-label">Total véhicules</div>
-                <div class="camera-admin-value">{{ report.total_vehicles }}</div>
-            </div>
-            <div>
-                <div class="camera-admin-label">Captures</div>
-                <div class="camera-admin-value">{{ report.screenshots_count }}</div>
-            </div>
-            <div>
-                <div class="camera-admin-label">Preuves horaires</div>
-                <div class="camera-admin-value">{{ report.time_proof_count }}</div>
-            </div>
-            <div>
-                <div class="camera-admin-label">Recette attendue</div>
-                <div class="camera-admin-value">{{ report.expected_revenue|fc_amount }} FC</div>
-            </div>
-        </div>
-        {% if report.notes %}
-        <div class="camera-admin-copy">{{ report.notes }}</div>
-        {% endif %}
+        </form>
     </section>
 
-    <section class="camera-admin-card">
-        <div class="camera-admin-card-head">
-            <div>
-                <h2 class="camera-admin-title">Observations détaillées</h2>
-                <p class="camera-admin-copy">Chaque vérification contient le véhicule repéré, la plaque quand elle est disponible et toutes les pièces jointes associées. La caméra peut rester non renseignée sur les nouvelles saisies contrôleur.</p>
+    <div class="camera-admin-day-grid">
+        <section class="camera-admin-day-card" id="observation-form">
+            <div class="camera-admin-day-card-head">
+                <div>
+                    <h2 class="camera-admin-day-title">{% if editing_observation %}Corriger une vérification{% else %}Ajouter une vérification{% endif %}</h2>
+                    <p class="camera-admin-day-copy">Admin peut reprendre la journée du contrôleur comme dans son portail, avec une caméra optionnelle pour préciser d'où vient la vérification.</p>
+                </div>
+                <span class="camera-admin-day-badge">{% if editing_observation %}Correction admin{% else %}Nouvelle fiche{% endif %}</span>
             </div>
-            <span class="camera-admin-badge">{{ observations|length }} observation{{ observations|length|pluralize }}</span>
-        </div>
-        <div class="camera-admin-observation-list">
-            {% for observation in observations %}
-            <article class="camera-admin-observation">
-                <div class="camera-admin-observation-top">
+            <form method="post" enctype="multipart/form-data" action="{{ page_url }}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="save_observation">
+                <input type="hidden" name="selected_date" value="{{ selected_date|date:'Y-m-d' }}">
+                {% if editing_observation %}
+                <input type="hidden" name="observation_id" value="{{ editing_observation.id }}">
+                {% endif %}
+                {% if observation_form.non_field_errors %}
+                <div class="alert alert-danger">{{ observation_form.non_field_errors }}</div>
+                {% endif %}
+                <div class="camera-admin-day-form-grid">
+                    <div class="camera-admin-day-field">
+                        <label for="{{ observation_form.camera.id_for_label }}">{{ observation_form.camera.label }}</label>
+                        {{ observation_form.camera }}
+                        {% if observation_form.camera.errors %}<div class="text-danger small">{{ observation_form.camera.errors|join:", " }}</div>{% endif %}
+                    </div>
+                    <div class="camera-admin-day-field">
+                        <label for="{{ observation_form.vehicle_type.id_for_label }}">{{ observation_form.vehicle_type.label }}</label>
+                        {{ observation_form.vehicle_type }}
+                        {% if observation_form.vehicle_type.errors %}<div class="text-danger small">{{ observation_form.vehicle_type.errors|join:", " }}</div>{% endif %}
+                    </div>
+                    <div class="camera-admin-day-field">
+                        <label for="{{ observation_form.plate_number.id_for_label }}">{{ observation_form.plate_number.label }}</label>
+                        {{ observation_form.plate_number }}
+                        <div class="camera-admin-day-form-help">Optionnel. Corrigez la plaque seulement si elle est lisible ou connue.</div>
+                        {% if observation_form.plate_number.errors %}<div class="text-danger small">{{ observation_form.plate_number.errors|join:", " }}</div>{% endif %}
+                    </div>
+                    <div class="camera-admin-day-field">
+                        <label for="{{ observation_form.observed_time.id_for_label }}">{{ observation_form.observed_time.label }}</label>
+                        {{ observation_form.observed_time }}
+                        {% if observation_form.observed_time.errors %}<div class="text-danger small">{{ observation_form.observed_time.errors|join:", " }}</div>{% endif %}
+                    </div>
+                    <div class="camera-admin-day-field camera-admin-day-field--full">
+                        <label for="{{ observation_form.screenshots.id_for_label }}">{{ observation_form.screenshots.label }}</label>
+                        {{ observation_form.screenshots }}
+                        <div class="camera-admin-day-form-help">{{ observation_form.screenshots.help_text }}</div>
+                        {% if observation_form.screenshots.errors %}<div class="text-danger small">{{ observation_form.screenshots.errors|join:", " }}</div>{% endif %}
+                    </div>
+                    <div class="camera-admin-day-field camera-admin-day-field--full">
+                        <label for="{{ observation_form.notes.id_for_label }}">{{ observation_form.notes.label }}</label>
+                        {{ observation_form.notes }}
+                        {% if observation_form.notes.errors %}<div class="text-danger small">{{ observation_form.notes.errors|join:", " }}</div>{% endif %}
+                    </div>
+                </div>
+                <div class="camera-admin-day-observation-actions">
+                    <button type="submit" class="btn btn-primary">{% if editing_observation %}Enregistrer la correction{% else %}Ajouter la vérification{% endif %}</button>
+                    {% if editing_observation %}
+                    <a href="{{ page_url }}#observation-form" class="btn btn-secondary">Annuler la correction</a>
+                    {% endif %}
+                </div>
+            </form>
+        </section>
+
+        <section class="camera-admin-day-card">
+            <div class="camera-admin-day-card-head">
+                <div>
+                    <h2 class="camera-admin-day-title">Synthèse automatique</h2>
+                    <p class="camera-admin-day-copy">Les compteurs se recalculent à chaque ajout, correction ou suppression. Le rapport final reprend exactement ces chiffres.</p>
+                </div>
+                <span class="camera-admin-day-state {% if report.pk and report.is_submitted %}camera-admin-day-state--success{% elif report.pk %}camera-admin-day-state--draft{% else %}camera-admin-day-state--idle{% endif %}">
+                    {% if report.pk %}
+                        {% if report.is_submitted %}Clôturé{% else %}En cours{% endif %}
+                    {% else %}
+                        Aucune activité
+                    {% endif %}
+                </span>
+            </div>
+            <div class="camera-admin-day-preview">
+                <div class="camera-admin-day-summary-grid">
                     <div>
-                        <div class="camera-admin-observation-title">
+                        <div class="camera-admin-day-label">Voitures</div>
+                        <div class="camera-admin-day-value">{{ report.cars_count }}</div>
+                    </div>
+                    <div>
+                        <div class="camera-admin-day-label">Motos 2 roues</div>
+                        <div class="camera-admin-day-value">{{ report.motos_count }}</div>
+                    </div>
+                    <div>
+                        <div class="camera-admin-day-label">Motos 3 roues</div>
+                        <div class="camera-admin-day-value">{{ report.three_wheelers_count }}</div>
+                    </div>
+                    <div>
+                        <div class="camera-admin-day-label">Total véhicules</div>
+                        <div class="camera-admin-day-value">{{ report.total_vehicles }}</div>
+                    </div>
+                    <div>
+                        <div class="camera-admin-day-label">Captures</div>
+                        <div class="camera-admin-day-value">{{ report.screenshots_count }}</div>
+                    </div>
+                    <div>
+                        <div class="camera-admin-day-label">Montant attendu</div>
+                        <div class="camera-admin-day-value">{{ report.expected_revenue|fc_amount }} FC</div>
+                    </div>
+                </div>
+            </div>
+            <div class="camera-admin-day-final-box">
+                <div class="camera-admin-day-label">Rapport final</div>
+                <div class="camera-admin-day-copy">
+                    {% if report.is_submitted and report.submitted_at %}
+                    Dernière version envoyée le {{ report.submitted_at|date:"d/m/Y H:i" }}. Toute correction faite ici peut être renvoyée immédiatement depuis la section de clôture.
+                    {% else %}
+                    Continuez à corriger ou compléter les vérifications, puis utilisez la clôture finale pour transmettre la version du jour.
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <section class="camera-admin-day-card" id="controller-observations">
+        <div class="camera-admin-day-card-head">
+            <div>
+                <h2 class="camera-admin-day-title">Vérifications enregistrées</h2>
+                <p class="camera-admin-day-copy">Chaque bloc correspond à une fiche du contrôleur caméra. Admin peut corriger la fiche ou la supprimer si elle a été saisie par erreur.</p>
+            </div>
+            <span class="camera-admin-day-badge">{{ observations|length }} vérification{{ observations|length|pluralize }}</span>
+        </div>
+        <div class="camera-admin-day-observation-list">
+            {% for observation in observations %}
+            <article class="camera-admin-day-observation">
+                <div class="camera-admin-day-observation-top">
+                    <div>
+                        <div class="camera-admin-day-observation-title">
                             {{ observation.get_vehicle_type_display }}
                             {% if observation.camera %}
                             · Caméra {{ observation.camera.camera_number }}
                             {% endif %}
                         </div>
-                        <div class="camera-admin-muted">
+                        <div class="camera-admin-day-muted">
                             {% if observation.camera %}
                             {{ observation.camera.name }}
                             {% else %}
                             Caméra non renseignée
                             {% endif %}
-                            {% if observation.observed_time %}
-                            • heure vue {{ observation.observed_time|time:"H:i" }}
-                            {% endif %}
-                            • créée le {{ observation.created_at|date:"d/m/Y H:i" }}
+                            {% if observation.observed_time %} · vue à {{ observation.observed_time|time:"H:i" }}{% endif %}
+                            · ajoutée le {{ observation.created_at|date:"d/m/Y H:i" }}
                         </div>
                     </div>
-                    <div class="camera-admin-pill-row" style="margin-top:0;">
+                    <div class="camera-admin-day-pill-row" style="margin-top:0;">
                         {% if observation.plate_number %}
-                        <span class="camera-admin-badge">Plaque {{ observation.plate_number }}</span>
+                        <span class="camera-admin-day-badge">Plaque {{ observation.plate_number }}</span>
                         {% endif %}
-                        <span class="camera-admin-badge">{{ observation.screenshot_count }} capture{{ observation.screenshot_count|pluralize }}</span>
-                        <span class="camera-admin-badge">{{ observation.time_proof_count }} preuve{{ observation.time_proof_count|pluralize }} horaire{{ observation.time_proof_count|pluralize }}</span>
+                        <span class="camera-admin-day-badge">{{ observation.screenshot_count }} capture{{ observation.screenshot_count|pluralize }}</span>
+                        <span class="camera-admin-day-badge">{{ observation.time_proof_count }} preuve{{ observation.time_proof_count|pluralize }} horaire{{ observation.time_proof_count|pluralize }}</span>
                     </div>
                 </div>
                 {% if observation.notes %}
-                <div class="camera-admin-copy">{{ observation.notes }}</div>
+                <div class="camera-admin-day-muted">{{ observation.notes }}</div>
                 {% endif %}
-                <div class="camera-admin-evidence-grid">
+                <div class="camera-admin-day-evidence-grid">
                     {% for evidence in observation.evidences.all %}
-                    <div class="camera-admin-evidence-card">
+                    <div class="camera-admin-day-evidence-card">
                         <img src="{{ evidence.file.url }}" alt="{{ evidence.get_evidence_kind_display }}">
-                        <div class="camera-admin-label">{{ evidence.get_evidence_kind_display }}</div>
-                        <div class="camera-admin-muted">{{ evidence.filename }}</div>
+                        <div class="camera-admin-day-label">{{ evidence.get_evidence_kind_display }}</div>
+                        <div class="camera-admin-day-muted">{{ evidence.filename }}</div>
                     </div>
                     {% endfor %}
                 </div>
+                <div class="camera-admin-day-observation-actions">
+                    <a href="{{ page_url }}&edit_observation={{ observation.id }}#observation-form" class="btn btn-secondary">Corriger cette fiche</a>
+                    <form method="post" action="{{ page_url }}">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete_observation">
+                        <input type="hidden" name="selected_date" value="{{ selected_date|date:'Y-m-d' }}">
+                        <input type="hidden" name="observation_id" value="{{ observation.id }}">
+                        <button type="submit" class="btn btn-danger">Supprimer cette fiche</button>
+                    </form>
+                </div>
             </article>
             {% empty %}
-            <div class="camera-admin-copy">Aucune observation n'est liée à ce rapport.</div>
+            <div class="camera-admin-day-empty">Aucune vérification n'a encore été enregistrée pour cette journée.</div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="camera-admin-day-card" id="final-report-form">
+        <div class="camera-admin-day-card-head">
+            <div>
+                <h2 class="camera-admin-day-title">Rapport final du contrôleur</h2>
+                <p class="camera-admin-day-copy">C'est ici que vous voyez et mettez à jour la clôture finale du contrôleur caméra. Le récapitulatif email repartira avec les chiffres recalculés après vos corrections.</p>
+            </div>
+            <span class="camera-admin-day-state {% if report.is_submitted %}camera-admin-day-state--success{% elif report.pk %}camera-admin-day-state--draft{% else %}camera-admin-day-state--idle{% endif %}">
+                {% if report.is_submitted %}Soumis{% elif report.pk %}En attente{% else %}Aucune activité{% endif %}
+            </span>
+        </div>
+        <div class="camera-admin-day-preview">
+            <div class="camera-admin-day-summary-grid">
+                <div>
+                    <div class="camera-admin-day-label">Total véhicules</div>
+                    <div class="camera-admin-day-value">{{ report.total_vehicles }}</div>
+                </div>
+                <div>
+                    <div class="camera-admin-day-label">Voitures</div>
+                    <div class="camera-admin-day-value">{{ report.cars_count }}</div>
+                </div>
+                <div>
+                    <div class="camera-admin-day-label">Motos 2 roues</div>
+                    <div class="camera-admin-day-value">{{ report.motos_count }}</div>
+                </div>
+                <div>
+                    <div class="camera-admin-day-label">Motos 3 roues</div>
+                    <div class="camera-admin-day-value">{{ report.three_wheelers_count }}</div>
+                </div>
+                <div>
+                    <div class="camera-admin-day-label">Captures</div>
+                    <div class="camera-admin-day-value">{{ report.screenshots_count }}</div>
+                </div>
+                <div>
+                    <div class="camera-admin-day-label">Montant attendu</div>
+                    <div class="camera-admin-day-value">{{ report.expected_revenue|fc_amount }} FC</div>
+                </div>
+            </div>
+        </div>
+        <form method="post" action="{{ page_url }}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="preview_final_report">
+            <input type="hidden" name="selected_date" value="{{ selected_date|date:'Y-m-d' }}">
+            <div class="camera-admin-day-field">
+                <label for="{{ final_form.notes.id_for_label }}">{{ final_form.notes.label|default:"Notes de fin de journée" }}</label>
+                {{ final_form.notes }}
+                {% if final_form.notes.errors %}<div class="text-danger small">{{ final_form.notes.errors|join:", " }}</div>{% endif %}
+            </div>
+            <div class="camera-admin-day-observation-actions">
+                <button type="submit" class="btn btn-success">Prévisualiser le rapport final</button>
+            </div>
+        </form>
+        {% if final_report_preview %}
+        <div class="camera-admin-day-final-box">
+            <div class="camera-admin-day-card-head">
+                <div>
+                    <h3 class="camera-admin-day-title">Prévisualisation avant confirmation</h3>
+                    <p class="camera-admin-day-copy">Le rapport n'est pas encore renvoyé. Vérifiez le résumé, puis confirmez la version finale corrigée.</p>
+                </div>
+                <span class="camera-admin-day-badge">{{ final_report_preview.status_label }}</span>
+            </div>
+            <div class="camera-admin-day-summary-grid">
+                <div>
+                    <div class="camera-admin-day-label">Total véhicules</div>
+                    <div class="camera-admin-day-value">{{ final_report_preview.total_vehicles }}</div>
+                </div>
+                <div>
+                    <div class="camera-admin-day-label">Voitures</div>
+                    <div class="camera-admin-day-value">{{ final_report_preview.cars_count }}</div>
+                </div>
+                <div>
+                    <div class="camera-admin-day-label">Motos 2 roues</div>
+                    <div class="camera-admin-day-value">{{ final_report_preview.motos_count }}</div>
+                </div>
+                <div>
+                    <div class="camera-admin-day-label">Motos 3 roues</div>
+                    <div class="camera-admin-day-value">{{ final_report_preview.three_wheelers_count }}</div>
+                </div>
+                <div>
+                    <div class="camera-admin-day-label">Captures</div>
+                    <div class="camera-admin-day-value">{{ final_report_preview.screenshots_count }}</div>
+                </div>
+                <div>
+                    <div class="camera-admin-day-label">Montant attendu</div>
+                    <div class="camera-admin-day-value">{{ report.expected_revenue|fc_amount }} FC</div>
+                </div>
+            </div>
+            <div class="camera-admin-day-preview">
+                <div class="camera-admin-day-label">Notes finales</div>
+                <div class="camera-admin-day-copy">{{ final_report_preview.notes_display|linebreaksbr }}</div>
+            </div>
+            <form method="post" action="{{ page_url }}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="confirm_final_report">
+                <input type="hidden" name="selected_date" value="{{ selected_date|date:'Y-m-d' }}">
+                <textarea name="notes" style="display:none;">{{ final_report_preview.notes_value }}</textarea>
+                <div class="camera-admin-day-observation-actions">
+                    <button type="submit" class="btn btn-success">Confirmer le rapport final</button>
+                    <a href="#final-report-form" class="btn btn-secondary">Modifier avant envoi</a>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+    </section>
+
+    <section class="camera-admin-day-card">
+        <div class="camera-admin-day-card-head">
+            <div>
+                <h2 class="camera-admin-day-title">Historique des vérifications</h2>
+                <p class="camera-admin-day-copy">Repérez rapidement les anciennes fiches de ce contrôleur caméra sur les autres dates.</p>
+            </div>
+            <span class="camera-admin-day-badge">{{ verification_history|length }} entrée{{ verification_history|length|pluralize }}</span>
+        </div>
+        <div class="camera-admin-day-observation-list">
+            {% for history_item in verification_history %}
+            <article class="camera-admin-day-observation">
+                <div class="camera-admin-day-observation-top">
+                    <div>
+                        <div class="camera-admin-day-observation-title">{{ history_item.report.date|date:"d/m/Y" }} · {{ history_item.get_vehicle_type_display }}</div>
+                        <div class="camera-admin-day-muted">
+                            {% if history_item.observed_time %}Vue à {{ history_item.observed_time|time:"H:i" }} · {% endif %}
+                            Ajoutée le {{ history_item.created_at|date:"d/m/Y H:i" }}
+                        </div>
+                    </div>
+                    <div class="camera-admin-day-pill-row" style="margin-top:0;">
+                        <span class="camera-admin-day-badge">{% if history_item.report.is_submitted %}Rapport final soumis{% else %}Rapport non finalisé{% endif %}</span>
+                        {% if history_item.plate_number %}
+                        <span class="camera-admin-day-badge">Plaque {{ history_item.plate_number }}</span>
+                        {% endif %}
+                        <span class="camera-admin-day-badge">{{ history_item.screenshot_count }} capture{{ history_item.screenshot_count|pluralize }}</span>
+                    </div>
+                </div>
+                {% if history_item.notes %}
+                <div class="camera-admin-day-muted">{{ history_item.notes }}</div>
+                {% endif %}
+            </article>
+            {% empty %}
+            <div class="camera-admin-day-empty">Aucune ancienne vérification n'est encore disponible pour ce contrôleur caméra.</div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="camera-admin-day-card">
+        <div class="camera-admin-day-card-head">
+            <div>
+                <h2 class="camera-admin-day-title">Rapports finalisés de la semaine</h2>
+                <p class="camera-admin-day-copy">Référence rapide des journées déjà transmises pour ce contrôleur caméra.</p>
+            </div>
+            <span class="camera-admin-day-badge">{{ weekly_reports|length }} rapport{{ weekly_reports|length|pluralize }}</span>
+        </div>
+        <div class="camera-admin-day-week-grid">
+            {% for weekly_report in weekly_reports %}
+            <article class="camera-admin-day-week-report">
+                <div class="camera-admin-day-observation-title">{{ weekly_report.date|date:"l d/m/Y"|capfirst }}</div>
+                <div class="camera-admin-day-pill-row" style="margin-top:0;">
+                    <span class="camera-admin-day-badge">{{ weekly_report.total_vehicles }} véhicule{{ weekly_report.total_vehicles|pluralize }}</span>
+                    <span class="camera-admin-day-badge">{{ weekly_report.screenshots_count }} capture{{ weekly_report.screenshots_count|pluralize }}</span>
+                    <span class="camera-admin-day-badge">{{ weekly_report.expected_revenue|fc_amount }} FC</span>
+                </div>
+                <div class="camera-admin-day-muted">Rapport final transmis pour cette journée.</div>
+            </article>
+            {% empty %}
+            <div class="camera-admin-day-empty">Aucun rapport final n'a encore été soumis sur la semaine de cette journée.</div>
             {% endfor %}
         </div>
     </section>

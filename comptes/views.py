@@ -13,7 +13,7 @@ from django.views.decorators.http import require_http_methods
 from functools import wraps
 from django.http import HttpResponse, Http404
 from django.contrib import messages
-from django.db.models import Sum, Count, Q, Min, Max
+from django.db.models import Sum, Count, Q, Min, Max, Prefetch
 from django.contrib.auth.models import User
 from django.core import signing
 from datetime import date, datetime, timedelta
@@ -38,6 +38,7 @@ from .forms import (
 )
 from sites.models import (
     Camera,
+    CameraObservation,
     DailyCameraReport,
     CameraOperatorDailyReport,
     Location,
@@ -4795,6 +4796,16 @@ def _camera_monitoring_url(site, selected_date=None, anchor=""):
     return base_url
 
 
+def _camera_controller_portal_url(site, controller_profile, selected_date=None):
+    base_url = reverse(
+        "admin_camera_controller_portal",
+        kwargs={"site_id": site.id, "profile_id": controller_profile.id},
+    )
+    if selected_date:
+        return f"{base_url}?date={selected_date:%Y-%m-%d}"
+    return base_url
+
+
 def _parse_camera_selected_date(request):
     """
     Résout la date active pour le module caméras.
@@ -4829,6 +4840,15 @@ def _build_camera_monitoring_context(request, site, selected_date, camera_form=N
         .annotate(evidence_count=Count("video_evidences"))
         .order_by("camera_number", "name")
     )
+    camera_controller_profiles = list(
+        UserProfile.objects.filter(
+            site=site,
+            role=UserProfile.CAMERA_CONTROLLER_ROLE,
+            actif=True,
+        )
+        .select_related("user")
+        .order_by("user__first_name", "user__last_name", "user__username")
+    )
     reports_qs = DailyCameraReport.objects.filter(site=site)
     selected_report = (
         reports_qs.filter(date=selected_date)
@@ -4846,15 +4866,59 @@ def _build_camera_monitoring_context(request, site, selected_date, camera_form=N
         site=site,
         date__gte=selected_month_start,
         date__lte=selected_month_end,
-        is_submitted=True,
     )
     operator_reports = list(
         operator_reports_qs.select_related("controller", "controller__userprofile")
+        .prefetch_related(
+            Prefetch(
+                "observations",
+                queryset=CameraObservation.objects.select_related("camera").prefetch_related("evidences").order_by("-created_at"),
+            )
+        )
         .order_by("-date", "controller__first_name", "controller__last_name", "controller__username")
     )
-    selected_operator_reports = [
-        report for report in operator_reports if report.date == selected_date
-    ]
+    selected_operator_reports = [report for report in operator_reports if report.date == selected_date]
+    selected_operator_reports_by_controller = {report.controller_id: report for report in selected_operator_reports}
+    controller_activity = []
+    for controller_profile in camera_controller_profiles:
+        controller_report = selected_operator_reports_by_controller.get(controller_profile.user_id)
+        latest_observation = None
+        if controller_report:
+            prefetched_observations = list(controller_report.observations.all())
+            latest_observation = prefetched_observations[0] if prefetched_observations else None
+            controller_report.manage_url = _camera_controller_portal_url(site, controller_profile, selected_date)
+            controller_report.status_label = "Rapport final soumis" if controller_report.is_submitted else "Brouillon en cours"
+            controller_report.status_class = (
+                "camera-state--active" if controller_report.is_submitted else "camera-state--draft"
+            )
+
+        controller_activity.append(
+            {
+                "profile": controller_profile,
+                "report": controller_report,
+                "manage_url": _camera_controller_portal_url(site, controller_profile, selected_date),
+                "status_label": (
+                    "Rapport final soumis"
+                    if controller_report and controller_report.is_submitted
+                    else ("Brouillon en cours" if controller_report else "Aucune activité")
+                ),
+                "status_class": (
+                    "camera-state--active"
+                    if controller_report and controller_report.is_submitted
+                    else ("camera-state--draft" if controller_report else "camera-state--idle")
+                ),
+                "latest_observation": latest_observation,
+                "last_activity_at": (
+                    controller_report.submitted_at
+                    if controller_report and controller_report.is_submitted and controller_report.submitted_at
+                    else (
+                        latest_observation.created_at
+                        if latest_observation
+                        else (controller_report.updated_at if controller_report else None)
+                    )
+                ),
+            }
+        )
     today_report = reports_qs.filter(date=today).first()
     weekly_totals = reports_qs.filter(date__gte=week_start, date__lte=week_end).aggregate(
         total_vehicles=Sum("total_vehicles"),
@@ -4883,10 +4947,23 @@ def _build_camera_monitoring_context(request, site, selected_date, camera_form=N
     total_evidence_count = VideoEvidence.objects.filter(daily_report__site=site).count()
     operator_month_totals = operator_reports_qs.aggregate(
         total_reports=Count("id"),
+        total_submitted_reports=Count("id", filter=Q(is_submitted=True)),
+        total_draft_reports=Count("id", filter=Q(is_submitted=False)),
         total_vehicles=Sum("total_vehicles"),
         total_screenshots=Sum("screenshots_count"),
         total_time_proofs=Sum("time_proof_count"),
     )
+
+    for report in operator_reports:
+        controller_profile = getattr(report.controller, "userprofile", None)
+        if controller_profile:
+            report.manage_url = _camera_controller_portal_url(site, controller_profile, report.date)
+        else:
+            report.manage_url = _camera_monitoring_url(site, report.date)
+        report.status_label = "Rapport final soumis" if report.is_submitted else "Brouillon en cours"
+        report.status_class = "camera-state--active" if report.is_submitted else "camera-state--draft"
+        observations = list(report.observations.all())
+        report.latest_observation = observations[0] if observations else None
 
     if camera_form is None:
         camera_form = CameraForm(prefix="camera", initial={"is_active": True})
@@ -4912,10 +4989,23 @@ def _build_camera_monitoring_context(request, site, selected_date, camera_form=N
         "month_reports": month_reports,
         "operator_reports": operator_reports,
         "selected_operator_reports": selected_operator_reports,
+        "camera_controller_profiles": camera_controller_profiles,
+        "controller_activity": controller_activity,
+        "controllers_on_site_count": len(camera_controller_profiles),
+        "controllers_with_activity_count": sum(1 for item in controller_activity if item["report"]),
+        "selected_date_operator_reports_count": len(selected_operator_reports),
+        "selected_date_operator_submitted_count": sum(
+            1 for item in selected_operator_reports if item.is_submitted
+        ),
+        "selected_date_operator_total_vehicles": sum(
+            item.total_vehicles for item in selected_operator_reports
+        ),
         "active_camera_count": sum(1 for camera in cameras if camera.is_active),
         "inactive_camera_count": sum(1 for camera in cameras if not camera.is_active),
         "total_evidence_count": total_evidence_count,
         "operator_reports_count": operator_month_totals["total_reports"] or 0,
+        "operator_submitted_reports_count": operator_month_totals["total_submitted_reports"] or 0,
+        "operator_draft_reports_count": operator_month_totals["total_draft_reports"] or 0,
         "operator_total_vehicles": operator_month_totals["total_vehicles"] or 0,
         "operator_total_screenshots": operator_month_totals["total_screenshots"] or 0,
         "operator_total_time_proofs": operator_month_totals["total_time_proofs"] or 0,
