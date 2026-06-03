@@ -59,13 +59,17 @@
         position: relative;
         z-index: 1;
         min-height: 100vh;
-        display: grid;
-        place-items: center;
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         padding: 1.5rem;
+        box-sizing: border-box;
     }
 
     .login-panel {
         width: min(100%, 430px);
+        margin: auto;
         padding: 2rem;
         border-radius: 32px;
         background:
@@ -311,7 +315,8 @@
         }
 
         .login-shell {
-            min-height: auto;
+            min-height: 100vh;
+            min-height: 100dvh;
             padding: 1rem;
         }
 
