@@ -504,9 +504,15 @@
                         {% endif %}
                         <div class="evidence-asset-actions">
                             <a href="{{ evidence.uploaded_file.url }}" target="_blank" rel="noopener" class="btn btn-primary">Ouvrir le fichier</a>
-                            {% if evidence.s3_url %}
-                            <a href="{{ evidence.s3_url }}" target="_blank" rel="noopener" class="btn btn-secondary">Lien stockage</a>
-                            {% endif %}
+                            <a href="{% url 'admin_download_video_evidence' site.id evidence.id %}" class="btn btn-secondary">Télécharger</a>
+                            <button
+                                type="button"
+                                class="btn btn-secondary"
+                                data-share-url="{{ evidence.uploaded_file.url }}"
+                                data-share-title="{{ evidence.title }}"
+                                data-share-text="Preuve caméra du {{ report.date|date:'d/m/Y' }} · {{ site.nom }}"
+                                data-default-label="Partager"
+                            >Partager</button>
                             <a href="{% url 'admin_delete_video_evidence' site.id evidence.id %}" class="btn btn-danger">Supprimer</a>
                         </div>
                     </div>
@@ -518,4 +524,44 @@
         </div>
     </section>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('[data-share-url]').forEach(function (button) {
+            button.addEventListener('click', async function () {
+                const resolvedUrl = new URL(button.dataset.shareUrl, window.location.origin).href;
+                const title = button.dataset.shareTitle || 'Preuve caméra';
+                const text = button.dataset.shareText || title;
+                const defaultLabel = button.dataset.defaultLabel || 'Partager';
+
+                if (navigator.share) {
+                    try {
+                        await navigator.share({ title, text, url: resolvedUrl });
+                        return;
+                    } catch (error) {
+                        if (error && error.name === 'AbortError') {
+                            return;
+                        }
+                    }
+                }
+
+                if (navigator.clipboard && window.isSecureContext) {
+                    try {
+                        await navigator.clipboard.writeText(resolvedUrl);
+                        button.textContent = 'Lien copié';
+                        window.setTimeout(function () {
+                            button.textContent = defaultLabel;
+                        }, 1800);
+                        return;
+                    } catch (error) {
+                    }
+                }
+
+                window.prompt('Copiez ce lien :', resolvedUrl);
+            });
+        });
+    });
+</script>
 {% endblock %}

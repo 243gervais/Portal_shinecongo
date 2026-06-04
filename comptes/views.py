@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods
 from functools import wraps
-from django.http import HttpResponse, Http404
+from django.http import HttpResponse, Http404, FileResponse
 from django.contrib import messages
 from django.db.models import Sum, Count, Q, Min, Max, Prefetch
 from django.contrib.auth.models import User
@@ -5295,6 +5295,33 @@ def admin_delete_video_evidence(request, site_id, evidence_id):
             "report": report,
         },
     )
+
+
+@login_required
+@no_cache_view
+def admin_download_video_evidence(request, site_id, evidence_id):
+    """
+    Télécharge une preuve caméra en pièce jointe.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette action est réservée aux administrateurs.")
+        return redirect("dashboard")
+
+    site = get_object_or_404(Location, id=site_id)
+    evidence = get_object_or_404(
+        VideoEvidence.objects.select_related("daily_report", "camera"),
+        id=evidence_id,
+        daily_report__site=site,
+    )
+    if not evidence.uploaded_file:
+        raise Http404("Fichier introuvable.")
+
+    file_handle = evidence.uploaded_file.open("rb")
+    filename = evidence.filename() or f"preuve-camera-{evidence.id}"
+    return FileResponse(file_handle, as_attachment=True, filename=filename)
 
 
 def _build_payment_receipt_pdf(payment):

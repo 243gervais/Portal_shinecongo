@@ -842,10 +842,19 @@ class SiteCameraMonitoringTests(TestCase):
         self.assertTrue(evidence.uploaded_file.name.endswith(".gif"))
         self.assertTrue(bool(evidence.s3_url))
 
+        download_response = self.client.get(
+            reverse("admin_download_video_evidence", args=[self.site.id, evidence.id])
+        )
+        self.assertEqual(download_response.status_code, 200)
+        self.assertIn("attachment;", download_response["Content-Disposition"])
+        self.assertIn(evidence.filename(), download_response["Content-Disposition"])
+
         detail_response = self.client.get(reverse("admin_site_camera_report_detail", args=[self.site.id, report.id]))
         self.assertContains(detail_response, "Capture caisse matin")
         self.assertContains(detail_response, "Clips & captures du rapport")
         self.assertContains(detail_response, "Motos 3 pneus")
+        self.assertContains(detail_response, "Télécharger")
+        self.assertContains(detail_response, "Partager")
 
     def test_admin_monitoring_shows_camera_controller_management_for_draft_activity(self):
         controller = User.objects.create_user(
@@ -1070,14 +1079,22 @@ class CameraControllerPortalTests(TestCase):
 
         monitoring_response = admin_client.get(reverse("admin_site_camera_monitoring", args=[self.site.id]))
         detail_response = admin_client.get(reverse("admin_camera_operator_report_detail", args=[self.site.id, report.id]))
+        download_response = admin_client.get(
+            reverse("admin_download_camera_observation_evidence", args=[self.site.id, observation.evidences.first().id])
+        )
 
         self.assertContains(monitoring_response, "Gestion contrôleurs caméra")
         self.assertContains(monitoring_response, "Aline")
         self.assertEqual(detail_response.status_code, 200)
+        self.assertEqual(download_response.status_code, 200)
+        self.assertIn("attachment;", download_response["Content-Disposition"])
+        self.assertIn(observation.evidences.first().filename(), download_response["Content-Disposition"])
         self.assertContains(detail_response, "Moto vue")
         self.assertContains(detail_response, "Captures")
         self.assertContains(detail_response, "Plaque AA1022")
         self.assertContains(detail_response, "Caméra non renseignée")
+        self.assertContains(detail_response, "Télécharger")
+        self.assertContains(detail_response, "Partager")
 
     def test_admin_can_correct_controller_report_from_admin_portal(self):
         report = CameraOperatorDailyReport.objects.create(

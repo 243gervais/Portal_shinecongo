@@ -5,6 +5,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.mail import EmailMultiAlternatives
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
@@ -661,3 +662,24 @@ def admin_camera_controller_portal(request, site_id, profile_id):
     )
     report_date = _parse_admin_camera_report_date(request)
     return _admin_camera_controller_portal_response(request, site, controller_profile, report_date)
+
+
+@login_required
+@never_cache
+def admin_download_camera_observation_evidence(request, site_id, evidence_id):
+    if not _is_admin_user(request.user):
+        messages.error(request, "Accès refusé. Cette action est réservée aux administrateurs.")
+        return redirect("dashboard")
+
+    site = get_object_or_404(Location, id=site_id)
+    evidence = get_object_or_404(
+        CameraObservationEvidence.objects.select_related("observation", "observation__report"),
+        id=evidence_id,
+        observation__report__site=site,
+    )
+    if not evidence.file:
+        raise Http404("Fichier introuvable.")
+
+    file_handle = evidence.file.open("rb")
+    filename = evidence.filename() or f"preuve-controle-camera-{evidence.id}"
+    return FileResponse(file_handle, as_attachment=True, filename=filename)

@@ -244,6 +244,12 @@
         background: rgba(7, 26, 44, 0.05);
     }
 
+    .camera-admin-day-evidence-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+    }
+
     .camera-admin-day-empty {
         padding: 1rem;
         border-radius: 18px;
@@ -514,6 +520,18 @@
                         <img src="{{ evidence.file.url }}" alt="{{ evidence.get_evidence_kind_display }}">
                         <div class="camera-admin-day-label">{{ evidence.get_evidence_kind_display }}</div>
                         <div class="camera-admin-day-muted">{{ evidence.filename }}</div>
+                        <div class="camera-admin-day-evidence-actions">
+                            <a href="{{ evidence.file.url }}" target="_blank" rel="noopener" class="btn btn-secondary">Ouvrir</a>
+                            <a href="{% url 'admin_download_camera_observation_evidence' site.id evidence.id %}" class="btn btn-secondary">Télécharger</a>
+                            <button
+                                type="button"
+                                class="btn btn-secondary"
+                                data-share-url="{{ evidence.file.url }}"
+                                data-share-title="{{ observation.get_vehicle_type_display }}"
+                                data-share-text="Capture contrôleur caméra du {{ selected_date|date:'d/m/Y' }} · {{ site.nom }}"
+                                data-default-label="Partager"
+                            >Partager</button>
+                        </div>
                     </div>
                     {% endfor %}
                 </div>
@@ -700,4 +718,44 @@
         </div>
     </section>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('[data-share-url]').forEach(function (button) {
+            button.addEventListener('click', async function () {
+                const resolvedUrl = new URL(button.dataset.shareUrl, window.location.origin).href;
+                const title = button.dataset.shareTitle || 'Capture caméra';
+                const text = button.dataset.shareText || title;
+                const defaultLabel = button.dataset.defaultLabel || 'Partager';
+
+                if (navigator.share) {
+                    try {
+                        await navigator.share({ title, text, url: resolvedUrl });
+                        return;
+                    } catch (error) {
+                        if (error && error.name === 'AbortError') {
+                            return;
+                        }
+                    }
+                }
+
+                if (navigator.clipboard && window.isSecureContext) {
+                    try {
+                        await navigator.clipboard.writeText(resolvedUrl);
+                        button.textContent = 'Lien copié';
+                        window.setTimeout(function () {
+                            button.textContent = defaultLabel;
+                        }, 1800);
+                        return;
+                    } catch (error) {
+                    }
+                }
+
+                window.prompt('Copiez ce lien :', resolvedUrl);
+            });
+        });
+    });
+</script>
 {% endblock %}

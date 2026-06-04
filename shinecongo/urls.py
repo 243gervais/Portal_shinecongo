@@ -58,6 +58,7 @@ from comptes.views import (
     admin_edit_site_camera,
     admin_site_camera_report_detail,
     admin_delete_video_evidence,
+    admin_download_video_evidence,
     admin_site_employees,
     admin_site_journal,
     admin_edit_site_journal_entry,
@@ -95,6 +96,7 @@ from pointage.views_manager import (
 from lavages.views import ajouter_lavage, mes_lavages, detail_lavage
 from problemes.views import signaler_probleme, mes_problemes, detail_probleme
 from sites.views import (
+    admin_download_camera_observation_evidence,
     admin_camera_controller_portal,
     admin_camera_operator_report_detail,
     camera_dashboard,
@@ -193,6 +195,8 @@ urlpatterns = [
     path("admin-dashboard/site/<uuid:site_id>/camera-controllers/<int:profile_id>/portal/", admin_camera_controller_portal, name="admin_camera_controller_portal"),
     path("admin-dashboard/site/<uuid:site_id>/camera-operator-reports/<int:report_id>/", admin_camera_operator_report_detail, name="admin_camera_operator_report_detail"),
     path("admin-dashboard/site/<uuid:site_id>/camera-evidence/<int:evidence_id>/delete/", admin_delete_video_evidence, name="admin_delete_video_evidence"),
+    path("admin-dashboard/site/<uuid:site_id>/camera-evidence/<int:evidence_id>/download/", admin_download_video_evidence, name="admin_download_video_evidence"),
+    path("admin-dashboard/site/<uuid:site_id>/camera-observation-evidence/<int:evidence_id>/download/", admin_download_camera_observation_evidence, name="admin_download_camera_observation_evidence"),
     path("admin-dashboard/site/<uuid:site_id>/employees/", admin_site_employees, name="admin_site_employees"),
     path("admin-dashboard/site/<uuid:site_id>/journal/", admin_site_journal, name="admin_site_journal"),
     path("admin-dashboard/site/<uuid:site_id>/journal/<int:entry_id>/edit/", admin_edit_site_journal_entry, name="admin_edit_site_journal_entry"),
