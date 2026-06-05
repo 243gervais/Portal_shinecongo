@@ -1470,6 +1470,8 @@
             const CACHE_PREFIX = isAdminInstantNav
                 ? 'portal-instant-admin:'
                 : (isCameraInstantNav ? 'portal-instant-camera:' : 'portal-instant-employee:');
+            const PREFETCH_ENABLED = false;
+            const CACHE_REVALIDATION_ENABLED = false;
             const CACHE_TTL_MS = isAdminInstantNav ? 90 * 1000 : 45 * 1000;
             const MAX_CACHE_ENTRIES = isAdminInstantNav ? 24 : 20;
             const MAX_WARMUP_URLS = isAdminInstantNav ? 28 : 20;
@@ -1648,7 +1650,7 @@
             };
 
             const prefetchPage = (href, options = {}) => {
-                if (!isEligibleUrl(href)) {
+                if (!PREFETCH_ENABLED || !isEligibleUrl(href)) {
                     return Promise.resolve(null);
                 }
 
@@ -1763,6 +1765,10 @@
             };
 
             const scheduleWarmup = () => {
+                if (!PREFETCH_ENABLED) {
+                    return;
+                }
+
                 const urls = [];
                 const pushUrl = (value) => {
                     if (!value || !isEligibleUrl(value)) {
@@ -1829,6 +1835,10 @@
             };
 
             const revalidateCurrentPageIfNeeded = () => {
+                if (!CACHE_REVALIDATION_ENABLED) {
+                    return;
+                }
+
                 if (!isEmployeeInstantNav) {
                     snapshotCurrentPage();
                     return;
@@ -1887,29 +1897,31 @@
                 window.instantNavigate(link.href);
             });
 
-            document.addEventListener('mouseover', (event) => {
-                const link = event.target.closest('a[href]');
-                if (!link) {
-                    return;
-                }
-                prefetchPage(link.href);
-            }, { passive: true });
+            if (PREFETCH_ENABLED) {
+                document.addEventListener('mouseover', (event) => {
+                    const link = event.target.closest('a[href]');
+                    if (!link) {
+                        return;
+                    }
+                    prefetchPage(link.href);
+                }, { passive: true });
 
-            document.addEventListener('touchstart', (event) => {
-                const link = event.target.closest('a[href]');
-                if (!link) {
-                    return;
-                }
-                prefetchPage(link.href);
-            }, { passive: true });
+                document.addEventListener('touchstart', (event) => {
+                    const link = event.target.closest('a[href]');
+                    if (!link) {
+                        return;
+                    }
+                    prefetchPage(link.href);
+                }, { passive: true });
 
-            document.addEventListener('focusin', (event) => {
-                const link = event.target.closest('a[href]');
-                if (!link) {
-                    return;
-                }
-                prefetchPage(link.href);
-            });
+                document.addEventListener('focusin', (event) => {
+                    const link = event.target.closest('a[href]');
+                    if (!link) {
+                        return;
+                    }
+                    prefetchPage(link.href);
+                });
+            }
 
             document.addEventListener('submit', (event) => {
                 const form = event.target;
@@ -1958,29 +1970,9 @@
                 // L'utilisateur n'est pas connecté - rediriger immédiatement vers login
                 // Utiliser replace() pour empêcher le bouton retour de fonctionner
                 window.location.replace('{% url "login" %}');
-                {% else %}
-                // Même si connecté, forcer un rechargement pour vérifier la session côté serveur
-                // Cela garantit que la session est toujours valide
-                window.location.reload(true);
                 {% endif %}
             }
         });
-        
-        // Intercepter les tentatives de navigation arrière (bouton retour)
-        if (window.history && window.history.pushState) {
-            // Sauvegarder l'état actuel
-            window.history.pushState(null, null, window.location.href);
-            
-            window.addEventListener('popstate', function(event) {
-                {% if not user.is_authenticated %}
-                // Si l'utilisateur n'est pas connecté, rediriger vers login
-                window.location.replace('{% url "login" %}');
-                {% else %}
-                // Même si connecté, vérifier avec le serveur
-                window.location.reload(true);
-                {% endif %}
-            });
-        }
         
         // Empêcher la mise en cache via les meta tags
         (function() {

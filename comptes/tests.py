@@ -1636,7 +1636,7 @@ class WaterPurchaseTrackingTests(TestCase):
             amount_fc=Decimal("22000"),
             created_by=self.admin_user,
         )
-        response = self.client.get(reverse("admin_water_purchases"))
+        response = self.client.get(f"{reverse('admin_water_purchases')}?month=2026-05")
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Ajouter un fournisseur")

@@ -1,13 +1,19 @@
+from django.core.cache import cache
 from django.db.models import Count, Max
 from django.urls import reverse
 from django.utils import timezone
 
 from comptes.admin_inbox import ensure_admin_profile, get_admin_inbox_counts
 from comptes.models import UserProfile
-from lavages.models import CarWash
-from pointage.models import ShiftDay
-from problemes.models import IssueReport
-from sites.models import Location, SiteWaterPurchase
+from sites.models import Location
+
+
+def _stamp_for_cache(value):
+    if value is None:
+        return "none"
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
 
 
 def _is_admin_user(user):
@@ -29,8 +35,14 @@ def _build_admin_site_navigation(request):
             "admin_site_search_items": [],
         }
 
-    sites = list(Location.objects.filter(actif=True).order_by("nom"))
-    if not sites:
+    resolver_match = getattr(request, "resolver_match", None)
+    current_site_id = None
+    if resolver_match:
+        current_site_id = resolver_match.kwargs.get("site_id")
+
+    today = timezone.localdate()
+    site_meta = Location.objects.filter(actif=True).aggregate(total=Count("id"), latest=Max("updated_at"))
+    if not site_meta["total"]:
         return {
             "show_admin_site_nav": False,
             "admin_site_nav_label": "",
@@ -38,18 +50,45 @@ def _build_admin_site_navigation(request):
             "admin_site_search_items": [],
         }
 
-    resolver_match = getattr(request, "resolver_match", None)
-    current_site_id = None
-    if resolver_match:
-        current_site_id = resolver_match.kwargs.get("site_id")
+    employee_qs = UserProfile.objects.filter(
+        site__actif=True,
+        role__in=UserProfile.SITE_STAFF_ROLES,
+        actif=True,
+    )
+    employee_meta = employee_qs.aggregate(total=Count("id"), latest=Max("updated_at"))
+    cache_key = ":".join(
+        [
+            "admin-site-nav-v2",
+            str(current_site_id or "none"),
+            today.isoformat(),
+            str(site_meta["total"]),
+            _stamp_for_cache(site_meta["latest"]),
+            str(employee_meta["total"]),
+            _stamp_for_cache(employee_meta["latest"]),
+        ]
+    )
+    cached_navigation = cache.get(cache_key)
+    if cached_navigation is not None:
+        return cached_navigation
 
+    sites = list(Location.objects.filter(actif=True).only("id", "nom").order_by("nom"))
     current_site = next((site for site in sites if str(site.id) == str(current_site_id)), None)
     primary_site = current_site or sites[0]
-    today = timezone.localdate()
 
     employee_profiles = (
-        UserProfile.objects.filter(site__in=sites, role__in=UserProfile.SITE_STAFF_ROLES, actif=True)
+        employee_qs
         .select_related("site", "user")
+        .only(
+            "id",
+            "site_id",
+            "role",
+            "site__id",
+            "site__nom",
+            "user__id",
+            "user__first_name",
+            "user__last_name",
+            "user__username",
+        )
         .order_by("site__nom", "user__first_name", "user__last_name", "user__username")
     )
     employees_by_site = {}
@@ -265,37 +304,20 @@ def _build_admin_site_navigation(request):
             }
         )
 
-    return {
+    navigation_context = {
         "show_admin_site_nav": True,
         "admin_site_nav_label": primary_site.nom,
         "admin_site_nav_sections": site_sections,
         "admin_site_search_items": search_items,
     }
+    cache.set(cache_key, navigation_context, 300)
+    return navigation_context
 
 
 def _build_employee_portal_revision(user):
-    if not user.is_authenticated:
-        return ""
-
-    profile = getattr(user, "userprofile", None)
-    site = getattr(profile, "site", None)
-    if not profile or not profile.is_employe() or not site:
-        return ""
-
-    def summarize(queryset, timestamp_field="updated_at"):
-        summary = queryset.aggregate(total=Count("id"), latest=Max(timestamp_field))
-        latest = summary["latest"].isoformat() if summary["latest"] else "none"
-        return f"{summary['total']}:{latest}"
-
-    today_month = timezone.localdate().replace(day=1)
-    parts = [
-        f"site:{site.id}",
-        f"shift:{summarize(ShiftDay.objects.filter(employe=user))}",
-        f"wash:{summarize(CarWash.objects.filter(employe=user))}",
-        f"issue:{summarize(IssueReport.objects.filter(employe=user))}",
-        f"water:{summarize(SiteWaterPurchase.objects.filter(site=site, billing_month=today_month))}",
-    ]
-    return "|".join(parts)
+    # Disabled on purpose: the old revision token triggered extra aggregate queries
+    # on every employee page while the instant-navigation prefetch layer was active.
+    return ""
 
 
 def admin_inbox_badge(request):
