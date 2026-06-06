@@ -1311,9 +1311,9 @@
         </div>
         
         <div class="form-group" style="margin-bottom: 0; display: flex; gap: 0.5rem; align-items: end;">
-            <button type="submit" class="btn btn-primary">Filtrer</button>
-            <a href="{% url 'admin_site_detail' site.id %}" class="btn btn-secondary">Tout afficher</a>
-            <button type="submit" name="filter_today" value="true" class="btn btn-info">Aujourd'hui</button>
+            <button type="submit" class="btn btn-primary" data-loading-label="Chargement...">Filtrer</button>
+            <a href="{% url 'admin_site_detail' site.id %}" class="btn btn-secondary">Réinitialiser</a>
+            <button type="submit" name="filter_today" value="true" class="btn btn-info" data-loading-label="Chargement...">Aujourd'hui</button>
         </div>
     </form>
     {% if period_label %}
@@ -1537,8 +1537,8 @@
                                             {{ lavage.montant|fc_amount }} FC<br><small style="color: var(--text-secondary);">~ ${{ lavage.montant|usd_equivalent }}</small>
                                         </td>
                                         <td>
-                                            {% if lavage.photos.exists %}
-                                                {{ lavage.photos.count }} photo{{ lavage.photos.count|pluralize }}
+                                            {% if lavage.photo_count %}
+                                                {{ lavage.photo_count }} photo{{ lavage.photo_count|pluralize }}
                                             {% else %}
                                                 -
                                             {% endif %}
@@ -2817,33 +2817,34 @@
             <h2 class="site-section-title">Photos des voitures lavées</h2>
             <p class="site-section-copy">Galerie de preuves visuelles pour la période sélectionnée.</p>
         </div>
-        <span class="site-section-state">{{ photos_lavages|length }} photo{{ photos_lavages|length|pluralize }}</span>
+        <span class="site-section-state">{{ photos_lavages_total }} photo{{ photos_lavages_total|pluralize }}</span>
     </summary>
     <div class="site-section-body">
-    {% if photos_lavages %}
+    {% if photos_lavages.object_list %}
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.5rem;">
-        {% for item in photos_lavages %}
-        <div style="border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; background: var(--card-bg); transition: all 0.3s ease; cursor: pointer;" onclick="window.open('{{ item.photo.photo.url }}', '_blank')">
+        {% for photo in photos_lavages %}
+        <div style="border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; background: var(--card-bg); transition: all 0.3s ease; cursor: pointer;" onclick="window.open('{{ photo.photo.url }}', '_blank')">
             <div style="position: relative; width: 100%; padding-top: 75%; background: var(--bg-secondary); overflow: hidden;">
-                <img src="{{ item.photo.photo.url }}" alt="Photo lavage" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;">
+                <img src="{{ photo.thumbnail_url|default:photo.photo.url }}" alt="Photo lavage" loading="lazy" decoding="async" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;">
             </div>
             <div style="padding: 1rem;">
                 <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem;">
-                    {{ item.employe.get_full_name|default:item.employe.username }}
+                    {{ photo.lavage.employe.get_full_name|default:photo.lavage.employe.username }}
                 </div>
                 <div style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.25rem;">
-                    {{ item.type_service }}
+                    {{ photo.lavage.get_type_service_display }}
                 </div>
                 <div style="font-size: 0.875rem; color: var(--success-color); font-weight: 600;">
-                    {{ item.montant|floatformat:0 }} FC
+                    {{ photo.lavage.montant|floatformat:0 }} FC
                 </div>
                 <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                    {{ item.date|date:"d/m/Y" }} - {{ item.created_at|date:"H:i" }}
+                    {{ photo.lavage.date|date:"d/m/Y" }} - {{ photo.lavage.created_at|date:"H:i" }}
                 </div>
             </div>
         </div>
         {% endfor %}
     </div>
+    {% include "partials/pagination.html" with page_obj=photos_lavages page_param="photos_page" anchor="photos-lavages" %}
     {% else %}
     <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
         <p style="font-size: 1.1rem;">Aucune photo disponible pour la période sélectionnée.</p>
@@ -2984,7 +2985,7 @@
         <span class="site-section-state">{{ total_lavages }} lavage{{ total_lavages|pluralize }}</span>
     </summary>
     <div class="site-section-body">
-    {% if lavages_all %}
+    {% if lavages_all.object_list %}
     <div class="table-container">
         <table>
             <thead>
@@ -3017,8 +3018,8 @@
                     </td>
                     <td style="font-weight: 600; color: var(--success-color);">{{ lavage.montant|floatformat:0 }} FC</td>
                     <td>
-                        {% if lavage.photos.exists %}
-                            <span style="color: var(--primary-color);">{{ lavage.photos.count }} photo(s)</span>
+                        {% if lavage.photo_count %}
+                            <span style="color: var(--primary-color);">{{ lavage.photo_count }} photo(s)</span>
                         {% else %}
                             <span style="color: var(--text-secondary);">-</span>
                         {% endif %}
@@ -3038,6 +3039,7 @@
             </tbody>
         </table>
     </div>
+    {% include "partials/pagination.html" with page_obj=lavages_all page_param="lavages_page" anchor="historique-lavages" %}
     {% else %}
     <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
         <p>Aucun lavage enregistré pour la période sélectionnée.</p>

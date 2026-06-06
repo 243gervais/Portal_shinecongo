@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from .models import IssueReport
 from audit.models import AuditLog
+from comptes.pagination import paginate_queryset
 from pointage.utils import get_client_ip, get_user_agent
 
 logger = logging.getLogger(__name__)
@@ -148,7 +149,8 @@ def mes_problemes(request):
     if not profile:
         return redirect("dashboard")
     user = request.user
-    problemes = user.problemes_signales.all().order_by('-created_at')
+    problemes_qs = user.problemes_signales.select_related("site", "traite_par").order_by("-created_at")
+    problemes = paginate_queryset(request, problemes_qs, per_page=12, page_param="page")
     
     context = {
         'problemes': problemes,
@@ -166,7 +168,7 @@ def detail_probleme(request, probleme_id):
     if not profile:
         return redirect("dashboard")
     probleme = get_object_or_404(
-        IssueReport,
+        IssueReport.objects.select_related("site", "employe", "traite_par"),
         id=probleme_id,
         employe=request.user
     )

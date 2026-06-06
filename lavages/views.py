@@ -3,10 +3,12 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.contrib import messages
 from django.db import transaction
+from django.db.models import Count
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 from .models import CarWash, CarWashPhoto
 from audit.models import AuditLog
+from comptes.pagination import paginate_queryset
 from pointage.utils import get_client_ip, get_user_agent
 from pointage.report_sync import sync_site_finance_from_daily_reports
 
@@ -167,7 +169,12 @@ def mes_lavages(request):
     if not profile:
         return redirect("dashboard")
     user = request.user
-    lavages = user.lavages.all().order_by('-created_at').prefetch_related('photos')
+    lavages_qs = (
+        user.lavages.select_related("site")
+        .annotate(photo_count_value=Count("photos", distinct=True))
+        .order_by("-created_at")
+    )
+    lavages = paginate_queryset(request, lavages_qs, per_page=12, page_param="page")
     
     # L'employé ne doit PAS voir les totaux d'argent
     # On affiche juste la liste
@@ -187,7 +194,11 @@ def detail_lavage(request, lavage_id):
     profile = _resolve_employee_portal_profile(request)
     if not profile:
         return redirect("dashboard")
-    lavage = get_object_or_404(CarWash, id=lavage_id, employe=request.user)
+    lavage = get_object_or_404(
+        CarWash.objects.select_related("site", "employe").prefetch_related("photos"),
+        id=lavage_id,
+        employe=request.user,
+    )
     
     context = {
         'lavage': lavage,

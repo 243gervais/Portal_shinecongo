@@ -5,7 +5,7 @@
 {% block content %}
 <h1 class="mt-2 mb-4">Mes lavages</h1>
 
-{% if lavages %}
+{% if lavages.object_list %}
 <div class="table-container">
     <table>
         <thead>
@@ -40,6 +40,7 @@
         </tbody>
     </table>
 </div>
+{% include "partials/pagination.html" with page_obj=lavages page_param="page" anchor="" %}
 {% else %}
 <div class="card text-center">
     <p style="color: var(--text-secondary); font-size: 1.2rem;">Aucun lavage enregistré pour le moment.</p>

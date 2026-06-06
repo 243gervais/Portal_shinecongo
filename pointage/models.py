@@ -247,6 +247,9 @@ class ShiftDay(models.Model):
         indexes = [
             models.Index(fields=["employe", "date"]),
             models.Index(fields=["site", "date"]),
+            models.Index(fields=["site", "date", "daily_report_confirmed"], name="pointage_site_date_report_idx"),
+            models.Index(fields=["employe", "-updated_at"], name="pointage_employe_updated_idx"),
+            models.Index(fields=["-created_at"], name="pointage_created_desc_idx"),
         ]
     
     def __str__(self):

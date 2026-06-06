@@ -464,6 +464,30 @@
         </div>
     </div>
 
+    <section class="card">
+        <div class="admin-section-head">
+            <div>
+                <h2 class="admin-section-title">Fenêtre de chargement</h2>
+                <p class="admin-section-copy">Le dashboard charge aujourd'hui par défaut. Utilisez une plage plus large seulement quand vous en avez besoin.</p>
+            </div>
+        </div>
+        <form method="get" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; align-items: end;">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label for="date_debut">Date début</label>
+                <input type="date" class="form-control" id="date_debut" name="date_debut" value="{{ date_debut }}">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label for="date_fin">Date fin</label>
+                <input type="date" class="form-control" id="date_fin" name="date_fin" value="{{ date_fin }}">
+            </div>
+            <div class="form-group" style="margin-bottom: 0; display: flex; gap: 0.5rem; align-items: end;">
+                <button type="submit" class="btn btn-primary btn-block" data-loading-label="Chargement...">Appliquer</button>
+                <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">Aujourd'hui</a>
+            </div>
+        </form>
+        <p style="margin: 0.9rem 0 0 0; color: var(--text-secondary);">Période chargée: {{ selected_period_label }}</p>
+    </section>
+
     <section class="admin-section">
         <div class="admin-section-head">
             <div>
@@ -475,7 +499,7 @@
         {% if sites_stats %}
         <div class="admin-sites-grid">
             {% for stats in sites_stats %}
-            <article class="admin-site-card" onclick="if (window.instantNavigate) { window.instantNavigate('{% url 'admin_site_detail' stats.site.id %}'); } else { window.location.href='{% url 'admin_site_detail' stats.site.id %}'; }" tabindex="0" role="link" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); if (window.instantNavigate) { window.instantNavigate('{% url 'admin_site_detail' stats.site.id %}'); } else { window.location.href='{% url 'admin_site_detail' stats.site.id %}'; }}">
+            <article class="admin-site-card" onclick="if (window.instantNavigate) { window.instantNavigate('{% url 'admin_site_detail' stats.site.id %}?date_debut={{ date_debut }}&date_fin={{ date_fin }}'); } else { window.location.href='{% url 'admin_site_detail' stats.site.id %}?date_debut={{ date_debut }}&date_fin={{ date_fin }}'; }" tabindex="0" role="link" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); if (window.instantNavigate) { window.instantNavigate('{% url 'admin_site_detail' stats.site.id %}?date_debut={{ date_debut }}&date_fin={{ date_fin }}'); } else { window.location.href='{% url 'admin_site_detail' stats.site.id %}?date_debut={{ date_debut }}&date_fin={{ date_fin }}'; }}">
                 <div class="admin-site-head">
                     <div>
                         <h3 class="admin-site-title">{{ stats.site.nom }}</h3>
@@ -495,7 +519,7 @@
                     <div class="admin-site-metric">
                         <div class="admin-site-label">Lavages</div>
                         <div class="admin-site-value">{{ stats.total_lavages }}</div>
-                        <div class="admin-site-subvalue">Production d'aujourd'hui</div>
+                        <div class="admin-site-subvalue">{{ selected_period_label }}</div>
                     </div>
                     <div class="admin-site-metric">
                         <div class="admin-site-label">Équipe</div>
@@ -508,7 +532,7 @@
                     <span class="admin-site-subvalue">Le reste se gère dans la vue site.</span>
                     <div class="admin-mini-actions">
                         <span class="admin-mini-btn admin-mini-btn--light">Ouvrir le site</span>
-                        <a href="{% url 'admin_site_losses' stats.site.id %}?date={{ today|date:'Y-m-d' }}" class="admin-mini-btn admin-mini-btn--warn" onclick="event.stopPropagation();">Finance</a>
+                        <a href="{% url 'admin_site_losses' stats.site.id %}?date={{ date_fin }}" class="admin-mini-btn admin-mini-btn--warn" onclick="event.stopPropagation();">Finance</a>
                     </div>
                 </div>
             </article>

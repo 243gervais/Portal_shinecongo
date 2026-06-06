@@ -19,6 +19,7 @@ from django.core import signing
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from xhtml2pdf import pisa
+from comptes.pagination import paginate_queryset
 from .forms import (
     AdminReminderForm,
     CameraForm,
@@ -1294,57 +1295,107 @@ def admin_dashboard(request):
         return redirect('dashboard')
     
     today = timezone.localdate()
-    month_start = today.replace(day=1)
-    year_start = today.replace(month=1, day=1)
+    date_debut = request.GET.get("date_debut") or today.strftime("%Y-%m-%d")
+    date_fin = request.GET.get("date_fin") or date_debut
 
-    # Récupérer tous les sites actifs
-    sites = Location.objects.filter(actif=True).order_by('nom')
-    
-    # Statistiques pour chaque site
+    try:
+        selected_start = datetime.strptime(date_debut, "%Y-%m-%d").date()
+    except ValueError:
+        selected_start = today
+        date_debut = selected_start.strftime("%Y-%m-%d")
+
+    try:
+        selected_end = datetime.strptime(date_fin, "%Y-%m-%d").date()
+    except ValueError:
+        selected_end = selected_start
+        date_fin = selected_end.strftime("%Y-%m-%d")
+
+    if selected_end < selected_start:
+        selected_start, selected_end = selected_end, selected_start
+        date_debut = selected_start.strftime("%Y-%m-%d")
+        date_fin = selected_end.strftime("%Y-%m-%d")
+
+    if selected_start == selected_end:
+        selected_period_label = f"Le {selected_start:%d/%m/%Y}"
+    else:
+        selected_period_label = f"Du {selected_start:%d/%m/%Y} au {selected_end:%d/%m/%Y}"
+
+    range_start = timezone.make_aware(datetime.combine(selected_start, datetime.min.time()))
+    range_end = timezone.make_aware(datetime.combine(selected_end + timedelta(days=1), datetime.min.time()))
+
+    sites = list(Location.objects.filter(actif=True).order_by("nom"))
+    site_ids = [site.id for site in sites]
+
+    employee_counts = {
+        item["site"]: item["total"]
+        for item in UserProfile.objects.filter(
+            site_id__in=site_ids,
+            role="EMPLOYE",
+            actif=True,
+        ).values("site").annotate(total=Count("id"))
+    }
+    pointage_stats = {
+        item["site"]: item
+        for item in ShiftDay.objects.filter(
+            site_id__in=site_ids,
+            date__gte=selected_start,
+            date__lte=selected_end,
+        ).values("site").annotate(
+            presents=Count("id", filter=Q(clock_in_time__isnull=False)),
+            rapports_confirmes=Count("id", filter=Q(daily_report_confirmed=True)),
+            montant_rapports_jour=Sum(
+                "total_amount_reported_fc",
+                filter=Q(daily_report_confirmed=True),
+            ),
+        )
+    }
+    wash_stats = {
+        item["site"]: item
+        for item in CarWash.objects.filter(
+            site_id__in=site_ids,
+            date__gte=selected_start,
+            date__lte=selected_end,
+        ).values("site").annotate(
+            total_lavages=Count("id"),
+            chiffre_jour=Sum("montant"),
+        )
+    }
+    issue_range_stats = {
+        item["site"]: item["problemes_today"]
+        for item in IssueReport.objects.filter(
+            site_id__in=site_ids,
+            created_at__gte=range_start,
+            created_at__lt=range_end,
+        ).values("site").annotate(problemes_today=Count("id"))
+    }
+    open_issue_stats = {
+        item["site"]: item["problemes_ouverts"]
+        for item in IssueReport.objects.filter(
+            site_id__in=site_ids,
+            statut__in=["OUVERT", "EN_COURS"],
+        ).values("site").annotate(problemes_ouverts=Count("id"))
+    }
+
     sites_stats = []
     for site in sites:
-        # Employés du site
-        employes_site = UserProfile.objects.filter(
-            site=site,
-            role='EMPLOYE',
-            actif=True
-        )
-        total_employes = employes_site.count()
-        
-        # Pointages du jour
-        pointages_today = ShiftDay.objects.filter(site=site, date=today)
-        presents = pointages_today.filter(clock_in_time__isnull=False).count()
-        absents = total_employes - presents
-        
-        # Lavages du jour
-        lavages_today = CarWash.objects.filter(site=site, date=today)
-        total_lavages = lavages_today.count()
-        chiffre_jour = lavages_today.aggregate(total=Sum('montant'))['total'] or 0
-
-        rapports_today = pointages_today.filter(daily_report_confirmed=True)
-        montant_rapports_jour = rapports_today.aggregate(total=Sum('total_amount_reported_fc'))['total'] or 0
-        rapports_confirmes = rapports_today.count()
-        ecart_rapports = montant_rapports_jour - chiffre_jour
-        
-        # Problèmes du jour
-        problemes_today = IssueReport.objects.filter(site=site, created_at__date=today)
-        problemes_ouverts = IssueReport.objects.filter(
-            site=site,
-            statut__in=['OUVERT', 'EN_COURS']
-        ).count()
-        
+        total_employes = employee_counts.get(site.id, 0)
+        pointage_summary = pointage_stats.get(site.id, {})
+        wash_summary = wash_stats.get(site.id, {})
+        presents = pointage_summary.get("presents", 0)
+        chiffre_jour = wash_summary.get("chiffre_jour") or Decimal("0")
+        montant_rapports_jour = pointage_summary.get("montant_rapports_jour") or Decimal("0")
         sites_stats.append({
-            'site': site,
-            'total_employes': total_employes,
-            'presents': presents,
-            'absents': absents,
-            'total_lavages': total_lavages,
-            'chiffre_jour': chiffre_jour,
-            'montant_rapports_jour': montant_rapports_jour,
-            'rapports_confirmes': rapports_confirmes,
-            'ecart_rapports': ecart_rapports,
-            'problemes_today': problemes_today.count(),
-            'problemes_ouverts': problemes_ouverts,
+            "site": site,
+            "total_employes": total_employes,
+            "presents": presents,
+            "absents": max(total_employes - presents, 0),
+            "total_lavages": wash_summary.get("total_lavages", 0),
+            "chiffre_jour": chiffre_jour,
+            "montant_rapports_jour": montant_rapports_jour,
+            "rapports_confirmes": pointage_summary.get("rapports_confirmes", 0),
+            "ecart_rapports": montant_rapports_jour - chiffre_jour,
+            "problemes_today": issue_range_stats.get(site.id, 0),
+            "problemes_ouverts": open_issue_stats.get(site.id, 0),
         })
     
     pending_users = User.objects.filter(
@@ -1369,7 +1420,11 @@ def admin_dashboard(request):
     recent_daily_reports = []
     dashboard_url = reverse("admin_dashboard")
     for shift in (
-        ShiftDay.objects.filter(daily_report_confirmed=True)
+        ShiftDay.objects.filter(
+            daily_report_confirmed=True,
+            date__gte=selected_start,
+            date__lte=selected_end,
+        )
         .select_related("employe", "site")
         .order_by("-updated_at", "-date")[:12]
     ):
@@ -1388,58 +1443,7 @@ def admin_dashboard(request):
             if shift.site else "",
         })
 
-    dashboard_summary = {
-        'active_sites': sites.count(),
-        'active_employees': UserProfile.objects.filter(
-            role='EMPLOYE',
-            actif=True,
-            site__actif=True,
-        ).count(),
-        'open_issues': IssueReport.objects.filter(
-            site__actif=True,
-            statut__in=['OUVERT', 'EN_COURS'],
-        ).count(),
-        'pending_accounts': len(pending_account_requests),
-        'cash_today': CarWash.objects.filter(
-            site__actif=True,
-            date=today,
-        ).aggregate(total=Sum('montant'))['total'] or Decimal('0'),
-        'cash_month': CarWash.objects.filter(
-            site__actif=True,
-            date__gte=month_start,
-            date__lte=today,
-        ).aggregate(total=Sum('montant'))['total'] or Decimal('0'),
-        'cash_year': CarWash.objects.filter(
-            site__actif=True,
-            date__gte=year_start,
-            date__lte=today,
-        ).aggregate(total=Sum('montant'))['total'] or Decimal('0'),
-        'reports_today': ShiftDay.objects.filter(
-            site__actif=True,
-            date=today,
-            daily_report_confirmed=True,
-        ).aggregate(total=Sum('total_amount_reported_fc'))['total'] or Decimal('0'),
-        'reports_month': ShiftDay.objects.filter(
-            site__actif=True,
-            date__gte=month_start,
-            date__lte=today,
-            daily_report_confirmed=True,
-        ).aggregate(total=Sum('total_amount_reported_fc'))['total'] or Decimal('0'),
-        'reports_year': ShiftDay.objects.filter(
-            site__actif=True,
-            date__gte=year_start,
-            date__lte=today,
-            daily_report_confirmed=True,
-        ).aggregate(total=Sum('total_amount_reported_fc'))['total'] or Decimal('0'),
-        'washes_today': CarWash.objects.filter(site__actif=True, date=today).count(),
-        'washes_month': CarWash.objects.filter(site__actif=True, date__gte=month_start, date__lte=today).count(),
-        'washes_year': CarWash.objects.filter(site__actif=True, date__gte=year_start, date__lte=today).count(),
-    }
-    dashboard_summary['delta_today'] = dashboard_summary['reports_today'] - dashboard_summary['cash_today']
-    dashboard_summary['delta_month'] = dashboard_summary['reports_month'] - dashboard_summary['cash_month']
-    dashboard_summary['delta_year'] = dashboard_summary['reports_year'] - dashboard_summary['cash_year']
-
-    selected_water_month = _normalize_month_start(today)
+    selected_water_month = _normalize_month_start(selected_start)
     water_purchases_month_qs = SiteWaterPurchase.objects.filter(
         site__actif=True,
         billing_month=selected_water_month,
@@ -1466,9 +1470,9 @@ def admin_dashboard(request):
     context = {
         'sites_stats': sites_stats,
         'today': today,
-        'month_start': month_start,
-        'year_start': year_start,
-        'dashboard_summary': dashboard_summary,
+        'date_debut': date_debut,
+        'date_fin': date_fin,
+        'selected_period_label': selected_period_label,
         'pending_account_requests': pending_account_requests,
         'pending_account_requests_count': len(pending_account_requests),
         'recent_daily_reports': recent_daily_reports,
@@ -2207,10 +2211,8 @@ def admin_site_detail(request, site_id):
         except ValueError:
             selected_week_anchor = today
     
-    # Par défaut, afficher tous les lavages (pas seulement aujourd'hui)
-    # Sauf si l'utilisateur demande explicitement de filtrer sur aujourd'hui
+    # Par défaut, charger aujourd'hui uniquement pour garder la page réactive.
     if filter_today:
-        # Filtrer uniquement sur aujourd'hui
         lavages_query = CarWash.objects.filter(site=site, date=today)
         selected_date_start = today
         selected_date_end = today
@@ -2224,7 +2226,6 @@ def admin_site_detail(request, site_id):
         selected_date_end = selected_single_date
         selected_week_anchor = selected_single_date
     elif parsed_date_debut or parsed_date_fin:
-        # Filtrer sur une plage de dates
         lavages_query = CarWash.objects.filter(site=site)
         if parsed_date_debut:
             lavages_query = lavages_query.filter(date__gte=parsed_date_debut)
@@ -2237,29 +2238,29 @@ def admin_site_detail(request, site_id):
         else:
             selected_date_end = None
     else:
-        # Afficher tous les lavages (pas de filtre)
-        lavages_query = CarWash.objects.filter(site=site)
-        selected_date_start = None
-        selected_date_end = None
+        lavages_query = CarWash.objects.filter(site=site, date=today)
+        selected_date_start = today
+        selected_date_end = today
+        selected_single_date = today
+        selected_week_anchor = today
+
+    lavages_query = lavages_query.select_related("employe").annotate(
+        photo_count_value=Count("photos", distinct=True),
+    )
     
-    # Récupérer les lavages avec photos, triés par date décroissante
-    lavages_all = lavages_query.prefetch_related('photos').order_by('-date', '-created_at')
-    total_lavages = lavages_all.count()
-    chiffre_periode = lavages_all.aggregate(total=Sum('montant'))['total'] or 0
+    # Récupérer les lavages triés par date décroissante et paginer la table.
+    lavages_all_qs = lavages_query.order_by('-date', '-created_at')
+    lavages_all = paginate_queryset(request, lavages_all_qs, per_page=20, page_param="lavages_page")
+    total_lavages = lavages_all_qs.count()
+    chiffre_periode = lavages_all_qs.aggregate(total=Sum('montant'))['total'] or 0
     
-    # Toutes les photos des lavages filtrés
-    photos_lavages = []
-    for lavage in lavages_all:
-        for photo in lavage.photos.all():
-            photos_lavages.append({
-                'photo': photo,
-                'lavage': lavage,
-                'employe': lavage.employe,
-                'montant': lavage.montant,
-                'type_service': lavage.get_type_service_display(),
-                'created_at': lavage.created_at,
-                'date': lavage.date,
-            })
+    photos_lavages_qs = (
+        CarWashPhoto.objects.filter(lavage_id__in=lavages_query.values("id"))
+        .select_related("lavage", "lavage__employe")
+        .order_by("-lavage__date", "-uploaded_at")
+    )
+    photos_lavages = paginate_queryset(request, photos_lavages_qs, per_page=24, page_param="photos_page")
+    photos_lavages_total = photos_lavages_qs.count()
     
     # Déterminer la date pour les détails quotidiens (aujourd'hui ou date sélectionnée)
     detail_date = selected_single_date if selected_single_date else selected_week_anchor
@@ -2275,12 +2276,12 @@ def admin_site_detail(request, site_id):
     problemes_ouverts = IssueReport.objects.filter(
         site=site,
         statut__in=['OUVERT', 'EN_COURS']
-    ).order_by('-created_at')
+    ).select_related("employe", "traite_par").order_by('-created_at')
     
     lavages_date = (
         CarWash.objects.filter(site=site, date=detail_date)
         .select_related('employe')
-        .prefetch_related('photos')
+        .annotate(photo_count_value=Count("photos", distinct=True))
         .order_by('-created_at')
     )
     pointages_date_qs = ShiftDay.objects.filter(site=site, date=detail_date).select_related('employe').order_by('-clock_in_time')
@@ -2913,6 +2914,7 @@ def admin_site_detail(request, site_id):
         'journal_entries_date': journal_entries_date,
         'single_day_activity_entries': single_day_activity_entries,
         'photos_lavages': photos_lavages,
+        'photos_lavages_total': photos_lavages_total,
         'problemes_date': problemes_date,
         'problemes_ouverts': problemes_ouverts,
         'pointages_date': pointages_with_duration,

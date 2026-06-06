@@ -224,7 +224,7 @@
         </article>
     </section>
 
-    <section class="card">
+    <section class="card" id="history-reports">
         <div class="employee-history-section-head">
             <div>
                 <h2 class="mb-2">Rapports de fin de journée</h2>
@@ -235,7 +235,7 @@
             <a href="{% url 'employe_daily_report' %}" class="btn btn-primary">Ouvrir le rapport du jour</a>
         </div>
 
-        {% if report_history %}
+        {% if report_history.object_list %}
         <div class="employee-history-grid">
             {% for report in report_history %}
             <article class="employee-history-row-card">
@@ -270,12 +270,13 @@
             </article>
             {% endfor %}
         </div>
+        {% include "partials/pagination.html" with page_obj=report_history page_param="reports_page" anchor="history-reports" %}
         {% else %}
         <p style="color: var(--text-secondary);">Aucun rapport de fin de journée enregistré pour le moment.</p>
         {% endif %}
     </section>
 
-    <section class="card">
+    <section class="card" id="history-water">
         <div class="employee-history-section-head">
             <div>
                 <h2 class="mb-2">Gestion de l'eau</h2>
@@ -286,7 +287,7 @@
             <a href="{% url 'employe_water_purchase' %}" class="btn btn-info">Voir le suivi eau</a>
         </div>
 
-        {% if water_history %}
+        {% if water_history.object_list %}
         <div class="employee-history-grid">
             {% for purchase in water_history %}
             <article class="employee-history-row-card">
@@ -313,12 +314,13 @@
             </article>
             {% endfor %}
         </div>
+        {% include "partials/pagination.html" with page_obj=water_history page_param="water_page" anchor="history-water" %}
         {% else %}
         <p style="color: var(--text-secondary);">Aucun achat d'eau enregistré pour le moment.</p>
         {% endif %}
     </section>
 
-    <section class="card mb-4">
+    <section class="card mb-4" id="history-pointages">
         <div class="employee-history-section-head">
             <div>
                 <h2 class="mb-2">Mes pointages</h2>
@@ -326,7 +328,7 @@
             </div>
         </div>
 
-        {% if pointages %}
+        {% if pointages.object_list %}
         <div class="table-container">
             <table>
                 <thead>
@@ -359,12 +361,13 @@
                 </tbody>
             </table>
         </div>
+        {% include "partials/pagination.html" with page_obj=pointages page_param="pointages_page" anchor="history-pointages" %}
         {% else %}
         <p style="color: var(--text-secondary);">Aucun pointage enregistré.</p>
         {% endif %}
     </section>
 
-    <section class="card mb-4">
+    <section class="card mb-4" id="history-lavages">
         <div class="employee-history-section-head">
             <div>
                 <h2 class="mb-2">Mes lavages récents</h2>
@@ -373,7 +376,7 @@
             <a href="{% url 'mes_lavages' %}" class="btn btn-primary">Voir tous mes lavages</a>
         </div>
 
-        {% if lavages %}
+        {% if lavages.object_list %}
         <div class="table-container">
             <table>
                 <thead>
@@ -406,12 +409,13 @@
                 </tbody>
             </table>
         </div>
+        {% include "partials/pagination.html" with page_obj=lavages page_param="lavages_page" anchor="history-lavages" %}
         {% else %}
         <p style="color: var(--text-secondary);">Aucun lavage enregistré.</p>
         {% endif %}
     </section>
 
-    <section class="card">
+    <section class="card" id="history-problemes">
         <div class="employee-history-section-head">
             <div>
                 <h2 class="mb-2">Mes problèmes signalés</h2>
@@ -420,7 +424,7 @@
             <a href="{% url 'mes_problemes' %}" class="btn btn-warning">Voir tous mes problèmes</a>
         </div>
 
-        {% if problemes %}
+        {% if problemes.object_list %}
         <div class="table-container">
             <table>
                 <thead>
@@ -453,6 +457,7 @@
                 </tbody>
             </table>
         </div>
+        {% include "partials/pagination.html" with page_obj=problemes page_param="problemes_page" anchor="history-problemes" %}
         {% else %}
         <p style="color: var(--text-secondary);">Aucun problème signalé.</p>
         {% endif %}

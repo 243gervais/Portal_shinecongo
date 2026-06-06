@@ -468,6 +468,56 @@
             display: block;
         }
 
+        .portal-pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.65rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+
+        .portal-pagination-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 2.25rem;
+            padding: 0.45rem 0.85rem;
+            border: 1px solid rgba(10, 67, 107, 0.14);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.96);
+            color: var(--primary-color);
+            text-decoration: none;
+            font-size: 0.84rem;
+            font-weight: 700;
+        }
+
+        .portal-pagination-status {
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            font-weight: 700;
+        }
+
+        .page-loading-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            transform: scaleX(0);
+            transform-origin: left center;
+            background: linear-gradient(90deg, var(--accent-color), var(--secondary-color));
+            box-shadow: 0 0 18px rgba(43, 131, 184, 0.45);
+            opacity: 0;
+            transition: transform 0.18s ease, opacity 0.18s ease;
+            z-index: 10000;
+        }
+
+        body.is-page-loading .page-loading-indicator {
+            opacity: 1;
+            transform: scaleX(1);
+        }
+
         .form-group {
             margin-bottom: 1.5rem;
         }
@@ -998,6 +1048,7 @@
     </style>
 </head>
 <body>
+    <div class="page-loading-indicator" aria-hidden="true"></div>
     <!-- Header -->
     {% if not request.resolver_match.url_name == 'login' and not request.resolver_match.url_name == 'register' %}
     <header class="header">
@@ -1167,6 +1218,64 @@
     {% block extra_js %}{% endblock %}
     
     <script>
+        (() => {
+            const setPageLoading = () => {
+                document.body.classList.add('is-page-loading');
+            };
+
+            window.addEventListener('pageshow', () => {
+                document.body.classList.remove('is-page-loading');
+            });
+
+            window.addEventListener('beforeunload', () => {
+                setPageLoading();
+            });
+
+            document.addEventListener('click', (event) => {
+                const link = event.target.closest('a[href]');
+                if (!link) {
+                    return;
+                }
+                if (
+                    link.target === '_blank' ||
+                    link.hasAttribute('download') ||
+                    event.metaKey ||
+                    event.ctrlKey ||
+                    event.shiftKey ||
+                    event.altKey
+                ) {
+                    return;
+                }
+                const targetUrl = new URL(link.href, window.location.origin);
+                const isSameDocumentHash = (
+                    targetUrl.origin === window.location.origin &&
+                    targetUrl.pathname === window.location.pathname &&
+                    targetUrl.search === window.location.search &&
+                    targetUrl.hash
+                );
+                if (targetUrl.origin !== window.location.origin || isSameDocumentHash) {
+                    return;
+                }
+                setPageLoading();
+            });
+
+            document.addEventListener('submit', (event) => {
+                const form = event.target;
+                if (!(form instanceof HTMLFormElement)) {
+                    return;
+                }
+                const submitter = event.submitter;
+                if (submitter) {
+                    if (submitter.dataset.loadingLabel && !submitter.dataset.originalLabel) {
+                        submitter.dataset.originalLabel = submitter.textContent;
+                        submitter.textContent = submitter.dataset.loadingLabel;
+                    }
+                    submitter.disabled = true;
+                }
+                setPageLoading();
+            });
+        })();
+
         (() => {
             const mobileNavToggle = document.querySelector('[data-mobile-nav-toggle]');
             const mobileNav = document.querySelector('[data-mobile-nav]');

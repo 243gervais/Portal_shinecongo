@@ -1,0 +1,16 @@
+{% load querystring_tags %}
+{% if page_obj and page_obj.paginator.num_pages > 1 %}
+<nav class="portal-pagination" aria-label="Pagination">
+    {% if page_obj.has_previous %}
+    <a class="portal-pagination-link" href="?{% page_querystring page_param 1 %}{% if anchor %}#{{ anchor }}{% endif %}">Début</a>
+    <a class="portal-pagination-link" href="?{% page_querystring page_param page_obj.previous_page_number %}{% if anchor %}#{{ anchor }}{% endif %}">Précédent</a>
+    {% endif %}
+
+    <span class="portal-pagination-status">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+
+    {% if page_obj.has_next %}
+    <a class="portal-pagination-link" href="?{% page_querystring page_param page_obj.next_page_number %}{% if anchor %}#{{ anchor }}{% endif %}">Suivant</a>
+    <a class="portal-pagination-link" href="?{% page_querystring page_param page_obj.paginator.num_pages %}{% if anchor %}#{{ anchor }}{% endif %}">Fin</a>
+    {% endif %}
+</nav>
+{% endif %}

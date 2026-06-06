@@ -33,7 +33,9 @@
     <div class="form-group">
         <label>Photo</label>
         <div>
-            <img src="{{ probleme.photo.url }}" alt="Photo du problème" style="max-width: 100%; border-radius: 8px; border: 1px solid var(--border-color);">
+            <a href="{{ probleme.photo.url }}" target="_blank" rel="noopener">
+                <img src="{{ probleme.photo_thumbnail_url|default:probleme.photo.url }}" alt="Photo du problème" loading="lazy" decoding="async" style="max-width: 100%; border-radius: 8px; border: 1px solid var(--border-color);">
+            </a>
         </div>
     </div>
     {% endif %}

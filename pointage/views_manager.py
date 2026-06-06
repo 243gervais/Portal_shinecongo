@@ -5,12 +5,14 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.db.models import Sum, Count, Q
 from django.conf import settings
+from datetime import datetime
 from .models import ShiftDay
 from sites.models import Location
 from .utils import generate_qr_code_image, get_client_ip, get_user_agent
 from lavages.models import CarWash
 from problemes.models import IssueReport
 from comptes.models import UserProfile
+from comptes.pagination import paginate_queryset
 from audit.models import AuditLog
 from django.contrib.auth.models import User
 
@@ -22,6 +24,35 @@ def is_manager_or_admin(user):
     return user.userprofile.is_manager() or user.userprofile.is_admin()
 
 
+def _parse_dashboard_date_range(request, today):
+    date_debut = request.GET.get("date_debut") or today.strftime("%Y-%m-%d")
+    date_fin = request.GET.get("date_fin") or date_debut
+
+    try:
+        start_date = datetime.strptime(date_debut, "%Y-%m-%d").date()
+    except ValueError:
+        start_date = today
+        date_debut = start_date.strftime("%Y-%m-%d")
+
+    try:
+        end_date = datetime.strptime(date_fin, "%Y-%m-%d").date()
+    except ValueError:
+        end_date = start_date
+        date_fin = end_date.strftime("%Y-%m-%d")
+
+    if end_date < start_date:
+        start_date, end_date = end_date, start_date
+        date_debut = start_date.strftime("%Y-%m-%d")
+        date_fin = end_date.strftime("%Y-%m-%d")
+
+    if start_date == end_date:
+        selected_period_label = f"Le {start_date:%d/%m/%Y}"
+    else:
+        selected_period_label = f"Du {start_date:%d/%m/%Y} au {end_date:%d/%m/%Y}"
+
+    return start_date, end_date, date_debut, date_fin, selected_period_label
+
+
 @login_required
 @user_passes_test(is_manager_or_admin)
 def manager_dashboard(request):
@@ -30,61 +61,82 @@ def manager_dashboard(request):
     """
     user = request.user
     today = timezone.localdate()
-    
-    # Déterminer les sites du manager
-    if user.userprofile.is_admin():
-        # Admin voit tous les sites
-        from sites.models import Location
-        sites = Location.objects.filter(actif=True)
-    else:
-        # Manager voit son/ses sites
-        sites = [user.userprofile.site] if user.userprofile.site else []
-    
-    # Statistiques du jour pour les sites du manager
+    start_date, end_date, date_debut, date_fin, selected_period_label = _parse_dashboard_date_range(request, today)
+
+    sites_qs = Location.objects.filter(actif=True).only("id", "nom")
+    if not user.userprofile.is_admin():
+        if not user.userprofile.site:
+            sites_qs = Location.objects.none()
+        else:
+            sites_qs = sites_qs.filter(id=user.userprofile.site_id)
+
+    sites = list(sites_qs.order_by("nom"))
+    site_ids = [site.id for site in sites]
+
+    employee_counts = {
+        item["site"]: item["total"]
+        for item in UserProfile.objects.filter(
+            site_id__in=site_ids,
+            role="EMPLOYE",
+            actif=True,
+        ).values("site").annotate(total=Count("id"))
+    }
+    pointage_stats = {
+        item["site"]: item
+        for item in ShiftDay.objects.filter(
+            site_id__in=site_ids,
+            date__gte=start_date,
+            date__lte=end_date,
+        ).values("site").annotate(
+            presents=Count("id", filter=Q(clock_in_time__isnull=False)),
+            missed_punch=Count(
+                "id",
+                filter=Q(clock_in_time__isnull=False, clock_out_time__isnull=True),
+            ),
+        )
+    }
+    wash_stats = {
+        item["site"]: item
+        for item in CarWash.objects.filter(
+            site_id__in=site_ids,
+            date__gte=start_date,
+            date__lte=end_date,
+        ).values("site").annotate(
+            total_lavages=Count("id"),
+            chiffre_jour=Sum("montant"),
+        )
+    }
+    issue_stats = {
+        item["site"]: item["problemes_ouverts"]
+        for item in IssueReport.objects.filter(
+            site_id__in=site_ids,
+            statut__in=["OUVERT", "EN_COURS"],
+        ).values("site").annotate(problemes_ouverts=Count("id"))
+    }
+
     stats = {}
     for site in sites:
-        # Employés du site
-        employes_site = UserProfile.objects.filter(
-            site=site,
-            role='EMPLOYE',
-            actif=True
-        )
-        total_employes = employes_site.count()
-        
-        # Pointages du jour
-        pointages_today = ShiftDay.objects.filter(site=site, date=today)
-        presents = pointages_today.filter(clock_in_time__isnull=False).count()
-        absents = total_employes - presents
-        missed_punch = pointages_today.filter(
-            clock_in_time__isnull=False,
-            clock_out_time__isnull=True
-        ).count()
-        
-        # Lavages du jour
-        lavages_today = CarWash.objects.filter(site=site, date=today)
-        total_lavages = lavages_today.count()
-        chiffre_jour = lavages_today.aggregate(total=Sum('montant'))['total'] or 0
-        
-        # Problèmes ouverts
-        problemes_ouverts = IssueReport.objects.filter(
-            site=site,
-            statut__in=['OUVERT', 'EN_COURS']
-        ).count()
-        
+        total_employes = employee_counts.get(site.id, 0)
+        pointage_summary = pointage_stats.get(site.id, {})
+        wash_summary = wash_stats.get(site.id, {})
+        presents = pointage_summary.get("presents", 0)
         stats[site.nom] = {
-            'total_employes': total_employes,
-            'presents': presents,
-            'absents': absents,
-            'missed_punch': missed_punch,
-            'total_lavages': total_lavages,
-            'chiffre_jour': chiffre_jour,
-            'problemes_ouverts': problemes_ouverts,
-            'site_id': site.id,
+            "total_employes": total_employes,
+            "presents": presents,
+            "absents": max(total_employes - presents, 0),
+            "missed_punch": pointage_summary.get("missed_punch", 0),
+            "total_lavages": wash_summary.get("total_lavages", 0),
+            "chiffre_jour": wash_summary.get("chiffre_jour") or 0,
+            "problemes_ouverts": issue_stats.get(site.id, 0),
+            "site_id": site.id,
         }
     
     context = {
         'sites_stats': stats,
         'today': today,
+        'date_debut': date_debut,
+        'date_fin': date_fin,
+        'selected_period_label': selected_period_label,
     }
     
     return render(request, 'manager/dashboard.html', context)
@@ -183,7 +235,7 @@ def manager_pointages(request):
     user = request.user
     
     # Filtres de base
-    pointages = ShiftDay.objects.all().order_by('-date', '-clock_in_time')
+    pointages = ShiftDay.objects.select_related("employe", "site", "corrected_by").order_by('-date', '-clock_in_time')
     
     # Filtrer par site si manager
     if not user.userprofile.is_admin():
@@ -203,9 +255,11 @@ def manager_pointages(request):
         pointages = pointages.filter(employe_id=employe_id)
     if site_id and user.userprofile.is_admin():
         pointages = pointages.filter(site_id=site_id)
+
+    pointages = paginate_queryset(request, pointages, per_page=20, page_param="page")
     
     context = {
-        'pointages': pointages[:100],  # Limiter à 100 pour performance
+        'pointages': pointages,
     }
     
     return render(request, 'manager/pointages.html', context)
@@ -305,7 +359,11 @@ def manager_lavages(request):
     user = request.user
     
     # Filtres de base
-    lavages = CarWash.objects.all().order_by('-created_at')
+    lavages = (
+        CarWash.objects.select_related("employe", "site")
+        .annotate(photo_count_value=Count("photos", distinct=True))
+        .order_by('-created_at')
+    )
     
     # Filtrer par site si manager
     if not user.userprofile.is_admin():
@@ -316,6 +374,7 @@ def manager_lavages(request):
     date_fin = request.GET.get('date_fin')
     employe_id = request.GET.get('employe')
     type_service = request.GET.get('type_service')
+    site_id = request.GET.get("site")
     
     if date_debut:
         lavages = lavages.filter(date__gte=date_debut)
@@ -325,13 +384,16 @@ def manager_lavages(request):
         lavages = lavages.filter(employe_id=employe_id)
     if type_service:
         lavages = lavages.filter(type_service=type_service)
+    if site_id and user.userprofile.is_admin():
+        lavages = lavages.filter(site_id=site_id)
     
     # Calculer les totaux
     total_montant = lavages.aggregate(total=Sum('montant'))['total'] or 0
     total_count = lavages.count()
+    lavages = paginate_queryset(request, lavages, per_page=20, page_param="page")
     
     context = {
-        'lavages': lavages[:100],  # Limiter à 100
+        'lavages': lavages,
         'total_montant': total_montant,
         'total_count': total_count,
     }
@@ -348,7 +410,7 @@ def manager_problemes(request):
     user = request.user
     
     # Filtres de base
-    problemes = IssueReport.objects.all().order_by('-created_at')
+    problemes = IssueReport.objects.select_related("employe", "site", "traite_par").order_by('-created_at')
     
     # Filtrer par site si manager
     if not user.userprofile.is_admin():
@@ -357,14 +419,19 @@ def manager_problemes(request):
     # Filtres
     statut = request.GET.get('statut')
     categorie = request.GET.get('categorie')
+    site_id = request.GET.get("site")
     
     if statut:
         problemes = problemes.filter(statut=statut)
     if categorie:
         problemes = problemes.filter(categorie=categorie)
+    if site_id and user.userprofile.is_admin():
+        problemes = problemes.filter(site_id=site_id)
+
+    problemes = paginate_queryset(request, problemes, per_page=20, page_param="page")
     
     context = {
-        'problemes': problemes[:100],
+        'problemes': problemes,
     }
     
     return render(request, 'manager/problemes.html', context)

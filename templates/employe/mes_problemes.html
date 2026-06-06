@@ -5,7 +5,7 @@
 {% block content %}
 <h1 class="mt-2 mb-4">Mes problèmes signalés</h1>
 
-{% if problemes %}
+{% if problemes.object_list %}
 <div class="table-container">
     <table>
         <thead>
@@ -38,6 +38,7 @@
         </tbody>
     </table>
 </div>
+{% include "partials/pagination.html" with page_obj=problemes page_param="page" anchor="" %}
 {% else %}
 <div class="card text-center">
     <p style="color: var(--text-secondary); font-size: 1.2rem;">Aucun problème signalé pour le moment.</p>

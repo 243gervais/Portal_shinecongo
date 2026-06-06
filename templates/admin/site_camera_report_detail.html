@@ -481,7 +481,7 @@
                 <div class="evidence-item-grid">
                     <div>
                         {% if evidence.is_image %}
-                        <div class="evidence-asset"><img src="{{ evidence.uploaded_file.url }}" alt="{{ evidence.title }}"></div>
+                        <div class="evidence-asset"><img src="{{ evidence.image_thumbnail_url|default:evidence.uploaded_file.url }}" alt="{{ evidence.title }}" loading="lazy" decoding="async"></div>
                         {% elif evidence.is_video %}
                         <div class="evidence-asset"><video controls preload="metadata"><source src="{{ evidence.uploaded_file.url }}"></video></div>
                         {% else %}

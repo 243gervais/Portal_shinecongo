@@ -560,7 +560,7 @@
                 <div class="camera-day-evidence-grid">
                     {% for evidence in observation.evidences.all %}
                     <div class="camera-day-evidence-card">
-                        <img src="{{ evidence.file.url }}" alt="{{ evidence.get_evidence_kind_display }}">
+                        <img src="{{ evidence.thumbnail_url|default:evidence.file.url }}" alt="{{ evidence.get_evidence_kind_display }}" loading="lazy" decoding="async">
                         <div class="camera-day-label">{{ evidence.get_evidence_kind_display }}</div>
                         <div class="camera-day-muted">{{ evidence.filename }}</div>
                     </div>

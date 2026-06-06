@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
-from django.db.models import Sum
+from django.db.models import Count, Sum
 from .models import ShiftDay
 from sites.models import Location, SiteWaterPurchase, get_default_water_supplier
 from lavages.models import CarWash
@@ -18,6 +18,7 @@ from .utils import get_client_ip, get_user_agent
 from audit.models import AuditLog
 from decimal import Decimal, InvalidOperation
 from comptes.forms import get_water_purchase_default_amount
+from comptes.pagination import paginate_queryset
 from .report_sync import sync_site_finance_from_daily_reports
 
 logger = logging.getLogger(__name__)
@@ -829,32 +830,39 @@ def employe_historique(request):
     site = profile.site
     
     # Pointages récents (30 derniers jours)
-    pointages = (
+    pointages_qs = (
         ShiftDay.objects.filter(employe=user)
         .select_related("site")
-        .order_by('-date')[:30]
+        .order_by("-date", "-clock_in_time")
     )
-    report_history = (
+    report_history_qs = (
         ShiftDay.objects.filter(employe=user)
         .select_related("site")
-        .order_by("-date")[:20]
+        .order_by("-date", "-updated_at")
     )
     
-    # Lavages récents
-    lavages = user.lavages.all().order_by('-created_at')[:50]
+    lavages_qs = (
+        user.lavages.select_related("site")
+        .annotate(photo_count_value=Count("photos", distinct=True))
+        .order_by("-created_at")
+    )
     
-    # Problèmes signalés
-    problemes = user.problemes_signales.all().order_by('-created_at')[:20]
+    problemes_qs = user.problemes_signales.select_related("site").order_by("-created_at")
 
     water_history_qs = (
         SiteWaterPurchase.objects.filter(site=site)
         .select_related("created_by", "supplier")
         .order_by("-purchase_date", "-created_at")
     )
-    water_history = list(water_history_qs[:20])
     water_history_month_count = water_history_qs.filter(
         billing_month=today.replace(day=1),
     ).count()
+
+    pointages = paginate_queryset(request, pointages_qs, per_page=12, page_param="pointages_page")
+    report_history = paginate_queryset(request, report_history_qs, per_page=10, page_param="reports_page")
+    lavages = paginate_queryset(request, lavages_qs, per_page=10, page_param="lavages_page")
+    problemes = paginate_queryset(request, problemes_qs, per_page=10, page_param="problemes_page")
+    water_history = paginate_queryset(request, water_history_qs, per_page=10, page_param="water_page")
 
     report_count = ShiftDay.objects.filter(
         employe=user,
@@ -876,7 +884,7 @@ def employe_historique(request):
         'report_count': report_count,
         'pending_report_count': pending_report_count,
         'water_history_month_count': water_history_month_count,
-        'problem_count': user.problemes_signales.count(),
+        'problem_count': problemes_qs.count(),
     }
     
     return render(request, 'employe/historique.html', context)

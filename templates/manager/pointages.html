@@ -8,6 +8,9 @@
 <!-- Filtres -->
 <div class="card mb-4">
     <form method="get" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+        {% if request.GET.site %}
+        <input type="hidden" name="site" value="{{ request.GET.site }}">
+        {% endif %}
         <div class="form-group" style="margin-bottom: 0;">
             <label for="date_debut">Date début</label>
             <input type="date" class="form-control" id="date_debut" name="date_debut" value="{{ request.GET.date_debut }}">
@@ -24,14 +27,14 @@
         </div>
         
         <div class="form-group" style="margin-bottom: 0; display: flex; align-items: flex-end;">
-            <button type="submit" class="btn btn-primary btn-block">Filtrer</button>
+            <button type="submit" class="btn btn-primary btn-block" data-loading-label="Chargement...">Filtrer</button>
             <a href="{% url 'manager_pointages' %}" class="btn btn-danger" style="margin-left: 0.5rem;">Réinitialiser</a>
         </div>
     </form>
 </div>
 
 <!-- Liste des pointages -->
-{% if pointages %}
+{% if pointages.object_list %}
 <div class="table-container">
     <table>
         <thead>
@@ -85,6 +88,7 @@
         </tbody>
     </table>
 </div>
+{% include "partials/pagination.html" with page_obj=pointages page_param="page" anchor="" %}
 {% else %}
 <div class="card text-center">
     <p style="color: var(--text-secondary); font-size: 1.2rem;">Aucun pointage trouvé.</p>

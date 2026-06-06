@@ -4,6 +4,8 @@ from django.core.validators import MinValueValidator
 from django.utils import timezone
 import os
 
+from comptes.image_utils import ensure_image_thumbnail, get_thumbnail_url, optimize_image_upload
+
 
 def carwash_photo_path(instance, filename):
     """Chemin de sauvegarde des photos de lavage"""
@@ -75,6 +77,8 @@ class CarWash(models.Model):
         indexes = [
             models.Index(fields=["employe", "date"]),
             models.Index(fields=["site", "date"]),
+            models.Index(fields=["employe", "-created_at"], name="lavages_employe_created_idx"),
+            models.Index(fields=["site", "-created_at"], name="lavages_site_created_idx"),
             models.Index(fields=["is_system_generated", "system_source"]),
             models.Index(fields=["-created_at"]),
         ]
@@ -84,7 +88,21 @@ class CarWash(models.Model):
     
     def photo_count(self):
         """Nombre de photos associées"""
+        annotated_count = getattr(self, "photo_count_value", None)
+        if annotated_count is not None:
+            return annotated_count
         return self.photos.count()
+
+    @property
+    def plaque_photo_thumbnail_url(self):
+        return get_thumbnail_url(self.plaque_photo)
+
+    def save(self, *args, **kwargs):
+        if self.plaque_photo and not self.plaque_photo._committed:
+            self.plaque_photo = optimize_image_upload(self.plaque_photo)
+        super().save(*args, **kwargs)
+        if self.plaque_photo:
+            ensure_image_thumbnail(self.plaque_photo)
 
 
 class CarWashPhoto(models.Model):
@@ -111,6 +129,9 @@ class CarWashPhoto(models.Model):
         verbose_name = "Photo de Lavage"
         verbose_name_plural = "Photos de Lavage"
         ordering = ["type_photo", "uploaded_at"]
+        indexes = [
+            models.Index(fields=["lavage", "-uploaded_at"], name="lavage_photo_uploaded_idx"),
+        ]
     
     def __str__(self):
         return f"Photo {self.get_type_photo_display()} - {self.lavage}"
@@ -118,3 +139,14 @@ class CarWashPhoto(models.Model):
     def filename(self):
         """Retourne le nom du fichier"""
         return os.path.basename(self.photo.name)
+
+    @property
+    def thumbnail_url(self):
+        return get_thumbnail_url(self.photo)
+
+    def save(self, *args, **kwargs):
+        if self.photo and not self.photo._committed:
+            self.photo = optimize_image_upload(self.photo)
+        super().save(*args, **kwargs)
+        if self.photo:
+            ensure_image_thumbnail(self.photo)

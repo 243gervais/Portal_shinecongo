@@ -1,12 +1,17 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
 import os
+
+from comptes.image_utils import ensure_image_thumbnail, get_thumbnail_url, optimize_image_upload
 
 
 def issue_photo_path(instance, filename):
     """Chemin de sauvegarde des photos de problème"""
-    date_str = instance.created_at.strftime("%Y/%m/%d")
-    return f"problemes/{date_str}/{instance.id}/{filename}"
+    reference_time = instance.created_at or timezone.now()
+    date_str = reference_time.strftime("%Y/%m/%d")
+    issue_segment = instance.id or "nouveau"
+    return f"problemes/{date_str}/{issue_segment}/{filename}"
 
 
 class IssueReport(models.Model):
@@ -61,6 +66,8 @@ class IssueReport(models.Model):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["site", "statut"]),
+            models.Index(fields=["site", "statut", "-created_at"], name="issue_site_statut_created_idx"),
+            models.Index(fields=["employe", "-created_at"], name="issue_employe_created_idx"),
             models.Index(fields=["-created_at"]),
         ]
     
@@ -72,3 +79,14 @@ class IssueReport(models.Model):
     
     def is_resolu(self):
         return self.statut == "RESOLU"
+
+    @property
+    def photo_thumbnail_url(self):
+        return get_thumbnail_url(self.photo)
+
+    def save(self, *args, **kwargs):
+        if self.photo and not self.photo._committed:
+            self.photo = optimize_image_upload(self.photo)
+        super().save(*args, **kwargs)
+        if self.photo:
+            ensure_image_thumbnail(self.photo)

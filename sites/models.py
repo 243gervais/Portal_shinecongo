@@ -6,6 +6,8 @@ from django.core.validators import MinValueValidator
 from django.utils import timezone
 import os
 
+from comptes.image_utils import ensure_image_thumbnail, get_thumbnail_url, optimize_image_upload
+
 
 def current_month_start():
     today = timezone.localdate()
@@ -830,13 +832,23 @@ class VideoEvidence(models.Model):
         ext = os.path.splitext(self.filename())[1].lower()
         return ext in [".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm", ".mkv", ".m4v"]
 
+    @property
+    def image_thumbnail_url(self):
+        if not self.is_image():
+            return getattr(self.uploaded_file, "url", "")
+        return get_thumbnail_url(self.uploaded_file)
+
     def save(self, *args, **kwargs):
+        if self.uploaded_file and not self.uploaded_file._committed and self.is_image():
+            self.uploaded_file = optimize_image_upload(self.uploaded_file)
         super().save(*args, **kwargs)
         if self.uploaded_file:
             resolved_url = getattr(self.uploaded_file, "url", "") or ""
             if resolved_url and self.s3_url != resolved_url:
                 type(self).objects.filter(pk=self.pk).update(s3_url=resolved_url)
                 self.s3_url = resolved_url
+            if self.is_image():
+                ensure_image_thumbnail(self.uploaded_file)
 
 
 class CameraOperatorDailyReport(models.Model):
@@ -1039,8 +1051,16 @@ class CameraObservationEvidence(models.Model):
     def filename(self):
         return os.path.basename(self.file.name) if self.file else ""
 
+    @property
+    def thumbnail_url(self):
+        return get_thumbnail_url(self.file)
+
     def save(self, *args, **kwargs):
+        if self.file and not self.file._committed:
+            self.file = optimize_image_upload(self.file)
         super().save(*args, **kwargs)
+        if self.file:
+            ensure_image_thumbnail(self.file)
         self.observation.report.sync_observation_totals()
 
     def delete(self, *args, **kwargs):

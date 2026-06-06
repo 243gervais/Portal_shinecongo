@@ -25,7 +25,9 @@
     <div class="form-group">
         <label>Photo de la plaque</label>
         <div style="margin-top: 0.75rem; max-width: 360px;">
-            <img src="{{ lavage.plaque_photo.url }}" alt="Photo de la plaque" style="width: 100%; height: auto; display: block; border-radius: 8px; border: 1px solid var(--border-color);">
+            <a href="{{ lavage.plaque_photo.url }}" target="_blank" rel="noopener">
+                <img src="{{ lavage.plaque_photo_thumbnail_url|default:lavage.plaque_photo.url }}" alt="Photo de la plaque" loading="lazy" decoding="async" style="width: 100%; height: auto; display: block; border-radius: 8px; border: 1px solid var(--border-color);">
+            </a>
         </div>
     </div>
     {% endif %}
@@ -48,7 +50,9 @@
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
             {% for photo in photos %}
             <div style="border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color);">
-                <img src="{{ photo.photo.url }}" alt="{{ photo.get_type_photo_display }}" style="width: 100%; height: auto; display: block;">
+                <a href="{{ photo.photo.url }}" target="_blank" rel="noopener">
+                    <img src="{{ photo.thumbnail_url|default:photo.photo.url }}" alt="{{ photo.get_type_photo_display }}" loading="lazy" decoding="async" style="width: 100%; height: auto; display: block;">
+                </a>
                 <div style="padding: 0.5rem; background: var(--dark-bg); text-align: center; font-size: 0.875rem; color: var(--text-secondary);">
                     {{ photo.get_type_photo_display }}
                 </div>

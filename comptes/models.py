@@ -8,6 +8,8 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 import os
 
+from comptes.image_utils import ensure_image_thumbnail, get_thumbnail_url, optimize_image_upload
+
 
 def employee_cv_upload_path(instance, filename):
     """
@@ -94,6 +96,11 @@ class UserProfile(models.Model):
         verbose_name = "Profil Utilisateur"
         verbose_name_plural = "Profils Utilisateurs"
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["site", "role", "actif"], name="cp_prof_site_role_actif_ix"),
+            models.Index(fields=["role", "actif"], name="cp_prof_role_actif_ix"),
+            models.Index(fields=["-created_at"], name="cp_prof_created_desc_ix"),
+        ]
     
     def __str__(self):
         return f"{self.user.get_full_name() or self.user.username} - {self.get_role_display()}"
@@ -140,6 +147,10 @@ class UserProfile(models.Model):
             return ""
         return os.path.basename(self.profile_photo.name)
 
+    @property
+    def profile_photo_thumbnail_url(self):
+        return get_thumbnail_url(self.profile_photo)
+
     def prochaine_date_anniversaire(self, reference_date=None):
         if not self.date_naissance:
             return None
@@ -164,6 +175,13 @@ class UserProfile(models.Model):
         if not prochain:
             return None
         return max((prochain - reference).days, 0)
+
+    def save(self, *args, **kwargs):
+        if self.profile_photo and not self.profile_photo._committed:
+            self.profile_photo = optimize_image_upload(self.profile_photo)
+        super().save(*args, **kwargs)
+        if self.profile_photo:
+            ensure_image_thumbnail(self.profile_photo)
 
 
 class AdminReminder(models.Model):
