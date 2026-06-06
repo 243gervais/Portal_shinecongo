@@ -75,6 +75,7 @@ from comptes.views import (
     shared_employee_payment_receipt_pdf,
     admin_upload_site_document,
     admin_edit_site_document,
+    admin_move_site_document,
     admin_delete_site_document,
 )
 from comptes.forms import ApprovalAuthenticationForm
@@ -222,6 +223,7 @@ urlpatterns = [
     path("admin-dashboard/site/<uuid:site_id>/payments/<int:payment_id>/fiche/pdf/", admin_employee_payment_receipt_pdf, name="admin_employee_payment_receipt_pdf"),
     path("admin-dashboard/site/<uuid:site_id>/documents/upload/", admin_upload_site_document, name="admin_upload_site_document"),
     path("admin-dashboard/site/<uuid:site_id>/documents/<int:document_id>/edit/", admin_edit_site_document, name="admin_edit_site_document"),
+    path("admin-dashboard/site/<uuid:site_id>/documents/<int:document_id>/move/", admin_move_site_document, name="admin_move_site_document"),
     path("admin-dashboard/site/<uuid:site_id>/documents/<int:document_id>/delete/", admin_delete_site_document, name="admin_delete_site_document"),
     path("shared/payment-receipts/<str:token>/", shared_employee_payment_receipt, name="shared_employee_payment_receipt"),
     path("shared/payment-receipts/<str:token>/pdf/", shared_employee_payment_receipt_pdf, name="shared_employee_payment_receipt_pdf"),

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Migrer un document - {{ site.nom }}{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem;">
+    <div>
+        <h1 class="mt-2 mb-2">Migrer un document</h1>
+        <p style="color: var(--text-secondary); margin: 0;">{{ site.nom }} • {{ document.title }}</p>
+    </div>
+    <a href="{{ next_url }}" class="btn btn-secondary">Retour aux documents</a>
+</div>
+
+<div style="display: grid; grid-template-columns: minmax(0, 0.95fr) minmax(280px, 0.75fr); gap: 1.25rem;">
+    <div class="card">
+        <div style="padding: 1rem; border-radius: 14px; background: rgba(10, 67, 107, 0.06); border: 1px solid rgba(10, 67, 107, 0.08); margin-bottom: 1rem;">
+            <strong style="color: var(--primary-dark);">Utilisez cette action pour reclasser une photo ou un document dans la bonne section.</strong>
+            <p style="margin: 0.5rem 0 0; color: var(--text-secondary);">Le fichier uploadé ne change pas. Seule la section documentaire est mise à jour.</p>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next_url }}">
+
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {% for error in form.non_field_errors %}
+                <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label for="{{ form.file_type.id_for_label }}">Nouvelle section</label>
+                {{ form.file_type }}
+                {% for error in form.file_type.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">Enregistrer la migration</button>
+            <a href="{{ next_url }}" class="btn btn-secondary btn-block mt-2">Annuler</a>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3 style="margin-top: 0;">Document actuel</h3>
+        <p><strong>Section actuelle :</strong> {{ document.get_file_type_display }}</p>
+        <p><strong>Titre :</strong> {{ document.title }}</p>
+        {% if document.description %}
+        <p><strong>Description :</strong> {{ document.description }}</p>
+        {% endif %}
+        <p><strong>Fichier :</strong> {{ document.file.name|default:"Fichier indisponible" }}</p>
+        <p><strong>Uploadé le :</strong> {{ document.uploaded_at|date:"d/m/Y à H:i" }}</p>
+        {% if document.uploaded_by %}
+        <p><strong>Uploadé par :</strong> {{ document.uploaded_by.get_full_name|default:document.uploaded_by.username }}</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

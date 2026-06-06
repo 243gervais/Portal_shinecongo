@@ -15,6 +15,7 @@ from sites.models import (
     DEFAULT_WATER_SUPPLIER_NAME,
     DEFAULT_WATER_SUPPLIER_RATE_FC,
     Location,
+    SiteDocument,
     SiteJournalEntry,
     SiteWaterPurchase,
     VideoEvidence,
@@ -744,6 +745,30 @@ class SiteJournalEntryMoveForm(forms.Form):
         entry.category = self.cleaned_data["category"]
         entry.save(update_fields=["entry_date", "category", "updated_at"])
         return entry
+
+
+class SiteDocumentMoveForm(forms.Form):
+    """
+    Formulaire dédié à la migration d'un document vers une autre section documentaire.
+    """
+
+    file_type = forms.ChoiceField(
+        label="Nouvelle section",
+        choices=SiteDocument.FILE_TYPE_CHOICES,
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+
+    def __init__(self, *args, document_instance=None, **kwargs):
+        self.document_instance = document_instance
+        super().__init__(*args, **kwargs)
+
+        if self.document_instance and not self.is_bound:
+            self.fields["file_type"].initial = self.document_instance.file_type
+
+    def save(self, document):
+        document.file_type = self.cleaned_data["file_type"]
+        document.save(update_fields=["file_type", "updated_at"])
+        return document
 
 
 class SiteWaterPurchaseMoveForm(forms.Form):

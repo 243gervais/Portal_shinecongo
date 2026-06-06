@@ -691,7 +691,7 @@
 
                     <div class="docs-documents-grid">
                         {% for doc in summary.documents %}
-                        <article class="docs-document-card">
+                        <article class="docs-document-card" id="document-{{ doc.id }}">
                             <div class="docs-document-preview">
                                 {% if doc.is_image %}
                                 <img src="{{ doc.file.url }}" alt="{{ doc.title }}" onclick="window.open('{{ doc.file.url }}', '_blank')" style="cursor: pointer;">
@@ -731,6 +731,7 @@
 
                             <div class="docs-document-actions">
                                 <a href="{% url 'admin_edit_site_document' site.id doc.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-secondary">✏️ Renommer</a>
+                                <a href="{% url 'admin_move_site_document' site.id doc.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-secondary">↔️ Migrer</a>
                                 <a href="{{ doc.file.url }}" target="_blank" class="btn btn-primary">📥 Télécharger</a>
                                 <form method="post" action="{% url 'admin_delete_site_document' site.id doc.id %}" class="docs-document-delete" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce document ?');">
                                     {% csrf_token %}

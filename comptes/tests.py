@@ -536,6 +536,50 @@ class SiteDocumentUploadTests(TestCase):
         document.refresh_from_db()
         self.assertEqual(document.title, "Photo chantier renommée")
 
+    def test_admin_can_migrate_site_document_to_another_section(self):
+        document = SiteDocument.objects.create(
+            site=self.site,
+            file_type="PHOTO_CONSTRUCTION",
+            title="Photo mal classée",
+            description="Doit aller dans une autre section.",
+            file=SimpleUploadedFile("chantier-b.jpg", b"fake-image-content", content_type="image/jpeg"),
+            uploaded_by=self.admin_user,
+        )
+
+        library_response = self.client.get(reverse("admin_site_documents", args=[self.site.id]))
+        self.assertEqual(library_response.status_code, 200)
+        self.assertContains(
+            library_response,
+            reverse("admin_move_site_document", args=[self.site.id, document.id]),
+        )
+        self.assertContains(library_response, "Migrer")
+
+        response = self.client.post(
+            reverse("admin_move_site_document", args=[self.site.id, document.id]),
+            data={
+                "file_type": "AUTRE_PHOTO",
+                "next": reverse("admin_site_documents", args=[self.site.id]),
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(
+            response,
+            f"{reverse('admin_site_documents', args=[self.site.id])}?type=AUTRE_PHOTO#document-{document.id}",
+            fetch_redirect_response=False,
+        )
+
+        document.refresh_from_db()
+        self.assertEqual(document.file_type, "AUTRE_PHOTO")
+        self.assertEqual(document.title, "Photo mal classée")
+
+        destination_response = self.client.get(
+            reverse("admin_site_documents", args=[self.site.id]),
+            data={"type": "AUTRE_PHOTO"},
+        )
+        self.assertContains(destination_response, "Photo mal classée")
+        self.assertContains(destination_response, "Autre photo")
+
     def test_site_documents_page_is_documents_only(self):
         response = self.client.get(reverse("admin_site_documents", args=[self.site.id]))
 

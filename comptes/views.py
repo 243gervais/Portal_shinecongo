@@ -31,6 +31,7 @@ from .forms import (
     EmployeePaymentForm,
     SiteJournalEntryForm,
     SiteJournalEntryMoveForm,
+    SiteDocumentMoveForm,
     SiteWaterPurchaseForm,
     SiteWaterPurchaseMoveForm,
     WaterSupplierForm,
@@ -6109,6 +6110,75 @@ def admin_edit_site_document(request, site_id, document_id):
     return render(request, 'admin/edit_site_document.html', {
         'site': site,
         'document': document,
+        'next_url': next_url,
+    })
+
+
+@login_required
+@no_cache_view
+def admin_move_site_document(request, site_id, document_id):
+    """
+    Migrer un document d'une section documentaire vers une autre.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    site = get_object_or_404(Location, id=site_id)
+    document = get_object_or_404(SiteDocument, id=document_id, site=site)
+    next_url = _safe_next_url(request) or reverse('admin_site_documents', args=[site.id])
+
+    if request.method == 'POST':
+        form = SiteDocumentMoveForm(request.POST, document_instance=document)
+        if form.is_valid():
+            target_file_type = form.cleaned_data['file_type']
+            if target_file_type == document.file_type:
+                messages.info(request, "Ce document est déjà classé dans cette section.")
+                return redirect(next_url)
+
+            previous_file_type = document.file_type
+            previous_label = document.get_file_type_display()
+            moved_document = form.save(document)
+            destination_url = (
+                f"{reverse('admin_site_documents', args=[site.id])}"
+                f"?type={moved_document.file_type}#document-{moved_document.id}"
+            )
+
+            AuditLog.log(
+                user=user,
+                action="MODIFIER",
+                description=(
+                    f"Document migré pour le site {site.nom}: "
+                    f"{moved_document.title} ({previous_label} → {moved_document.get_file_type_display()})"
+                ),
+                content_object=moved_document,
+                donnees_avant={
+                    'file_type': previous_file_type,
+                    'file_type_label': previous_label,
+                },
+                donnees_apres={
+                    'file_type': moved_document.file_type,
+                    'file_type_label': moved_document.get_file_type_display(),
+                },
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request),
+            )
+
+            messages.success(
+                request,
+                f'Document migré avec succès vers la section "{moved_document.get_file_type_display()}".',
+            )
+            return redirect(destination_url)
+    else:
+        form = SiteDocumentMoveForm(document_instance=document)
+
+    return render(request, 'admin/move_site_document.html', {
+        'site': site,
+        'document': document,
+        'form': form,
         'next_url': next_url,
     })
 
