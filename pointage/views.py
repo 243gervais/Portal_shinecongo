@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.contrib import messages
@@ -792,6 +793,10 @@ def scan_qr_fixe(request, site_token):
     Vue publique pour scanner le QR fixe - redirige vers le scan approprié selon l'action
     Cette URL est encodée dans le QR code
     """
+    if not request.user.is_authenticated:
+        messages.info(request, 'Veuillez vous connecter pour pointer.')
+        return redirect(f"{settings.LOGIN_URL}?next=/scan/{site_token}/")
+
     try:
         profile, failure_response = _resolve_employee_portal_profile(request)
         if failure_response:
@@ -800,20 +805,15 @@ def scan_qr_fixe(request, site_token):
     except Location.DoesNotExist:
         messages.error(request, 'QR code invalide ou non reconnu.')
         return redirect('dashboard')
-    
-    # Si l'utilisateur n'est pas connecté, rediriger vers la connexion
-    if not request.user.is_authenticated:
-        messages.info(request, 'Veuillez vous connecter pour pointer.')
-        return redirect('login')
-    
+
     # Vérifier que le site correspond à l'employé
     employee_site = profile.site
     if employee_site and employee_site.id != site.id:
         messages.error(request, 'Ce QR ne correspond pas à votre site.')
         return redirect('dashboard')
     
-    # Rediriger vers le dashboard employé (qui gérera le scan)
-    return redirect('employe_dashboard')
+    # Rediriger vers la page React mobile-first de pointage
+    return redirect(f"{reverse('employe_pointage')}?site_token={site_token}")
 
 
 @login_required

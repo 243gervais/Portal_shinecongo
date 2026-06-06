@@ -44,7 +44,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     
     # Third party apps
-    # "rest_framework",  # Commented out - not installed
+    "rest_framework",
     # "corsheaders",  # Commented out - not installed
     # "storages",  # For AWS S3 storage - only add if USE_S3=True and module installed
     
@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "lavages",
     "problemes",
     "audit",
+    "portal_api",
 ]
 
 # Check if S3 should be used and if storages module is available
@@ -180,7 +181,7 @@ if USE_S3:
         # Fallback to local storage if storages_backends not available
         USE_S3 = False
         STATIC_URL = "static/"
-        STATICFILES_DIRS = [BASE_DIR / "static"]
+        STATICFILES_DIRS = [BASE_DIR / "static", BASE_DIR / "frontend_dist"]
         STATIC_ROOT = BASE_DIR / "staticfiles"
         MEDIA_URL = "media/"
         MEDIA_ROOT = BASE_DIR / "media"
@@ -189,7 +190,7 @@ if USE_S3:
 else:
     # Local development
     STATIC_URL = "static/"
-    STATICFILES_DIRS = [BASE_DIR / "static"]
+    STATICFILES_DIRS = [BASE_DIR / "static", BASE_DIR / "frontend_dist"]
     STATIC_ROOT = BASE_DIR / "staticfiles"
     
     # Media files (user uploads)

@@ -352,31 +352,32 @@ class EmployeeDailyReportTests(TestCase):
         response = self.client.get(reverse("employe_dashboard"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "window.instantNavigate")
-        self.assertContains(response, "portal-instant-employee:")
-        self.assertContains(response, "portal-activity-revision")
-        self.assertContains(response, "revalidate")
-        self.assertContains(response, reverse("employe_daily_report"))
-        self.assertContains(response, "data-employee-route-card")
-        self.assertContains(response, reverse("ajouter_lavage"))
-        self.assertContains(response, reverse("employe_water_purchase"))
-        self.assertContains(response, "Gestion de l'eau")
-        self.assertContains(response, "Rapport du jour envoyé")
-        self.assertContains(response, "Eau signalée aujourd'hui")
-        self.assertNotContains(response, "Montant du jour")
+        self.assertContains(response, "portal-root")
+        self.assertContains(response, "portal-bootstrap")
+        self.assertContains(response, "portal-app.js")
+        self.assertContains(response, '"mode": "employee"')
+
+        api_response = self.client.get(reverse("portal_api_employee_dashboard"))
+        self.assertEqual(api_response.status_code, 200)
+        payload = api_response.json()
+        self.assertEqual(payload["site"]["nom"], "Ngaliema Test")
+        self.assertIn("lavages_today", payload["stats"])
+        self.assertNotIn("montant_du_jour", payload["stats"])
 
     def test_employee_history_contains_mobile_friendly_instant_navigation_hooks(self):
         response = self.client.get(reverse("employe_historique"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "window.instantNavigate")
-        self.assertContains(response, "portal-instant-employee:")
-        self.assertContains(response, "touchstart")
-        self.assertContains(response, reverse("mes_lavages"))
-        self.assertContains(response, reverse("mes_problemes"))
-        self.assertContains(response, "Rapports de fin de journée")
-        self.assertContains(response, "Gestion de l'eau")
-        self.assertContains(response, "Aucun montant n'est affiché dans cet espace")
+        self.assertContains(response, "portal-root")
+        self.assertContains(response, "portal-app.js")
+        self.assertContains(response, '"mode": "employee"')
+
+        summary_response = self.client.get(reverse("portal_api_employee_history_summary"))
+        self.assertEqual(summary_response.status_code, 200)
+        summary = summary_response.json()
+        self.assertEqual(summary["site"]["nom"], "Ngaliema Test")
+        self.assertIn("lavages", summary["counts"])
+        self.assertIn("problemes", summary["counts"])
 
     def test_employee_can_update_same_day_report(self):
         today = timezone.localdate()
@@ -468,11 +469,14 @@ class EmployeeDailyReportTests(TestCase):
         response = self.client.get(reverse("employe_water_purchase"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Gestion de l'eau du site")
-        self.assertContains(response, "Confirmer que l'eau a été achetée aujourd'hui")
-        self.assertContains(response, "Automatique")
-        self.assertContains(response, "Honosha")
-        self.assertNotContains(response, "Tarif appliqué")
+        self.assertContains(response, "portal-root")
+        self.assertContains(response, "portal-app.js")
+
+        api_response = self.client.get(reverse("portal_api_employee_water"))
+        self.assertEqual(api_response.status_code, 200)
+        payload = api_response.json()
+        self.assertEqual(payload["default_supplier_name"], "Honosha's Forage")
+        self.assertNotIn("default_amount", payload)
 
     def test_employee_water_purchase_prevents_same_day_duplicate(self):
         today = timezone.localdate()
@@ -485,11 +489,11 @@ class EmployeeDailyReportTests(TestCase):
             created_by=self.user,
         )
 
-        response = self.client.post(reverse("employe_water_purchase"), follow=True)
+        response = self.client.post(reverse("portal_api_employee_water"))
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 400)
         self.assertEqual(SiteWaterPurchase.objects.filter(site=self.site, purchase_date=today).count(), 1)
-        self.assertContains(response, "déjà été signalé")
+        self.assertIn("déjà été signalé", response.json()["message"])
 
     def test_employee_history_lists_water_and_report_entries_without_amounts(self):
         today = timezone.localdate()
@@ -521,16 +525,20 @@ class EmployeeDailyReportTests(TestCase):
             created_by=self.user,
         )
 
-        response = self.client.get(reverse("employe_historique"))
+        reports_response = self.client.get(reverse("portal_api_employee_history_reports"))
+        water_response = self.client.get(reverse("portal_api_employee_history_water"))
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Rapport enregistré")
-        self.assertContains(response, "Achat du")
-        self.assertContains(response, "Transmis")
-        self.assertContains(response, "2 lavages")
-        self.assertNotContains(response, "18 000 FC")
-        self.assertNotContains(response, "14 000 FC")
-        self.assertNotContains(response, "22 000 FC")
+        self.assertEqual(reports_response.status_code, 200)
+        self.assertEqual(water_response.status_code, 200)
+
+        reports_payload = reports_response.json()
+        water_payload = water_response.json()
+        self.assertEqual(reports_payload["results"][0]["report_status_label"], "Envoyé")
+        self.assertEqual(reports_payload["results"][0]["total_lavages_reported"], 2)
+        self.assertNotIn("total_amount_reported_fc", reports_payload["results"][0])
+        self.assertNotIn("daily_expenses_total_fc", reports_payload["results"][0])
+        self.assertEqual(water_payload["results"][0]["supplier_name"], "Honosha's Forage")
+        self.assertNotIn("amount_fc", water_payload["results"][0])
 
     def test_employee_water_page_reflects_admin_edit_and_delete(self):
         today = timezone.localdate()
@@ -543,10 +551,11 @@ class EmployeeDailyReportTests(TestCase):
             created_by=self.user,
         )
 
-        response = self.client.get(reverse("employe_water_purchase"))
-        self.assertContains(response, "Déjà signalé aujourd'hui")
-        self.assertContains(response, today.strftime("%d/%m/%Y"))
-        self.assertNotContains(response, "22000 FC")
+        response = self.client.get(reverse("portal_api_employee_water"))
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIsNotNone(payload["today_purchase"])
+        self.assertEqual(payload["today_purchase"]["purchase_date"], today.strftime("%Y-%m-%d"))
 
         admin_user = User.objects.create_superuser(
             username="admin_water_sync",
@@ -568,18 +577,21 @@ class EmployeeDailyReportTests(TestCase):
         )
         self.assertEqual(edit_response.status_code, 302)
 
-        response = self.client.get(reverse("employe_water_purchase"))
-        self.assertContains(response, "Transmis à l'admin")
-        self.assertNotContains(response, "25000 FC")
+        response = self.client.get(reverse("portal_api_employee_water"))
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["today_purchase"]["notes"], "Montant corrigé par admin")
+        self.assertNotIn("amount_fc", payload["today_purchase"])
 
         delete_response = admin_client.post(
             reverse("admin_delete_water_purchase", kwargs={"purchase_id": purchase.id})
         )
         self.assertEqual(delete_response.status_code, 302)
 
-        response = self.client.get(reverse("employe_water_purchase"))
-        self.assertNotContains(response, "Achat enregistré pour")
-        self.assertContains(response, "Confirmer que l'eau a été achetée aujourd'hui")
+        response = self.client.get(reverse("portal_api_employee_water"))
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIsNone(payload["today_purchase"])
 
 
 class AdminDashboardDailyReportMessagesTests(TestCase):
@@ -710,8 +722,8 @@ class AdminDashboardDailyReportMessagesTests(TestCase):
 
         self.client.logout()
         self.client.login(username="mike", password="TestPass123!")
-        response = self.client.get(reverse("employe_historique"))
+        response = self.client.get(reverse("portal_api_employee_history_reports"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "En attente")
-        self.assertNotContains(response, "Enregistré")
+        payload = response.json()
+        self.assertEqual(payload["results"][0]["report_status_label"], "En attente")

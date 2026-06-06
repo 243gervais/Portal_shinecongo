@@ -78,6 +78,15 @@ from comptes.views import (
     admin_delete_site_document,
 )
 from comptes.forms import ApprovalAuthenticationForm
+from shinecongo.portal_views import (
+    employee_add_wash_portal,
+    employee_daily_report_portal,
+    employee_issue_portal,
+    employee_portal_shell,
+    employee_water_purchase_portal,
+    manager_pointage_correction_portal,
+    manager_portal_shell,
+)
 
 # Personnalisation de l'admin Django en français
 admin.site.site_header = "Shine Congo - Administration"
@@ -107,6 +116,7 @@ from sites.views import (
 urlpatterns = [
     # Admin Django
     path("admin/", admin.site.urls),
+    path("api/portal/", include("portal_api.urls")),
     
     # Authentication
     path(
@@ -124,12 +134,13 @@ urlpatterns = [
     path("", dashboard, name="dashboard"),
     
     # PORTAIL EMPLOYÉ
-    path("employe/", employe_dashboard, name="employe_dashboard"),
+    path("employe/", employee_portal_shell, name="employe_dashboard"),
+    path("employe/pointage/", employee_portal_shell, name="employe_pointage"),
     path("employe/scan-in/", scan_qr_clock_in, name="scan_qr_clock_in"),
     path("employe/scan-out/", scan_qr_clock_out, name="scan_qr_clock_out"),
-    path("employe/rapport-journee/", employe_daily_report, name="employe_daily_report"),
-    path("employe/eau/", employe_water_purchase, name="employe_water_purchase"),
-    path("employe/historique/", employe_historique, name="employe_historique"),
+    path("employe/rapport-journee/", employee_daily_report_portal, name="employe_daily_report"),
+    path("employe/eau/", employee_water_purchase_portal, name="employe_water_purchase"),
+    path("employe/historique/", employee_portal_shell, name="employe_historique"),
     path("camera/", camera_dashboard, name="camera_dashboard"),
     path("camera/lavage-verification/", camera_daily_report, name="camera_lavage_verification"),
     path("camera/rapport/", camera_daily_report, name="camera_daily_report"),
@@ -139,23 +150,23 @@ urlpatterns = [
     path("scan/<uuid:site_token>/", scan_qr_fixe, name="scan_qr_fixe"),
     
     # Lavages (employé)
-    path("employe/lavage/ajouter/", ajouter_lavage, name="ajouter_lavage"),
-    path("employe/lavage/mes-lavages/", mes_lavages, name="mes_lavages"),
-    path("employe/lavage/<int:lavage_id>/", detail_lavage, name="detail_lavage"),
+    path("employe/lavage/ajouter/", employee_add_wash_portal, name="ajouter_lavage"),
+    path("employe/lavage/mes-lavages/", employee_portal_shell, name="mes_lavages"),
+    path("employe/lavage/<int:lavage_id>/", employee_portal_shell, name="detail_lavage"),
     
     # Problèmes (employé)
-    path("employe/probleme/signaler/", signaler_probleme, name="signaler_probleme"),
-    path("employe/probleme/mes-problemes/", mes_problemes, name="mes_problemes"),
-    path("employe/probleme/<int:probleme_id>/", detail_probleme, name="detail_probleme"),
+    path("employe/probleme/signaler/", employee_issue_portal, name="signaler_probleme"),
+    path("employe/probleme/mes-problemes/", employee_portal_shell, name="mes_problemes"),
+    path("employe/probleme/<int:probleme_id>/", employee_portal_shell, name="detail_probleme"),
     
     # PORTAIL MANAGER
-    path("manager/", manager_dashboard, name="manager_dashboard"),
-    path("manager/qr/<uuid:site_id>/", manager_qr_du_jour, name="manager_qr_du_jour"),
+    path("manager/", manager_portal_shell, name="manager_dashboard"),
+    path("manager/qr/<uuid:site_id>/", manager_portal_shell, name="manager_qr_du_jour"),
     path("manager/qr/<uuid:site_id>/regenerer/", manager_regenerer_qr, name="manager_regenerer_qr"),
-    path("manager/pointages/", manager_pointages, name="manager_pointages"),
-    path("manager/pointages/<int:pointage_id>/corriger/", manager_corriger_pointage, name="manager_corriger_pointage"),
-    path("manager/lavages/", manager_lavages, name="manager_lavages"),
-    path("manager/problemes/", manager_problemes, name="manager_problemes"),
+    path("manager/pointages/", manager_portal_shell, name="manager_pointages"),
+    path("manager/pointages/<int:pointage_id>/corriger/", manager_pointage_correction_portal, name="manager_corriger_pointage"),
+    path("manager/lavages/", manager_portal_shell, name="manager_lavages"),
+    path("manager/problemes/", manager_portal_shell, name="manager_problemes"),
     
     # PORTAIL ADMIN
     path("admin-dashboard/", admin_dashboard, name="admin_dashboard"),

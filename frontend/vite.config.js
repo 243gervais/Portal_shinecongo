@@ -1,0 +1,25 @@
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import path from "node:path";
+
+export default defineConfig({
+  base: "/static/frontend/",
+  plugins: [react()],
+  build: {
+    outDir: path.resolve(__dirname, "../frontend_dist/frontend"),
+    emptyOutDir: true,
+    rollupOptions: {
+      input: path.resolve(__dirname, "index.html"),
+      output: {
+        entryFileNames: "portal-app.js",
+        chunkFileNames: "assets/[name].js",
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name?.endsWith(".css")) {
+            return "portal-app.css";
+          }
+          return "assets/[name][extname]";
+        },
+      },
+    },
+  },
+});
