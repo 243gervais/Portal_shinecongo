@@ -146,6 +146,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
+STATIC_SOURCE_DIRS = [BASE_DIR / "static", BASE_DIR / "frontend_dist"]
+
 # AWS S3 Configuration (USE_S3 is set above, check if storages is available)
 if USE_S3:
     try:
@@ -165,7 +167,7 @@ if USE_S3:
         # Static files
         STATICFILES_STORAGE = 'storages_backends.StaticStorage'
         STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/static/'
-        STATICFILES_DIRS = [BASE_DIR / "static"]
+        STATICFILES_DIRS = STATIC_SOURCE_DIRS
         
         # Media files
         DEFAULT_FILE_STORAGE = 'storages_backends.MediaStorage'
@@ -180,21 +182,21 @@ if USE_S3:
     except (ImportError, ModuleNotFoundError) as e:
         # Fallback to local storage if storages_backends not available
         USE_S3 = False
-        STATIC_URL = "static/"
-        STATICFILES_DIRS = [BASE_DIR / "static", BASE_DIR / "frontend_dist"]
+        STATIC_URL = "/static/"
+        STATICFILES_DIRS = STATIC_SOURCE_DIRS
         STATIC_ROOT = BASE_DIR / "staticfiles"
-        MEDIA_URL = "media/"
+        MEDIA_URL = "/media/"
         MEDIA_ROOT = BASE_DIR / "media"
         import warnings
         warnings.warn(f"S3 storage disabled: {e}. Install with: pip install django-storages boto3")
 else:
     # Local development
-    STATIC_URL = "static/"
-    STATICFILES_DIRS = [BASE_DIR / "static", BASE_DIR / "frontend_dist"]
+    STATIC_URL = "/static/"
+    STATICFILES_DIRS = STATIC_SOURCE_DIRS
     STATIC_ROOT = BASE_DIR / "staticfiles"
     
     # Media files (user uploads)
-    MEDIA_URL = "media/"
+    MEDIA_URL = "/media/"
     MEDIA_ROOT = BASE_DIR / "media"
 
 # Default primary key field type

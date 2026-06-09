@@ -354,7 +354,7 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "portal-root")
         self.assertContains(response, "portal-bootstrap")
-        self.assertContains(response, "portal-app.js")
+        self.assertContains(response, '/static/frontend/portal-app.js')
         self.assertContains(response, '"mode": "employee"')
 
         api_response = self.client.get(reverse("portal_api_employee_dashboard"))
@@ -369,7 +369,7 @@ class EmployeeDailyReportTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "portal-root")
-        self.assertContains(response, "portal-app.js")
+        self.assertContains(response, '/static/frontend/portal-app.js')
         self.assertContains(response, '"mode": "employee"')
 
         summary_response = self.client.get(reverse("portal_api_employee_history_summary"))
@@ -470,13 +470,18 @@ class EmployeeDailyReportTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "portal-root")
-        self.assertContains(response, "portal-app.js")
+        self.assertContains(response, '/static/frontend/portal-app.js')
 
         api_response = self.client.get(reverse("portal_api_employee_water"))
         self.assertEqual(api_response.status_code, 200)
         payload = api_response.json()
         self.assertEqual(payload["default_supplier_name"], "Honosha's Forage")
         self.assertNotIn("default_amount", payload)
+
+    def test_frontend_dist_stays_in_staticfiles_dirs(self):
+        from django.conf import settings
+
+        self.assertIn(settings.BASE_DIR / "frontend_dist", settings.STATICFILES_DIRS)
 
     def test_employee_water_purchase_prevents_same_day_duplicate(self):
         today = timezone.localdate()
