@@ -488,7 +488,8 @@ class EmployeeDailyReportTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         asset_content = b"".join(response.streaming_content)
-        self.assertIn(b"__vite__mapDeps", asset_content)
+        self.assertIn(b'"/session/"', asset_content)
+        self.assertNotIn(b"/static/frontend/", asset_content)
 
     def test_employee_water_purchase_prevents_same_day_duplicate(self):
         today = timezone.localdate()

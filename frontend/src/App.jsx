@@ -1,27 +1,26 @@
-import React, { Suspense, lazy, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import { PortalLayout } from "./components/PortalLayout";
 import { ErrorState, LoadingState } from "./components/Ui";
 import { apiFetch, getBootstrap } from "./lib/api";
-
-const EmployeeDashboardPage = lazy(() => import("./pages/employee/EmployeeDashboardPage"));
-const EmployeePointagePage = lazy(() => import("./pages/employee/EmployeePointagePage"));
-const EmployeeWashFormPage = lazy(() => import("./pages/employee/EmployeeWashFormPage"));
-const EmployeeWashesPage = lazy(() => import("./pages/employee/EmployeeWashesPage"));
-const EmployeeWashDetailPage = lazy(() => import("./pages/employee/EmployeeWashDetailPage"));
-const EmployeeIssueFormPage = lazy(() => import("./pages/employee/EmployeeIssueFormPage"));
-const EmployeeIssuesPage = lazy(() => import("./pages/employee/EmployeeIssuesPage"));
-const EmployeeIssueDetailPage = lazy(() => import("./pages/employee/EmployeeIssueDetailPage"));
-const EmployeeDailyReportPage = lazy(() => import("./pages/employee/EmployeeDailyReportPage"));
-const EmployeeWaterPage = lazy(() => import("./pages/employee/EmployeeWaterPage"));
-const EmployeeHistoryPage = lazy(() => import("./pages/employee/EmployeeHistoryPage"));
-const ManagerDashboardPage = lazy(() => import("./pages/manager/ManagerDashboardPage"));
-const ManagerPointagesPage = lazy(() => import("./pages/manager/ManagerPointagesPage"));
-const ManagerPointageCorrectionPage = lazy(() => import("./pages/manager/ManagerPointageCorrectionPage"));
-const ManagerLavagesPage = lazy(() => import("./pages/manager/ManagerLavagesPage"));
-const ManagerProblemesPage = lazy(() => import("./pages/manager/ManagerProblemesPage"));
-const ManagerQrPage = lazy(() => import("./pages/manager/ManagerQrPage"));
+import EmployeeDashboardPage from "./pages/employee/EmployeeDashboardPage";
+import EmployeePointagePage from "./pages/employee/EmployeePointagePage";
+import EmployeeWashFormPage from "./pages/employee/EmployeeWashFormPage";
+import EmployeeWashesPage from "./pages/employee/EmployeeWashesPage";
+import EmployeeWashDetailPage from "./pages/employee/EmployeeWashDetailPage";
+import EmployeeIssueFormPage from "./pages/employee/EmployeeIssueFormPage";
+import EmployeeIssuesPage from "./pages/employee/EmployeeIssuesPage";
+import EmployeeIssueDetailPage from "./pages/employee/EmployeeIssueDetailPage";
+import EmployeeDailyReportPage from "./pages/employee/EmployeeDailyReportPage";
+import EmployeeWaterPage from "./pages/employee/EmployeeWaterPage";
+import EmployeeHistoryPage from "./pages/employee/EmployeeHistoryPage";
+import ManagerDashboardPage from "./pages/manager/ManagerDashboardPage";
+import ManagerPointagesPage from "./pages/manager/ManagerPointagesPage";
+import ManagerPointageCorrectionPage from "./pages/manager/ManagerPointageCorrectionPage";
+import ManagerLavagesPage from "./pages/manager/ManagerLavagesPage";
+import ManagerProblemesPage from "./pages/manager/ManagerProblemesPage";
+import ManagerQrPage from "./pages/manager/ManagerQrPage";
 
 const bootstrap = getBootstrap();
 
@@ -103,13 +102,11 @@ export default function App() {
   return (
     <BrowserRouter>
       <PortalLayout bootstrap={bootstrap} session={session}>
-        <Suspense fallback={<LoadingState label="Ouverture de la page..." />}>
-          {bootstrap.mode === "manager" ? (
-            <ManagerRoutes session={session} />
-          ) : (
-            <EmployeeRoutes session={session} />
-          )}
-        </Suspense>
+        {bootstrap.mode === "manager" ? (
+          <ManagerRoutes session={session} />
+        ) : (
+          <EmployeeRoutes session={session} />
+        )}
       </PortalLayout>
     </BrowserRouter>
   );
