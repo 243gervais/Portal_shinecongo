@@ -12,12 +12,12 @@ export default defineConfig({
       input: path.resolve(__dirname, "index.html"),
       output: {
         entryFileNames: "portal-app.js",
-        chunkFileNames: "assets/[name].js",
+        chunkFileNames: "assets/[name]-[hash].js",
         assetFileNames: (assetInfo) => {
           if (assetInfo.name?.endsWith(".css")) {
             return "portal-app.css";
           }
-          return "assets/[name][extname]";
+          return "assets/[name]-[hash][extname]";
         },
       },
     },

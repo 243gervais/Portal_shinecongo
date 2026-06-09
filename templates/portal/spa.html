@@ -8,11 +8,11 @@
     <link rel="icon" type="image/png" href="{% static 'favicon.png' %}">
     <link rel="shortcut icon" type="image/png" href="{% static 'favicon.png' %}">
     <link rel="apple-touch-icon" href="{% static 'favicon.png' %}">
-    <link rel="stylesheet" href="{% static 'frontend/portal-app.css' %}">
+    <link rel="stylesheet" href="{% static 'frontend/portal-app.css' %}?v={{ portal_asset_version }}">
 </head>
 <body>
     <div id="portal-root"></div>
     <script id="portal-bootstrap" type="application/json">{{ portal_bootstrap_json|safe }}</script>
-    <script type="module" src="{% static 'frontend/portal-app.js' %}"></script>
+    <script type="module" src="{% static 'frontend/portal-app.js' %}?v={{ portal_asset_version }}"></script>
 </body>
 </html>

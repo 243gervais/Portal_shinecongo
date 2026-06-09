@@ -1,5 +1,7 @@
 import json
+from pathlib import Path
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -23,9 +25,18 @@ def _user_summary(user):
     }
 
 
+def _portal_asset_version():
+    asset_path = Path(settings.BASE_DIR) / "frontend_dist" / "frontend" / "portal-app.js"
+    try:
+        return str(asset_path.stat().st_mtime_ns)
+    except FileNotFoundError:
+        return "dev"
+
+
 def _render_portal_shell(request, mode):
     context = {
         "portal_mode": mode,
+        "portal_asset_version": _portal_asset_version(),
         "portal_bootstrap_json": json.dumps(
             {
                 "mode": mode,
