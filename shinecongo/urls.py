@@ -87,6 +87,7 @@ from shinecongo.portal_views import (
     employee_water_purchase_portal,
     manager_pointage_correction_portal,
     manager_portal_shell,
+    portal_frontend_asset,
 )
 
 # Personnalisation de l'admin Django en français
@@ -118,6 +119,7 @@ urlpatterns = [
     # Admin Django
     path("admin/", admin.site.urls),
     path("api/portal/", include("portal_api.urls")),
+    path("portal-assets/<path:asset_path>", portal_frontend_asset, name="portal_frontend_asset"),
     
     # Authentication
     path(

@@ -354,7 +354,7 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "portal-root")
         self.assertContains(response, "portal-bootstrap")
-        self.assertContains(response, '/static/frontend/portal-app.js?v=')
+        self.assertContains(response, '/portal-assets/portal-app.js?v=')
         self.assertContains(response, '"mode": "employee"')
 
         api_response = self.client.get(reverse("portal_api_employee_dashboard"))
@@ -369,7 +369,7 @@ class EmployeeDailyReportTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "portal-root")
-        self.assertContains(response, '/static/frontend/portal-app.js?v=')
+        self.assertContains(response, '/portal-assets/portal-app.js?v=')
         self.assertContains(response, '"mode": "employee"')
 
         summary_response = self.client.get(reverse("portal_api_employee_history_summary"))
@@ -470,7 +470,7 @@ class EmployeeDailyReportTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "portal-root")
-        self.assertContains(response, '/static/frontend/portal-app.js?v=')
+        self.assertContains(response, '/portal-assets/portal-app.js?v=')
 
         api_response = self.client.get(reverse("portal_api_employee_water"))
         self.assertEqual(api_response.status_code, 200)
@@ -482,6 +482,13 @@ class EmployeeDailyReportTests(TestCase):
         from django.conf import settings
 
         self.assertIn(settings.BASE_DIR / "frontend_dist", settings.STATICFILES_DIRS)
+
+    def test_portal_frontend_assets_are_served_from_same_origin(self):
+        response = self.client.get(reverse("portal_frontend_asset", args=["portal-app.js"]))
+
+        self.assertEqual(response.status_code, 200)
+        asset_content = b"".join(response.streaming_content)
+        self.assertIn(b"__vite__mapDeps", asset_content)
 
     def test_employee_water_purchase_prevents_same_day_duplicate(self):
         today = timezone.localdate()

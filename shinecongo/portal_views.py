@@ -1,10 +1,17 @@
 import json
+import mimetypes
 from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.http import FileResponse, Http404
 from django.shortcuts import redirect, render
 from django.views.decorators.csrf import ensure_csrf_cookie
+
+
+PORTAL_FRONTEND_DIST_DIR = (
+    Path(settings.BASE_DIR).resolve() / "frontend_dist" / "frontend"
+)
 
 
 def _message_payloads(request):
@@ -26,7 +33,7 @@ def _user_summary(user):
 
 
 def _portal_asset_version():
-    asset_path = Path(settings.BASE_DIR) / "frontend_dist" / "frontend" / "portal-app.js"
+    asset_path = PORTAL_FRONTEND_DIST_DIR / "portal-app.js"
     try:
         return str(asset_path.stat().st_mtime_ns)
     except FileNotFoundError:
@@ -37,6 +44,7 @@ def _render_portal_shell(request, mode):
     context = {
         "portal_mode": mode,
         "portal_asset_version": _portal_asset_version(),
+        "portal_assets_base_url": "/portal-assets/",
         "portal_bootstrap_json": json.dumps(
             {
                 "mode": mode,
@@ -49,6 +57,28 @@ def _render_portal_shell(request, mode):
         ),
     }
     return render(request, "portal/spa.html", context)
+
+
+def portal_frontend_asset(request, asset_path):
+    requested_path = (PORTAL_FRONTEND_DIST_DIR / asset_path).resolve()
+    try:
+        requested_path.relative_to(PORTAL_FRONTEND_DIST_DIR)
+    except ValueError as exc:
+        raise Http404("Fichier introuvable.") from exc
+
+    if not requested_path.is_file():
+        raise Http404("Fichier introuvable.")
+
+    content_type, _ = mimetypes.guess_type(requested_path.name)
+    response = FileResponse(
+        requested_path.open("rb"),
+        content_type=content_type or "application/octet-stream",
+    )
+    if "/assets/" in asset_path:
+        response["Cache-Control"] = "public, max-age=31536000, immutable"
+    else:
+        response["Cache-Control"] = "public, max-age=300"
+    return response
 
 
 @login_required
