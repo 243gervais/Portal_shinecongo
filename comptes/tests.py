@@ -3,12 +3,14 @@ from django.urls import reverse
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core import mail
+from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from urllib.parse import urlparse
 from urllib.parse import quote
+from unittest.mock import patch
 
 from comptes.forms import ApprovalAuthenticationForm
 from comptes.views import _daily_funding_snapshot
@@ -710,6 +712,8 @@ class AdminSiteEmployeeFormTests(TestCase):
         response = self.client.get(reverse("admin_add_site_employee", args=[self.site.id]))
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "CV de l'employé")
+        self.assertContains(response, "Lien CV shinecongo.org")
         self.assertContains(response, "Photo de l'employé")
         self.assertContains(response, "Optionnel. Ajoutez une photo")
         self.assertContains(response, 'enctype="multipart/form-data"', html=False)
@@ -746,6 +750,57 @@ class AdminSiteEmployeeFormTests(TestCase):
         employee = User.objects.get(username="mike_photo")
         employee.userprofile.refresh_from_db()
         self.assertTrue(employee.userprofile.profile_photo.name.endswith(".gif"))
+
+    @patch("comptes.forms._download_cv_from_shinecongo_url")
+    def test_admin_can_create_employee_with_cv_imported_from_shinecongo_url(self, mock_download_cv):
+        mock_download_cv.return_value = ContentFile(b"%PDF-1.4 portal test", name="jules-cv.pdf")
+
+        response = self.client.post(
+            reverse("admin_add_site_employee", args=[self.site.id]),
+            data={
+                "role": "EMPLOYE",
+                "username": "jules_cv",
+                "first_name": "Jules",
+                "last_name": "Mbadu",
+                "email": "jules.cv@example.com",
+                "telephone": "0999999997",
+                "mpesa_numero": "243999999997",
+                "date_embauche": "2026-05-20",
+                "salaire_mensuel_usd": "130.00",
+                "password": "EmployeePass123!",
+                "is_active": "on",
+                "cv_source_url": "https://shinecongo.org/media/cv/jules-mbadu.pdf",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        employee = User.objects.get(username="jules_cv")
+        employee.userprofile.refresh_from_db()
+        self.assertTrue(employee.userprofile.cv_file.name.endswith(".pdf"))
+        mock_download_cv.assert_called_once_with("https://shinecongo.org/media/cv/jules-mbadu.pdf")
+
+    def test_admin_employee_form_rejects_non_shinecongo_cv_link(self):
+        response = self.client.post(
+            reverse("admin_add_site_employee", args=[self.site.id]),
+            data={
+                "role": "EMPLOYE",
+                "username": "bad_cv_link",
+                "first_name": "Bad",
+                "last_name": "Link",
+                "email": "bad.link@example.com",
+                "telephone": "0999999996",
+                "mpesa_numero": "243999999996",
+                "date_embauche": "2026-05-21",
+                "salaire_mensuel_usd": "100.00",
+                "password": "EmployeePass123!",
+                "is_active": "on",
+                "cv_source_url": "https://example.com/cv/bad-link.pdf",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Utilisez un lien direct de CV provenant de shinecongo.org.")
+        self.assertFalse(User.objects.filter(username="bad_cv_link").exists())
 
     def test_admin_can_create_camera_controller_account(self):
         response = self.client.post(

@@ -1,12 +1,18 @@
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
+import os
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 
 from django import forms
 from django.conf import settings
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.contrib.auth.models import User
 from django.db.models import Q
+from django.core.files.base import ContentFile
 from django.utils import timezone
+from django.utils.text import slugify
 
 from shinecongo.currency import convert_cdf_to_usd, get_usd_to_cdf_rate
 from sites.models import (
@@ -24,6 +30,73 @@ from sites.models import (
 )
 
 from .models import AdminReminder, EmployeePayment, UserProfile
+
+
+CV_ALLOWED_EXTENSIONS = (".pdf", ".doc", ".docx")
+CV_ALLOWED_CONTENT_TYPES = {
+    "application/pdf": ".pdf",
+    "application/msword": ".doc",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+}
+CV_MAX_SIZE_BYTES = 10 * 1024 * 1024
+
+
+def _validate_uploaded_cv_file(cv_file):
+    filename = (cv_file.name or "").lower()
+    if not filename.endswith(CV_ALLOWED_EXTENSIONS):
+        raise forms.ValidationError("Format CV non supporté. Utilisez PDF, DOC ou DOCX.")
+    if cv_file.size > CV_MAX_SIZE_BYTES:
+        raise forms.ValidationError("Le CV dépasse la limite de 10 MB.")
+    return cv_file
+
+
+def _is_shinecongo_host(hostname):
+    normalized = (hostname or "").strip().lower()
+    return normalized == "shinecongo.org" or normalized == "www.shinecongo.org" or normalized.endswith(".shinecongo.org")
+
+
+def _build_cv_filename(source_name, content_type):
+    safe_source_name = os.path.basename((source_name or "").strip())
+    base_name, extension = os.path.splitext(safe_source_name)
+    normalized_extension = extension.lower()
+    if normalized_extension not in CV_ALLOWED_EXTENSIONS:
+        normalized_extension = CV_ALLOWED_CONTENT_TYPES.get((content_type or "").split(";")[0].strip().lower())
+    if normalized_extension not in CV_ALLOWED_EXTENSIONS:
+        raise forms.ValidationError("Le lien choisi doit pointer vers un CV PDF, DOC ou DOCX.")
+    safe_base_name = slugify(base_name) or "cv-employe"
+    return f"{safe_base_name}{normalized_extension}"
+
+
+def _download_cv_from_shinecongo_url(cv_source_url):
+    parsed_url = urlparse(cv_source_url)
+    if parsed_url.scheme not in {"http", "https"} or not _is_shinecongo_host(parsed_url.hostname):
+        raise forms.ValidationError("Utilisez un lien direct de CV provenant de shinecongo.org.")
+
+    request = Request(
+        cv_source_url,
+        headers={"User-Agent": "ShineCongoPortal/1.0"},
+    )
+    try:
+        with urlopen(request, timeout=15) as response:
+            response_info = response.info()
+            content_type = response_info.get_content_type() if response_info else ""
+            source_name = ""
+            if response_info:
+                source_name = response_info.get_filename() or ""
+            if not source_name:
+                source_name = os.path.basename(parsed_url.path)
+
+            filename = _build_cv_filename(source_name, content_type)
+            file_bytes = response.read(CV_MAX_SIZE_BYTES + 1)
+    except forms.ValidationError:
+        raise
+    except (HTTPError, URLError, TimeoutError, ValueError, OSError):
+        raise forms.ValidationError("Impossible de récupérer le CV depuis shinecongo.org pour le moment.")
+
+    if len(file_bytes) > CV_MAX_SIZE_BYTES:
+        raise forms.ValidationError("Le CV dépasse la limite de 10 MB.")
+
+    return ContentFile(file_bytes, name=filename)
 
 
 def get_water_purchase_default_supplier():
@@ -291,6 +364,28 @@ class SiteEmployeeForm(forms.Form):
         max_digits=12,
         widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
     )
+    cv_file = forms.FileField(
+        label="CV de l'employé",
+        required=False,
+        help_text="Optionnel. Ajoutez le CV directement en PDF, DOC ou DOCX.",
+        widget=forms.ClearableFileInput(
+            attrs={
+                "class": "form-control",
+                "accept": ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            }
+        ),
+    )
+    cv_source_url = forms.URLField(
+        label="Lien CV shinecongo.org",
+        required=False,
+        help_text="Optionnel. Collez un lien direct du CV publié sur shinecongo.org pour l'importer automatiquement.",
+        widget=forms.URLInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "https://shinecongo.org/...",
+            }
+        ),
+    )
     profile_photo = forms.ImageField(
         label="Photo de l'employé",
         required=False,
@@ -361,12 +456,33 @@ class SiteEmployeeForm(forms.Form):
             raise forms.ValidationError("Le mot de passe est obligatoire à la création.")
         return password
 
+    def clean_cv_file(self):
+        cv_file = self.cleaned_data.get("cv_file")
+        if not cv_file:
+            return cv_file
+        return _validate_uploaded_cv_file(cv_file)
+
     def clean_role(self):
         role = self.cleaned_data["role"]
         allowed_roles = {UserProfile.EMPLOYEE_ROLE, UserProfile.CAMERA_CONTROLLER_ROLE}
         if role not in allowed_roles:
             raise forms.ValidationError("Choisissez un rôle valide pour ce compte.")
         return role
+
+    def clean(self):
+        cleaned_data = super().clean()
+        cv_file = cleaned_data.get("cv_file")
+        cv_source_url = (cleaned_data.get("cv_source_url") or "").strip()
+
+        if cv_file and cv_source_url:
+            raise forms.ValidationError(
+                "Choisissez soit un fichier CV local, soit un lien CV shinecongo.org, mais pas les deux."
+            )
+
+        if cv_source_url:
+            cleaned_data["resolved_cv_file"] = _download_cv_from_shinecongo_url(cv_source_url)
+
+        return cleaned_data
 
     def save(self, site):
         if self.user_instance:
@@ -396,6 +512,11 @@ class SiteEmployeeForm(forms.Form):
         profile.date_embauche = self.cleaned_data.get("date_embauche")
         profile.date_naissance = self.cleaned_data.get("date_naissance")
         profile.salaire_mensuel_usd = self.cleaned_data.get("salaire_mensuel_usd")
+        resolved_cv_file = self.cleaned_data.get("resolved_cv_file") or self.cleaned_data.get("cv_file")
+        if resolved_cv_file:
+            if profile.cv_file:
+                profile.cv_file.delete(save=False)
+            profile.cv_file = resolved_cv_file
         profile_photo = self.cleaned_data.get("profile_photo")
         if profile_photo:
             profile.profile_photo = profile_photo

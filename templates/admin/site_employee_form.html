@@ -108,6 +108,32 @@
         </div>
 
         <div class="form-group">
+            <label for="id_cv_file">CV de l'employé</label>
+            {% if employee_profile and employee_profile.cv_file %}
+            <div style="display: flex; align-items: center; gap: 1rem; margin: 0.75rem 0 1rem; padding: 0.9rem 1rem; border: 1px solid var(--border-color); border-radius: 16px; background: rgba(30, 64, 175, 0.04); flex-wrap: wrap;">
+                <div style="width: 72px; height: 72px; border-radius: 18px; display: flex; align-items: center; justify-content: center; background: white; border: 1px solid var(--border-color); font-size: 1.8rem;">
+                    📄
+                </div>
+                <div>
+                    <div style="font-weight: 700; color: var(--text-primary);">CV actuel</div>
+                    <div style="color: var(--text-secondary); font-size: 0.95rem;">{{ employee_profile.cv_filename }}</div>
+                    <a href="{{ employee_profile.cv_file.url }}" target="_blank" rel="noopener" style="display: inline-block; margin-top: 0.45rem;">Ouvrir le CV</a>
+                </div>
+            </div>
+            {% endif %}
+            {{ form.cv_file }}
+            <small style="color: var(--text-secondary); display: block; margin-top: 0.45rem;">{{ form.cv_file.help_text }}</small>
+            {% if form.cv_file.errors %}<small style="color: var(--error-color); display:block;">{{ form.cv_file.errors.0 }}</small>{% endif %}
+        </div>
+
+        <div class="form-group">
+            <label for="id_cv_source_url">Lien CV shinecongo.org</label>
+            {{ form.cv_source_url }}
+            <small style="color: var(--text-secondary); display: block; margin-top: 0.45rem;">{{ form.cv_source_url.help_text }}</small>
+            {% if form.cv_source_url.errors %}<small style="color: var(--error-color); display:block;">{{ form.cv_source_url.errors.0 }}</small>{% endif %}
+        </div>
+
+        <div class="form-group">
             <label for="id_profile_photo">Photo de l'employé</label>
             {% if employee_profile and employee_profile.profile_photo %}
             <div style="display: flex; align-items: center; gap: 1rem; margin: 0.75rem 0 1rem; padding: 0.9rem 1rem; border: 1px solid var(--border-color); border-radius: 16px; background: rgba(30, 64, 175, 0.04); flex-wrap: wrap;">
