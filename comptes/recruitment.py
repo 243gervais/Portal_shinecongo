@@ -51,6 +51,7 @@ class ReviewedCandidateCV:
     phone: str
     city: str
     applied_at: datetime | None
+    reviewed: bool
     cv_file: str
     cv_url: str
 
@@ -61,6 +62,7 @@ class ReviewedCandidateCV:
             details.append(self.phone)
         if self.applied_at:
             details.append(self.applied_at.strftime("%d/%m/%Y"))
+        details.append("Revu" if self.reviewed else "À revoir")
         return " • ".join(details)
 
 
@@ -139,8 +141,7 @@ def build_recruitment_cv_url(cv_file: str) -> str:
 
 def _build_reviewed_candidate(row: dict[str, Any]) -> ReviewedCandidateCV | None:
     reviewed_value = _clean_value(row.get("reviewed")).lower()
-    if reviewed_value not in {"true", "t", "1"}:
-        return None
+    is_reviewed = reviewed_value in {"true", "t", "1"}
 
     cv_file = _clean_value(row.get("cv_file"))
     if not cv_file:
@@ -156,6 +157,7 @@ def _build_reviewed_candidate(row: dict[str, Any]) -> ReviewedCandidateCV | None
         phone=_clean_value(row.get("phone")),
         city=_clean_value(row.get("city")),
         applied_at=_parse_applied_at(row.get("applied_at")),
+        reviewed=is_reviewed,
         cv_file=cv_file,
         cv_url=cv_url,
     )
@@ -188,8 +190,8 @@ def _load_reviewed_candidates_from_postgres(limit: int) -> list[ReviewedCandidat
                     post_nom,
                     prenom
                 FROM applications_jobapplication
-                WHERE reviewed = TRUE
-                ORDER BY applied_at DESC
+                WHERE COALESCE(NULLIF(TRIM(cv_file), ''), '') <> ''
+                ORDER BY reviewed DESC, applied_at DESC
                 LIMIT %s
                 """,
                 (limit,),
@@ -239,7 +241,10 @@ def _load_reviewed_candidates_from_sql_dump(limit: int) -> list[ReviewedCandidat
             break
 
     reviewed_candidates.sort(
-        key=lambda item: item.applied_at.timestamp() if item.applied_at else float("-inf"),
+        key=lambda item: (
+            1 if item.reviewed else 0,
+            item.applied_at.timestamp() if item.applied_at else float("-inf"),
+        ),
         reverse=True,
     )
     return reviewed_candidates

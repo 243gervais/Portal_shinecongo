@@ -714,7 +714,7 @@ class AdminSiteEmployeeFormTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "CV de l'employé")
-        self.assertContains(response, "CV validé sur shinecongo.org")
+        self.assertContains(response, "CV enregistré sur shinecongo.org")
         self.assertContains(response, "Photo de l'employé")
         self.assertContains(response, "Optionnel. Ajoutez une photo")
         self.assertContains(response, 'enctype="multipart/form-data"', html=False)
@@ -762,6 +762,7 @@ class AdminSiteEmployeeFormTests(TestCase):
                 phone="+243896140370",
                 city="Kinshasa",
                 applied_at=timezone.now(),
+                reviewed=True,
                 cv_file="cvs/jules-mbadu.pdf",
                 cv_url="https://shinecongo.org/media/cvs/jules-mbadu.pdf",
             )
@@ -804,6 +805,7 @@ class AdminSiteEmployeeFormTests(TestCase):
                 phone="+243896140370",
                 city="Kinshasa",
                 applied_at=timezone.now(),
+                reviewed=True,
                 cv_file="cvs/jules-mbadu.pdf",
                 cv_url="https://shinecongo.org/media/cvs/jules-mbadu.pdf",
             )

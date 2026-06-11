@@ -377,15 +377,15 @@ class SiteEmployeeForm(forms.Form):
         ),
     )
     reviewed_cv_source = forms.ChoiceField(
-        label="CV validé sur shinecongo.org",
+        label="CV enregistré sur shinecongo.org",
         required=False,
-        help_text="Optionnel. Sélectionnez un CV déjà revu sur shinecongo.org pour l'attacher automatiquement au portail employé.",
+        help_text="Optionnel. Sélectionnez un CV déjà enregistré sur shinecongo.org. Les CV revus apparaissent en priorité.",
         widget=forms.Select(
             attrs={
                 "class": "form-control",
             }
         ),
-        choices=[("", "Sélectionnez un CV validé (optionnel)")],
+        choices=[("", "Sélectionnez un CV du site (optionnel)")],
     )
     profile_photo = forms.ImageField(
         label="Photo de l'employé",
@@ -423,15 +423,15 @@ class SiteEmployeeForm(forms.Form):
         self.fields["role"].initial = preset_role
         if self.reviewed_candidate_choices:
             self.fields["reviewed_cv_source"].choices = [
-                ("", "Sélectionnez un CV validé (optionnel)"),
+                ("", "Sélectionnez un CV du site (optionnel)"),
                 *[(choice.external_id, choice.label) for choice in self.reviewed_candidate_choices],
             ]
         else:
             self.fields["reviewed_cv_source"].choices = [
-                ("", "Aucun CV validé disponible pour le moment"),
+                ("", "Aucun CV du site disponible pour le moment"),
             ]
             self.fields["reviewed_cv_source"].help_text = (
-                "Aucun CV déjà revu avec fichier joint n'est actuellement disponible depuis shinecongo.org."
+                "Aucun CV déjà enregistré avec fichier joint n'est actuellement disponible depuis shinecongo.org."
             )
         if self.user_instance:
             self.fields["username"].initial = self.user_instance.username
@@ -493,7 +493,7 @@ class SiteEmployeeForm(forms.Form):
 
         if cv_file and reviewed_cv_source:
             raise forms.ValidationError(
-                "Choisissez soit un fichier CV local, soit un CV déjà validé sur shinecongo.org, mais pas les deux."
+                "Choisissez soit un fichier CV local, soit un CV déjà enregistré sur shinecongo.org, mais pas les deux."
             )
 
         if reviewed_cv_source:
