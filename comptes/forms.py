@@ -30,6 +30,7 @@ from sites.models import (
 )
 
 from .models import AdminReminder, EmployeePayment, UserProfile
+from .recruitment import get_reviewed_candidate_cv_choices
 
 
 CV_ALLOWED_EXTENSIONS = (".pdf", ".doc", ".docx")
@@ -67,10 +68,10 @@ def _build_cv_filename(source_name, content_type):
     return f"{safe_base_name}{normalized_extension}"
 
 
-def _download_cv_from_shinecongo_url(cv_source_url):
+def _download_cv_from_url(cv_source_url, invalid_link_message):
     parsed_url = urlparse(cv_source_url)
     if parsed_url.scheme not in {"http", "https"} or not _is_shinecongo_host(parsed_url.hostname):
-        raise forms.ValidationError("Utilisez un lien direct de CV provenant de shinecongo.org.")
+        raise forms.ValidationError(invalid_link_message)
 
     request = Request(
         cv_source_url,
@@ -367,7 +368,7 @@ class SiteEmployeeForm(forms.Form):
     cv_file = forms.FileField(
         label="CV de l'employé",
         required=False,
-        help_text="Optionnel. Ajoutez le CV directement en PDF, DOC ou DOCX.",
+        help_text="Optionnel. Ajoutez un CV local en PDF, DOC ou DOCX.",
         widget=forms.ClearableFileInput(
             attrs={
                 "class": "form-control",
@@ -375,16 +376,16 @@ class SiteEmployeeForm(forms.Form):
             }
         ),
     )
-    cv_source_url = forms.URLField(
-        label="Lien CV shinecongo.org",
+    reviewed_cv_source = forms.ChoiceField(
+        label="CV validé sur shinecongo.org",
         required=False,
-        help_text="Optionnel. Collez un lien direct du CV publié sur shinecongo.org pour l'importer automatiquement.",
-        widget=forms.URLInput(
+        help_text="Optionnel. Sélectionnez un CV déjà revu sur shinecongo.org pour l'attacher automatiquement au portail employé.",
+        widget=forms.Select(
             attrs={
                 "class": "form-control",
-                "placeholder": "https://shinecongo.org/...",
             }
         ),
+        choices=[("", "Sélectionnez un CV validé (optionnel)")],
     )
     profile_photo = forms.ImageField(
         label="Photo de l'employé",
@@ -413,9 +414,25 @@ class SiteEmployeeForm(forms.Form):
         self.user_instance = user_instance
         self.profile_instance = profile_instance
         super().__init__(*args, **kwargs)
+        self.reviewed_candidate_choices = get_reviewed_candidate_cv_choices()
+        self.reviewed_candidate_choices_by_id = {
+            choice.external_id: choice for choice in self.reviewed_candidate_choices if choice.external_id
+        }
 
         preset_role = initial_role or self.initial.get("role") or UserProfile.EMPLOYEE_ROLE
         self.fields["role"].initial = preset_role
+        if self.reviewed_candidate_choices:
+            self.fields["reviewed_cv_source"].choices = [
+                ("", "Sélectionnez un CV validé (optionnel)"),
+                *[(choice.external_id, choice.label) for choice in self.reviewed_candidate_choices],
+            ]
+        else:
+            self.fields["reviewed_cv_source"].choices = [
+                ("", "Aucun CV validé disponible pour le moment"),
+            ]
+            self.fields["reviewed_cv_source"].help_text = (
+                "Aucun CV déjà revu avec fichier joint n'est actuellement disponible depuis shinecongo.org."
+            )
         if self.user_instance:
             self.fields["username"].initial = self.user_instance.username
             self.fields["first_name"].initial = self.user_instance.first_name
@@ -472,15 +489,21 @@ class SiteEmployeeForm(forms.Form):
     def clean(self):
         cleaned_data = super().clean()
         cv_file = cleaned_data.get("cv_file")
-        cv_source_url = (cleaned_data.get("cv_source_url") or "").strip()
+        reviewed_cv_source = (cleaned_data.get("reviewed_cv_source") or "").strip()
 
-        if cv_file and cv_source_url:
+        if cv_file and reviewed_cv_source:
             raise forms.ValidationError(
-                "Choisissez soit un fichier CV local, soit un lien CV shinecongo.org, mais pas les deux."
+                "Choisissez soit un fichier CV local, soit un CV déjà validé sur shinecongo.org, mais pas les deux."
             )
 
-        if cv_source_url:
-            cleaned_data["resolved_cv_file"] = _download_cv_from_shinecongo_url(cv_source_url)
+        if reviewed_cv_source:
+            selected_candidate = self.reviewed_candidate_choices_by_id.get(reviewed_cv_source)
+            if not selected_candidate:
+                raise forms.ValidationError("Le CV sélectionné n'est plus disponible. Rechargez la page puis réessayez.")
+            cleaned_data["resolved_cv_file"] = _download_cv_from_url(
+                selected_candidate.cv_url,
+                "Le CV sélectionné doit provenir de shinecongo.org.",
+            )
 
         return cleaned_data
 

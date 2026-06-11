@@ -13,6 +13,7 @@ from urllib.parse import quote
 from unittest.mock import patch
 
 from comptes.forms import ApprovalAuthenticationForm
+from comptes.recruitment import ReviewedCandidateCV
 from comptes.views import _daily_funding_snapshot
 from comptes.models import AdminReminder, EmployeePayment, UserProfile
 from lavages.models import CarWash
@@ -713,7 +714,7 @@ class AdminSiteEmployeeFormTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "CV de l'employé")
-        self.assertContains(response, "Lien CV shinecongo.org")
+        self.assertContains(response, "CV validé sur shinecongo.org")
         self.assertContains(response, "Photo de l'employé")
         self.assertContains(response, "Optionnel. Ajoutez une photo")
         self.assertContains(response, 'enctype="multipart/form-data"', html=False)
@@ -751,8 +752,20 @@ class AdminSiteEmployeeFormTests(TestCase):
         employee.userprofile.refresh_from_db()
         self.assertTrue(employee.userprofile.profile_photo.name.endswith(".gif"))
 
-    @patch("comptes.forms._download_cv_from_shinecongo_url")
-    def test_admin_can_create_employee_with_cv_imported_from_shinecongo_url(self, mock_download_cv):
+    @patch("comptes.forms.get_reviewed_candidate_cv_choices")
+    @patch("comptes.forms._download_cv_from_url")
+    def test_admin_can_create_employee_with_reviewed_shinecongo_cv(self, mock_download_cv, mock_candidates):
+        mock_candidates.return_value = [
+            ReviewedCandidateCV(
+                external_id="15",
+                full_name="Jules Mbadu",
+                phone="+243896140370",
+                city="Kinshasa",
+                applied_at=timezone.now(),
+                cv_file="cvs/jules-mbadu.pdf",
+                cv_url="https://shinecongo.org/media/cvs/jules-mbadu.pdf",
+            )
+        ]
         mock_download_cv.return_value = ContentFile(b"%PDF-1.4 portal test", name="jules-cv.pdf")
 
         response = self.client.post(
@@ -769,7 +782,7 @@ class AdminSiteEmployeeFormTests(TestCase):
                 "salaire_mensuel_usd": "130.00",
                 "password": "EmployeePass123!",
                 "is_active": "on",
-                "cv_source_url": "https://shinecongo.org/media/cv/jules-mbadu.pdf",
+                "reviewed_cv_source": "15",
             },
         )
 
@@ -777,9 +790,25 @@ class AdminSiteEmployeeFormTests(TestCase):
         employee = User.objects.get(username="jules_cv")
         employee.userprofile.refresh_from_db()
         self.assertTrue(employee.userprofile.cv_file.name.endswith(".pdf"))
-        mock_download_cv.assert_called_once_with("https://shinecongo.org/media/cv/jules-mbadu.pdf")
+        mock_download_cv.assert_called_once_with(
+            "https://shinecongo.org/media/cvs/jules-mbadu.pdf",
+            "Le CV sélectionné doit provenir de shinecongo.org.",
+        )
 
-    def test_admin_employee_form_rejects_non_shinecongo_cv_link(self):
+    @patch("comptes.forms.get_reviewed_candidate_cv_choices")
+    def test_admin_employee_form_rejects_unknown_reviewed_cv_selection(self, mock_candidates):
+        mock_candidates.return_value = [
+            ReviewedCandidateCV(
+                external_id="15",
+                full_name="Jules Mbadu",
+                phone="+243896140370",
+                city="Kinshasa",
+                applied_at=timezone.now(),
+                cv_file="cvs/jules-mbadu.pdf",
+                cv_url="https://shinecongo.org/media/cvs/jules-mbadu.pdf",
+            )
+        ]
+
         response = self.client.post(
             reverse("admin_add_site_employee", args=[self.site.id]),
             data={
@@ -794,12 +823,12 @@ class AdminSiteEmployeeFormTests(TestCase):
                 "salaire_mensuel_usd": "100.00",
                 "password": "EmployeePass123!",
                 "is_active": "on",
-                "cv_source_url": "https://example.com/cv/bad-link.pdf",
+                "reviewed_cv_source": "404",
             },
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Utilisez un lien direct de CV provenant de shinecongo.org.")
+        self.assertIn("reviewed_cv_source", response.context["form"].errors)
         self.assertFalse(User.objects.filter(username="bad_cv_link").exists())
 
     def test_admin_can_create_camera_controller_account(self):

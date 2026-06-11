@@ -127,10 +127,10 @@
         </div>
 
         <div class="form-group">
-            <label for="id_cv_source_url">Lien CV shinecongo.org</label>
-            {{ form.cv_source_url }}
-            <small style="color: var(--text-secondary); display: block; margin-top: 0.45rem;">{{ form.cv_source_url.help_text }}</small>
-            {% if form.cv_source_url.errors %}<small style="color: var(--error-color); display:block;">{{ form.cv_source_url.errors.0 }}</small>{% endif %}
+            <label for="id_reviewed_cv_source">CV validé sur shinecongo.org</label>
+            {{ form.reviewed_cv_source }}
+            <small style="color: var(--text-secondary); display: block; margin-top: 0.45rem;">{{ form.reviewed_cv_source.help_text }}</small>
+            {% if form.reviewed_cv_source.errors %}<small style="color: var(--error-color); display:block;">{{ form.reviewed_cv_source.errors.0 }}</small>{% endif %}
         </div>
 
         <div class="form-group">

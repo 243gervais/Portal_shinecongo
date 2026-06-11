@@ -9,3 +9,4 @@ boto3==1.34.0
 django-storages==1.14.2
 fabric==3.2.2
 xhtml2pdf==0.2.15
+psycopg[binary]==3.2.9
