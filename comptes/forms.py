@@ -30,7 +30,7 @@ from sites.models import (
 )
 
 from .models import AdminReminder, EmployeePayment, UserProfile
-from .recruitment import get_reviewed_candidate_cv_choices
+from .recruitment import build_candidate_dossier_pdf, get_reviewed_candidate_cv_choices
 
 
 CV_ALLOWED_EXTENSIONS = (".pdf", ".doc", ".docx")
@@ -379,7 +379,7 @@ class SiteEmployeeForm(forms.Form):
     reviewed_cv_source = forms.ChoiceField(
         label="CV enregistré sur shinecongo.org",
         required=False,
-        help_text="Optionnel. Sélectionnez un CV déjà enregistré sur shinecongo.org. Les CV revus apparaissent en priorité.",
+        help_text="Optionnel. Sélectionnez un CV déjà enregistré sur shinecongo.org. Les CV revus apparaissent en priorité. Si aucun fichier CV n'est joint côté site, le portail génère un dossier PDF depuis la fiche candidature.",
         widget=forms.Select(
             attrs={
                 "class": "form-control",
@@ -500,10 +500,13 @@ class SiteEmployeeForm(forms.Form):
             selected_candidate = self.reviewed_candidate_choices_by_id.get(reviewed_cv_source)
             if not selected_candidate:
                 raise forms.ValidationError("Le CV sélectionné n'est plus disponible. Rechargez la page puis réessayez.")
-            cleaned_data["resolved_cv_file"] = _download_cv_from_url(
-                selected_candidate.cv_url,
-                "Le CV sélectionné doit provenir de shinecongo.org.",
-            )
+            if selected_candidate.cv_url:
+                cleaned_data["resolved_cv_file"] = _download_cv_from_url(
+                    selected_candidate.cv_url,
+                    "Le CV sélectionné doit provenir de shinecongo.org.",
+                )
+            else:
+                cleaned_data["resolved_cv_file"] = build_candidate_dossier_pdf(selected_candidate)
 
         return cleaned_data
 

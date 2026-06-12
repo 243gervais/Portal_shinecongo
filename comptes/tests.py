@@ -797,6 +797,50 @@ class AdminSiteEmployeeFormTests(TestCase):
         )
 
     @patch("comptes.forms.get_reviewed_candidate_cv_choices")
+    @patch("comptes.forms.build_candidate_dossier_pdf")
+    def test_admin_can_create_employee_with_generated_candidate_dossier(self, mock_build_dossier, mock_candidates):
+        mock_candidates.return_value = [
+            ReviewedCandidateCV(
+                external_id="18",
+                full_name="Mike Mwana-Ntambwe Shabani",
+                phone="+243979045624",
+                city="Kinshasa",
+                applied_at=timezone.now(),
+                reviewed=True,
+                cv_file="",
+                cv_url="",
+                education="Licence",
+                skills="Gestion, lavage",
+                message="Candidat recommandé",
+            )
+        ]
+        mock_build_dossier.return_value = ContentFile(b"%PDF-1.4 generated dossier", name="mike-dossier.pdf")
+
+        response = self.client.post(
+            reverse("admin_add_site_employee", args=[self.site.id]),
+            data={
+                "role": "EMPLOYE",
+                "username": "mike_dossier",
+                "first_name": "Mike",
+                "last_name": "Mwana-Ntambwe",
+                "email": "mike.dossier@example.com",
+                "telephone": "0999999995",
+                "mpesa_numero": "243999999995",
+                "date_embauche": "2026-05-22",
+                "salaire_mensuel_usd": "120.00",
+                "password": "EmployeePass123!",
+                "is_active": "on",
+                "reviewed_cv_source": "18",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        employee = User.objects.get(username="mike_dossier")
+        employee.userprofile.refresh_from_db()
+        self.assertTrue(employee.userprofile.cv_file.name.endswith(".pdf"))
+        mock_build_dossier.assert_called_once()
+
+    @patch("comptes.forms.get_reviewed_candidate_cv_choices")
     def test_admin_employee_form_rejects_unknown_reviewed_cv_selection(self, mock_candidates):
         mock_candidates.return_value = [
             ReviewedCandidateCV(

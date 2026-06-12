@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from io import BytesIO
 import logging
 import os
 from pathlib import Path
@@ -9,6 +10,11 @@ from typing import Any
 from urllib.parse import quote, urljoin
 
 from dotenv import dotenv_values
+from django.core.files.base import ContentFile
+from django.utils.text import slugify
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfbase.pdfmetrics import stringWidth
+from reportlab.pdfgen import canvas
 
 
 logger = logging.getLogger(__name__)
@@ -54,6 +60,16 @@ class ReviewedCandidateCV:
     reviewed: bool
     cv_file: str
     cv_url: str
+    physical_address: str = ""
+    date_of_birth: str = ""
+    education: str = ""
+    skills: str = ""
+    message: str = ""
+    notes: str = ""
+    application_type: str = ""
+    how_heard_about: str = ""
+    languages: str = ""
+    nationalite: str = ""
 
     @property
     def label(self) -> str:
@@ -63,7 +79,12 @@ class ReviewedCandidateCV:
         if self.applied_at:
             details.append(self.applied_at.strftime("%d/%m/%Y"))
         details.append("Revu" if self.reviewed else "À revoir")
+        details.append("CV joint" if self.has_uploaded_cv else "Dossier généré")
         return " • ".join(details)
+
+    @property
+    def has_uploaded_cv(self) -> bool:
+        return bool(self.cv_url)
 
 
 def _clean_value(value: Any) -> str:
@@ -144,12 +165,7 @@ def _build_reviewed_candidate(row: dict[str, Any]) -> ReviewedCandidateCV | None
     is_reviewed = reviewed_value in {"true", "t", "1"}
 
     cv_file = _clean_value(row.get("cv_file"))
-    if not cv_file:
-        return None
-
     cv_url = build_recruitment_cv_url(cv_file)
-    if not cv_url:
-        return None
 
     return ReviewedCandidateCV(
         external_id=str(row.get("id", "")).strip(),
@@ -160,7 +176,90 @@ def _build_reviewed_candidate(row: dict[str, Any]) -> ReviewedCandidateCV | None
         reviewed=is_reviewed,
         cv_file=cv_file,
         cv_url=cv_url,
+        physical_address=_clean_value(row.get("physical_address")),
+        date_of_birth=_clean_value(row.get("date_of_birth")),
+        education=_clean_value(row.get("education")),
+        skills=_clean_value(row.get("skills")),
+        message=_clean_value(row.get("message")),
+        notes=_clean_value(row.get("notes")),
+        application_type=_clean_value(row.get("application_type")),
+        how_heard_about=_clean_value(row.get("how_heard_about")),
+        languages=_clean_value(row.get("languages")),
+        nationalite=_clean_value(row.get("nationalite")),
     )
+
+
+def _wrap_pdf_text(value: str, font_name: str, font_size: int, max_width: float) -> list[str]:
+    words = (value or "").split()
+    if not words:
+        return []
+
+    lines: list[str] = []
+    current_line = words[0]
+    for word in words[1:]:
+        candidate = f"{current_line} {word}"
+        if stringWidth(candidate, font_name, font_size) <= max_width:
+            current_line = candidate
+        else:
+            lines.append(current_line)
+            current_line = word
+    lines.append(current_line)
+    return lines
+
+
+def build_candidate_dossier_pdf(candidate: ReviewedCandidateCV) -> ContentFile:
+    buffer = BytesIO()
+    pdf = canvas.Canvas(buffer, pagesize=A4)
+    page_width, page_height = A4
+    left_margin = 50
+    right_margin = 50
+    current_y = page_height - 60
+    line_height = 16
+    max_width = page_width - left_margin - right_margin
+
+    def write_line(text: str, font_name: str = "Helvetica", font_size: int = 11, gap: int | None = None) -> None:
+        nonlocal current_y
+        for wrapped_line in _wrap_pdf_text(text, font_name, font_size, max_width) or [""]:
+            if current_y <= 60:
+                pdf.showPage()
+                current_y = page_height - 60
+            pdf.setFont(font_name, font_size)
+            pdf.drawString(left_margin, current_y, wrapped_line)
+            current_y -= gap or line_height
+
+    pdf.setTitle(f"Dossier candidature - {candidate.full_name}")
+    write_line("Dossier candidature Shine Congo", "Helvetica-Bold", 16, 22)
+    write_line(f"Nom: {candidate.full_name}", "Helvetica-Bold")
+    write_line(f"Téléphone: {candidate.phone or '-'}")
+    write_line(f"Ville: {candidate.city or '-'}")
+    write_line(f"Adresse: {candidate.physical_address or '-'}")
+    write_line(f"Date de naissance: {candidate.date_of_birth or '-'}")
+    write_line(f"Nationalité: {candidate.nationalite or '-'}")
+    write_line(f"Langues: {candidate.languages or '-'}")
+    write_line(f"Type de candidature: {candidate.application_type or '-'}")
+    write_line(f"Statut admin: {'Revu' if candidate.reviewed else 'À revoir'}")
+    if candidate.applied_at:
+        write_line(f"Date d'enregistrement: {candidate.applied_at.strftime('%d/%m/%Y %H:%M')}")
+    write_line("")
+
+    sections = [
+        ("Formation", candidate.education),
+        ("Compétences", candidate.skills),
+        ("Comment il a connu Shine Congo", candidate.how_heard_about),
+        ("Message candidat", candidate.message),
+        ("Notes admin", candidate.notes),
+    ]
+    for title, content in sections:
+        if not content:
+            continue
+        write_line(title, "Helvetica-Bold", 12, 18)
+        write_line(content)
+        write_line("")
+
+    pdf.save()
+    buffer.seek(0)
+    filename = f"{slugify(candidate.full_name) or 'candidat'}-dossier-candidature.pdf"
+    return ContentFile(buffer.read(), name=filename)
 
 
 def _load_reviewed_candidates_from_postgres(limit: int) -> list[ReviewedCandidateCV]:
@@ -186,11 +285,20 @@ def _load_reviewed_candidates_from_postgres(limit: int) -> list[ReviewedCandidat
                     cv_file,
                     applied_at,
                     reviewed,
+                    message,
+                    notes,
+                    physical_address,
+                    date_of_birth,
+                    education,
+                    how_heard_about,
+                    languages,
+                    nationalite,
+                    application_type,
+                    skills,
                     nom,
                     post_nom,
                     prenom
                 FROM applications_jobapplication
-                WHERE COALESCE(NULLIF(TRIM(cv_file), ''), '') <> ''
                 ORDER BY reviewed DESC, applied_at DESC
                 LIMIT %s
                 """,
