@@ -480,6 +480,74 @@
         line-height: 1.55;
     }
 
+    .compare-rank-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1rem;
+    }
+
+    .compare-rank-card {
+        padding: 1.05rem 1.1rem;
+        border-radius: 22px;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        background: rgba(255, 255, 255, 0.97);
+    }
+
+    .compare-rank-best {
+        margin-top: 0.75rem;
+        padding: 0.8rem 0.9rem;
+        border-radius: 18px;
+        background: rgba(10, 67, 107, 0.05);
+    }
+
+    .compare-rank-list {
+        display: grid;
+        gap: 0.65rem;
+        margin-top: 0.95rem;
+    }
+
+    .compare-rank-row {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 0.8rem;
+        align-items: center;
+        padding: 0.8rem 0.9rem;
+        border-radius: 18px;
+        background: rgba(10, 67, 107, 0.03);
+        border: 1px solid rgba(10, 67, 107, 0.05);
+    }
+
+    .compare-rank-row.is-best {
+        background: rgba(244, 163, 64, 0.14);
+        border-color: rgba(244, 163, 64, 0.26);
+    }
+
+    .compare-rank-pill {
+        min-width: 42px;
+        padding: 0.42rem 0.5rem;
+        border-radius: 999px;
+        text-align: center;
+        font-size: 0.78rem;
+        font-weight: 800;
+        color: var(--primary-dark);
+        background: rgba(255, 255, 255, 0.9);
+    }
+
+    .compare-rank-meta {
+        min-width: 0;
+    }
+
+    .compare-rank-label {
+        font-weight: 800;
+        color: var(--primary-dark);
+    }
+
+    .compare-rank-copy {
+        margin-top: 0.18rem;
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+    }
+
     @media (max-width: 980px) {
         .compare-hero {
             grid-template-columns: 1fr;
@@ -719,6 +787,49 @@
             </article>
         </div>
     </section>
+
+    {% if monthly_rankings_period and monthly_rankings_period.weekly_cash_rankings %}
+    <section class="card">
+        <div class="compare-section-head">
+            <div>
+                <h2 class="compare-section-title">Classement hebdomadaire par mois</h2>
+                <p class="compare-section-copy">Chaque mois de l'historique mensuel affiche ses semaines classées du plus fort cash flow au plus faible pour repérer immédiatement la meilleure et la plus faible cadence.</p>
+            </div>
+            <div class="compare-section-state">{{ monthly_rankings_period.weekly_cash_rankings|length }} mois classés</div>
+        </div>
+
+        <div class="compare-rank-grid">
+            {% for month_ranking in monthly_rankings_period.weekly_cash_rankings %}
+            <article class="compare-rank-card">
+                <div class="compare-card-label">Mois</div>
+                <div class="compare-card-title">{{ month_ranking.month_label }}</div>
+                <div class="compare-card-copy">Cash flow du mois: {{ month_ranking.month_cash_flow|fc_amount }} FC</div>
+
+                {% if month_ranking.best_week %}
+                <div class="compare-rank-best">
+                    <div class="compare-card-label">Meilleure semaine</div>
+                    <div class="compare-card-title">{{ month_ranking.best_week.label }}</div>
+                    <div class="compare-card-value">{{ month_ranking.best_week.cash_flow|fc_amount }} FC</div>
+                </div>
+                {% endif %}
+
+                <div class="compare-rank-list">
+                    {% for week in month_ranking.weeks %}
+                    <div class="compare-rank-row {% if week.is_best %}is-best{% endif %}">
+                        <div class="compare-rank-pill">#{{ week.rank }}</div>
+                        <div class="compare-rank-meta">
+                            <div class="compare-rank-label">{{ week.label }}</div>
+                            <div class="compare-rank-copy">{% if week.is_best %}Semaine la plus forte{% else %}Cash flow hebdomadaire{% endif %}</div>
+                        </div>
+                        <div class="compare-money">{{ week.cash_flow|fc_amount }} FC</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
 
     <section class="card">
         <div class="compare-section-head">

@@ -2205,6 +2205,42 @@ class SiteHistoryComparisonTests(TestCase):
         self.assertEqual(response.context["current_scope"], "month")
         self.assertEqual(response.context["selected_period"]["key"], "month")
 
+    def test_history_comparison_ranks_weeks_within_each_month_by_cash_flow(self):
+        CarWash.objects.create(
+            employe=self.admin_user,
+            site=self.site,
+            date=date(2026, 4, 3),
+            type_service="COMPLET",
+            montant=Decimal("5000"),
+        )
+        CarWash.objects.create(
+            employe=self.admin_user,
+            site=self.site,
+            date=date(2026, 4, 28),
+            type_service="COMPLET",
+            montant=Decimal("15000"),
+        )
+
+        response = self.client.get(
+            reverse("admin_site_history_comparison", args=[self.site.id]),
+            data={"scope": "month", "date": "2026-04-21"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Classement hebdomadaire par mois")
+
+        april_ranking = next(
+            item
+            for item in response.context["monthly_rankings_period"]["weekly_cash_rankings"]
+            if item["month_label"] == "Avril 2026"
+        )
+        self.assertEqual(
+            [week["cash_flow"] for week in april_ranking["weeks"][:3]],
+            [Decimal("15000"), Decimal("10000"), Decimal("5000")],
+        )
+        self.assertEqual(april_ranking["weeks"][0]["rank"], 1)
+        self.assertTrue(april_ranking["weeks"][0]["is_best"])
+
     def test_site_detail_links_to_history_comparison_page(self):
         response = self.client.get(reverse("admin_site_detail", args=[self.site.id]))
 

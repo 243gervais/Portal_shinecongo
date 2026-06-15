@@ -313,6 +313,57 @@ def _build_site_comparison_periods(site, detail_date, selected_scope="week"):
     monthly_history = build_period_history("month", detail_date.replace(day=1), 6)
     yearly_history = build_period_history("year", detail_date.replace(month=1, day=1), 5)
 
+    def build_monthly_week_cash_rankings(month_items):
+        month_rankings = []
+        for month_item in month_items:
+            month_start = month_item["period_start"]
+            month_end = month_item["period_end"]
+            ranked_weeks = []
+            cursor = month_start
+
+            while cursor <= month_end:
+                week_end = min(cursor + timedelta(days=(6 - cursor.weekday())), month_end)
+                week_cash_flow = CarWash.objects.filter(
+                    site=site,
+                    date__gte=cursor,
+                    date__lte=week_end,
+                ).aggregate(total=Sum("montant"))["total"] or 0
+
+                ranked_weeks.append(
+                    {
+                        "period_start": cursor,
+                        "period_end": week_end,
+                        "label": f"{cursor.strftime('%d/%m')} - {week_end.strftime('%d/%m')}",
+                        "cash_flow": week_cash_flow,
+                    }
+                )
+                cursor = week_end + timedelta(days=1)
+
+            ranked_weeks.sort(
+                key=lambda item: (
+                    -item["cash_flow"],
+                    item["period_start"],
+                )
+            )
+
+            for rank_index, week_item in enumerate(ranked_weeks, start=1):
+                week_item["rank"] = rank_index
+                week_item["is_best"] = rank_index == 1
+
+            month_rankings.append(
+                {
+                    "month_label": month_item["label"],
+                    "month_cash_flow": month_item["cash_flow"],
+                    "week_count": len(ranked_weeks),
+                    "best_week": ranked_weeks[0] if ranked_weeks else None,
+                    "weeks": ranked_weeks,
+                }
+            )
+
+        return month_rankings
+
+    monthly_week_cash_rankings = build_monthly_week_cash_rankings(monthly_history)
+
     period_definitions = [
         {
             "key": "week",
@@ -331,6 +382,7 @@ def _build_site_comparison_periods(site, detail_date, selected_scope="week"):
             "copy": "Comparer les derniers mois actifs pour repérer rapidement les variations de rythme et de charges.",
             "row_label": "Mois",
             "items": monthly_history,
+            "weekly_cash_rankings": monthly_week_cash_rankings,
             "empty_message": "Aucun mois historique disponible pour ce site.",
             "show_correction_link": False,
         },
@@ -341,6 +393,7 @@ def _build_site_comparison_periods(site, detail_date, selected_scope="week"):
             "copy": "Voir la trajectoire annuelle du site sans empiler toutes les semaines sur un seul ecran.",
             "row_label": "Annee",
             "items": yearly_history,
+            "weekly_cash_rankings": [],
             "empty_message": "Aucune annee historique disponible pour ce site.",
             "show_correction_link": False,
         },
@@ -2977,6 +3030,10 @@ def admin_site_history_comparison(request, site_id):
         (period for period in comparison_periods if period["key"] == current_scope),
         comparison_periods[0] if comparison_periods else None,
     )
+    monthly_rankings_period = next(
+        (period for period in comparison_periods if period["key"] == "month"),
+        None,
+    )
     next_month_forecast = _build_next_month_forecast(detail_date, comparison_periods)
 
     scope_snapshots = []
@@ -3005,6 +3062,7 @@ def admin_site_history_comparison(request, site_id):
         "current_scope": current_scope,
         "comparison_periods": comparison_periods,
         "selected_period": selected_period,
+        "monthly_rankings_period": monthly_rankings_period,
         "scope_snapshots": scope_snapshots,
         "next_month_forecast": next_month_forecast,
     }
