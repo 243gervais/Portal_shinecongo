@@ -1840,6 +1840,8 @@ class WaterPurchaseTrackingTests(TestCase):
         self.assertContains(response, "Ajouter un fournisseur")
         self.assertContains(response, "Catalogue fournisseurs")
         self.assertContains(response, reverse("admin_move_water_purchase", args=[purchase.id]))
+        self.assertContains(response, reverse("admin_mark_water_supplier_paid", args=[self.default_supplier.id]))
+        self.assertContains(response, "Payer")
         self.assertContains(
             response,
             reverse("admin_edit_water_supplier", args=[self.default_supplier.id]),
@@ -2100,6 +2102,65 @@ class WaterPurchaseTrackingTests(TestCase):
                 for item in june_response.context["weekly_breakdown"]
             )
         )
+
+    def test_admin_can_mark_supplier_paid_and_reduce_month_unpaid_total(self):
+        secondary_supplier = WaterSupplier.objects.create(
+            name="Innocent Mushawhili",
+            price_per_tank_fc=Decimal("32000"),
+            is_active=True,
+        )
+        paid_purchase = SiteWaterPurchase.objects.create(
+            site=self.site,
+            supplier=self.default_supplier,
+            billing_month=date(2026, 6, 1),
+            purchase_date=date(2026, 6, 2),
+            amount_fc=Decimal("22000"),
+            created_by=self.admin_user,
+        )
+        unpaid_purchase = SiteWaterPurchase.objects.create(
+            site=self.site,
+            supplier=secondary_supplier,
+            billing_month=date(2026, 6, 1),
+            purchase_date=date(2026, 6, 3),
+            amount_fc=Decimal("64000"),
+            created_by=self.admin_user,
+        )
+
+        response = self.client.post(
+            f"{reverse('admin_mark_water_supplier_paid', args=[self.default_supplier.id])}?month=2026-06"
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(
+            response,
+            f"{reverse('admin_water_purchases')}?month=2026-06",
+            fetch_redirect_response=False,
+        )
+
+        paid_purchase.refresh_from_db()
+        unpaid_purchase.refresh_from_db()
+        self.assertIsNotNone(paid_purchase.paid_at)
+        self.assertEqual(paid_purchase.paid_by, self.admin_user)
+        self.assertIsNone(unpaid_purchase.paid_at)
+
+        june_response = self.client.get(reverse("admin_water_purchases"), data={"month": "2026-06"})
+        self.assertEqual(june_response.context["month_total"], Decimal("86000"))
+        self.assertEqual(june_response.context["month_paid_total"], Decimal("22000"))
+        self.assertEqual(june_response.context["month_unpaid_total"], Decimal("64000"))
+        self.assertContains(june_response, "Déjà payé")
+        self.assertContains(june_response, "Reste à payer")
+
+        default_supplier_row = next(
+            item for item in june_response.context["supplier_breakdown"]
+            if item["supplier_id"] == self.default_supplier.id
+        )
+        other_supplier_row = next(
+            item for item in june_response.context["supplier_breakdown"]
+            if item["supplier_id"] == secondary_supplier.id
+        )
+        self.assertTrue(default_supplier_row["is_fully_paid"])
+        self.assertEqual(default_supplier_row["unpaid_total"], Decimal("0"))
+        self.assertEqual(other_supplier_row["unpaid_total"], Decimal("64000"))
 
 
 class FundingSnapshotTests(TestCase):

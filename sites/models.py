@@ -456,6 +456,19 @@ class SiteWaterPurchase(models.Model):
         related_name="site_water_purchases_created",
         verbose_name="Enregistré par",
     )
+    paid_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="site_water_purchases_paid",
+        verbose_name="Payé par",
+    )
+    paid_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Payé le",
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")
 
@@ -466,6 +479,10 @@ class SiteWaterPurchase(models.Model):
         indexes = [
             models.Index(fields=["site", "billing_month"]),
             models.Index(fields=["site", "purchase_date"]),
+            models.Index(
+                fields=["billing_month", "supplier", "paid_at"],
+                name="sites_sw_bill_sup_paid_idx",
+            ),
             models.Index(fields=["-created_at"]),
         ]
 
@@ -490,6 +507,10 @@ class SiteWaterPurchase(models.Model):
         if self.reporting_week_date and not self._date_is_in_billing_month(self.reporting_week_date):
             self.reporting_week_date = None
         super().save(*args, **kwargs)
+
+    @property
+    def is_paid(self):
+        return bool(self.paid_at)
 
     def __str__(self):
         return (

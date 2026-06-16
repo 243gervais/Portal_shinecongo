@@ -346,6 +346,21 @@
         color: #b42318;
     }
 
+    .water-badge--settled {
+        background: rgba(21, 128, 61, 0.12);
+        color: #166534;
+    }
+
+    .water-badge--partial {
+        background: rgba(191, 90, 0, 0.12);
+        color: #b45309;
+    }
+
+    .water-badge--pending {
+        background: rgba(10, 67, 107, 0.1);
+        color: #0a436b;
+    }
+
     .water-breakdown-name,
     .water-history-name {
         margin: 0;
@@ -366,6 +381,23 @@
         font-weight: 800;
         color: var(--primary-color);
         text-align: right;
+    }
+
+    .water-breakdown-side {
+        min-width: 220px;
+        display: grid;
+        gap: 0.75rem;
+        justify-items: end;
+    }
+
+    .water-payment-stack {
+        display: grid;
+        gap: 0.45rem;
+        justify-items: end;
+    }
+
+    .water-payment-stack form {
+        margin: 0;
     }
 
     .water-bar {
@@ -490,6 +522,11 @@
         .water-hero {
             padding: 1.35rem;
         }
+
+        .water-breakdown-side,
+        .water-payment-stack {
+            justify-items: start;
+        }
     }
 </style>
 {% endblock %}
@@ -505,12 +542,14 @@
                 <h1>Suivi eau</h1>
                 <p class="water-hero-copy">
                     Suivi mensuel des achats d'eau avec prise en compte du fournisseur ou contracteur utilisé pour chaque remplissage.
-                    Cette page garde une lecture claire du coût par mois, du site concerné, du prestataire retenu et du volume d'achats déjà enregistrés.
+                    Cette page garde une lecture claire du coût par mois, du site concerné, du prestataire retenu, du volume d'achats déjà enregistrés
+                    et du reste à payer par fournisseur.
                 </p>
                 <div class="water-hero-chips">
                     <span class="water-chip">Mois affiché <strong>{{ selected_month|date:"m/Y" }}</strong></span>
                     <span class="water-chip">Fournisseur par défaut <strong>{{ default_supplier.name }}</strong></span>
                     <span class="water-chip">Référence actuelle <strong>{{ default_supplier.price_per_tank_fc|fc_amount }} FC / remplissage</strong></span>
+                    <span class="water-chip">Reste à payer <strong>{{ month_unpaid_total|fc_amount }} FC</strong></span>
                 </div>
             </div>
             <div class="water-hero-actions">
@@ -526,14 +565,19 @@
             <div class="water-kpi-subvalue">~ ${{ month_total|usd_equivalent }} USD documentés pour {{ selected_month|date:"m/Y" }}</div>
         </article>
         <article class="water-kpi">
+            <p class="water-kpi-label">Déjà payé</p>
+            <div class="water-kpi-value">{{ month_paid_total|fc_amount }} FC</div>
+            <div class="water-kpi-subvalue">{{ month_paid_count }} achat{{ month_paid_count|pluralize }} déjà soldé{{ month_paid_count|pluralize }}</div>
+        </article>
+        <article class="water-kpi">
+            <p class="water-kpi-label">Reste à payer</p>
+            <div class="water-kpi-value">{{ month_unpaid_total|fc_amount }} FC</div>
+            <div class="water-kpi-subvalue">{{ month_unpaid_count }} achat{{ month_unpaid_count|pluralize }} encore impayé{{ month_unpaid_count|pluralize }}</div>
+        </article>
+        <article class="water-kpi">
             <p class="water-kpi-label">Achats enregistrés</p>
             <div class="water-kpi-value">{{ month_count }}</div>
             <div class="water-kpi-subvalue">Remplissages rattachés au mois affiché</div>
-        </article>
-        <article class="water-kpi">
-            <p class="water-kpi-label">Ticket moyen</p>
-            <div class="water-kpi-value">{{ average_purchase|fc_amount }} FC</div>
-            <div class="water-kpi-subvalue">Référence par achat pour ce mois</div>
         </article>
         <article class="water-kpi">
             <p class="water-kpi-label">Sites concernés</p>
@@ -542,6 +586,11 @@
                 {% if month_total_delta >= 0 %}<span class="water-delta-positive">+{{ month_total_delta|fc_amount }} FC</span>{% else %}<span class="water-delta-negative">{{ month_total_delta|fc_amount }} FC</span>{% endif %}
                 vs {{ previous_month|date:"m/Y" }}
             </div>
+        </article>
+        <article class="water-kpi">
+            <p class="water-kpi-label">Ticket moyen</p>
+            <div class="water-kpi-value">{{ average_purchase|fc_amount }} FC</div>
+            <div class="water-kpi-subvalue">Référence par achat pour ce mois</div>
         </article>
     </section>
 
@@ -769,6 +818,11 @@
                     <div class="water-breakdown-meta">
                         Utilisé {{ item.month_count }} fois sur {{ selected_month|date:"m/Y" }}{% if item.month_count %} pour {{ item.month_total|fc_amount }} FC{% endif %}.
                     </div>
+                    {% if item.month_count %}
+                    <div class="water-breakdown-meta">
+                        Déjà payé {{ item.month_paid_total|fc_amount }} FC • reste à payer {{ item.month_unpaid_total|fc_amount }} FC.
+                    </div>
+                    {% endif %}
                     {% if item.supplier.notes %}
                     <div class="water-hint">{{ item.supplier.notes|linebreaksbr }}</div>
                     {% endif %}
@@ -786,7 +840,7 @@
             <div class="water-panel-header">
                 <div>
                     <h2 class="water-panel-title">Répartition par fournisseur</h2>
-                    <p class="water-panel-copy">Lecture immédiate des fournisseurs réellement utilisés sur le mois affiché.</p>
+                    <p class="water-panel-copy">Lecture immédiate des fournisseurs réellement utilisés sur le mois affiché, avec action de paiement pour retirer leur part du reste à payer.</p>
                 </div>
                 <span class="water-panel-meta">{{ supplier_breakdown|length }} fournisseur{{ supplier_breakdown|length|pluralize }}</span>
             </div>
@@ -798,13 +852,44 @@
                     <div style="flex: 1 1 280px; min-width: 0;">
                         <p class="water-breakdown-name">{{ item.supplier__name }}</p>
                         <div class="water-breakdown-meta">{{ item.count }} achat{{ item.count|pluralize }} sur {{ selected_month|date:"m/Y" }}</div>
+                        <div class="water-breakdown-meta">
+                            {% if item.is_fully_paid %}
+                            Paiement complet enregistré pour ce fournisseur sur {{ selected_month|date:"m/Y" }}.
+                            {% elif item.is_partially_paid %}
+                            Déjà payé {{ item.paid_total|fc_amount }} FC • reste {{ item.unpaid_total|fc_amount }} FC à solder.
+                            {% else %}
+                            Aucun paiement enregistré • reste {{ item.unpaid_total|fc_amount }} FC à payer.
+                            {% endif %}
+                        </div>
                         <div class="water-bar">
                             <div class="water-bar-fill" style="width: {{ item.bar_width }}%;"></div>
                         </div>
                     </div>
-                    <div class="water-breakdown-amount">
-                        {{ item.total|fc_amount }} FC
-                        <div class="water-breakdown-meta">~ ${{ item.total|usd_equivalent }} USD</div>
+                    <div class="water-breakdown-side">
+                        <div class="water-breakdown-amount">
+                            {{ item.total|fc_amount }} FC
+                            <div class="water-breakdown-meta">~ ${{ item.total|usd_equivalent }} USD</div>
+                        </div>
+                        <div class="water-payment-stack">
+                            {% if item.is_fully_paid %}
+                            <span class="water-badge water-badge--settled">Payé</span>
+                            <div class="water-breakdown-meta">
+                                {% if item.last_paid_at %}Soldé le {{ item.last_paid_at|date:"d/m/Y H:i" }}{% else %}Soldé{% endif %}
+                            </div>
+                            {% elif item.is_partially_paid %}
+                            <span class="water-badge water-badge--partial">Paiement partiel</span>
+                            <form method="post" action="{{ item.pay_url }}?month={{ selected_month_input }}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-primary">Payer {{ item.unpaid_total|fc_amount }} FC</button>
+                            </form>
+                            {% else %}
+                            <span class="water-badge water-badge--pending">À payer</span>
+                            <form method="post" action="{{ item.pay_url }}?month={{ selected_month_input }}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-primary">Payer {{ item.unpaid_total|fc_amount }} FC</button>
+                            </form>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
                 {% endfor %}
@@ -987,6 +1072,14 @@
                             <div class="water-ledger-amount">
                                 {{ purchase.amount_fc|fc_amount }} FC
                                 <small>~ ${{ purchase.amount_fc|usd_equivalent }} USD</small>
+                                {% if purchase.is_paid %}
+                                <small>
+                                    Payé le {{ purchase.paid_at|date:"d/m/Y H:i" }}
+                                    {% if purchase.paid_by %}par {{ purchase.paid_by.get_full_name|default:purchase.paid_by.username }}{% endif %}
+                                </small>
+                                {% else %}
+                                <small>Non payé</small>
+                                {% endif %}
                             </div>
                         </td>
                         <td>

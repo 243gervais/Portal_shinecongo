@@ -1905,13 +1905,23 @@ def _build_admin_water_purchase_context(selected_month, form, supplier_form):
     today = timezone.localdate()
     purchase_qs = (
         SiteWaterPurchase.objects.filter(site__actif=True, billing_month=selected_month)
-        .select_related("site", "supplier", "created_by")
+        .select_related("site", "supplier", "created_by", "paid_by")
         .order_by("-purchase_date", "-created_at")
     )
     purchases = list(purchase_qs)
 
     month_total = purchase_qs.aggregate(total=Sum("amount_fc"))["total"] or Decimal("0")
     month_count = len(purchases)
+    payment_summary = purchase_qs.aggregate(
+        paid_total=Sum("amount_fc", filter=Q(paid_at__isnull=False)),
+        paid_count=Count("id", filter=Q(paid_at__isnull=False)),
+        unpaid_total=Sum("amount_fc", filter=Q(paid_at__isnull=True)),
+        unpaid_count=Count("id", filter=Q(paid_at__isnull=True)),
+    )
+    month_paid_total = payment_summary["paid_total"] or Decimal("0")
+    month_paid_count = payment_summary["paid_count"] or 0
+    month_unpaid_total = payment_summary["unpaid_total"] or Decimal("0")
+    month_unpaid_count = payment_summary["unpaid_count"] or 0
     default_supplier = get_default_water_supplier()
     active_suppliers = list(
         WaterSupplier.objects.filter(is_active=True)
@@ -1926,8 +1936,16 @@ def _build_admin_water_purchase_context(selected_month, form, supplier_form):
         .order_by("-total", "site__nom")
     )
     supplier_breakdown = list(
-        purchase_qs.values("supplier__name")
-        .annotate(total=Sum("amount_fc"), count=Count("id"))
+        purchase_qs.values("supplier_id", "supplier__name")
+        .annotate(
+            total=Sum("amount_fc"),
+            count=Count("id"),
+            paid_total=Sum("amount_fc", filter=Q(paid_at__isnull=False)),
+            paid_count=Count("id", filter=Q(paid_at__isnull=False)),
+            unpaid_total=Sum("amount_fc", filter=Q(paid_at__isnull=True)),
+            unpaid_count=Count("id", filter=Q(paid_at__isnull=True)),
+            last_paid_at=Max("paid_at"),
+        )
         .order_by("-total", "supplier__name")
     )
     average_purchase = (month_total / month_count) if month_count else Decimal("0")
@@ -2040,16 +2058,27 @@ def _build_admin_water_purchase_context(selected_month, form, supplier_form):
         item["bar_width"] = int((item_total / month_total) * 100) if month_total else 0
     for item in supplier_breakdown:
         item_total = item["total"] or Decimal("0")
+        item["paid_total"] = item["paid_total"] or Decimal("0")
+        item["paid_count"] = item["paid_count"] or 0
+        item["unpaid_total"] = item["unpaid_total"] or Decimal("0")
+        item["unpaid_count"] = item["unpaid_count"] or 0
+        item["is_fully_paid"] = item["count"] > 0 and item["unpaid_count"] == 0
+        item["is_partially_paid"] = item["paid_count"] > 0 and item["unpaid_count"] > 0
+        item["pay_url"] = reverse("admin_mark_water_supplier_paid", kwargs={"supplier_id": item["supplier_id"]})
         item["bar_width"] = int((item_total / month_total) * 100) if month_total else 0
 
     supplier_usage_map = {
         item["supplier_id"]: {
             "count": item["count"] or 0,
             "total": item["total"] or Decimal("0"),
+            "paid_total": item["paid_total"] or Decimal("0"),
+            "unpaid_total": item["unpaid_total"] or Decimal("0"),
         }
         for item in purchase_qs.values("supplier_id").annotate(
             count=Count("id"),
             total=Sum("amount_fc"),
+            paid_total=Sum("amount_fc", filter=Q(paid_at__isnull=False)),
+            unpaid_total=Sum("amount_fc", filter=Q(paid_at__isnull=True)),
         )
     }
     supplier_catalog = [
@@ -2057,6 +2086,8 @@ def _build_admin_water_purchase_context(selected_month, form, supplier_form):
             "supplier": supplier,
             "month_count": supplier_usage_map.get(supplier.id, {}).get("count", 0),
             "month_total": supplier_usage_map.get(supplier.id, {}).get("total", Decimal("0")),
+            "month_paid_total": supplier_usage_map.get(supplier.id, {}).get("paid_total", Decimal("0")),
+            "month_unpaid_total": supplier_usage_map.get(supplier.id, {}).get("unpaid_total", Decimal("0")),
         }
         for supplier in all_suppliers
     ]
@@ -2080,6 +2111,10 @@ def _build_admin_water_purchase_context(selected_month, form, supplier_form):
         "selected_month_input": selected_month.strftime("%Y-%m"),
         "month_total": month_total,
         "month_count": month_count,
+        "month_paid_total": month_paid_total,
+        "month_paid_count": month_paid_count,
+        "month_unpaid_total": month_unpaid_total,
+        "month_unpaid_count": month_unpaid_count,
         "site_breakdown": by_site,
         "supplier_breakdown": supplier_breakdown,
         "average_purchase": average_purchase,
@@ -2267,6 +2302,83 @@ def admin_edit_water_supplier(request, supplier_id):
             "total_usage_total": total_usage["total"] or Decimal("0"),
         },
     )
+
+
+@login_required
+@require_http_methods(["POST"])
+@no_cache_view
+def admin_mark_water_supplier_paid(request, supplier_id):
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette action est réservée aux administrateurs.")
+        return redirect("dashboard")
+
+    selected_month = _parse_month_filter(request.GET.get("month") or request.POST.get("month"))
+    supplier = get_object_or_404(WaterSupplier, id=supplier_id)
+    month_query = selected_month.strftime("%Y-%m")
+    month_purchases = SiteWaterPurchase.objects.filter(
+        site__actif=True,
+        billing_month=selected_month,
+        supplier=supplier,
+    )
+    payment_snapshot = month_purchases.aggregate(
+        total=Sum("amount_fc"),
+        count=Count("id"),
+        unpaid_total=Sum("amount_fc", filter=Q(paid_at__isnull=True)),
+        unpaid_count=Count("id", filter=Q(paid_at__isnull=True)),
+    )
+    purchase_count = payment_snapshot["count"] or 0
+    unpaid_total = payment_snapshot["unpaid_total"] or Decimal("0")
+    unpaid_count = payment_snapshot["unpaid_count"] or 0
+
+    if purchase_count == 0:
+        messages.error(
+            request,
+            f'Aucun achat d’eau n’est enregistré pour "{supplier.name}" sur {selected_month.strftime("%m/%Y")}.',
+        )
+        return redirect(f"{reverse('admin_water_purchases')}?month={month_query}")
+
+    if unpaid_count == 0:
+        messages.info(
+            request,
+            f'Le fournisseur "{supplier.name}" est déjà soldé pour {selected_month.strftime("%m/%Y")}.',
+        )
+        return redirect(f"{reverse('admin_water_purchases')}?month={month_query}")
+
+    payment_time = timezone.now()
+    month_purchases.filter(paid_at__isnull=True).update(
+        paid_at=payment_time,
+        paid_by=user,
+        updated_at=payment_time,
+    )
+
+    AuditLog.log(
+        user=user,
+        action="MODIFIER",
+        description=(
+            f'Paiement du fournisseur d’eau "{supplier.name}" '
+            f'pour {selected_month.strftime("%m/%Y")}'
+        ),
+        content_object=supplier,
+        donnees_apres={
+            "billing_month": selected_month.isoformat(),
+            "paid_purchase_count": unpaid_count,
+            "paid_total_fc": str(unpaid_total),
+        },
+        ip_address=get_client_ip(request),
+        user_agent=get_user_agent(request),
+    )
+
+    messages.success(
+        request,
+        (
+            f'Le fournisseur "{supplier.name}" a été marqué payé pour '
+            f'{selected_month.strftime("%m/%Y")}. Le reste à payer du mois a été mis à jour.'
+        ),
+    )
+    return redirect(f"{reverse('admin_water_purchases')}?month={month_query}")
 
 
 @login_required
