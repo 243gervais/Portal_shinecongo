@@ -1188,8 +1188,11 @@ def _build_admin_password_overview(current_user):
         "camera_accounts": 0,
         "active_accounts": 0,
         "pending_accounts": 0,
+        "password_notes_recorded": 0,
+        "password_notes_missing": 0,
     }
     current_account = None
+    credential_notebook_accounts = []
 
     for managed_user in managed_users:
         profile = getattr(managed_user, "userprofile", None)
@@ -1212,6 +1215,7 @@ def _build_admin_password_overview(current_user):
         full_name = managed_user.get_full_name().strip() or managed_user.username
         site_name = profile.site.nom if profile and profile.site else "Compte global"
         status_label = "Actif" if managed_user.is_active else "En attente"
+        password_reference = profile.password_reference.strip() if profile and profile.password_reference else ""
 
         account = {
             "user": managed_user,
@@ -1228,6 +1232,8 @@ def _build_admin_password_overview(current_user):
             "last_login": managed_user.last_login,
             "is_current_user": current_user and managed_user.id == current_user.id,
             "change_password_url": reverse("admin_change_user_password", kwargs={"user_id": managed_user.id}),
+            "password_reference": password_reference,
+            "has_password_reference": bool(password_reference),
         }
 
         summary["total_accounts"] += 1
@@ -1235,6 +1241,10 @@ def _build_admin_password_overview(current_user):
             summary["active_accounts"] += 1
         else:
             summary["pending_accounts"] += 1
+        if account["has_password_reference"]:
+            summary["password_notes_recorded"] += 1
+        else:
+            summary["password_notes_missing"] += 1
 
         if role_code == "ADMIN":
             summary["admin_accounts"] += 1
@@ -1245,6 +1255,8 @@ def _build_admin_password_overview(current_user):
         elif role_code == UserProfile.CAMERA_CONTROLLER_ROLE:
             summary["camera_accounts"] += 1
             summary["employee_accounts"] += 1
+
+        credential_notebook_accounts.append(account)
 
         if account["is_current_user"]:
             current_account = account
@@ -1260,6 +1272,16 @@ def _build_admin_password_overview(current_user):
                 item["username"].lower(),
             )
         )
+
+    credential_notebook_accounts.sort(
+        key=lambda item: (
+            0 if item["is_current_user"] else 1,
+            role_order.get(item["role_code"], 4),
+            item["site_name"].lower(),
+            item["display_name"].lower(),
+            item["username"].lower(),
+        )
+    )
 
     sections = [
         {
@@ -1297,6 +1319,7 @@ def _build_admin_password_overview(current_user):
         "summary": summary,
         "current_account": current_account,
         "sections": sections,
+        "credential_notebook_accounts": credential_notebook_accounts,
     }
 
 
@@ -1750,6 +1773,7 @@ def admin_password_management(request):
             "password_summary": password_overview["summary"],
             "current_account": password_overview["current_account"],
             "password_sections": password_overview["sections"],
+            "credential_notebook_accounts": password_overview["credential_notebook_accounts"],
             "password_creation_sites": creation_actions["creation_sites"],
             "password_creation_sites_count": creation_actions["creation_sites_count"],
         },

@@ -255,6 +255,7 @@ class UserRegistrationForm(UserCreationForm):
             profile.actif = False
             profile.site = self.cleaned_data.get('site')
             profile.role = "EMPLOYE"  # Par défaut, nouveau utilisateur = Employé
+            profile.password_reference = self.cleaned_data.get("password1", "")
             profile.save()
         
         return user
@@ -538,6 +539,8 @@ class SiteEmployeeForm(forms.Form):
         profile.date_embauche = self.cleaned_data.get("date_embauche")
         profile.date_naissance = self.cleaned_data.get("date_naissance")
         profile.salaire_mensuel_usd = self.cleaned_data.get("salaire_mensuel_usd")
+        if password:
+            profile.password_reference = password
         resolved_cv_file = self.cleaned_data.get("resolved_cv_file") or self.cleaned_data.get("cv_file")
         if resolved_cv_file:
             if profile.cv_file:
@@ -637,6 +640,8 @@ class AdminPasswordManagementForm(forms.Form):
     def save(self, user):
         user.set_password(self.cleaned_data["new_password1"])
         user.save(update_fields=["password"])
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        profile.set_password_reference(self.cleaned_data["new_password1"])
         return user
 
 

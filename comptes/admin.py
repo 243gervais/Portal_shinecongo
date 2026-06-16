@@ -82,6 +82,8 @@ class UserAdmin(BaseUserAdmin):
             form = AdminPasswordChangeForm(user, request.POST)
             if form.is_valid():
                 form.save()
+                profile, _ = UserProfile.objects.get_or_create(user=user)
+                profile.set_password_reference(form.cleaned_data.get("password1", ""))
                 messages.success(request, f'Le mot de passe de {user.username} a été modifié avec succès.')
                 return redirect('admin:auth_user_change', user.pk)
         else:
@@ -111,6 +113,8 @@ class UserAdmin(BaseUserAdmin):
             new_password = get_random_string(length=8)
             user.set_password(new_password)
             user.save()
+            profile, _ = UserProfile.objects.get_or_create(user=user)
+            profile.set_password_reference(new_password)
             reset_passwords.append({
                 'username': user.username,
                 'password': new_password

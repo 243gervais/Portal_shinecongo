@@ -73,6 +73,12 @@ class UserProfile(models.Model):
         blank=True,
         verbose_name="Photo employé",
     )
+    password_reference = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Mot de passe mémorisé",
+        help_text="Référence visible uniquement dans la page admin Gestion des mots de passe.",
+    )
     admin_requests_last_seen_at = models.DateTimeField(
         null=True,
         blank=True,
@@ -146,6 +152,15 @@ class UserProfile(models.Model):
         if not self.profile_photo:
             return ""
         return os.path.basename(self.profile_photo.name)
+
+    @property
+    def has_password_reference(self):
+        return bool((self.password_reference or "").strip())
+
+    def set_password_reference(self, raw_password, save=True):
+        self.password_reference = (raw_password or "").strip()
+        if save:
+            self.save(update_fields=["password_reference", "updated_at"])
 
     @property
     def profile_photo_thumbnail_url(self):

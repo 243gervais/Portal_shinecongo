@@ -358,6 +358,7 @@ class AdminPasswordManagementTests(TestCase):
         self.manager_user.userprofile.role = "MANAGER"
         self.manager_user.userprofile.site = self.site
         self.manager_user.userprofile.actif = True
+        self.manager_user.userprofile.password_reference = "ManagerPass123!"
         self.manager_user.userprofile.save()
         self.employee_user = User.objects.create_user(
             username="employee_portal",
@@ -368,7 +369,10 @@ class AdminPasswordManagementTests(TestCase):
         self.employee_user.userprofile.role = "EMPLOYE"
         self.employee_user.userprofile.site = self.site
         self.employee_user.userprofile.actif = True
+        self.employee_user.userprofile.password_reference = "EmployeePass123!"
         self.employee_user.userprofile.save()
+        self.admin_user.userprofile.password_reference = "AdminPass123!"
+        self.admin_user.userprofile.save()
         self.client.login(username="password_admin", password="AdminPass123!")
 
     def test_admin_dashboard_links_to_password_management(self):
@@ -388,6 +392,10 @@ class AdminPasswordManagementTests(TestCase):
         self.assertContains(response, "manager_portal")
         self.assertContains(response, "Site Passwords")
         self.assertContains(response, "Créer un contrôleur caméra")
+        self.assertContains(response, "Bloc-notes identifiants")
+        self.assertContains(response, "AdminPass123!")
+        self.assertContains(response, "EmployeePass123!")
+        self.assertContains(response, "ManagerPass123!")
         self.assertContains(response, "Chaque contrôleur caméra doit être assigné à un site")
         self.assertContains(
             response,
@@ -421,6 +429,7 @@ class AdminPasswordManagementTests(TestCase):
         self.assertRedirects(response, reverse("admin_password_management"), fetch_redirect_response=False)
         self.employee_user.refresh_from_db()
         self.assertTrue(self.employee_user.check_password("FreshEmployeePass456!"))
+        self.assertEqual(self.employee_user.userprofile.password_reference, "FreshEmployeePass456!")
 
         self.client.logout()
         self.assertTrue(self.client.login(username="employee_portal", password="FreshEmployeePass456!"))
@@ -438,10 +447,12 @@ class AdminPasswordManagementTests(TestCase):
         self.assertRedirects(response, reverse("admin_password_management"), fetch_redirect_response=False)
         self.admin_user.refresh_from_db()
         self.assertTrue(self.admin_user.check_password("FreshAdminPass456!"))
+        self.assertEqual(self.admin_user.userprofile.password_reference, "FreshAdminPass456!")
 
         follow_up = self.client.get(reverse("admin_password_management"))
         self.assertEqual(follow_up.status_code, 200)
         self.assertContains(follow_up, "Gestion des mots de passe")
+        self.assertContains(follow_up, "FreshAdminPass456!")
 
     def test_admin_can_create_camera_controller_and_return_to_password_page(self):
         response = self.client.post(
@@ -463,6 +474,7 @@ class AdminPasswordManagementTests(TestCase):
         created_user = User.objects.get(username="camera_from_passwords")
         self.assertEqual(created_user.userprofile.role, "CONTROLE_CAMERA")
         self.assertEqual(created_user.userprofile.site, self.site)
+        self.assertEqual(created_user.userprofile.password_reference, "CameraPass123!")
 
 
 class SiteDocumentUploadTests(TestCase):
