@@ -454,6 +454,18 @@ class AdminPasswordManagementTests(TestCase):
         self.assertContains(follow_up, "Gestion des mots de passe")
         self.assertContains(follow_up, "FreshAdminPass456!")
 
+    def test_admin_can_update_visible_password_memo_without_changing_real_password(self):
+        response = self.client.post(
+            reverse("admin_update_password_reference", args=[self.employee_user.id]),
+            data={"password_reference": "MemoOnlyPass789!"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse("admin_password_management"), fetch_redirect_response=False)
+        self.employee_user.refresh_from_db()
+        self.assertEqual(self.employee_user.userprofile.password_reference, "MemoOnlyPass789!")
+        self.assertTrue(self.employee_user.check_password("EmployeePass123!"))
+
     def test_admin_can_create_camera_controller_and_return_to_password_page(self):
         response = self.client.post(
             reverse("admin_add_site_employee", args=[self.site.id]),

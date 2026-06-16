@@ -645,6 +645,28 @@ class AdminPasswordManagementForm(forms.Form):
         return user
 
 
+class AdminPasswordReferenceForm(forms.Form):
+    """
+    Formulaire admin pour mémoriser visiblement un mot de passe sans le changer réellement.
+    """
+
+    password_reference = forms.CharField(
+        label="Mot de passe visible",
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Saisissez le mot de passe à mémoriser",
+                "autocomplete": "off",
+            }
+        ),
+        help_text="Ce mémo ne change pas le vrai mot de passe du compte.",
+    )
+
+    def clean_password_reference(self):
+        return (self.cleaned_data.get("password_reference") or "").strip()
+
+
 class EmployeePaymentForm(forms.Form):
     """
     Enregistrer un paiement employé et générer la fiche de paiement.

@@ -24,6 +24,7 @@ from .forms import (
     AdminReminderForm,
     CameraForm,
     DailyCameraReportForm,
+    AdminPasswordReferenceForm,
     UserRegistrationForm,
     SiteCreationForm,
     SiteEmployeeForm,
@@ -1232,6 +1233,7 @@ def _build_admin_password_overview(current_user):
             "last_login": managed_user.last_login,
             "is_current_user": current_user and managed_user.id == current_user.id,
             "change_password_url": reverse("admin_change_user_password", kwargs={"user_id": managed_user.id}),
+            "update_password_reference_url": reverse("admin_update_password_reference", kwargs={"user_id": managed_user.id}),
             "password_reference": password_reference,
             "has_password_reference": bool(password_reference),
         }
@@ -1778,6 +1780,58 @@ def admin_password_management(request):
             "password_creation_sites_count": creation_actions["creation_sites_count"],
         },
     )
+
+
+@login_required
+@no_cache_view
+@require_http_methods(["POST"])
+def admin_update_password_reference(request, user_id):
+    """
+    Mémorise visiblement un mot de passe dans le bloc-notes admin sans modifier le vrai mot de passe du compte.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette action est réservée aux administrateurs.")
+        return redirect("dashboard")
+
+    target_user = get_object_or_404(
+        User.objects.filter(Q(is_superuser=True) | Q(userprofile__isnull=False)).distinct(),
+        id=user_id,
+    )
+    form = AdminPasswordReferenceForm(request.POST)
+    if form.is_valid():
+        profile, _ = UserProfile.objects.get_or_create(user=target_user)
+        profile.set_password_reference(form.cleaned_data["password_reference"])
+
+        AuditLog.log(
+            user=request.user,
+            action="MODIFIER",
+            description=f"Mémo de mot de passe mis à jour pour le compte {target_user.username}",
+            content_object=target_user,
+            donnees_apres={
+                "username": target_user.username,
+                "password_reference_recorded": bool(profile.password_reference),
+            },
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request),
+        )
+
+        if profile.password_reference:
+            messages.success(
+                request,
+                f'Mot de passe visible mis à jour pour "{target_user.get_full_name() or target_user.username}".',
+            )
+        else:
+            messages.success(
+                request,
+                f'Mémo de mot de passe vidé pour "{target_user.get_full_name() or target_user.username}".',
+            )
+    else:
+        messages.error(request, "Impossible d'enregistrer ce mémo de mot de passe.")
+
+    return redirect("admin_password_management")
 
 
 @login_required
