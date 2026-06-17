@@ -93,6 +93,23 @@
             padding: 20px;
         }
 
+        .site-footer {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0.4rem 20px 1rem;
+            border-top: 1px solid rgba(10, 67, 107, 0.08);
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            text-align: center;
+            font-size: 0.82rem;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+        }
+
         .header {
             background: var(--card-bg);
             border-bottom: 1px solid var(--border-color);
@@ -1214,6 +1231,14 @@
         {% block content %}
         {% endblock %}
     </main>
+
+    <footer class="site-footer">
+        <span>Shine Congo</span>
+        <span aria-hidden="true">•</span>
+        <span>Portail interne</span>
+        <span aria-hidden="true">•</span>
+        <span>{% now "Y" %}</span>
+    </footer>
 
     {% block extra_js %}{% endblock %}
     

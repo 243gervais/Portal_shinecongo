@@ -29,6 +29,7 @@ function managerLinks() {
 export function PortalLayout({ bootstrap, session, children }) {
   const [messages, setMessages] = useState(bootstrap.messages || []);
   const links = bootstrap.mode === "manager" ? managerLinks() : employeeLinks();
+  const footerYear = new Date().getFullYear();
 
   return (
     <div className="portal-shell">
@@ -80,6 +81,14 @@ export function PortalLayout({ bootstrap, session, children }) {
         ) : null}
         {children}
       </main>
+
+      <footer className="portal-footer">
+        <span>Shine Congo</span>
+        <span aria-hidden="true">•</span>
+        <span>Portail interne</span>
+        <span aria-hidden="true">•</span>
+        <span>{footerYear}</span>
+      </footer>
     </div>
   );
 }

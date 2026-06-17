@@ -39,6 +39,8 @@ textarea {
 }
 
 .portal-shell {
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
   padding: 1.2rem;
 }
@@ -120,7 +122,23 @@ textarea {
 }
 
 .portal-main {
+  flex: 1;
   padding: 1.2rem 0 3rem;
+}
+
+.portal-footer {
+  width: min(1200px, 100%);
+  margin: auto auto 0;
+  padding: 0.4rem 0 0.2rem;
+  border-top: 1px solid rgba(10, 67, 107, 0.08);
+  color: var(--portal-muted);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .page-stack,
@@ -585,6 +603,13 @@ textarea {
 @media (max-width: 768px) {
   .portal-shell {
     padding: 0.75rem;
+  }
+
+  .portal-footer {
+    gap: 0.35rem;
+    font-size: 0.78rem;
+    text-align: center;
+    flex-wrap: wrap;
   }
 
   .portal-header,
