@@ -149,6 +149,7 @@ urlpatterns = [
     path("camera/", camera_dashboard, name="camera_dashboard"),
     path("camera/lavage-verification/", camera_daily_report, name="camera_lavage_verification"),
     path("camera/rapport/", camera_daily_report, name="camera_daily_report"),
+    path("camera/probleme/signaler/", signaler_probleme, name="camera_signaler_probleme"),
     path("camera/observations/<int:observation_id>/delete/", camera_delete_observation, name="camera_delete_observation"),
     
     # Scan QR fixe (URL publique pour le QR code)

@@ -1138,6 +1138,8 @@ class CameraControllerPortalTests(TestCase):
 
         self.assertEqual(dashboard_response.status_code, 200)
         self.assertContains(dashboard_response, "Lavage verification")
+        self.assertContains(dashboard_response, "Signaler un problème")
+        self.assertContains(dashboard_response, reverse("camera_signaler_probleme"))
         self.assertContains(dashboard_response, "Travaillez lavage par lavage")
         self.assertNotContains(dashboard_response, "Recette")
         self.assertNotContains(dashboard_response, "Tarif")
@@ -1293,6 +1295,28 @@ class CameraControllerPortalTests(TestCase):
         self.assertContains(detail_response, "Caméra non renseignée")
         self.assertContains(detail_response, "Télécharger")
         self.assertContains(detail_response, "Partager")
+
+    def test_camera_controller_can_report_problem_from_camera_portal(self):
+        response = self.client.post(
+            reverse("camera_signaler_probleme"),
+            data={
+                "categorie": "SECURITE",
+                "description": "Un véhicule a bloqué l'entrée caméra pendant plusieurs minutes.",
+            },
+        )
+
+        self.assertRedirects(response, reverse("camera_dashboard"), fetch_redirect_response=False)
+        issue = IssueReport.objects.get(site=self.site, employe=self.controller)
+        self.assertEqual(issue.categorie, "SECURITE")
+        self.assertEqual(issue.statut, "OUVERT")
+        self.assertEqual(issue.description, "Un véhicule a bloqué l'entrée caméra pendant plusieurs minutes.")
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("Problème signalé", mail.outbox[0].subject)
+        self.assertEqual(mail.outbox[0].to, ["mbadunkokorigervais@gmail.com"])
+
+        dashboard_response = self.client.get(reverse("camera_dashboard"))
+        self.assertContains(dashboard_response, "Problèmes ouverts")
+        self.assertContains(dashboard_response, "1 signalement créé aujourd'hui")
 
     def test_admin_can_correct_controller_report_from_admin_portal(self):
         report = CameraOperatorDailyReport.objects.create(

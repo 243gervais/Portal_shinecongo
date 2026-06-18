@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.core.mail import EmailMultiAlternatives
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils import timezone
 
 from .models import IssueReport
@@ -25,6 +26,56 @@ def _resolve_employee_portal_profile(request):
         messages.error(request, "Aucun site n'est associé à votre profil.")
         return None
     return profile
+
+
+def _resolve_issue_portal_profile(request):
+    profile = getattr(request.user, "userprofile", None)
+    if not profile:
+        messages.error(request, "Accès refusé. Aucun profil employé n'est associé à ce compte.")
+        return None, None
+
+    if profile.is_employe():
+        portal_variant = "employee"
+    elif profile.is_camera_controller():
+        portal_variant = "camera"
+    else:
+        messages.error(
+            request,
+            "Accès refusé. Ce formulaire est réservé aux employés lavage et aux contrôleurs caméra.",
+        )
+        return None, None
+
+    if not profile.site:
+        messages.error(request, "Aucun site n'est associé à votre profil.")
+        return None, None
+
+    return profile, portal_variant
+
+
+def _issue_portal_context(profile, portal_variant):
+    if portal_variant == "camera":
+        return {
+            "portal_variant": portal_variant,
+            "page_title": "Signaler un problème caméra",
+            "page_intro": (
+                "Déclarez ici tout problème constaté pendant la journée: matériel, sécurité, client, "
+                "eau ou toute autre anomalie observée depuis le portail contrôle caméra."
+            ),
+            "submit_label": "Envoyer le signalement",
+            "cancel_url": reverse("camera_dashboard"),
+            "cancel_label": "Retour au portail caméra",
+            "success_redirect": "camera_dashboard",
+        }
+
+    return {
+        "portal_variant": portal_variant,
+        "page_title": "Signaler un problème",
+        "page_intro": "Décrivez le problème rencontré pendant votre journée de travail.",
+        "submit_label": "Signaler le problème",
+        "cancel_url": reverse("employe_dashboard"),
+        "cancel_label": "Annuler",
+        "success_redirect": "employe_dashboard",
+    }
 
 
 def _build_issue_report_email_context(probleme):
@@ -96,9 +147,10 @@ def signaler_probleme(request):
     """
     Signaler un nouveau problème
     """
-    profile = _resolve_employee_portal_profile(request)
+    profile, portal_variant = _resolve_issue_portal_profile(request)
     if not profile:
         return redirect("dashboard")
+    portal_context = _issue_portal_context(profile, portal_variant)
 
     if request.method == 'POST':
         try:
@@ -130,13 +182,14 @@ def signaler_probleme(request):
             )
             
             messages.success(request, 'Problème signalé avec succès !')
-            return redirect('employe_dashboard')
+            return redirect(portal_context["success_redirect"])
             
         except Exception as e:
             messages.error(request, f'Erreur lors du signalement: {str(e)}')
     
     return render(request, 'employe/signaler_probleme.html', {
-        'categories': IssueReport.CATEGORIE_CHOICES
+        'categories': IssueReport.CATEGORIE_CHOICES,
+        **portal_context,
     })
 
 

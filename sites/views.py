@@ -15,6 +15,7 @@ from django.views.decorators.cache import never_cache
 from audit.models import AuditLog
 from comptes.models import UserProfile
 from pointage.utils import get_client_ip, get_user_agent
+from problemes.models import IssueReport
 
 from .forms import AdminCameraObservationForm, CameraObservationForm, CameraOperatorDailyReportFinalForm
 from .models import (
@@ -62,6 +63,16 @@ def _build_camera_dashboard_context(user, site):
         CameraOperatorDailyReport.objects.filter(controller=user, site=site, is_submitted=True)
         .order_by("-date", "-submitted_at")[:8]
     )
+    open_issues_count = IssueReport.objects.filter(
+        employe=user,
+        site=site,
+        statut="OUVERT",
+    ).count()
+    today_issues_count = IssueReport.objects.filter(
+        employe=user,
+        site=site,
+        created_at__date=today,
+    ).count()
 
     return {
         "site": site,
@@ -72,6 +83,8 @@ def _build_camera_dashboard_context(user, site):
         "month_reports_count": month_reports_qs.filter(is_submitted=True).count(),
         "month_vehicles_count": sum(item.total_vehicles for item in month_reports_qs if item.is_submitted),
         "month_screenshots_count": sum(item.screenshots_count for item in month_reports_qs),
+        "open_issues_count": open_issues_count,
+        "today_issues_count": today_issues_count,
         "recent_reports": recent_reports,
     }
 

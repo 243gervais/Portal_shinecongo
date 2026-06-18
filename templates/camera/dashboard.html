@@ -300,6 +300,7 @@
             </div>
             <div class="camera-portal-actions">
                 <a href="{% url 'camera_lavage_verification' %}#lavage-verification-form" class="btn btn-primary">Lavage verification</a>
+                <a href="{% url 'camera_signaler_probleme' %}" class="btn btn-warning">Signaler un problème</a>
             </div>
         </div>
 
@@ -337,6 +338,11 @@
                 <div class="camera-portal-value">{{ month_screenshots_count }}</div>
                 <div class="camera-portal-muted">Archive visuelle envoyée à l'admin.</div>
             </article>
+            <article class="camera-portal-kpi">
+                <div class="camera-portal-label">Problèmes ouverts</div>
+                <div class="camera-portal-value">{{ open_issues_count }}</div>
+                <div class="camera-portal-muted">{{ today_issues_count }} signalement{{ today_issues_count|pluralize }} créé{{ today_issues_count|pluralize }} aujourd'hui.</div>
+            </article>
         </div>
     </section>
 
@@ -365,6 +371,29 @@
             </div>
             <div>
                 <a href="{% url 'camera_lavage_verification' %}#lavage-verification-form" class="btn btn-primary">Lavage verification</a>
+            </div>
+        </section>
+
+        <section class="camera-portal-card">
+            <div class="camera-portal-head">
+                <div>
+                    <h2 class="camera-portal-title">Signaler un problème</h2>
+                    <p class="camera-portal-copy">Si vous remarquez un incident pendant la journée, ouvrez le formulaire et signalez-le immédiatement à l'administration avec une catégorie, une description et une photo si nécessaire.</p>
+                </div>
+                <span class="camera-portal-badge">{{ open_issues_count }} ouvert{{ open_issues_count|pluralize }}</span>
+            </div>
+            <div class="camera-portal-mini-grid">
+                <div class="camera-portal-mini-card">
+                    <div class="camera-portal-label">Types de problèmes</div>
+                    <div class="camera-portal-copy">Matériel, eau, sécurité, client ou toute autre anomalie constatée pendant le service.</div>
+                </div>
+                <div class="camera-portal-mini-card">
+                    <div class="camera-portal-label">Signalements du jour</div>
+                    <div class="camera-portal-copy">{{ today_issues_count }} problème{{ today_issues_count|pluralize }} envoyé{{ today_issues_count|pluralize }} aujourd'hui depuis ce portail caméra.</div>
+                </div>
+            </div>
+            <div>
+                <a href="{% url 'camera_signaler_probleme' %}" class="btn btn-warning">Ouvrir le formulaire</a>
             </div>
         </section>
 
