@@ -23,6 +23,16 @@ def _run_in_venv(conn: Connection, app_dir: str, command: str) -> None:
     )
 
 
+def _upload_frontend_bundle(conn: Connection, app_dir: str) -> None:
+    local_bundle_dir = Path(__file__).resolve().parent / "frontend_dist" / "frontend"
+    remote_bundle_dir = f"{app_dir}/frontend_dist/frontend"
+
+    conn.run(f"mkdir -p {shlex.quote(remote_bundle_dir)}")
+    for asset_path in sorted(local_bundle_dir.iterdir()):
+        if asset_path.is_file():
+            conn.put(str(asset_path), remote=f"{remote_bundle_dir}/{asset_path.name}")
+
+
 def _ensure_site_journal_reminder_cron(conn: Connection, app_dir: str) -> None:
     log_dir = f"{app_dir}/logs"
     cron_line = (
@@ -58,6 +68,7 @@ def deploy(_c) -> None:
     with conn.cd(app_dir):
         conn.run(f"git pull origin {branch}")
 
+    _upload_frontend_bundle(conn, app_dir)
     _run_in_venv(conn, app_dir, "pip install -r requirements.txt")
     _run_in_venv(conn, app_dir, "python manage.py migrate --noinput")
     _run_in_venv(conn, app_dir, "python manage.py collectstatic --noinput")
