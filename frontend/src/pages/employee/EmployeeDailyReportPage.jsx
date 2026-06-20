@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import { apiFetch } from "../../lib/api";
 import { ErrorState, LoadingState, Notice } from "../../components/Ui";
@@ -27,6 +27,14 @@ function CustomExpenseRow({ value, index, onChange, onRemove }) {
   );
 }
 
+function normalizeCustomExpense(expense, clientId) {
+  return {
+    clientId,
+    label: expense?.label || "",
+    amount_value: expense?.amount_value || "",
+  };
+}
+
 export default function EmployeeDailyReportPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -35,6 +43,13 @@ export default function EmployeeDailyReportPage() {
   const [knownExpenses, setKnownExpenses] = useState([]);
   const [customExpenses, setCustomExpenses] = useState([]);
   const [declaredAmount, setDeclaredAmount] = useState("");
+  const customExpenseIdRef = useRef(0);
+
+  function createCustomExpense(expense = {}) {
+    const clientId = `custom-expense-${customExpenseIdRef.current}`;
+    customExpenseIdRef.current += 1;
+    return normalizeCustomExpense(expense, clientId);
+  }
 
   async function load() {
     try {
@@ -42,7 +57,7 @@ export default function EmployeeDailyReportPage() {
       const payload = await apiFetch("/employee/rapport-journalier/");
       setData(payload);
       setKnownExpenses(payload.expense_form.known || []);
-      setCustomExpenses(payload.expense_form.custom || []);
+      setCustomExpenses((payload.expense_form.custom || []).map((expense) => createCustomExpense(expense)));
       setDeclaredAmount(payload.submitted_total_amount || "");
     } catch (requestError) {
       setError(requestError.message);
@@ -63,16 +78,18 @@ export default function EmployeeDailyReportPage() {
   }
 
   function updateCustomExpense(index, field, value) {
-    const next = [...customExpenses];
-    next[index] = {
-      ...next[index],
-      [field]: value,
-    };
-    setCustomExpenses(next);
+    setCustomExpenses((currentExpenses) => {
+      const next = [...currentExpenses];
+      next[index] = {
+        ...next[index],
+        [field]: value,
+      };
+      return next;
+    });
   }
 
   function removeCustomExpense(index) {
-    setCustomExpenses(customExpenses.filter((_, expenseIndex) => expenseIndex !== index));
+    setCustomExpenses((currentExpenses) => currentExpenses.filter((_, expenseIndex) => expenseIndex !== index));
   }
 
   async function handleSubmit(event) {
@@ -164,7 +181,7 @@ export default function EmployeeDailyReportPage() {
             <div className="expense-stack">
               {customExpenses.map((expense, index) => (
                 <CustomExpenseRow
-                  key={`${index}-${expense.label}`}
+                  key={expense.clientId}
                   value={expense}
                   index={index}
                   onChange={updateCustomExpense}
@@ -174,7 +191,7 @@ export default function EmployeeDailyReportPage() {
               <button
                 type="button"
                 className="button button-muted"
-                onClick={() => setCustomExpenses([...customExpenses, { label: "", amount_value: "" }])}
+                onClick={() => setCustomExpenses((currentExpenses) => [...currentExpenses, createCustomExpense()])}
               >
                 Ajouter une ligne
               </button>
