@@ -299,6 +299,7 @@
                 </div>
             </div>
             <div class="camera-portal-actions">
+                <span class="camera-portal-badge">Identifiant: {{ request.user.username }}</span>
                 <a href="{% url 'camera_lavage_verification' %}#lavage-verification-form" class="btn btn-primary">Lavage verification</a>
                 <a href="{% url 'camera_signaler_probleme' %}" class="btn btn-warning">Signaler un problème</a>
             </div>
