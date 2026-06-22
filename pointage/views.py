@@ -29,7 +29,7 @@ KNOWN_DAILY_EXPENSES = [
     {
         "key": "transport_personnels",
         "label": "Transport de Personnels",
-        "default_amount": Decimal("14000"),
+        "default_amount": Decimal("21000"),
     },
 ]
 
