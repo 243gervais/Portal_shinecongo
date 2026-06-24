@@ -79,6 +79,11 @@
         color: var(--text-secondary) !important;
         font-weight: 500 !important;
         font-size: 0.9rem !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        gap: 0.65rem !important;
+        flex-wrap: wrap !important;
     }
 
     #user-tools a {
@@ -92,6 +97,18 @@
     #user-tools a:hover {
         color: var(--secondary-color) !important;
         background: rgba(0, 102, 255, 0.1) !important;
+    }
+
+    .admin-identifiant-badge {
+        display: inline-flex !important;
+        align-items: center !important;
+        padding: 0.45rem 0.85rem !important;
+        border-radius: 999px !important;
+        background: rgba(0, 102, 255, 0.14) !important;
+        color: var(--text-primary) !important;
+        font-size: 0.84rem !important;
+        font-weight: 700 !important;
+        line-height: 1.2 !important;
     }
 
     /* Main content area */
@@ -804,6 +821,16 @@
 
     /* Responsive design */
     @media (max-width: 768px) {
+        #user-tools {
+            justify-content: flex-start !important;
+        }
+
+        .admin-identifiant-badge {
+            width: 100% !important;
+            justify-content: center !important;
+            text-align: center !important;
+        }
+
         #content {
             padding: 1rem !important;
         }
@@ -840,4 +867,19 @@
         </span>
     </a>
 </h1>
+{% endblock %}
+
+{% block usertools %}
+{% if has_permission %}
+<div id="user-tools">
+    <span class="admin-identifiant-badge">Identifiant: {{ user.username }}</span>
+    {% if site_url %}
+    <a href="{{ site_url }}">Voir le portail</a>
+    {% endif %}
+    {% if user.has_usable_password %}
+    <a href="{% url 'admin:password_change' %}">Changer le mot de passe</a>
+    {% endif %}
+    <a href="{% url 'admin:logout' %}">Déconnexion</a>
+</div>
+{% endif %}
 {% endblock %}
