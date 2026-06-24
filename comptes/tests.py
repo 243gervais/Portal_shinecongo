@@ -86,6 +86,19 @@ class AccountApprovalFlowTests(TestCase):
 
 
 class AdminCreateSiteViewTests(TestCase):
+    def test_admin_index_shows_logged_in_identifier(self):
+        admin_user = User.objects.create_superuser(
+            username="portaladmin",
+            email="portaladmin@example.com",
+            password="AdminPass123!",
+        )
+        self.client.login(username="portaladmin", password="AdminPass123!")
+
+        response = self.client.get(reverse("admin:index"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f"Identifiant: {admin_user.username}")
+
     def test_superuser_can_create_site_from_custom_admin_page(self):
         admin_user = User.objects.create_superuser(
             username="portaladmin",
@@ -161,6 +174,7 @@ class AdminAccountRequestsDashboardTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Boite Admin")
+        self.assertContains(response, "Identifiant: approval_admin")
         self.assertContains(response, "Messages")
         self.assertNotContains(response, "Django Admin")
         self.assertContains(response, "Recherche admin ou site")
@@ -1141,12 +1155,14 @@ class CameraControllerPortalTests(TestCase):
         self.assertContains(dashboard_response, "Signaler un problème")
         self.assertContains(dashboard_response, reverse("camera_signaler_probleme"))
         self.assertContains(dashboard_response, "Travaillez lavage par lavage")
+        self.assertContains(dashboard_response, "Identifiant: camera_agent")
         self.assertNotContains(dashboard_response, "Recette")
         self.assertNotContains(dashboard_response, "Tarif")
         self.assertNotContains(dashboard_response, "FC")
         self.assertEqual(verification_response.status_code, 200)
         self.assertContains(verification_response, "Enregistrer la vérification")
         self.assertContains(verification_response, "Clôture finale de la journée")
+        self.assertContains(verification_response, "Identifiant: camera_agent")
         self.assertContains(verification_response, "Plaque")
         self.assertContains(verification_response, "Vérifications enregistrées")
         self.assertNotContains(verification_response, "Choisissez la caméra")
