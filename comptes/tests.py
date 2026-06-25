@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 from urllib.parse import quote
 from unittest.mock import patch
 
+from comptes.context_processors import _is_world_cup_login_theme_active
 from comptes.forms import ApprovalAuthenticationForm
 from comptes.recruitment import ReviewedCandidateCV
 from comptes.views import _daily_funding_snapshot
@@ -83,6 +84,34 @@ class AccountApprovalFlowTests(TestCase):
 
         self.assertFalse(form.is_valid())
         self.assertIn("en attente", str(form.non_field_errors()))
+
+
+class LoginWorldCupThemeTests(TestCase):
+    def test_world_cup_login_theme_helper_is_active_during_tournament(self):
+        self.assertTrue(_is_world_cup_login_theme_active(date(2026, 6, 25)))
+
+    def test_world_cup_login_theme_helper_is_inactive_after_tournament(self):
+        self.assertFalse(_is_world_cup_login_theme_active(date(2026, 7, 20)))
+
+    @patch("comptes.context_processors.timezone.localdate", return_value=date(2026, 6, 25))
+    def test_login_page_shows_world_cup_theme_during_tournament(self, _mock_localdate):
+        response = self.client.get(reverse("login"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<div class="login-title-wrap login-title-wrap--world-cup">', html=False)
+        self.assertContains(response, '<h1 class="login-title login-title--world-cup">Connexion</h1>', html=False)
+        self.assertContains(response, "login-worldcup-ball")
+
+    @patch("comptes.context_processors.timezone.localdate", return_value=date(2026, 7, 20))
+    def test_login_page_returns_to_default_after_tournament(self, _mock_localdate):
+        response = self.client.get(reverse("login"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<div class="login-title-wrap">', html=False)
+        self.assertContains(response, '<h1 class="login-title">Connexion</h1>', html=False)
+        self.assertNotContains(response, '<div class="login-title-wrap login-title-wrap--world-cup">', html=False)
+        self.assertNotContains(response, '<h1 class="login-title login-title--world-cup">Connexion</h1>', html=False)
+        self.assertNotContains(response, 'login-worldcup-ball--left', html=False)
 
 
 class AdminCreateSiteViewTests(TestCase):

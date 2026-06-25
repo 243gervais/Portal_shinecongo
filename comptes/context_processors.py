@@ -1,3 +1,5 @@
+from datetime import date
+
 from django.core.cache import cache
 from django.db.models import Count, Max
 from django.urls import reverse
@@ -6,6 +8,10 @@ from django.utils import timezone
 from comptes.admin_inbox import ensure_admin_profile, get_admin_inbox_counts
 from comptes.models import UserProfile
 from sites.models import Location
+
+
+WORLD_CUP_LOGIN_THEME_START = date(2026, 6, 11)
+WORLD_CUP_LOGIN_THEME_END = date(2026, 7, 19)
 
 
 def _stamp_for_cache(value):
@@ -320,8 +326,14 @@ def _build_employee_portal_revision(user):
     return ""
 
 
+def _is_world_cup_login_theme_active(reference_date=None):
+    target_date = reference_date or timezone.localdate()
+    return WORLD_CUP_LOGIN_THEME_START <= target_date <= WORLD_CUP_LOGIN_THEME_END
+
+
 def admin_inbox_badge(request):
     context = get_admin_inbox_counts(request.user)
     context.update(_build_admin_site_navigation(request))
     context["portal_activity_revision"] = _build_employee_portal_revision(request.user)
+    context["login_world_cup_theme_active"] = _is_world_cup_login_theme_active()
     return context
