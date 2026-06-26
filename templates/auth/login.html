@@ -190,10 +190,11 @@
         box-shadow: 0 14px 28px rgba(0, 0, 0, 0.16);
         font-size: 1.08rem;
         line-height: 1;
-        animation: login-ball-bob 2.6s ease-in-out infinite;
+        animation: login-ball-bob 1.9s ease-in-out infinite;
     }
 
     .login-worldcup-ball--right {
+        animation-duration: 2.15s;
         animation-delay: 0.28s;
     }
 
@@ -204,6 +205,8 @@
         width: 1.7rem;
         height: 1.7rem;
         font-size: 0.92rem;
+        animation-name: login-ball-orbit;
+        animation-duration: 2.35s;
         animation-delay: 0.44s;
     }
 
@@ -385,10 +388,26 @@
     @keyframes login-ball-bob {
         0%,
         100% {
-            transform: translateY(0) rotate(0deg);
+            transform: translate3d(0, 0, 0) rotate(-8deg);
         }
-        50% {
-            transform: translateY(-4px) rotate(10deg);
+        35% {
+            transform: translate3d(-3px, -9px, 0) rotate(14deg);
+        }
+        70% {
+            transform: translate3d(4px, 5px, 0) rotate(-12deg);
+        }
+    }
+
+    @keyframes login-ball-orbit {
+        0%,
+        100% {
+            transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+        }
+        30% {
+            transform: translate3d(7px, -12px, 0) scale(1.07) rotate(16deg);
+        }
+        65% {
+            transform: translate3d(-8px, 7px, 0) scale(0.95) rotate(-18deg);
         }
     }
 
