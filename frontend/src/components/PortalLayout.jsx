@@ -13,6 +13,7 @@ function employeeLinks() {
     { to: "/employe/probleme/mes-problemes/", label: "Mes problèmes" },
     { to: "/employe/rapport-journee/", label: "Rapport du jour" },
     { to: "/employe/eau/", label: "Eau" },
+    { to: "/employe/carburant/", label: "Carburant" },
     { to: "/employe/historique/", label: "Historique" },
   ];
 }

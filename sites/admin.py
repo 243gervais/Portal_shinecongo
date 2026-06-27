@@ -5,6 +5,7 @@ from .models import (
     DailyCameraReport,
     Location,
     SiteDocument,
+    SiteFuelPurchase,
     SiteWaterPurchase,
     SiteLossEntry,
     VideoEvidence,
@@ -127,6 +128,28 @@ class SiteWaterPurchaseAdmin(admin.ModelAdmin):
     fieldsets = (
         ("Informations", {
             "fields": ("site", "supplier", "billing_month", "purchase_date", "amount_fc")
+        }),
+        ("Détails", {
+            "fields": ("notes", "created_by")
+        }),
+        ("Métadonnées", {
+            "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",)
+        }),
+    )
+
+
+@admin.register(SiteFuelPurchase)
+class SiteFuelPurchaseAdmin(admin.ModelAdmin):
+    list_display = ("site", "billing_month", "purchase_date", "created_by", "created_at")
+    list_filter = ("billing_month", "purchase_date", "site")
+    search_fields = ("site__nom", "notes", "created_by__username", "created_by__first_name", "created_by__last_name")
+    ordering = ("-billing_month", "-purchase_date", "-created_at")
+    readonly_fields = ("created_at", "updated_at")
+
+    fieldsets = (
+        ("Informations", {
+            "fields": ("site", "billing_month", "purchase_date")
         }),
         ("Détails", {
             "fields": ("notes", "created_by")

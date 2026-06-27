@@ -873,6 +873,11 @@
         color: #155f95;
     }
 
+    .day-activity-kind--fuel {
+        background: rgba(244, 163, 64, 0.18);
+        color: #8a5600;
+    }
+
     .day-activity-kind--journal {
         background: rgba(121, 92, 214, 0.14);
         color: #533da0;
@@ -1417,7 +1422,7 @@
             <summary class="finance-disclosure-head">
                 <div>
                     <div class="finance-disclosure-title">Journal complet de la journee</div>
-                    <div class="finance-disclosure-copy">Tous les mouvements du jour dans un seul bloc: lavages, rapports, depots, pertes, eau, notes du site et problemes.</div>
+                    <div class="finance-disclosure-copy">Tous les mouvements du jour dans un seul bloc: lavages, rapports, depots, pertes, eau, carburant, notes du site et problemes.</div>
                 </div>
                 <span class="finance-disclosure-state">{{ single_day_activity_entries|length }} evenements</span>
             </summary>
@@ -1442,6 +1447,10 @@
                     <div class="day-activity-mini">
                         <div class="day-activity-mini-label">Eau</div>
                         <div class="day-activity-mini-value">{{ water_purchases_date|length }}</div>
+                    </div>
+                    <div class="day-activity-mini">
+                        <div class="day-activity-mini-label">Carburant</div>
+                        <div class="day-activity-mini-value">{{ fuel_purchases_date|length }}</div>
                     </div>
                     <div class="day-activity-mini">
                         <div class="day-activity-mini-label">Notes site</div>
@@ -1558,7 +1567,7 @@
                         <div class="day-activity-section-head">
                             <div>
                                 <h3>Flux financiers du jour</h3>
-                                <p>Depot bancaire, pertes, achat d'eau et autres lignes financieres ou de suivi saisies pour cette date.</p>
+                                <p>Depot bancaire, pertes, achats d'eau, achats de carburant et autres lignes financieres ou de suivi saisies pour cette date.</p>
                             </div>
                             <span class="day-activity-section-state">{{ pertes_date_total|fc_amount }} FC de pertes</span>
                         </div>
@@ -1642,16 +1651,52 @@
                                             </tbody>
                                         </table>
                                     </div>
-                                    {% else %}
-                                    <div style="color: var(--text-secondary);">Aucun achat d'eau saisi pour cette date.</div>
-                                    {% endif %}
-                                </div>
+                                {% else %}
+                                <div style="color: var(--text-secondary);">Aucun achat d'eau saisi pour cette date.</div>
+                                {% endif %}
+                            </div>
 
-                                <div id="single-day-journal-entries" style="margin-top: 1rem;">
-                                    <div class="day-activity-section-head" style="margin-bottom: 0.65rem;">
-                                        <div>
-                                            <h3 style="font-size: 0.92rem;">Notes et suivi du site</h3>
-                                            <p>Informations, interventions et autres notes admin liées a cette journee.</p>
+                            <div id="single-day-fuel" style="margin-top: 1rem;">
+                                <div class="day-activity-section-head" style="margin-bottom: 0.65rem;">
+                                    <div>
+                                        <h3 style="font-size: 0.92rem;">Gestion du carburant</h3>
+                                        <p>Achats de carburant déclarés sur la journée.</p>
+                                    </div>
+                                    <span class="day-activity-section-state">{{ fuel_purchases_date|length }} entree{{ fuel_purchases_date|length|pluralize }}</span>
+                                </div>
+                                {% if fuel_purchases_date %}
+                                <div class="table-container">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Heure</th>
+                                                <th>Mois</th>
+                                                <th>Saisi par</th>
+                                                <th>Notes</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for purchase in fuel_purchases_date %}
+                                            <tr>
+                                                <td>{{ purchase.created_at|date:"H:i" }}</td>
+                                                <td>{{ purchase.billing_month|date:"m/Y" }}</td>
+                                                <td>{% if purchase.created_by %}{{ purchase.created_by.get_full_name|default:purchase.created_by.username }}{% else %}Admin{% endif %}</td>
+                                                <td>{{ purchase.notes|default:"-" }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% else %}
+                                <div style="color: var(--text-secondary);">Aucun achat de carburant saisi pour cette date.</div>
+                                {% endif %}
+                            </div>
+
+                            <div id="single-day-journal-entries" style="margin-top: 1rem;">
+                                <div class="day-activity-section-head" style="margin-bottom: 0.65rem;">
+                                    <div>
+                                        <h3 style="font-size: 0.92rem;">Notes et suivi du site</h3>
+                                        <p>Informations, interventions et autres notes admin liées a cette journee.</p>
                                         </div>
                                         <span class="day-activity-section-state">{{ journal_entries_date|length }} note{{ journal_entries_date|length|pluralize }}</span>
                                     </div>
@@ -1982,8 +2027,8 @@
             </a>
             <a href="#period-activity-stream" class="site-metric-card site-metric-card--link js-open-anchor">
                 <div class="site-metric-label">Événements période</div>
-                <div class="site-metric-value">{{ period_problem_count|add:period_water_count|add:period_journal_count }}</div>
-                <div class="site-metric-subvalue">Problèmes: {{ period_problem_count }} • Eau: {{ period_water_count }} • Journal: {{ period_journal_count }}</div>
+                <div class="site-metric-value">{{ period_problem_count|add:period_water_count|add:period_fuel_count|add:period_journal_count }}</div>
+                <div class="site-metric-subvalue">Problèmes: {{ period_problem_count }} • Eau: {{ period_water_count }} • Carburant: {{ period_fuel_count }} • Journal: {{ period_journal_count }}</div>
                 <div class="site-metric-action">Voir tous les événements</div>
             </a>
             {% else %}
@@ -2046,7 +2091,7 @@
         <div>
             <h2 class="site-section-title">Lecture complète de la période</h2>
             <p class="site-section-copy">
-                Cette vue liste chaque journée de la période puis détaille les dépôts, pertes, rapports, achats d'eau et notes de journal pour que le mois soit lisible sans aller chercher l'information ailleurs.
+                Cette vue liste chaque journée de la période puis détaille les dépôts, pertes, rapports, achats d'eau, achats de carburant et notes de journal pour que le mois soit lisible sans aller chercher l'information ailleurs.
             </p>
         </div>
         <span class="site-section-state">{{ period_label }}</span>
@@ -2205,10 +2250,10 @@
             <details class="finance-disclosure" id="period-activity-stream">
                 <summary class="finance-disclosure-head">
                     <div>
-                        <div class="finance-disclosure-title">Rapports employés, eau, problèmes et journal du site</div>
-                        <div class="finance-disclosure-copy">Tous les autres événements remontés sur la période: rapports fin de journée, achats d'eau, incidents et notes opérationnelles.</div>
+                        <div class="finance-disclosure-title">Rapports employés, eau, carburant, problèmes et journal du site</div>
+                        <div class="finance-disclosure-copy">Tous les autres événements remontés sur la période: rapports fin de journée, achats d'eau, achats de carburant, incidents et notes opérationnelles.</div>
                     </div>
-                    <span class="finance-disclosure-state">{{ period_reports_count|add:period_water_count|add:period_journal_count }} entrées</span>
+                    <span class="finance-disclosure-state">{{ period_reports_count|add:period_water_count|add:period_fuel_count|add:period_journal_count }} entrées</span>
                 </summary>
                 <div class="finance-disclosure-body">
                     <div class="finance-meta-grid">
@@ -2272,6 +2317,35 @@
                             </div>
                             {% else %}
                             <p style="margin: 0; color: var(--text-secondary);">Aucun achat d'eau enregistré sur cette période.</p>
+                            {% endif %}
+                        </div>
+                        <div class="finance-meta-block" id="period-fuel-purchases">
+                            <h3>Achats de carburant</h3>
+                            {% if period_fuel_purchases %}
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Mois</th>
+                                            <th>Saisi par</th>
+                                            <th>Notes</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for purchase in period_fuel_purchases %}
+                                        <tr>
+                                            <td>{{ purchase.purchase_date|date:"d/m/Y" }}</td>
+                                            <td>{{ purchase.billing_month|date:"m/Y" }}</td>
+                                            <td>{% if purchase.created_by %}{{ purchase.created_by.get_full_name|default:purchase.created_by.username }}{% else %}Admin{% endif %}</td>
+                                            <td>{{ purchase.notes|default:"-" }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p style="margin: 0; color: var(--text-secondary);">Aucun achat de carburant enregistré sur cette période.</p>
                             {% endif %}
                         </div>
                     </div>

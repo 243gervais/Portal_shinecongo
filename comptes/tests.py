@@ -26,6 +26,7 @@ from sites.models import (
     DailyCameraReport,
     Location,
     SiteDocument,
+    SiteFuelPurchase,
     SiteJournalEntry,
     SiteWaterPurchase,
     VideoEvidence,
@@ -1593,6 +1594,13 @@ class SiteJournalEntryTests(TestCase):
             notes="Remplissage du tank",
             created_by=self.admin_user,
         )
+        SiteFuelPurchase.objects.create(
+            site=self.site,
+            billing_month=date(2026, 4, 1),
+            purchase_date=date(2026, 4, 11),
+            notes="Bidon pour le groupe électrogène",
+            created_by=self.admin_user,
+        )
         SiteJournalEntry.objects.create(
             site=self.site,
             entry_date=date(2026, 4, 11),
@@ -1623,6 +1631,7 @@ class SiteJournalEntryTests(TestCase):
         self.assertContains(response, "Lavages enregistres")
         self.assertContains(response, "Flux financiers du jour")
         self.assertContains(response, "Gestion de l'eau")
+        self.assertContains(response, "Gestion du carburant")
         self.assertContains(response, "Notes et suivi du site")
         self.assertContains(response, "Problemes et observations du jour")
         self.assertContains(response, "Presences et pointages")
@@ -1630,6 +1639,7 @@ class SiteJournalEntryTests(TestCase):
         self.assertContains(response, "Transport équipe")
         self.assertContains(response, "Depot principal de la journee")
         self.assertContains(response, "Remplissage du tank")
+        self.assertContains(response, "Bidon pour le groupe électrogène")
         self.assertContains(response, "Visite du bailleur")
         self.assertContains(response, "Client difficile sur site.")
         self.assertContains(response, "Transport de Personnels")
@@ -1689,6 +1699,13 @@ class SiteJournalEntryTests(TestCase):
             notes="Remplissage du tank",
             created_by=self.admin_user,
         )
+        SiteFuelPurchase.objects.create(
+            site=self.site,
+            billing_month=date(2026, 4, 1),
+            purchase_date=date(2026, 4, 13),
+            notes="Carburant de la semaine",
+            created_by=self.admin_user,
+        )
         SiteJournalEntry.objects.create(
             site=self.site,
             entry_date=date(2026, 4, 14),
@@ -1722,14 +1739,15 @@ class SiteJournalEntryTests(TestCase):
         self.assertContains(response, "Journal quotidien de la période")
         self.assertContains(response, "Dépôts bancaires de la période")
         self.assertContains(response, "Pertes et dépenses de la période")
-        self.assertContains(response, "Rapports employés, eau, problèmes et journal du site")
+        self.assertContains(response, "Rapports employés, eau, carburant, problèmes et journal du site")
         self.assertContains(response, "50 000 FC")
         self.assertContains(response, "14 000 FC")
         self.assertContains(response, "22 000 FC")
         self.assertContains(response, "Transport équipe")
+        self.assertContains(response, "Carburant de la semaine")
         self.assertContains(response, "Achat de matériel")
         self.assertContains(response, "Problèmes signalés")
-        self.assertContains(response, "Problèmes: 1 • Eau: 1 • Journal: 1")
+        self.assertContains(response, "Problèmes: 1 • Eau: 1 • Carburant: 1 • Journal: 1")
         self.assertContains(response, "Le tuyau principal fuit près du réservoir.")
         self.assertContains(response, 'href="#historique-lavages"')
         self.assertContains(response, 'href="#period-bank-deposits"')

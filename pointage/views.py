@@ -12,7 +12,7 @@ from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
 from django.db.models import Count, Sum
 from .models import ShiftDay
-from sites.models import Location, SiteWaterPurchase, get_default_water_supplier
+from sites.models import Location, SiteFuelPurchase, SiteWaterPurchase, get_default_water_supplier
 from lavages.models import CarWash
 from problemes.models import IssueReport
 from .utils import get_client_ip, get_user_agent
@@ -328,6 +328,69 @@ def _send_water_purchase_notification(purchase):
         return False
 
 
+def _build_fuel_purchase_email_context(purchase):
+    reporter_name = (
+        purchase.created_by.get_full_name() or purchase.created_by.username
+        if purchase.created_by else
+        "Employé non précisé"
+    )
+    notes = (purchase.notes or "").strip()
+
+    return {
+        "company_name": "Shine Congo",
+        "reporter_name": reporter_name,
+        "site_name": purchase.site.nom,
+        "purchase_date": purchase.purchase_date,
+        "billing_month": purchase.billing_month,
+        "notes": notes or "Aucune note",
+        "has_notes": bool(notes),
+        "created_at": timezone.localtime(purchase.created_at or timezone.now()),
+    }
+
+
+def _send_fuel_purchase_notification(purchase):
+    recipient = (
+        getattr(settings, "WATER_PURCHASE_NOTIFICATION_EMAIL", "")
+        or getattr(settings, "FINAL_REPORT_NOTIFICATION_EMAIL", "")
+        or ""
+    ).strip()
+    if not recipient:
+        return False
+    email_backend = getattr(settings, "EMAIL_BACKEND", "")
+    uses_smtp_backend = email_backend.endswith("smtp.EmailBackend")
+    if uses_smtp_backend and (
+        not getattr(settings, "EMAIL_HOST", "")
+        or not getattr(settings, "EMAIL_HOST_USER", "")
+        or not getattr(settings, "EMAIL_HOST_PASSWORD", "")
+    ):
+        logger.warning(
+            "Notification email skipped for fuel purchase because SMTP settings are incomplete"
+        )
+        return False
+
+    context = _build_fuel_purchase_email_context(purchase)
+    subject = (
+        f"Achat de carburant signalé - "
+        f"{purchase.site.nom} - {purchase.purchase_date.strftime('%d/%m/%Y')}"
+    )
+    message = render_to_string("emails/fuel_purchase_notification.txt", context)
+    html_message = render_to_string("emails/fuel_purchase_notification.html", context)
+
+    try:
+        email_message = EmailMultiAlternatives(
+            subject=subject,
+            body=message,
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            to=[recipient],
+        )
+        email_message.attach_alternative(html_message, "text/html")
+        email_message.send(fail_silently=False)
+        return True
+    except Exception:
+        logger.exception("Impossible d'envoyer la notification email de l'achat de carburant")
+        return False
+
+
 @login_required
 @never_cache
 def employe_dashboard(request):
@@ -349,6 +412,8 @@ def employe_dashboard(request):
     shift_today = ShiftDay.objects.filter(employe=user, date=today).first()
     water_purchase_today = None
     water_purchase_month_count = 0
+    fuel_purchase_today = None
+    fuel_purchase_month_count = 0
     water_purchase_today = (
         SiteWaterPurchase.objects.filter(site=site, purchase_date=today)
         .select_related("created_by")
@@ -359,6 +424,16 @@ def employe_dashboard(request):
         site=site,
         billing_month=today.replace(day=1),
     ).count()
+    fuel_purchase_today = (
+        SiteFuelPurchase.objects.filter(site=site, purchase_date=today)
+        .select_related("created_by")
+        .order_by("-created_at")
+        .first()
+    )
+    fuel_purchase_month_count = SiteFuelPurchase.objects.filter(
+        site=site,
+        billing_month=today.replace(day=1),
+    ).count()
     
     context = {
         'lavages_today': lavages_today,
@@ -366,6 +441,8 @@ def employe_dashboard(request):
         'shift_today': shift_today,
         'water_purchase_today': water_purchase_today,
         'water_purchase_month_count': water_purchase_month_count,
+        'fuel_purchase_today': fuel_purchase_today,
+        'fuel_purchase_month_count': fuel_purchase_month_count,
     }
     
     return render(request, 'employe/dashboard.html', context)
@@ -454,6 +531,65 @@ def employe_water_purchase(request):
         "last_purchase": last_purchase,
     }
     return render(request, "employe/water_purchase.html", context)
+
+
+@login_required
+@never_cache
+def employe_fuel_purchase(request):
+    """
+    Déclaration simple d'un achat de carburant depuis le portail employé.
+    Un seul signalement par site et par jour est accepté pour éviter les doublons.
+    """
+    user = request.user
+    today = timezone.localdate()
+    profile, failure_response = _resolve_employee_portal_profile(request)
+    if failure_response:
+        return failure_response
+    site = profile.site
+
+    if request.method != "POST":
+        return redirect("employe_fuel_purchase")
+
+    billing_month = today.replace(day=1)
+    today_purchase = (
+        SiteFuelPurchase.objects.filter(site=site, purchase_date=today)
+        .select_related("created_by")
+        .order_by("-created_at")
+        .first()
+    )
+    if today_purchase:
+        messages.info(
+            request,
+            "L'achat de carburant du jour a déjà été signalé. L'administrateur peut le corriger si nécessaire.",
+        )
+        return redirect("employe_fuel_purchase")
+
+    reporter_name = user.get_full_name() or user.username
+    purchase = SiteFuelPurchase.objects.create(
+        site=site,
+        billing_month=billing_month,
+        purchase_date=today,
+        notes=f"Signalé via portail employé par {reporter_name}.",
+        created_by=user,
+    )
+    _send_fuel_purchase_notification(purchase)
+
+    AuditLog.log(
+        user=user,
+        action="AUTRE",
+        description=(
+            f"Achat de carburant signalé via portail employé: "
+            f"{site.nom} - {purchase.purchase_date}"
+        ),
+        ip_address=get_client_ip(request),
+        user_agent=get_user_agent(request),
+    )
+
+    messages.success(
+        request,
+        "Achat de carburant enregistré pour aujourd'hui.",
+    )
+    return redirect("employe_fuel_purchase")
 
 
 @login_required

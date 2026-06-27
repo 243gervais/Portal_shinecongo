@@ -13,6 +13,7 @@ import EmployeeIssueFormPage from "./pages/employee/EmployeeIssueFormPage";
 import EmployeeIssuesPage from "./pages/employee/EmployeeIssuesPage";
 import EmployeeIssueDetailPage from "./pages/employee/EmployeeIssueDetailPage";
 import EmployeeDailyReportPage from "./pages/employee/EmployeeDailyReportPage";
+import EmployeeFuelPage from "./pages/employee/EmployeeFuelPage";
 import EmployeeWaterPage from "./pages/employee/EmployeeWaterPage";
 import EmployeeHistoryPage from "./pages/employee/EmployeeHistoryPage";
 import ManagerDashboardPage from "./pages/manager/ManagerDashboardPage";
@@ -41,6 +42,7 @@ function EmployeeRoutes({ session }) {
       <Route path="/employe/probleme/:problemeId/" element={<EmployeeIssueDetailPage />} />
       <Route path="/employe/rapport-journee/" element={<EmployeeDailyReportPage />} />
       <Route path="/employe/eau/" element={<EmployeeWaterPage />} />
+      <Route path="/employe/carburant/" element={<EmployeeFuelPage />} />
       <Route path="/employe/historique/" element={<EmployeeHistoryPage />} />
       <Route path="*" element={<Navigate to="/employe/" replace />} />
     </Routes>

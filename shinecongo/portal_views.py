@@ -114,6 +114,16 @@ def employee_water_purchase_portal(request, *args, **kwargs):
 
 @login_required
 @ensure_csrf_cookie
+def employee_fuel_purchase_portal(request, *args, **kwargs):
+    if request.method == "POST":
+        from pointage.views import employe_fuel_purchase
+
+        return employe_fuel_purchase(request, *args, **kwargs)
+    return employee_portal_shell(request, *args, **kwargs)
+
+
+@login_required
+@ensure_csrf_cookie
 def employee_daily_report_portal(request, *args, **kwargs):
     if request.method == "POST":
         from pointage.views import employe_daily_report
