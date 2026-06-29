@@ -13,7 +13,7 @@ from comptes.forms import get_water_purchase_default_amount
 from lavages.models import CarWash
 from pointage.models import ShiftDay
 from pointage.report_sync import ADMIN_CORRECTION_SOURCE, sync_site_finance_from_daily_reports
-from sites.models import DailyBankDeposit, Location, SiteLossEntry, SiteWaterPurchase
+from sites.models import DailyBankDeposit, Location, SiteFuelPurchase, SiteLossEntry, SiteWaterPurchase
 
 
 @override_settings(
@@ -508,6 +508,58 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(SiteWaterPurchase.objects.filter(site=self.site, purchase_date=today).count(), 1)
         self.assertIn("déjà été signalé", response.json()["message"])
 
+    def test_employee_can_signal_fuel_purchase_in_one_click(self):
+        today = timezone.localdate()
+
+        response = self.client.post(reverse("employe_fuel_purchase"))
+
+        self.assertEqual(response.status_code, 302)
+        purchase = SiteFuelPurchase.objects.get(site=self.site, purchase_date=today)
+        self.assertEqual(purchase.billing_month, today.replace(day=1))
+        self.assertEqual(purchase.created_by, self.user)
+        self.assertIn("Signalé via portail employé", purchase.notes)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("Achat de carburant signalé", mail.outbox[0].subject)
+        self.assertEqual(mail.outbox[0].to, ["mbadunkokorigervais@gmail.com"])
+        self.assertIn("Employé: jules", mail.outbox[0].body)
+        self.assertIn("Site: Ngaliema Test", mail.outbox[0].body)
+        self.assertIn(f"Mois rattaché: {today.strftime('%m/%Y')}", mail.outbox[0].body)
+        self.assertEqual(len(mail.outbox[0].alternatives), 1)
+        html_content, mimetype = mail.outbox[0].alternatives[0]
+        self.assertEqual(mimetype, "text/html")
+        self.assertIn("Achat de carburant signalé", html_content)
+        self.assertIn(today.strftime("%m/%Y"), html_content)
+
+    def test_employee_fuel_purchase_page_renders(self):
+        response = self.client.get(reverse("employe_fuel_purchase"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "portal-root")
+        self.assertContains(response, '/portal-assets/portal-app.js?v=')
+
+        api_response = self.client.get(reverse("portal_api_employee_fuel"))
+        self.assertEqual(api_response.status_code, 200)
+        payload = api_response.json()
+        self.assertEqual(payload["site"]["nom"], "Ngaliema Test")
+        self.assertIsNone(payload["today_purchase"])
+        self.assertEqual(payload["month_purchase_count"], 0)
+
+    def test_employee_fuel_purchase_prevents_same_day_duplicate(self):
+        today = timezone.localdate()
+        SiteFuelPurchase.objects.create(
+            site=self.site,
+            billing_month=today.replace(day=1),
+            purchase_date=today,
+            notes="Signalé via portail employé par jules.",
+            created_by=self.user,
+        )
+
+        response = self.client.post(reverse("portal_api_employee_fuel"))
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(SiteFuelPurchase.objects.filter(site=self.site, purchase_date=today).count(), 1)
+        self.assertIn("déjà été signalé", response.json()["message"])
+
     def test_employee_history_lists_water_and_report_entries_without_amounts(self):
         today = timezone.localdate()
         ShiftDay.objects.create(
@@ -552,6 +604,24 @@ class EmployeeDailyReportTests(TestCase):
         self.assertNotIn("daily_expenses_total_fc", reports_payload["results"][0])
         self.assertEqual(water_payload["results"][0]["supplier_name"], "Honosha's Forage")
         self.assertNotIn("amount_fc", water_payload["results"][0])
+
+    def test_employee_history_lists_fuel_entries_without_amounts(self):
+        today = timezone.localdate()
+        SiteFuelPurchase.objects.create(
+            site=self.site,
+            billing_month=today.replace(day=1),
+            purchase_date=today,
+            notes="Signalé via portail employé par jules.",
+            created_by=self.user,
+        )
+
+        response = self.client.get(reverse("portal_api_employee_history_fuel"))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["results"][0]["purchase_date"], today.strftime("%Y-%m-%d"))
+        self.assertEqual(payload["results"][0]["created_by_name"], "jules")
+        self.assertNotIn("amount_fc", payload["results"][0])
 
     def test_employee_water_page_reflects_admin_edit_and_delete(self):
         today = timezone.localdate()
