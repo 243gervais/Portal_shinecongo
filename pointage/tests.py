@@ -508,15 +508,16 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(SiteWaterPurchase.objects.filter(site=self.site, purchase_date=today).count(), 1)
         self.assertIn("déjà été signalé", response.json()["message"])
 
-    def test_employee_can_signal_fuel_purchase_in_one_click(self):
+    def test_employee_can_signal_fuel_purchase_with_amount(self):
         today = timezone.localdate()
 
-        response = self.client.post(reverse("employe_fuel_purchase"))
+        response = self.client.post(reverse("employe_fuel_purchase"), {"amount_fc": "18500"})
 
         self.assertEqual(response.status_code, 302)
         purchase = SiteFuelPurchase.objects.get(site=self.site, purchase_date=today)
         self.assertEqual(purchase.billing_month, today.replace(day=1))
         self.assertEqual(purchase.created_by, self.user)
+        self.assertEqual(purchase.amount_fc, Decimal("18500.00"))
         self.assertIn("Signalé via portail employé", purchase.notes)
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn("Achat de carburant signalé", mail.outbox[0].subject)
@@ -524,11 +525,13 @@ class EmployeeDailyReportTests(TestCase):
         self.assertIn("Employé: jules", mail.outbox[0].body)
         self.assertIn("Site: Ngaliema Test", mail.outbox[0].body)
         self.assertIn(f"Mois rattaché: {today.strftime('%m/%Y')}", mail.outbox[0].body)
+        self.assertIn("Montant: 18 500 FC", mail.outbox[0].body)
         self.assertEqual(len(mail.outbox[0].alternatives), 1)
         html_content, mimetype = mail.outbox[0].alternatives[0]
         self.assertEqual(mimetype, "text/html")
         self.assertIn("Achat de carburant signalé", html_content)
         self.assertIn(today.strftime("%m/%Y"), html_content)
+        self.assertIn("18 500 FC", html_content)
 
     def test_employee_fuel_purchase_page_renders(self):
         response = self.client.get(reverse("employe_fuel_purchase"))
@@ -550,15 +553,23 @@ class EmployeeDailyReportTests(TestCase):
             site=self.site,
             billing_month=today.replace(day=1),
             purchase_date=today,
+            amount_fc=Decimal("18500.00"),
             notes="Signalé via portail employé par jules.",
             created_by=self.user,
         )
 
-        response = self.client.post(reverse("portal_api_employee_fuel"))
+        response = self.client.post(reverse("portal_api_employee_fuel"), {"amount_fc": "19000"})
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(SiteFuelPurchase.objects.filter(site=self.site, purchase_date=today).count(), 1)
         self.assertIn("déjà été signalé", response.json()["message"])
+
+    def test_employee_fuel_purchase_requires_amount(self):
+        response = self.client.post(reverse("portal_api_employee_fuel"), {})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(SiteFuelPurchase.objects.count(), 0)
+        self.assertIn("prix du carburant", response.json()["message"])
 
     def test_employee_history_lists_water_and_report_entries_without_amounts(self):
         today = timezone.localdate()
@@ -611,6 +622,7 @@ class EmployeeDailyReportTests(TestCase):
             site=self.site,
             billing_month=today.replace(day=1),
             purchase_date=today,
+            amount_fc=Decimal("16000.00"),
             notes="Signalé via portail employé par jules.",
             created_by=self.user,
         )
