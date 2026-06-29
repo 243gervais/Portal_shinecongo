@@ -688,6 +688,41 @@ class EmployeeDailyReportTests(TestCase):
         payload = response.json()
         self.assertIsNone(payload["today_purchase"])
 
+    def test_employee_fuel_page_reflects_admin_delete(self):
+        today = timezone.localdate()
+        purchase = SiteFuelPurchase.objects.create(
+            site=self.site,
+            billing_month=today.replace(day=1),
+            purchase_date=today,
+            amount_fc=Decimal("18500.00"),
+            notes="Signalé via portail employé par jules.",
+            created_by=self.user,
+        )
+
+        response = self.client.get(reverse("portal_api_employee_fuel"))
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIsNotNone(payload["today_purchase"])
+        self.assertEqual(payload["today_purchase"]["purchase_date"], today.strftime("%Y-%m-%d"))
+
+        admin_user = User.objects.create_superuser(
+            username="admin_fuel_sync",
+            email="admin_fuel_sync@example.com",
+            password="AdminPass123!",
+        )
+        admin_client = self.client_class()
+        admin_client.login(username="admin_fuel_sync", password="AdminPass123!")
+
+        delete_response = admin_client.post(
+            reverse("admin_delete_fuel_purchase", kwargs={"purchase_id": purchase.id})
+        )
+        self.assertEqual(delete_response.status_code, 302)
+
+        response = self.client.get(reverse("portal_api_employee_fuel"))
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIsNone(payload["today_purchase"])
+
 
 class AdminDashboardDailyReportMessagesTests(TestCase):
     def setUp(self):
