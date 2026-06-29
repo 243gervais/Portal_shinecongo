@@ -519,6 +519,54 @@ class SiteWaterPurchase(models.Model):
         )
 
 
+class SiteFuelPurchase(models.Model):
+    """
+    Suivi simple des achats de carburant signalés depuis le portail employé.
+    """
+
+    site = models.ForeignKey(
+        Location,
+        on_delete=models.CASCADE,
+        related_name="fuel_purchases",
+        verbose_name="Site",
+    )
+    billing_month = models.DateField(
+        default=current_month_start,
+        verbose_name="Mois concerné",
+        help_text="Le mois auquel rattacher cet achat de carburant.",
+    )
+    purchase_date = models.DateField(verbose_name="Date d'achat")
+    notes = models.TextField(blank=True, verbose_name="Notes")
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="site_fuel_purchases_created",
+        verbose_name="Enregistré par",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")
+
+    class Meta:
+        verbose_name = "Achat de carburant du Site"
+        verbose_name_plural = "Achats de carburant du Site"
+        ordering = ["-billing_month", "-purchase_date", "-created_at"]
+        indexes = [
+            models.Index(fields=["site", "billing_month"], name="sites_sf_site_bill_idx"),
+            models.Index(fields=["site", "purchase_date"], name="sites_sf_site_date_idx"),
+            models.Index(fields=["-created_at"], name="sites_sf_created_idx"),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.billing_month:
+            self.billing_month = self.billing_month.replace(day=1)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.site.nom} - {self.billing_month:%m/%Y} - {self.purchase_date} - Carburant"
+
+
 def site_document_path(instance, filename):
     """Chemin de sauvegarde des documents du site"""
     site_id = str(instance.site.id)
