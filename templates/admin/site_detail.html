@@ -1671,6 +1671,7 @@
                                             <tr>
                                                 <th>Heure</th>
                                                 <th>Mois</th>
+                                                <th>Montant</th>
                                                 <th>Saisi par</th>
                                                 <th>Notes</th>
                                             </tr>
@@ -1680,6 +1681,9 @@
                                             <tr>
                                                 <td>{{ purchase.created_at|date:"H:i" }}</td>
                                                 <td>{{ purchase.billing_month|date:"m/Y" }}</td>
+                                                <td class="finance-table-money finance-table-money--warning">
+                                                    {% if purchase.amount_fc != None %}{{ purchase.amount_fc|fc_amount }} FC{% else %}-{% endif %}
+                                                </td>
                                                 <td>{% if purchase.created_by %}{{ purchase.created_by.get_full_name|default:purchase.created_by.username }}{% else %}Admin{% endif %}</td>
                                                 <td>{{ purchase.notes|default:"-" }}</td>
                                             </tr>
@@ -2328,6 +2332,7 @@
                                         <tr>
                                             <th>Date</th>
                                             <th>Mois</th>
+                                            <th>Montant</th>
                                             <th>Saisi par</th>
                                             <th>Notes</th>
                                         </tr>
@@ -2337,6 +2342,9 @@
                                         <tr>
                                             <td>{{ purchase.purchase_date|date:"d/m/Y" }}</td>
                                             <td>{{ purchase.billing_month|date:"m/Y" }}</td>
+                                            <td class="finance-table-money finance-table-money--warning">
+                                                {% if purchase.amount_fc != None %}{{ purchase.amount_fc|fc_amount }} FC{% else %}-{% endif %}
+                                            </td>
                                             <td>{% if purchase.created_by %}{{ purchase.created_by.get_full_name|default:purchase.created_by.username }}{% else %}Admin{% endif %}</td>
                                             <td>{{ purchase.notes|default:"-" }}</td>
                                         </tr>
