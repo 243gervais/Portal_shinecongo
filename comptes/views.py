@@ -2751,6 +2751,8 @@ def admin_site_detail(request, site_id):
     for purchase in fuel_purchases_date:
         purchase_actor = (purchase.created_by.get_full_name() or purchase.created_by.username) if purchase.created_by else ""
         fuel_summary_parts = [f"Mois {purchase.billing_month.strftime('%m/%Y')}"]
+        if purchase.amount_fc is not None:
+            fuel_summary_parts.append(f"Montant {_format_fc_compact(purchase.amount_fc)} FC")
         if purchase.notes:
             fuel_summary_parts.append(purchase.notes)
         _append_day_activity(
@@ -2759,6 +2761,7 @@ def admin_site_detail(request, site_id):
             "Achat de carburant",
             purchase.created_at,
             summary=" • ".join(fuel_summary_parts),
+            amount=purchase.amount_fc,
             actor=purchase_actor,
             anchor="#single-day-fuel",
         )
