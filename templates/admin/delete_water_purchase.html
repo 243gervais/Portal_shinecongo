@@ -9,7 +9,7 @@
         <h1 class="mt-2 mb-2">Supprimer l'achat d'eau</h1>
         <p style="color: var(--text-secondary); margin: 0;">{{ purchase.site.nom }} • {{ purchase.supplier.name }} • Mois concerné {{ purchase.billing_month|date:"m/Y" }}</p>
     </div>
-    <a href="{% url 'admin_water_purchases' %}?month={{ purchase.billing_month|date:'Y-m' }}" class="btn btn-secondary">Retour au suivi eau</a>
+    <a href="{% if next_url %}{{ next_url }}{% else %}{% url 'admin_water_purchases' %}?month={{ purchase.billing_month|date:'Y-m' }}{% endif %}" class="btn btn-secondary">Retour</a>
 </div>
 
 <div class="card">
@@ -28,8 +28,11 @@
 
     <form method="post" style="margin-top: 1.5rem;">
         {% csrf_token %}
+        {% if next_url %}
+        <input type="hidden" name="next" value="{{ next_url }}">
+        {% endif %}
         <button type="submit" class="btn btn-danger" style="width: 100%;">Supprimer l'achat</button>
-        <a href="{% url 'admin_water_purchases' %}?month={{ purchase.billing_month|date:'Y-m' }}" class="btn btn-secondary btn-block mt-2">Annuler</a>
+        <a href="{% if next_url %}{{ next_url }}{% else %}{% url 'admin_water_purchases' %}?month={{ purchase.billing_month|date:'Y-m' }}{% endif %}" class="btn btn-secondary btn-block mt-2">Annuler</a>
     </form>
 </div>
 {% endblock %}
