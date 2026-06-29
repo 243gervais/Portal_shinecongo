@@ -1632,20 +1632,24 @@
                                             <thead>
                                                 <tr>
                                                     <th>Heure</th>
-                                                    <th>Fournisseur</th>
-                                                    <th>Mois</th>
-                                                    <th>Montant</th>
-                                                    <th>Notes</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {% for purchase in water_purchases_date %}
-                                                <tr>
+                                                <th>Fournisseur</th>
+                                                <th>Mois</th>
+                                                <th>Montant</th>
+                                                <th>Notes</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for purchase in water_purchases_date %}
+                                            <tr>
                                                     <td>{{ purchase.created_at|date:"H:i" }}</td>
                                                     <td>{{ purchase.supplier.name }}</td>
                                                     <td>{{ purchase.billing_month|date:"m/Y" }}</td>
                                                     <td class="finance-table-money finance-table-money--warning">{{ purchase.amount_fc|fc_amount }} FC</td>
                                                     <td>{{ purchase.notes|default:"-" }}</td>
+                                                    <td>
+                                                        <a href="{% url 'admin_delete_water_purchase' purchase.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">Supprimer</a>
+                                                    </td>
                                                 </tr>
                                                 {% endfor %}
                                             </tbody>
@@ -1674,6 +1678,7 @@
                                                 <th>Montant</th>
                                                 <th>Saisi par</th>
                                                 <th>Notes</th>
+                                                <th>Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -1686,6 +1691,9 @@
                                                 </td>
                                                 <td>{% if purchase.created_by %}{{ purchase.created_by.get_full_name|default:purchase.created_by.username }}{% else %}Admin{% endif %}</td>
                                                 <td>{{ purchase.notes|default:"-" }}</td>
+                                                <td>
+                                                    <a href="{% url 'admin_delete_fuel_purchase' purchase.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">Supprimer</a>
+                                                </td>
                                             </tr>
                                             {% endfor %}
                                         </tbody>
@@ -2304,6 +2312,7 @@
                                             <th>Mois</th>
                                             <th>Montant</th>
                                             <th>Saisi par</th>
+                                            <th>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -2314,6 +2323,9 @@
                                             <td>{{ purchase.billing_month|date:"m/Y" }}</td>
                                             <td class="finance-table-money finance-table-money--primary">{{ purchase.amount_fc|fc_amount }} FC</td>
                                             <td>{% if purchase.created_by %}{{ purchase.created_by.get_full_name|default:purchase.created_by.username }}{% else %}Admin{% endif %}</td>
+                                            <td>
+                                                <a href="{% url 'admin_delete_water_purchase' purchase.id %}?next={{ request.get_full_path|urlencode }}" class="finance-mini-btn finance-mini-btn--warning">Supprimer</a>
+                                            </td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
@@ -2335,6 +2347,7 @@
                                             <th>Montant</th>
                                             <th>Saisi par</th>
                                             <th>Notes</th>
+                                            <th>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -2347,6 +2360,9 @@
                                             </td>
                                             <td>{% if purchase.created_by %}{{ purchase.created_by.get_full_name|default:purchase.created_by.username }}{% else %}Admin{% endif %}</td>
                                             <td>{{ purchase.notes|default:"-" }}</td>
+                                            <td>
+                                                <a href="{% url 'admin_delete_fuel_purchase' purchase.id %}?next={{ request.get_full_path|urlencode }}" class="finance-mini-btn finance-mini-btn--warning">Supprimer</a>
+                                            </td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
