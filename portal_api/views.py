@@ -20,6 +20,7 @@ from pointage.report_sync import sync_site_finance_from_daily_reports
 from pointage.utils import generate_qr_code_image, get_client_ip, get_user_agent
 from pointage.views import (
     _build_initial_daily_expense_form,
+    _parse_required_fuel_purchase_amount,
     _parse_daily_expenses_form,
     _send_fuel_purchase_notification,
     _send_final_report_notification,
@@ -788,11 +789,22 @@ class EmployeeFuelPurchaseApi(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        try:
+            amount_fc = _parse_required_fuel_purchase_amount(request.data.get("amount_fc"))
+        except ValueError as exc:
+            return Response(
+                {
+                    "message": str(exc),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         reporter_name = request.user.get_full_name() or request.user.username
         purchase = SiteFuelPurchase.objects.create(
             site=profile.site,
             billing_month=billing_month,
             purchase_date=today,
+            amount_fc=amount_fc,
             notes=f"Signalé via portail employé par {reporter_name}.",
             created_by=request.user,
         )
@@ -802,14 +814,14 @@ class EmployeeFuelPurchaseApi(APIView):
             action="AUTRE",
             description=(
                 f"Achat de carburant signalé via portail employé: "
-                f"{profile.site.nom} - {purchase.purchase_date}"
+                f"{profile.site.nom} - {purchase.purchase_date} - {_fc_display(amount_fc)}"
             ),
             ip_address=get_client_ip(request),
             user_agent=get_user_agent(request),
         )
         return Response(
             {
-                "message": "Achat de carburant enregistré pour aujourd'hui.",
+                "message": f"Achat de carburant enregistré pour aujourd'hui ({_fc_display(amount_fc)}).",
                 "purchase": EmployeeFuelPurchaseSerializer(purchase).data,
             },
             status=status.HTTP_201_CREATED,
