@@ -1598,6 +1598,7 @@ class SiteJournalEntryTests(TestCase):
             site=self.site,
             billing_month=date(2026, 4, 1),
             purchase_date=date(2026, 4, 11),
+            amount_fc=Decimal("18500.00"),
             notes="Bidon pour le groupe électrogène",
             created_by=self.admin_user,
         )
@@ -1640,6 +1641,7 @@ class SiteJournalEntryTests(TestCase):
         self.assertContains(response, "Depot principal de la journee")
         self.assertContains(response, "Remplissage du tank")
         self.assertContains(response, "Bidon pour le groupe électrogène")
+        self.assertContains(response, "18 500 FC")
         self.assertContains(response, "Visite du bailleur")
         self.assertContains(response, "Client difficile sur site.")
         self.assertContains(response, "Transport de Personnels")
@@ -1703,6 +1705,7 @@ class SiteJournalEntryTests(TestCase):
             site=self.site,
             billing_month=date(2026, 4, 1),
             purchase_date=date(2026, 4, 13),
+            amount_fc=Decimal("16500.00"),
             notes="Carburant de la semaine",
             created_by=self.admin_user,
         )
@@ -1743,6 +1746,7 @@ class SiteJournalEntryTests(TestCase):
         self.assertContains(response, "50 000 FC")
         self.assertContains(response, "14 000 FC")
         self.assertContains(response, "22 000 FC")
+        self.assertContains(response, "16 500 FC")
         self.assertContains(response, "Transport équipe")
         self.assertContains(response, "Carburant de la semaine")
         self.assertContains(response, "Achat de matériel")
