@@ -47,6 +47,7 @@ from sites.models import (
     Location,
     DailyBankDeposit,
     SiteDocument,
+    SiteFuelPurchase,
     SiteLossEntry,
     SiteJournalEntry,
     SiteWaterPurchase,
@@ -2539,6 +2540,11 @@ def admin_site_detail(request, site_id):
         .select_related('created_by', 'supplier')
         .order_by('-created_at')
     )
+    fuel_purchases_date = (
+        SiteFuelPurchase.objects.filter(site=site, purchase_date=detail_date)
+        .select_related('created_by')
+        .order_by('-created_at')
+    )
     journal_entries_date = (
         SiteJournalEntry.objects.filter(site=site, entry_date=detail_date)
         .select_related('created_by')
@@ -2742,6 +2748,21 @@ def admin_site_detail(request, site_id):
             anchor="#single-day-water",
         )
 
+    for purchase in fuel_purchases_date:
+        purchase_actor = (purchase.created_by.get_full_name() or purchase.created_by.username) if purchase.created_by else ""
+        fuel_summary_parts = [f"Mois {purchase.billing_month.strftime('%m/%Y')}"]
+        if purchase.notes:
+            fuel_summary_parts.append(purchase.notes)
+        _append_day_activity(
+            "fuel",
+            "Carburant",
+            "Achat de carburant",
+            purchase.created_at,
+            summary=" • ".join(fuel_summary_parts),
+            actor=purchase_actor,
+            anchor="#single-day-fuel",
+        )
+
     for journal_entry in journal_entries_date:
         journal_actor = (journal_entry.created_by.get_full_name() or journal_entry.created_by.username) if journal_entry.created_by else ""
         journal_summary_parts = [journal_entry.get_category_display()]
@@ -2884,6 +2905,8 @@ def admin_site_detail(request, site_id):
     period_water_purchases = []
     period_water_total = Decimal("0")
     period_water_count = 0
+    period_fuel_purchases = []
+    period_fuel_count = 0
     period_journal_entries = []
     period_journal_amount_total = Decimal("0")
     period_journal_count = 0
@@ -2921,6 +2944,11 @@ def admin_site_detail(request, site_id):
             purchase_date__gte=selected_date_start,
             purchase_date__lte=selected_date_end,
         ).select_related("created_by", "supplier").order_by("-purchase_date", "-created_at")
+        period_fuel_purchases_qs = SiteFuelPurchase.objects.filter(
+            site=site,
+            purchase_date__gte=selected_date_start,
+            purchase_date__lte=selected_date_end,
+        ).select_related("created_by").order_by("-purchase_date", "-created_at")
         period_journal_entries_qs = SiteJournalEntry.objects.filter(
             site=site,
             entry_date__gte=selected_date_start,
@@ -2936,6 +2964,7 @@ def admin_site_detail(request, site_id):
         period_losses = list(period_losses_qs)
         period_reports = list(period_reports_qs)
         period_water_purchases = list(period_water_purchases_qs)
+        period_fuel_purchases = list(period_fuel_purchases_qs)
         period_journal_entries = list(period_journal_entries_qs)
         period_problems = list(period_problems_qs)
 
@@ -2962,6 +2991,7 @@ def admin_site_detail(request, site_id):
             period_water_purchases_qs.aggregate(total=Sum("amount_fc"))["total"]
         )
         period_water_count = period_water_purchases_qs.count()
+        period_fuel_count = period_fuel_purchases_qs.count()
         period_journal_amount_total = _to_decimal_amount(
             period_journal_entries_qs.aggregate(total=Sum("amount_fc"))["total"]
         )
@@ -3144,6 +3174,8 @@ def admin_site_detail(request, site_id):
         'period_water_purchases': period_water_purchases,
         'period_water_total': period_water_total,
         'period_water_count': period_water_count,
+        'period_fuel_purchases': period_fuel_purchases,
+        'period_fuel_count': period_fuel_count,
         'period_journal_entries': period_journal_entries,
         'period_journal_amount_total': period_journal_amount_total,
         'period_journal_count': period_journal_count,
@@ -3155,6 +3187,7 @@ def admin_site_detail(request, site_id):
         'lavages_date': lavages_date,
         'reports_date': reports_date,
         'water_purchases_date': water_purchases_date,
+        'fuel_purchases_date': fuel_purchases_date,
         'journal_entries_date': journal_entries_date,
         'single_day_activity_entries': single_day_activity_entries,
         'photos_lavages': photos_lavages,
