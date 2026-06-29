@@ -536,6 +536,14 @@ class SiteFuelPurchase(models.Model):
         help_text="Le mois auquel rattacher cet achat de carburant.",
     )
     purchase_date = models.DateField(verbose_name="Date d'achat")
+    amount_fc = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+        verbose_name="Montant (FC)",
+    )
     notes = models.TextField(blank=True, verbose_name="Notes")
     created_by = models.ForeignKey(
         User,
@@ -564,6 +572,11 @@ class SiteFuelPurchase(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
+        if self.amount_fc is not None:
+            return (
+                f"{self.site.nom} - {self.billing_month:%m/%Y} - "
+                f"{self.purchase_date} - {self.amount_fc} FC"
+            )
         return f"{self.site.nom} - {self.billing_month:%m/%Y} - {self.purchase_date} - Carburant"
 
 
