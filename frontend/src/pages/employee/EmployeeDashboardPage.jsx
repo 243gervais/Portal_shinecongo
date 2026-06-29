@@ -55,6 +55,10 @@ export default function EmployeeDashboardPage() {
       label: "Eau signalée",
       value: data.stats.eau_signalee ? "Oui" : "Non",
     },
+    {
+      label: "Carburant signalé",
+      value: data.stats.carburant_signale ? "Oui" : "Non",
+    },
   ];
 
   const actions = [
@@ -75,8 +79,13 @@ export default function EmployeeDashboardPage() {
     },
     {
       title: "Historique",
-      description: "Suivre vos pointages, rapports, lavages, problèmes et eau.",
+      description: "Suivre vos pointages, rapports, lavages, problèmes, eau et carburant.",
       to: "/employe/historique/",
+    },
+    {
+      title: "Achat carburant",
+      description: "Signaler rapidement l'achat de carburant du jour pour le site.",
+      to: "/employe/carburant/",
     },
   ];
 
@@ -90,7 +99,9 @@ export default function EmployeeDashboardPage() {
             Accès personnel. Vos données restent limitées à votre activité.
           </p>
         </div>
-        <div className="hero-pill">{data.stats.signalements_eau_mois} signalement(s) d&apos;eau ce mois-ci</div>
+        <div className="hero-pill">
+          {data.stats.signalements_eau_mois} eau • {data.stats.signalements_carburant_mois} carburant ce mois-ci
+        </div>
       </section>
 
       <section className="stats-grid">
