@@ -21,19 +21,21 @@ from pointage.utils import generate_qr_code_image, get_client_ip, get_user_agent
 from pointage.views import (
     _build_initial_daily_expense_form,
     _parse_daily_expenses_form,
+    _send_fuel_purchase_notification,
     _send_final_report_notification,
     _send_water_purchase_notification,
 )
 from pointage.views_manager import _parse_dashboard_date_range
 from problemes.models import IssueReport
 from problemes.views import _send_issue_report_notification
-from sites.models import Location, SiteWaterPurchase, get_default_water_supplier
+from sites.models import Location, SiteFuelPurchase, SiteWaterPurchase, get_default_water_supplier
 
 from .pagination import PortalPagination
 from .permissions import IsManagerOrAdmin, IsPortalEmployee
 from .serializers import (
     EmployeeCarWashDetailSerializer,
     EmployeeCarWashSerializer,
+    EmployeeFuelPurchaseSerializer,
     EmployeeIssueSerializer,
     EmployeeShiftHistorySerializer,
     EmployeeWaterPurchaseSerializer,
@@ -192,6 +194,12 @@ class EmployeeDashboardApi(APIView):
             .order_by("-created_at")
             .first()
         )
+        fuel_purchase_today = (
+            SiteFuelPurchase.objects.filter(site=site, purchase_date=today)
+            .select_related("created_by")
+            .order_by("-created_at")
+            .first()
+        )
 
         return Response(
             {
@@ -202,7 +210,12 @@ class EmployeeDashboardApi(APIView):
                     "problemes_ouverts": user.problemes_signales.filter(statut="OUVERT").count(),
                     "rapport_envoye": bool(shift_today and shift_today.daily_report_confirmed),
                     "eau_signalee": bool(water_purchase_today),
+                    "carburant_signale": bool(fuel_purchase_today),
                     "signalements_eau_mois": SiteWaterPurchase.objects.filter(
+                        site=site,
+                        billing_month=today.replace(day=1),
+                    ).count(),
+                    "signalements_carburant_mois": SiteFuelPurchase.objects.filter(
                         site=site,
                         billing_month=today.replace(day=1),
                     ).count(),
@@ -211,6 +224,10 @@ class EmployeeDashboardApi(APIView):
                 "water_purchase_today": (
                     EmployeeWaterPurchaseSerializer(water_purchase_today).data
                     if water_purchase_today else None
+                ),
+                "fuel_purchase_today": (
+                    EmployeeFuelPurchaseSerializer(fuel_purchase_today).data
+                    if fuel_purchase_today else None
                 ),
             }
         )
@@ -727,6 +744,78 @@ class EmployeeWaterPurchaseApi(APIView):
         )
 
 
+class EmployeeFuelPurchaseApi(APIView):
+    permission_classes = [IsAuthenticated, IsPortalEmployee]
+
+    def get(self, request):
+        profile = _employee_profile(request.user)
+        today = timezone.localdate()
+        billing_month = today.replace(day=1)
+        today_purchase = (
+            SiteFuelPurchase.objects.filter(site=profile.site, purchase_date=today)
+            .select_related("created_by")
+            .order_by("-created_at")
+            .first()
+        )
+        month_purchases_qs = (
+            SiteFuelPurchase.objects.filter(site=profile.site, billing_month=billing_month)
+            .select_related("created_by")
+            .order_by("-purchase_date", "-created_at")
+        )
+        last_purchase = month_purchases_qs.first()
+
+        return Response(
+            {
+                "today": today.isoformat(),
+                "site": SiteSummarySerializer(profile.site).data,
+                "billing_month": billing_month.isoformat(),
+                "billing_month_display": billing_month.strftime("%m/%Y"),
+                "today_purchase": EmployeeFuelPurchaseSerializer(today_purchase).data if today_purchase else None,
+                "month_purchase_count": month_purchases_qs.count(),
+                "last_purchase": EmployeeFuelPurchaseSerializer(last_purchase).data if last_purchase else None,
+            }
+        )
+
+    def post(self, request):
+        profile = _employee_profile(request.user)
+        today = timezone.localdate()
+        billing_month = today.replace(day=1)
+        if SiteFuelPurchase.objects.filter(site=profile.site, purchase_date=today).exists():
+            return Response(
+                {
+                    "message": "L'achat de carburant du jour a déjà été signalé. L'administrateur peut le corriger si nécessaire.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        reporter_name = request.user.get_full_name() or request.user.username
+        purchase = SiteFuelPurchase.objects.create(
+            site=profile.site,
+            billing_month=billing_month,
+            purchase_date=today,
+            notes=f"Signalé via portail employé par {reporter_name}.",
+            created_by=request.user,
+        )
+        _send_fuel_purchase_notification(purchase)
+        AuditLog.log(
+            user=request.user,
+            action="AUTRE",
+            description=(
+                f"Achat de carburant signalé via portail employé: "
+                f"{profile.site.nom} - {purchase.purchase_date}"
+            ),
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request),
+        )
+        return Response(
+            {
+                "message": "Achat de carburant enregistré pour aujourd'hui.",
+                "purchase": EmployeeFuelPurchaseSerializer(purchase).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
 class EmployeeHistorySummaryApi(APIView):
     permission_classes = [IsAuthenticated, IsPortalEmployee]
 
@@ -747,6 +836,10 @@ class EmployeeHistorySummaryApi(APIView):
                     "lavages": request.user.lavages.count(),
                     "problemes": request.user.problemes_signales.count(),
                     "eau_mois": SiteWaterPurchase.objects.filter(
+                        site=profile.site,
+                        billing_month=today.replace(day=1),
+                    ).count(),
+                    "carburant_mois": SiteFuelPurchase.objects.filter(
                         site=profile.site,
                         billing_month=today.replace(day=1),
                     ).count(),
@@ -790,6 +883,19 @@ class EmployeeHistoryWaterApi(APIView):
             .order_by("-purchase_date", "-created_at")
         )
         return _paginate(self, queryset, EmployeeWaterPurchaseSerializer, request, page_size=10)
+
+
+class EmployeeHistoryFuelApi(APIView):
+    permission_classes = [IsAuthenticated, IsPortalEmployee]
+
+    def get(self, request):
+        profile = _employee_profile(request.user)
+        queryset = (
+            SiteFuelPurchase.objects.filter(site=profile.site)
+            .select_related("created_by")
+            .order_by("-purchase_date", "-created_at")
+        )
+        return _paginate(self, queryset, EmployeeFuelPurchaseSerializer, request, page_size=10)
 
 
 class ManagerDashboardApi(APIView):
