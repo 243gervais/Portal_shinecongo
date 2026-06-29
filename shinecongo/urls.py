@@ -84,6 +84,7 @@ from comptes.forms import ApprovalAuthenticationForm
 from shinecongo.portal_views import (
     employee_add_wash_portal,
     employee_daily_report_portal,
+    employee_fuel_purchase_portal,
     employee_issue_portal,
     employee_portal_shell,
     employee_water_purchase_portal,
@@ -145,6 +146,7 @@ urlpatterns = [
     path("employe/scan-out/", scan_qr_clock_out, name="scan_qr_clock_out"),
     path("employe/rapport-journee/", employee_daily_report_portal, name="employe_daily_report"),
     path("employe/eau/", employee_water_purchase_portal, name="employe_water_purchase"),
+    path("employe/carburant/", employee_fuel_purchase_portal, name="employe_fuel_purchase"),
     path("employe/historique/", employee_portal_shell, name="employe_historique"),
     path("camera/", camera_dashboard, name="camera_dashboard"),
     path("camera/lavage-verification/", camera_daily_report, name="camera_lavage_verification"),
