@@ -2393,10 +2393,14 @@ def admin_delete_water_purchase(request, purchase_id):
         return redirect("dashboard")
 
     purchase = get_object_or_404(SiteWaterPurchase, id=purchase_id)
+    next_url = _safe_next_url(request) or ''
     if request.method == "POST":
         month_query = purchase.billing_month.strftime("%Y-%m")
+        redirect_url = _safe_next_url(request)
         purchase.delete()
         messages.success(request, "L'achat d'eau a été supprimé.")
+        if redirect_url:
+            return redirect(redirect_url)
         return redirect(f"{reverse('admin_water_purchases')}?month={month_query}")
 
     return render(
@@ -2404,6 +2408,37 @@ def admin_delete_water_purchase(request, purchase_id):
         "admin/delete_water_purchase.html",
         {
             "purchase": purchase,
+            "next_url": next_url,
+        },
+    )
+
+
+def admin_delete_fuel_purchase(request, purchase_id):
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect("dashboard")
+
+    purchase = get_object_or_404(SiteFuelPurchase, id=purchase_id)
+    next_url = _safe_next_url(request) or ''
+    if request.method == "POST":
+        redirect_url = _safe_next_url(request)
+        deleted_date = purchase.purchase_date
+        deleted_site = purchase.site
+        purchase.delete()
+        messages.success(request, "L'achat de carburant a été supprimé.")
+        if redirect_url:
+            return redirect(redirect_url)
+        return _redirect_to_admin_site_detail(request, deleted_site, date_obj=deleted_date)
+
+    return render(
+        request,
+        "admin/delete_fuel_purchase.html",
+        {
+            "purchase": purchase,
+            "next_url": next_url,
         },
     )
 
