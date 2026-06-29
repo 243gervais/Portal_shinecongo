@@ -7,7 +7,7 @@ from rest_framework import serializers
 from lavages.models import CarWash, CarWashPhoto
 from pointage.models import ShiftDay
 from problemes.models import IssueReport
-from sites.models import Location, SiteWaterPurchase
+from sites.models import Location, SiteFuelPurchase, SiteWaterPurchase
 
 
 def _absolute_media_url(request, file_field):
@@ -354,3 +354,32 @@ class EmployeeWaterPurchaseSerializer(serializers.ModelSerializer):
 
     def get_is_general_month_entry(self, obj):
         return obj.get_reporting_week_date() is None
+
+
+class EmployeeFuelPurchaseSerializer(serializers.ModelSerializer):
+    purchase_date_display = serializers.SerializerMethodField()
+    billing_month_display = serializers.SerializerMethodField()
+    created_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SiteFuelPurchase
+        fields = [
+            "id",
+            "purchase_date",
+            "purchase_date_display",
+            "billing_month",
+            "billing_month_display",
+            "created_by_name",
+            "notes",
+        ]
+
+    def get_purchase_date_display(self, obj):
+        return obj.purchase_date.strftime("%d/%m/%Y")
+
+    def get_billing_month_display(self, obj):
+        return obj.billing_month.strftime("%m/%Y")
+
+    def get_created_by_name(self, obj):
+        if not obj.created_by:
+            return ""
+        return obj.created_by.get_full_name() or obj.created_by.username
