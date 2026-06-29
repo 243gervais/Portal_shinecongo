@@ -10,6 +10,7 @@ const TAB_OPTIONS = [
   { key: "lavages", label: "Lavages", endpoint: "/employee/lavages/" },
   { key: "problemes", label: "Problèmes", endpoint: "/employee/problemes/" },
   { key: "eau", label: "Eau", endpoint: "/employee/history/eau/" },
+  { key: "carburant", label: "Carburant", endpoint: "/employee/history/carburant/" },
 ];
 
 export default function EmployeeHistoryPage() {
@@ -129,6 +130,18 @@ export default function EmployeeHistoryPage() {
                       <h3>{item.supplier_name}</h3>
                       <p>Achat: {item.purchase_date_display}</p>
                       <p>Semaine: {item.week_label || "Général du mois"}</p>
+                    </div>
+                  </article>
+                );
+              }
+
+              if (activeTab === "carburant") {
+                return (
+                  <article key={item.id} className="list-card compact-card">
+                    <div className="list-content">
+                      <h3>Achat de carburant</h3>
+                      <p>Achat: {item.purchase_date_display}</p>
+                      <p>Mois: {item.billing_month_display}</p>
                     </div>
                   </article>
                 );
