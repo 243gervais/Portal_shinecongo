@@ -141,7 +141,7 @@ class SiteWaterPurchaseAdmin(admin.ModelAdmin):
 
 @admin.register(SiteFuelPurchase)
 class SiteFuelPurchaseAdmin(admin.ModelAdmin):
-    list_display = ("site", "billing_month", "purchase_date", "created_by", "created_at")
+    list_display = ("site", "billing_month", "purchase_date", "amount_fc", "created_by", "created_at")
     list_filter = ("billing_month", "purchase_date", "site")
     search_fields = ("site__nom", "notes", "created_by__username", "created_by__first_name", "created_by__last_name")
     ordering = ("-billing_month", "-purchase_date", "-created_at")
@@ -149,7 +149,7 @@ class SiteFuelPurchaseAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ("Informations", {
-            "fields": ("site", "billing_month", "purchase_date")
+            "fields": ("site", "billing_month", "purchase_date", "amount_fc")
         }),
         ("Détails", {
             "fields": ("notes", "created_by")
