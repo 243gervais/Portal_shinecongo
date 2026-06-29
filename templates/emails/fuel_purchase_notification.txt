@@ -1,0 +1,14 @@
+{% autoescape off %}{{ company_name }}
+Achat de carburant signalé
+
+Signalement reçu pour {{ site_name }} le {{ purchase_date|date:"d/m/Y" }}
+Employé: {{ reporter_name }}
+Site: {{ site_name }}
+Horodatage: {{ created_at|date:"d/m/Y H:i" }}
+
+Date d'achat: {{ purchase_date|date:"d/m/Y" }}
+Mois rattaché: {{ billing_month|date:"m/Y" }}
+
+Notes:
+{{ notes }}
+{% endautoescape %}
