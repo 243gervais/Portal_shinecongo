@@ -1586,7 +1586,7 @@ class SiteJournalEntryTests(TestCase):
             daily_expenses_total_fc=Decimal("24000.00"),
             report_notes="Le reste a ete mis a la banque.",
         )
-        SiteWaterPurchase.objects.create(
+        water_purchase = SiteWaterPurchase.objects.create(
             site=self.site,
             billing_month=date(2026, 4, 1),
             purchase_date=date(2026, 4, 11),
@@ -1594,7 +1594,7 @@ class SiteJournalEntryTests(TestCase):
             notes="Remplissage du tank",
             created_by=self.admin_user,
         )
-        SiteFuelPurchase.objects.create(
+        fuel_purchase = SiteFuelPurchase.objects.create(
             site=self.site,
             billing_month=date(2026, 4, 1),
             purchase_date=date(2026, 4, 11),
@@ -1645,6 +1645,8 @@ class SiteJournalEntryTests(TestCase):
         self.assertContains(response, "Visite du bailleur")
         self.assertContains(response, "Client difficile sur site.")
         self.assertContains(response, "Transport de Personnels")
+        self.assertContains(response, reverse("admin_delete_water_purchase", args=[water_purchase.id]))
+        self.assertContains(response, reverse("admin_delete_fuel_purchase", args=[fuel_purchase.id]))
         self.assertGreaterEqual(len(response.context["single_day_activity_entries"]), 6)
 
     def test_site_detail_month_view_shows_full_period_finance_details(self):
@@ -1693,7 +1695,7 @@ class SiteJournalEntryTests(TestCase):
             total_amount_reported_fc=Decimal("75000.00"),
             daily_expenses_total_fc=Decimal("14000.00"),
         )
-        SiteWaterPurchase.objects.create(
+        water_purchase = SiteWaterPurchase.objects.create(
             site=self.site,
             billing_month=date(2026, 4, 1),
             purchase_date=date(2026, 4, 12),
@@ -1701,7 +1703,7 @@ class SiteJournalEntryTests(TestCase):
             notes="Remplissage du tank",
             created_by=self.admin_user,
         )
-        SiteFuelPurchase.objects.create(
+        fuel_purchase = SiteFuelPurchase.objects.create(
             site=self.site,
             billing_month=date(2026, 4, 1),
             purchase_date=date(2026, 4, 13),
@@ -1758,6 +1760,8 @@ class SiteJournalEntryTests(TestCase):
         self.assertContains(response, 'href="#period-losses"')
         self.assertContains(response, 'href="#period-reports"')
         self.assertContains(response, 'href="#period-activity-stream"')
+        self.assertContains(response, reverse("admin_delete_water_purchase", args=[water_purchase.id]))
+        self.assertContains(response, reverse("admin_delete_fuel_purchase", args=[fuel_purchase.id]))
         self.assertTrue(response.context["show_period_breakdown"])
         self.assertEqual(response.context["period_bank_deposit_total"], Decimal("50000"))
         self.assertEqual(response.context["period_losses_total"], Decimal("14000"))
