@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone as dt_timezone
 from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth.models import User
@@ -13,8 +13,15 @@ from rest_framework.views import APIView
 
 from audit.models import AuditLog
 from comptes.forms import get_water_purchase_default_amount
+from comptes.image_utils import extract_image_capture_datetime
 from comptes.models import UserProfile
 from lavages.models import CarWash, CarWashPhoto
+from pointage.attendance import (
+    attendance_schedule_context,
+    get_clock_in_status,
+    get_clock_out_status,
+    is_workday,
+)
 from pointage.models import ShiftDay
 from pointage.report_sync import sync_site_finance_from_daily_reports
 from pointage.utils import generate_qr_code_image, get_client_ip, get_user_agent
@@ -156,6 +163,28 @@ def _safe_employee_shift(shift):
     return data
 
 
+def _capture_time_from_request(request, *, photo_field_name="photo"):
+    photo = request.FILES.get(photo_field_name)
+    if not photo:
+        return None, None
+
+    capture_time = extract_image_capture_datetime(photo)
+    if capture_time:
+        return photo, timezone.localtime(capture_time)
+
+    last_modified_value = str(request.data.get("photo_last_modified", "")).strip()
+    if not last_modified_value:
+        return photo, None
+
+    try:
+        timestamp_ms = int(last_modified_value)
+    except (TypeError, ValueError):
+        return photo, None
+
+    fallback_capture_time = datetime.fromtimestamp(timestamp_ms / 1000, tz=dt_timezone.utc)
+    return photo, timezone.localtime(fallback_capture_time)
+
+
 class PortalSessionApi(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -241,6 +270,14 @@ class EmployeePointageStatusApi(APIView):
         profile = _employee_profile(request.user)
         today = timezone.localdate()
         shift_today = ShiftDay.objects.filter(employe=request.user, date=today).first()
+        attendance_status = get_clock_in_status(
+            today,
+            shift_today.clock_in_time if shift_today else None,
+        )
+        clock_out_status = get_clock_out_status(
+            today,
+            shift_today.clock_out_time if shift_today else None,
+        )
 
         return Response(
             {
@@ -248,8 +285,12 @@ class EmployeePointageStatusApi(APIView):
                 "site": SiteSummarySerializer(profile.site).data,
                 "site_token_prefill": request.query_params.get("site_token", "").strip(),
                 "shift_today": _safe_employee_shift(shift_today),
-                "can_clock_in": not bool(shift_today and shift_today.clock_in_time),
-                "can_clock_out": bool(shift_today and shift_today.clock_in_time and not shift_today.clock_out_time),
+                "attendance_status": attendance_status,
+                "clock_out_status": clock_out_status,
+                "is_workday": is_workday(today),
+                "schedule": attendance_schedule_context(),
+                "can_clock_in": is_workday(today) and not bool(shift_today and shift_today.clock_in_time),
+                "can_clock_out": is_workday(today) and bool(shift_today and shift_today.clock_in_time and not shift_today.clock_out_time),
             }
         )
 
@@ -262,8 +303,11 @@ class EmployeeClockInApi(APIView):
         today = timezone.localdate()
         profile = _employee_profile(user)
         site_token = str(request.data.get("site_token", "")).strip()
-        if not site_token:
-            return Response({"message": "QR code requis."}, status=status.HTTP_400_BAD_REQUEST)
+        if not is_workday(today):
+            return Response(
+                {"message": "La présence n'est requise que du lundi au samedi."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         existing_shift = ShiftDay.objects.filter(employe=user, date=today).first()
         if existing_shift and existing_shift.clock_in_time:
@@ -274,9 +318,28 @@ class EmployeeClockInApi(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        site = get_object_or_404(Location, site_token=site_token, actif=True)
-        if profile.site_id != site.id:
-            return Response({"message": "Ce QR ne correspond pas à votre site."}, status=status.HTTP_400_BAD_REQUEST)
+        site = profile.site
+        if site_token:
+            matched_site = get_object_or_404(Location, site_token=site_token, actif=True)
+            if matched_site.id != profile.site_id:
+                return Response({"message": "Ce QR ne correspond pas à votre site."}, status=status.HTTP_400_BAD_REQUEST)
+
+        photo, capture_time = _capture_time_from_request(request)
+        if not photo:
+            return Response(
+                {"message": "Ajoutez une photo de début de journée pour enregistrer votre présence."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not capture_time:
+            return Response(
+                {"message": "La photo doit venir directement de la caméra du téléphone du jour. Heure de prise introuvable."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if timezone.localdate(capture_time) != today:
+            return Response(
+                {"message": "La photo de début doit avoir été prise aujourd'hui."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         gps_lat = request.data.get("gps_latitude")
         gps_lon = request.data.get("gps_longitude")
@@ -298,13 +361,17 @@ class EmployeeClockInApi(APIView):
                 lon = None
 
         shift = existing_shift or ShiftDay.objects.create(employe=user, site=site, date=today)
-        shift.clock_in_time = timezone.now()
+        shift.site = site
+        shift.clock_in_time = capture_time
+        shift.clock_in_photo = photo
+        shift.clock_in_photo_taken_at = capture_time
         if lat is not None and lon is not None:
             shift.clock_in_gps_latitude = lat
             shift.clock_in_gps_longitude = lon
             shift.clock_in_gps_distance_mètres = gps_distance
         shift.clock_in_gps_status = gps_status
         shift.save()
+        attendance_status = shift.get_clock_in_attendance_status()
 
         AuditLog.log(
             user=user,
@@ -316,7 +383,10 @@ class EmployeeClockInApi(APIView):
 
         return Response(
             {
-                "message": "Pointage entrée enregistré avec succès.",
+                "message": (
+                    f"Début de journée enregistré à {timezone.localtime(shift.clock_in_time):%H:%M}."
+                    f" Statut: {attendance_status['label'].lower()}."
+                ),
                 "shift_today": _safe_employee_shift(shift),
             }
         )
@@ -330,8 +400,11 @@ class EmployeeClockOutApi(APIView):
         today = timezone.localdate()
         profile = _employee_profile(user)
         site_token = str(request.data.get("site_token", "")).strip()
-        if not site_token:
-            return Response({"message": "QR code requis."}, status=status.HTTP_400_BAD_REQUEST)
+        if not is_workday(today):
+            return Response(
+                {"message": "La présence n'est requise que du lundi au samedi."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         shift = ShiftDay.objects.filter(employe=user, date=today).first()
         if not shift or not shift.clock_in_time:
@@ -347,9 +420,33 @@ class EmployeeClockOutApi(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        site = get_object_or_404(Location, site_token=site_token, actif=True)
-        if profile.site_id != site.id:
-            return Response({"message": "Ce QR ne correspond pas à votre site."}, status=status.HTTP_400_BAD_REQUEST)
+        site = profile.site
+        if site_token:
+            matched_site = get_object_or_404(Location, site_token=site_token, actif=True)
+            if matched_site.id != profile.site_id:
+                return Response({"message": "Ce QR ne correspond pas à votre site."}, status=status.HTTP_400_BAD_REQUEST)
+
+        photo, capture_time = _capture_time_from_request(request)
+        if not photo:
+            return Response(
+                {"message": "Ajoutez une photo de fin de journée pour clôturer votre présence."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not capture_time:
+            return Response(
+                {"message": "La photo doit venir directement de la caméra du téléphone du jour. Heure de prise introuvable."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if timezone.localdate(capture_time) != today:
+            return Response(
+                {"message": "La photo de fin doit avoir été prise aujourd'hui."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if capture_time < shift.clock_in_time:
+            return Response(
+                {"message": "La photo de fin ne peut pas être antérieure au début de journée."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         gps_lat = request.data.get("gps_latitude")
         gps_lon = request.data.get("gps_longitude")
@@ -370,13 +467,16 @@ class EmployeeClockOutApi(APIView):
                 lat = None
                 lon = None
 
-        shift.clock_out_time = timezone.now()
+        shift.clock_out_time = capture_time
+        shift.clock_out_photo = photo
+        shift.clock_out_photo_taken_at = capture_time
         if lat is not None and lon is not None:
             shift.clock_out_gps_latitude = lat
             shift.clock_out_gps_longitude = lon
             shift.clock_out_gps_distance_mètres = gps_distance
         shift.clock_out_gps_status = gps_status
         shift.save()
+        clock_out_status = shift.get_clock_out_attendance_status()
 
         AuditLog.log(
             user=user,
@@ -388,7 +488,10 @@ class EmployeeClockOutApi(APIView):
 
         return Response(
             {
-                "message": "Pointage sortie enregistré avec succès.",
+                "message": (
+                    f"Fin de journée enregistrée à {timezone.localtime(shift.clock_out_time):%H:%M}."
+                    f" Statut: {clock_out_status['label'].lower()}."
+                ),
                 "shift_today": _safe_employee_shift(shift),
             }
         )
