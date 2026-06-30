@@ -56,6 +56,7 @@ from sites.models import (
     get_default_water_supplier,
 )
 from lavages.models import CarWash, CarWashPhoto
+from pointage.attendance import get_clock_in_status, get_clock_out_status
 from problemes.models import IssueReport
 from pointage.models import ShiftDay
 from pointage.views import _build_initial_daily_expense_form, _parse_daily_expenses_form
@@ -2586,25 +2587,60 @@ def admin_site_detail(request, site_id):
         .order_by('-created_at')
     )
 
-    # Pointages de la date sélectionnée avec calcul de durée
-    presents = pointages_date_qs.filter(clock_in_time__isnull=False).count()
-    
-    # Ajouter la durée formatée pour chaque pointage
+    # Employés du site
+    employes_site = UserProfile.objects.filter(
+        site=site,
+        role='EMPLOYE',
+        actif=True
+    ).select_related('user').order_by('user__first_name', 'user__last_name', 'user__username')
+
+    # Pointages de la date sélectionnée avec calcul de durée et statut de présence
+    pointages_by_employee = {pointage.employe_id: pointage for pointage in pointages_date_qs}
     pointages_with_duration = []
-    for pointage in pointages_date_qs:
-        duration_str = None
-        if pointage.clock_in_time and pointage.clock_out_time:
-            duration = pointage.clock_out_time - pointage.clock_in_time
-            total_seconds = int(duration.total_seconds())
-            hours = total_seconds // 3600
-            minutes = (total_seconds % 3600) // 60
-            duration_str = f"{hours}h{minutes:02d}min"
-        
+    seen_employee_ids = set()
+
+    def _format_pointage_duration(pointage):
+        if not pointage or not pointage.clock_in_time or not pointage.clock_out_time:
+            return None
+        duration = pointage.clock_out_time - pointage.clock_in_time
+        total_seconds = int(duration.total_seconds())
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        return f"{hours}h{minutes:02d}min"
+
+    def _append_pointage_row(employee, pointage=None):
         pointages_with_duration.append({
+            'employee': employee,
             'pointage': pointage,
-            'duration': duration_str
+            'duration': _format_pointage_duration(pointage),
+            'attendance_status': (
+                pointage.get_clock_in_attendance_status()
+                if pointage else
+                get_clock_in_status(detail_date, None)
+            ),
+            'clock_out_status': (
+                pointage.get_clock_out_attendance_status()
+                if pointage else
+                get_clock_out_status(detail_date, None)
+            ),
         })
-    
+
+    for profile in employes_site:
+        seen_employee_ids.add(profile.user_id)
+        _append_pointage_row(profile.user, pointages_by_employee.get(profile.user_id))
+
+    for pointage in pointages_date_qs:
+        if pointage.employe_id in seen_employee_ids:
+            continue
+        seen_employee_ids.add(pointage.employe_id)
+        _append_pointage_row(pointage.employe, pointage)
+
+    presents = sum(
+        1
+        for item in pointages_with_duration
+        if item['attendance_status']['code'] in {'PRESENT', 'LATE'}
+    )
+
     # Statistiques par employé pour la date sélectionnée
     lavages_by_employee = {}
     if selected_single_date:
@@ -2626,13 +2662,6 @@ def admin_site_detail(request, site_id):
         for emp_data in lavages_by_employee.values():
             if emp_data['count'] > 0:
                 emp_data['average'] = emp_data['total'] / emp_data['count']
-    
-    # Employés du site
-    employes_site = UserProfile.objects.filter(
-        site=site,
-        role='EMPLOYE',
-        actif=True
-    ).select_related('user')
     
     # Déterminer le label de période pour l'affichage
     if filter_today:
@@ -2832,6 +2861,8 @@ def admin_site_detail(request, site_id):
 
     for item in pointages_with_duration:
         pointage = item['pointage']
+        if not pointage:
+            continue
         pointage_actor = pointage.employe.get_full_name() or pointage.employe.username
         pointage_summary_parts = []
         if pointage.clock_in_time:
