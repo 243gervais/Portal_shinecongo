@@ -63,8 +63,8 @@ export default function EmployeeDashboardPage() {
 
   const actions = [
     {
-      title: "Pointer la journée",
-      description: "Entrée, sortie et statut du jour sur un écran mobile-first.",
+      title: "Présence",
+      description: "Début, fin et statut du jour avec photo prise directement sur téléphone.",
       to: "/employe/pointage/",
     },
     {
