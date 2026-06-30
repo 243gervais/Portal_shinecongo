@@ -25,6 +25,35 @@
     </div>
     {% endif %}
 
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+        <div style="padding: 0.95rem 1rem; border-radius: 12px; border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.92);">
+            <div style="font-size: 0.82rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Preuve debut</div>
+            <div style="margin-top: 0.45rem; color: var(--text-primary);">
+                {% if pointage.clock_in_photo %}
+                <a href="{{ pointage.clock_in_photo.url }}" target="_blank" rel="noopener">Voir la photo de début</a>
+                {% else %}
+                <span style="color: var(--text-secondary);">Aucune photo enregistrée</span>
+                {% endif %}
+            </div>
+            {% if pointage.clock_in_photo_taken_at %}
+            <div style="margin-top: 0.35rem; color: var(--text-secondary);">{{ pointage.clock_in_photo_taken_at|date:"d/m/Y H:i" }}</div>
+            {% endif %}
+        </div>
+        <div style="padding: 0.95rem 1rem; border-radius: 12px; border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.92);">
+            <div style="font-size: 0.82rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Preuve fin</div>
+            <div style="margin-top: 0.45rem; color: var(--text-primary);">
+                {% if pointage.clock_out_photo %}
+                <a href="{{ pointage.clock_out_photo.url }}" target="_blank" rel="noopener">Voir la photo de fin</a>
+                {% else %}
+                <span style="color: var(--text-secondary);">Aucune photo enregistrée</span>
+                {% endif %}
+            </div>
+            {% if pointage.clock_out_photo_taken_at %}
+            <div style="margin-top: 0.35rem; color: var(--text-secondary);">{{ pointage.clock_out_photo_taken_at|date:"d/m/Y H:i" }}</div>
+            {% endif %}
+        </div>
+    </div>
+
     <form method="post">
         {% csrf_token %}
         <input type="hidden" name="next" value="{{ next_url }}">
