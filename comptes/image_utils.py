@@ -1,12 +1,20 @@
 import os
+from datetime import datetime
 from io import BytesIO
 
 from django.core.files.base import ContentFile
+from django.utils import timezone
 from PIL import Image, ImageOps, UnidentifiedImageError
+from PIL.ExifTags import TAGS
 
 
 IMAGE_MAX_SIZE = (1800, 1800)
 THUMBNAIL_MAX_SIZE = (520, 520)
+EXIF_DATETIME_KEYS = (
+    ("DateTimeOriginal", "OffsetTimeOriginal"),
+    ("DateTimeDigitized", "OffsetTimeDigitized"),
+    ("DateTime", ""),
+)
 
 
 def _get_resample_filter():
@@ -123,3 +131,48 @@ def get_thumbnail_url(field_file):
     if not thumbnail_name:
         return getattr(field_file, "url", "")
     return field_file.storage.url(thumbnail_name)
+
+
+def _build_exif_map(image):
+    exif = image.getexif()
+    if not exif:
+        return {}
+    return {TAGS.get(tag, tag): value for tag, value in exif.items()}
+
+
+
+def extract_image_capture_datetime(field_file):
+    if not field_file:
+        return None
+
+    _seek_file(field_file)
+    try:
+        with Image.open(field_file) as source_image:
+            exif_map = _build_exif_map(source_image)
+            if not exif_map:
+                return None
+
+            for datetime_key, offset_key in EXIF_DATETIME_KEYS:
+                raw_value = str(exif_map.get(datetime_key, "")).strip()
+                if not raw_value:
+                    continue
+
+                raw_offset = str(exif_map.get(offset_key, "")).strip() if offset_key else ""
+                try:
+                    if raw_offset:
+                        parsed_value = datetime.strptime(
+                            f"{raw_value}{raw_offset}",
+                            "%Y:%m:%d %H:%M:%S%z",
+                        )
+                        return timezone.localtime(parsed_value)
+
+                    parsed_value = datetime.strptime(raw_value, "%Y:%m:%d %H:%M:%S")
+                    return timezone.make_aware(parsed_value, timezone.get_current_timezone())
+                except ValueError:
+                    continue
+    except (OSError, UnidentifiedImageError, ValueError):
+        return None
+    finally:
+        _seek_file(field_file)
+
+    return None
