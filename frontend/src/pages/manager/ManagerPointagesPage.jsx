@@ -102,6 +102,8 @@ export default function ManagerPointagesPage() {
                 <p>{item.site_name}</p>
                 <p>{item.date_display}</p>
                 <p>Entrée: {item.clock_in_display || "--:--"} | Sortie: {item.clock_out_display || "--:--"}</p>
+                <p>Arrivée: {item.attendance_status_label} | Fin: {item.clock_out_status_label}</p>
+                <p>Preuves: {item.clock_in_photo_url ? "début" : "aucune"}{item.clock_out_photo_url ? " · fin" : ""}</p>
               </div>
               <Link className="button button-primary" to={`/manager/pointages/${item.id}/corriger/`}>
                 Corriger
