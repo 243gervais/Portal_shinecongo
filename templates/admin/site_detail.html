@@ -1793,9 +1793,9 @@
                         <div class="day-activity-section-head">
                             <div>
                                 <h3>Presences et pointages</h3>
-                                <p>Heures d'entree, de sortie et duree de presence des employes pour cette date.</p>
+                                <p>Suivi complet de chaque employe avec statut present, retard ou absent et preuves photo.</p>
                             </div>
-                            <span class="day-activity-section-state">{{ pointages_date|length }} pointage{{ pointages_date|length|pluralize }}</span>
+                            <span class="day-activity-section-state">{{ pointages_date|length }} employe{{ pointages_date|length|pluralize }}</span>
                         </div>
                         {% if pointages_date %}
                         <div class="table-container">
@@ -1803,27 +1803,58 @@
                                 <thead>
                                     <tr>
                                         <th>Employe</th>
-                                        <th>Entree</th>
-                                        <th>Sortie</th>
+                                        <th>Debut</th>
+                                        <th>Statut arrivee</th>
+                                        <th>Fin</th>
+                                        <th>Statut fin</th>
                                         <th>Duree</th>
+                                        <th>Preuves</th>
                                         <th>Rapport final</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for item in pointages_date %}
                                     <tr>
-                                        <td>{{ item.pointage.employe.get_full_name|default:item.pointage.employe.username }}</td>
-                                        <td>{% if item.pointage.clock_in_time %}{{ item.pointage.clock_in_time|date:"H:i" }}{% else %}-{% endif %}</td>
-                                        <td>{% if item.pointage.clock_out_time %}{{ item.pointage.clock_out_time|date:"H:i" }}{% else %}En cours{% endif %}</td>
+                                        <td>{{ item.employee.get_full_name|default:item.employee.username }}</td>
+                                        <td>{% if item.pointage and item.pointage.clock_in_time %}{{ item.pointage.clock_in_time|date:"H:i" }}{% else %}-{% endif %}</td>
+                                        <td>
+                                            <span style="font-weight: 700; color:
+                                                {% if item.attendance_status.code == 'PRESENT' %}var(--success-color)
+                                                {% elif item.attendance_status.code == 'LATE' %}var(--warning-color)
+                                                {% elif item.attendance_status.code == 'ABSENT' %}var(--error-color)
+                                                {% else %}var(--text-secondary){% endif %};">
+                                                {{ item.attendance_status.label }}
+                                            </span>
+                                        </td>
+                                        <td>{% if item.pointage and item.pointage.clock_out_time %}{{ item.pointage.clock_out_time|date:"H:i" }}{% else %}-{% endif %}</td>
+                                        <td>{{ item.clock_out_status.label }}</td>
                                         <td>{{ item.duration|default:"-" }}</td>
-                                        <td>{% if item.pointage.daily_report_confirmed %}Envoye{% else %}En attente{% endif %}</td>
+                                        <td>
+                                            {% if item.pointage and item.pointage.clock_in_photo %}
+                                            <a href="{{ item.pointage.clock_in_photo.url }}" target="_blank" rel="noopener">Debut</a>
+                                            {% else %}
+                                            <span style="color: var(--text-secondary);">-</span>
+                                            {% endif %}
+                                            {% if item.pointage and item.pointage.clock_out_photo %}
+                                            <br><a href="{{ item.pointage.clock_out_photo.url }}" target="_blank" rel="noopener">Fin</a>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if item.pointage and item.pointage.daily_report_confirmed %}
+                                            Envoye
+                                            {% elif item.pointage and item.pointage.clock_in_time %}
+                                            En attente
+                                            {% else %}
+                                            -
+                                            {% endif %}
+                                        </td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
                             </table>
                         </div>
                         {% else %}
-                        <div style="color: var(--text-secondary);">Aucun pointage enregistre pour cette journee.</div>
+                        <div style="color: var(--text-secondary);">Aucune presence a afficher pour cette journee.</div>
                         {% endif %}
                     </section>
                 </div>
@@ -3162,29 +3193,44 @@
             <thead>
                 <tr>
                     <th>Employé</th>
-                    <th>Entrée</th>
-                    <th>Sortie</th>
+                    <th>Début</th>
+                    <th>Statut arrivée</th>
+                    <th>Fin</th>
+                    <th>Statut fin</th>
                     <th>Durée</th>
+                    <th>Preuves</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for item in pointages_date %}
                 <tr>
-                    <td>{{ item.pointage.employe.get_full_name|default:item.pointage.employe.username }}</td>
+                    <td>{{ item.employee.get_full_name|default:item.employee.username }}</td>
                     <td>
-                        {% if item.pointage.clock_in_time %}
+                        {% if item.pointage and item.pointage.clock_in_time %}
                             {{ item.pointage.clock_in_time|date:"H:i" }}
                         {% else %}
                             <span style="color: var(--text-secondary);">-</span>
                         {% endif %}
                     </td>
                     <td>
-                        {% if item.pointage.clock_out_time %}
+                        <span style="font-weight: 700; color:
+                            {% if item.attendance_status.code == 'PRESENT' %}var(--success-color)
+                            {% elif item.attendance_status.code == 'LATE' %}var(--warning-color)
+                            {% elif item.attendance_status.code == 'ABSENT' %}var(--error-color)
+                            {% else %}var(--text-secondary){% endif %};">
+                            {{ item.attendance_status.label }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if item.pointage and item.pointage.clock_out_time %}
                             {{ item.pointage.clock_out_time|date:"H:i" }}
                         {% else %}
-                            <span style="color: var(--warning-color);">En cours</span>
+                            <span style="color: var(--text-secondary);">-</span>
                         {% endif %}
+                    </td>
+                    <td>
+                        {{ item.clock_out_status.label }}
                     </td>
                     <td>
                         {% if item.duration %}
@@ -3194,6 +3240,17 @@
                         {% endif %}
                     </td>
                     <td>
+                        {% if item.pointage and item.pointage.clock_in_photo %}
+                        <a href="{{ item.pointage.clock_in_photo.url }}" target="_blank" rel="noopener">Début</a>
+                        {% else %}
+                        <span style="color: var(--text-secondary);">-</span>
+                        {% endif %}
+                        {% if item.pointage and item.pointage.clock_out_photo %}
+                        <br><a href="{{ item.pointage.clock_out_photo.url }}" target="_blank" rel="noopener">Fin</a>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.pointage %}
                         <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                             <a href="{% url 'admin_edit_pointage' site.id item.pointage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-primary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">
                                 Modifier
@@ -3202,6 +3259,9 @@
                                 Supprimer
                             </a>
                         </div>
+                        {% else %}
+                        <span style="color: var(--text-secondary);">Aucun pointage</span>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
@@ -3210,7 +3270,7 @@
     </div>
     {% else %}
     <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-        <p>Aucun pointage enregistré {% if selected_single_date %}cette date{% else %}aujourd'hui{% endif %}.</p>
+        <p>Aucune présence enregistrée {% if selected_single_date %}cette date{% else %}aujourd'hui{% endif %}.</p>
     </div>
     {% endif %}
     </div>
