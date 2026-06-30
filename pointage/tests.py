@@ -1,13 +1,16 @@
-from datetime import timedelta
+from io import BytesIO
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from django.contrib.auth.models import User
 from django.core import mail
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import Sum
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
+from PIL import Image
 
 from comptes.forms import get_water_purchase_default_amount
 from lavages.models import CarWash
@@ -20,6 +23,7 @@ from sites.models import DailyBankDeposit, Location, SiteFuelPurchase, SiteLossE
     EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
     DEFAULT_FROM_EMAIL="noreply@example.com",
     FINAL_REPORT_NOTIFICATION_EMAIL="mbadunkokorigervais@gmail.com",
+    MEDIA_ROOT="/private/tmp/portal_shinecongo_pointage_test_media",
 )
 class EmployeeDailyReportTests(TestCase):
     def setUp(self):
@@ -43,6 +47,19 @@ class EmployeeDailyReportTests(TestCase):
         self.user.userprofile.site = self.site
         self.user.userprofile.save()
         self.client.login(username="jules", password="TestPass123!")
+
+    def _build_attendance_photo(self, taken_at):
+        image = Image.new("RGB", (24, 24), color="navy")
+        exif = Image.Exif()
+        exif[36867] = taken_at.strftime("%Y:%m:%d %H:%M:%S")
+        exif[36868] = taken_at.strftime("%Y:%m:%d %H:%M:%S")
+        payload = BytesIO()
+        image.save(payload, format="JPEG", exif=exif)
+        return SimpleUploadedFile(
+            "attendance.jpg",
+            payload.getvalue(),
+            content_type="image/jpeg",
+        )
 
     def test_employee_report_is_saved(self):
         today = timezone.localdate()
@@ -634,6 +651,72 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(payload["results"][0]["purchase_date"], today.strftime("%Y-%m-%d"))
         self.assertEqual(payload["results"][0]["created_by_name"], "jules")
         self.assertNotIn("amount_fc", payload["results"][0])
+
+    def test_employee_can_record_start_attendance_with_same_day_photo(self):
+        today = timezone.localdate()
+        capture_time = timezone.make_aware(datetime.combine(today, datetime.min.time().replace(hour=9, minute=58)))
+
+        response = self.client.post(
+            reverse("portal_api_employee_clock_in"),
+            data={"photo": self._build_attendance_photo(capture_time)},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        shift = ShiftDay.objects.get(employe=self.user, date=today)
+        self.assertEqual(timezone.localtime(shift.clock_in_time).strftime("%H:%M"), "09:58")
+        self.assertEqual(timezone.localtime(shift.clock_in_photo_taken_at).strftime("%H:%M"), "09:58")
+        payload = response.json()
+        self.assertEqual(payload["shift_today"]["attendance_status_code"], "PRESENT")
+        self.assertEqual(payload["shift_today"]["attendance_status_label"], "Présent")
+
+    def test_employee_start_attendance_marks_late_after_grace_period(self):
+        today = timezone.localdate()
+        capture_time = timezone.make_aware(datetime.combine(today, datetime.min.time().replace(hour=10, minute=25)))
+
+        response = self.client.post(
+            reverse("portal_api_employee_clock_in"),
+            data={"photo": self._build_attendance_photo(capture_time)},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["shift_today"]["attendance_status_code"], "LATE")
+        self.assertEqual(payload["shift_today"]["attendance_status_label"], "Retard")
+        self.assertIn("retard", payload["message"].lower())
+
+    def test_employee_start_attendance_rejects_old_photo(self):
+        today = timezone.localdate()
+        capture_time = timezone.make_aware(datetime.combine(today - timedelta(days=1), datetime.min.time().replace(hour=10, minute=0)))
+
+        response = self.client.post(
+            reverse("portal_api_employee_clock_in"),
+            data={"photo": self._build_attendance_photo(capture_time)},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("prise aujourd'hui", response.json()["message"])
+        self.assertFalse(
+            ShiftDay.objects.filter(employe=self.user, date=today, clock_in_time__isnull=False).exists()
+        )
+
+    def test_admin_site_detail_shows_absent_employee_when_no_start_photo_exists(self):
+        target_date = timezone.localdate() - timedelta(days=1)
+        while target_date.weekday() == 6:
+            target_date -= timedelta(days=1)
+
+        admin_client = self.client_class()
+        admin_client.login(username="report_admin", password="AdminPass123!")
+        response = admin_client.get(
+            reverse("admin_site_detail", args=[self.site.id]),
+            data={
+                "date_debut": target_date.strftime("%Y-%m-%d"),
+                "date_fin": target_date.strftime("%Y-%m-%d"),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Absent")
+        self.assertContains(response, "Aucun pointage")
 
     def test_employee_water_page_reflects_admin_edit_and_delete(self):
         today = timezone.localdate()
