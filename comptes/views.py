@@ -677,6 +677,144 @@ def _format_fc_compact(amount):
     return f"{amount:,.0f}".replace(",", " ")
 
 
+ATTENDANCE_STATUS_FILTER_OPTIONS = [
+    {"value": "all", "label": "Tous les statuts"},
+    {"value": "present", "label": "Présents"},
+    {"value": "late", "label": "Retards"},
+    {"value": "absent", "label": "Absents"},
+    {"value": "complete", "label": "Journées clôturées"},
+    {"value": "missing_end", "label": "Fins manquantes"},
+]
+
+
+def _format_pointage_duration(pointage):
+    if not pointage or not pointage.clock_in_time or not pointage.clock_out_time:
+        return None
+
+    duration = pointage.clock_out_time - pointage.clock_in_time
+    total_seconds = int(duration.total_seconds())
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    return f"{hours}h{minutes:02d}min"
+
+
+def _attendance_row_matches_filter(row, status_filter):
+    if status_filter == "all":
+        return True
+    if status_filter == "present":
+        return row["attendance_status"]["code"] == "PRESENT"
+    if status_filter == "late":
+        return row["attendance_status"]["code"] == "LATE"
+    if status_filter == "absent":
+        return row["attendance_status"]["code"] == "ABSENT"
+    if status_filter == "complete":
+        return row["clock_out_status"]["code"] == "COMPLETE"
+    if status_filter == "missing_end":
+        return row["clock_out_status"]["code"] in {"OPEN", "MISSING"}
+    return True
+
+
+def _build_site_attendance_rows(site, attendance_date, *, employee_id=None, status_filter="all"):
+    employee_profiles = list(
+        UserProfile.objects.filter(
+            site=site,
+            role=UserProfile.EMPLOYEE_ROLE,
+            actif=True,
+        )
+        .select_related("user")
+        .order_by("user__first_name", "user__last_name", "user__username")
+    )
+    if employee_id:
+        employee_profiles = [
+            profile for profile in employee_profiles
+            if profile.user_id == employee_id
+        ]
+
+    pointages = list(
+        ShiftDay.objects.filter(site=site, date=attendance_date)
+        .select_related("employe", "employe__userprofile", "site", "corrected_by")
+        .order_by(
+            "employe__first_name",
+            "employe__last_name",
+            "employe__username",
+            "-clock_in_time",
+        )
+    )
+    if employee_id:
+        pointages = [pointage for pointage in pointages if pointage.employe_id == employee_id]
+
+    pointages_by_employee = {pointage.employe_id: pointage for pointage in pointages}
+    rows = []
+    seen_employee_ids = set()
+
+    def _build_row(employee, pointage=None, profile=None):
+        attendance_status = (
+            pointage.get_clock_in_attendance_status()
+            if pointage else
+            get_clock_in_status(attendance_date, None)
+        )
+        clock_out_status = (
+            pointage.get_clock_out_attendance_status()
+            if pointage else
+            get_clock_out_status(attendance_date, None)
+        )
+        start_photo_url = pointage.clock_in_photo.url if pointage and pointage.clock_in_photo else ""
+        end_photo_url = pointage.clock_out_photo.url if pointage and pointage.clock_out_photo else ""
+        return {
+            "employee": employee,
+            "profile": profile,
+            "pointage": pointage,
+            "duration": _format_pointage_duration(pointage),
+            "attendance_status": attendance_status,
+            "clock_out_status": clock_out_status,
+            "start_photo_url": start_photo_url,
+            "start_photo_thumbnail_url": (
+                pointage.clock_in_photo_thumbnail_url if pointage else ""
+            ) or start_photo_url,
+            "end_photo_url": end_photo_url,
+            "end_photo_thumbnail_url": (
+                pointage.clock_out_photo_thumbnail_url if pointage else ""
+            ) or end_photo_url,
+            "has_start_photo": bool(pointage and pointage.clock_in_photo),
+            "has_end_photo": bool(pointage and pointage.clock_out_photo),
+        }
+
+    for profile in employee_profiles:
+        seen_employee_ids.add(profile.user_id)
+        rows.append(_build_row(profile.user, pointages_by_employee.get(profile.user_id), profile))
+
+    for pointage in pointages:
+        if pointage.employe_id in seen_employee_ids:
+            continue
+        seen_employee_ids.add(pointage.employe_id)
+        profile = getattr(pointage.employe, "userprofile", None)
+        if profile and profile.site_id != site.id:
+            profile = None
+        rows.append(_build_row(pointage.employe, pointage, profile))
+
+    summary = {
+        "employee_count": len(rows),
+        "present_count": sum(1 for row in rows if row["attendance_status"]["code"] == "PRESENT"),
+        "late_count": sum(1 for row in rows if row["attendance_status"]["code"] == "LATE"),
+        "absent_count": sum(1 for row in rows if row["attendance_status"]["code"] == "ABSENT"),
+        "present_or_late_count": sum(
+            1 for row in rows if row["attendance_status"]["code"] in {"PRESENT", "LATE"}
+        ),
+        "complete_count": sum(1 for row in rows if row["clock_out_status"]["code"] == "COMPLETE"),
+        "start_photo_count": sum(1 for row in rows if row["has_start_photo"]),
+        "end_photo_count": sum(1 for row in rows if row["has_end_photo"]),
+    }
+
+    filtered_rows = [row for row in rows if _attendance_row_matches_filter(row, status_filter)]
+
+    return {
+        "rows": filtered_rows,
+        "all_rows": rows,
+        "summary": summary,
+        "employee_profiles": employee_profiles,
+    }
+
+
 def _normalize_month_start(value=None):
     """
     Retourne le premier jour du mois pour la date fournie ou pour aujourd'hui.
@@ -2565,7 +2703,6 @@ def admin_site_detail(request, site_id):
         .annotate(photo_count_value=Count("photos", distinct=True))
         .order_by('-created_at')
     )
-    pointages_date_qs = ShiftDay.objects.filter(site=site, date=detail_date).select_related('employe').order_by('-clock_in_time')
     reports_date = (
         ShiftDay.objects.filter(site=site, date=detail_date, daily_report_confirmed=True)
         .select_related('employe')
@@ -2587,59 +2724,10 @@ def admin_site_detail(request, site_id):
         .order_by('-created_at')
     )
 
-    # Employés du site
-    employes_site = UserProfile.objects.filter(
-        site=site,
-        role='EMPLOYE',
-        actif=True
-    ).select_related('user').order_by('user__first_name', 'user__last_name', 'user__username')
-
-    # Pointages de la date sélectionnée avec calcul de durée et statut de présence
-    pointages_by_employee = {pointage.employe_id: pointage for pointage in pointages_date_qs}
-    pointages_with_duration = []
-    seen_employee_ids = set()
-
-    def _format_pointage_duration(pointage):
-        if not pointage or not pointage.clock_in_time or not pointage.clock_out_time:
-            return None
-        duration = pointage.clock_out_time - pointage.clock_in_time
-        total_seconds = int(duration.total_seconds())
-        hours = total_seconds // 3600
-        minutes = (total_seconds % 3600) // 60
-        return f"{hours}h{minutes:02d}min"
-
-    def _append_pointage_row(employee, pointage=None):
-        pointages_with_duration.append({
-            'employee': employee,
-            'pointage': pointage,
-            'duration': _format_pointage_duration(pointage),
-            'attendance_status': (
-                pointage.get_clock_in_attendance_status()
-                if pointage else
-                get_clock_in_status(detail_date, None)
-            ),
-            'clock_out_status': (
-                pointage.get_clock_out_attendance_status()
-                if pointage else
-                get_clock_out_status(detail_date, None)
-            ),
-        })
-
-    for profile in employes_site:
-        seen_employee_ids.add(profile.user_id)
-        _append_pointage_row(profile.user, pointages_by_employee.get(profile.user_id))
-
-    for pointage in pointages_date_qs:
-        if pointage.employe_id in seen_employee_ids:
-            continue
-        seen_employee_ids.add(pointage.employe_id)
-        _append_pointage_row(pointage.employe, pointage)
-
-    presents = sum(
-        1
-        for item in pointages_with_duration
-        if item['attendance_status']['code'] in {'PRESENT', 'LATE'}
-    )
+    attendance_snapshot = _build_site_attendance_rows(site, detail_date)
+    pointages_with_duration = attendance_snapshot["rows"]
+    employes_site = attendance_snapshot["employee_profiles"]
+    presents = attendance_snapshot["summary"]["present_or_late_count"]
 
     # Statistiques par employé pour la date sélectionnée
     lavages_by_employee = {}
@@ -3287,6 +3375,97 @@ def admin_site_detail(request, site_id):
     context['journal_entries_count'] = journal_entries_count
     
     return render(request, 'admin/site_detail.html', context)
+
+
+@login_required
+@no_cache_view
+def admin_site_attendance_photos(request, site_id):
+    """
+    Galerie admin des preuves de présence d'un site pour une journée donnée.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    site = get_object_or_404(Location, id=site_id)
+    today = timezone.localdate()
+
+    selected_date = today
+    selected_date_param = (request.GET.get("date") or "").strip()
+    if selected_date_param:
+        try:
+            selected_date = datetime.strptime(selected_date_param, "%Y-%m-%d").date()
+        except ValueError:
+            selected_date = today
+    if selected_date > today:
+        selected_date = today
+
+    selected_employee_raw = (request.GET.get("employee") or "").strip()
+    selected_employee_id = None
+    if selected_employee_raw:
+        try:
+            selected_employee_id = int(selected_employee_raw)
+        except (TypeError, ValueError):
+            selected_employee_id = None
+
+    allowed_status_filters = {item["value"] for item in ATTENDANCE_STATUS_FILTER_OPTIONS}
+    selected_status_filter = (request.GET.get("status") or "all").strip()
+    if selected_status_filter not in allowed_status_filters:
+        selected_status_filter = "all"
+
+    attendance_snapshot = _build_site_attendance_rows(
+        site,
+        selected_date,
+        employee_id=selected_employee_id,
+        status_filter=selected_status_filter,
+    )
+    attendance_rows = attendance_snapshot["rows"]
+    attendance_page = paginate_queryset(
+        request,
+        attendance_rows,
+        per_page=12,
+        page_param="attendance_page",
+    )
+
+    employee_options = list(
+        UserProfile.objects.filter(
+            site=site,
+            role=UserProfile.EMPLOYEE_ROLE,
+            actif=True,
+        )
+        .select_related("user")
+        .order_by("user__first_name", "user__last_name", "user__username")
+    )
+
+    site_detail_url = (
+        f"{reverse('admin_site_detail', kwargs={'site_id': site.id})}"
+        f"?date_debut={selected_date.strftime('%Y-%m-%d')}"
+        f"&date_fin={selected_date.strftime('%Y-%m-%d')}"
+    )
+    previous_date = selected_date - timedelta(days=1)
+    next_date = selected_date + timedelta(days=1)
+
+    context = {
+        "site": site,
+        "today": today,
+        "selected_date": selected_date,
+        "selected_date_iso": selected_date.strftime("%Y-%m-%d"),
+        "selected_employee_id": str(selected_employee_id) if selected_employee_id else "",
+        "selected_status_filter": selected_status_filter,
+        "status_filter_options": ATTENDANCE_STATUS_FILTER_OPTIONS,
+        "employee_options": employee_options,
+        "attendance_summary": attendance_snapshot["summary"],
+        "attendance_rows_total": len(attendance_rows),
+        "attendance_page": attendance_page,
+        "site_detail_url": site_detail_url,
+        "previous_date": previous_date,
+        "next_date": next_date,
+        "can_view_next_date": next_date <= today,
+    }
+    return render(request, "admin/site_attendance_photos.html", context)
 
 
 @login_required
