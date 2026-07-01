@@ -6,6 +6,16 @@ import hashlib
 import secrets
 import json
 
+from comptes.image_utils import ensure_image_thumbnail, get_thumbnail_url, optimize_image_upload
+from pointage.attendance import get_clock_in_status, get_clock_out_status
+
+
+def attendance_photo_path(instance, filename):
+    date_str = (instance.date or timezone.localdate()).strftime("%Y/%m/%d")
+    shift_segment = instance.pk or "nouveau"
+    employee_segment = instance.employe_id or "employee"
+    return f"pointages/{date_str}/{employee_segment}/{shift_segment}/{filename}"
+
 
 class DailyQRToken(models.Model):
     """
@@ -141,9 +151,31 @@ class ShiftDay(models.Model):
     
     # Pointage entrée
     clock_in_time = models.DateTimeField(null=True, blank=True, verbose_name="Heure d'entrée")
+    clock_in_photo = models.ImageField(
+        upload_to=attendance_photo_path,
+        blank=True,
+        null=True,
+        verbose_name="Photo de début de journée",
+    )
+    clock_in_photo_taken_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Photo entrée prise à",
+    )
     
     # Pointage sortie
     clock_out_time = models.DateTimeField(null=True, blank=True, verbose_name="Heure de sortie")
+    clock_out_photo = models.ImageField(
+        upload_to=attendance_photo_path,
+        blank=True,
+        null=True,
+        verbose_name="Photo de fin de journée",
+    )
+    clock_out_photo_taken_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Photo sortie prise à",
+    )
     
     # GPS pour entrée
     clock_in_gps_latitude = models.DecimalField(
@@ -304,3 +336,30 @@ class ShiftDay(models.Model):
     def has_missed_punch(self):
         """Vérifie si il manque un pointage de sortie"""
         return self.clock_out_time is None
+
+    @property
+    def clock_in_photo_thumbnail_url(self):
+        return get_thumbnail_url(self.clock_in_photo)
+
+    @property
+    def clock_out_photo_thumbnail_url(self):
+        return get_thumbnail_url(self.clock_out_photo)
+
+    def get_clock_in_attendance_status(self, *, reference_time=None):
+        return get_clock_in_status(self.date, self.clock_in_time, reference_time=reference_time)
+
+    def get_clock_out_attendance_status(self, *, reference_time=None):
+        return get_clock_out_status(self.date, self.clock_out_time, reference_time=reference_time)
+
+    def save(self, *args, **kwargs):
+        if self.clock_in_photo and not self.clock_in_photo._committed:
+            self.clock_in_photo = optimize_image_upload(self.clock_in_photo)
+        if self.clock_out_photo and not self.clock_out_photo._committed:
+            self.clock_out_photo = optimize_image_upload(self.clock_out_photo)
+
+        super().save(*args, **kwargs)
+
+        if self.clock_in_photo:
+            ensure_image_thumbnail(self.clock_in_photo)
+        if self.clock_out_photo:
+            ensure_image_thumbnail(self.clock_out_photo)

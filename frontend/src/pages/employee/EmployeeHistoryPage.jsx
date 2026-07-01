@@ -153,6 +153,7 @@ export default function EmployeeHistoryPage() {
                     <h3>{item.date_display}</h3>
                     <p>Entrée: {item.clock_in_display || "--:--"}</p>
                     <p>Sortie: {item.clock_out_display || "--:--"}</p>
+                    <p>Présence: {item.attendance_status_label}</p>
                     <p>{item.report_status_label}</p>
                   </div>
                 </article>

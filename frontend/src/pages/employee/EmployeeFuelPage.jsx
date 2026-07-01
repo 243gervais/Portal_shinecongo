@@ -8,6 +8,7 @@ export default function EmployeeFuelPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [amountValue, setAmountValue] = useState("");
 
   async function load() {
     try {
@@ -23,15 +24,19 @@ export default function EmployeeFuelPage() {
     load();
   }, []);
 
-  async function handleSubmit() {
+  async function handleSubmit(event) {
+    event.preventDefault();
     setBusy(true);
     setNotice("");
     try {
       const payload = await apiFetch("/employee/carburant/", {
         method: "POST",
-        data: {},
+        data: {
+          amount_fc: amountValue,
+        },
       });
       setNotice(payload.message);
+      setAmountValue("");
       await load();
     } catch (requestError) {
       setNotice(requestError.message);
@@ -53,7 +58,7 @@ export default function EmployeeFuelPage() {
       <section className="section-card">
         <p className="eyebrow">Suivi carburant</p>
         <h1>{data.site.nom}</h1>
-        <p>Le portail enregistre uniquement le signalement du jour. Aucun montant n&apos;est affiché côté employé.</p>
+        <p>Saisissez le prix du carburant acheté avant l&apos;enregistrement du signalement du jour.</p>
         {notice ? <Notice type="info">{notice}</Notice> : null}
 
         <div className="status-grid">
@@ -71,14 +76,31 @@ export default function EmployeeFuelPage() {
           </article>
         </div>
 
-        <button
-          type="button"
-          className="button button-primary"
-          disabled={busy || Boolean(data.today_purchase)}
-          onClick={handleSubmit}
-        >
-          {busy ? "Enregistrement..." : "Signaler l'achat de carburant du jour"}
-        </button>
+        <form className="form-grid" onSubmit={handleSubmit}>
+          <label className="field">
+            <span>Prix du carburant acheté (FC)</span>
+            <input
+              type="number"
+              min="1"
+              step="0.01"
+              inputMode="decimal"
+              value={amountValue}
+              onChange={(event) => setAmountValue(event.target.value)}
+              disabled={busy || Boolean(data.today_purchase)}
+              required
+            />
+          </label>
+
+          <div className="field-full form-actions">
+            <button
+              type="submit"
+              className="button button-primary"
+              disabled={busy || Boolean(data.today_purchase)}
+            >
+              {busy ? "Enregistrement..." : "Signaler l'achat de carburant du jour"}
+            </button>
+          </div>
+        </form>
       </section>
     </div>
   );

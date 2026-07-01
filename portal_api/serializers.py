@@ -204,10 +204,22 @@ class ShiftDaySerializer(serializers.ModelSerializer):
     site_name = serializers.CharField(source="site.nom", read_only=True)
     clock_in_display = serializers.SerializerMethodField()
     clock_out_display = serializers.SerializerMethodField()
+    clock_in_photo_taken_display = serializers.SerializerMethodField()
+    clock_out_photo_taken_display = serializers.SerializerMethodField()
+    clock_in_photo_url = serializers.SerializerMethodField()
+    clock_out_photo_url = serializers.SerializerMethodField()
+    clock_in_photo_thumbnail_url = serializers.SerializerMethodField()
+    clock_out_photo_thumbnail_url = serializers.SerializerMethodField()
     date_display = serializers.SerializerMethodField()
     correction_by_name = serializers.SerializerMethodField()
     duration_display = serializers.SerializerMethodField()
     expenses_total_display = serializers.SerializerMethodField()
+    attendance_status_code = serializers.SerializerMethodField()
+    attendance_status_label = serializers.SerializerMethodField()
+    attendance_status_detail = serializers.SerializerMethodField()
+    clock_out_status_code = serializers.SerializerMethodField()
+    clock_out_status_label = serializers.SerializerMethodField()
+    clock_out_status_detail = serializers.SerializerMethodField()
 
     class Meta:
         model = ShiftDay
@@ -219,6 +231,12 @@ class ShiftDaySerializer(serializers.ModelSerializer):
             "site_name",
             "clock_in_display",
             "clock_out_display",
+            "clock_in_photo_taken_display",
+            "clock_out_photo_taken_display",
+            "clock_in_photo_url",
+            "clock_out_photo_url",
+            "clock_in_photo_thumbnail_url",
+            "clock_out_photo_thumbnail_url",
             "clock_in_gps_status",
             "clock_out_gps_status",
             "daily_report_confirmed",
@@ -226,6 +244,12 @@ class ShiftDaySerializer(serializers.ModelSerializer):
             "total_amount_reported_fc",
             "daily_expenses_total_fc",
             "expenses_total_display",
+            "attendance_status_code",
+            "attendance_status_label",
+            "attendance_status_detail",
+            "clock_out_status_code",
+            "clock_out_status_label",
+            "clock_out_status_detail",
             "correction_reason",
             "corrected_at",
             "correction_by_name",
@@ -245,6 +269,30 @@ class ShiftDaySerializer(serializers.ModelSerializer):
     def get_clock_out_display(self, obj):
         return timezone.localtime(obj.clock_out_time).strftime("%H:%M") if obj.clock_out_time else ""
 
+    def get_clock_in_photo_taken_display(self, obj):
+        return timezone.localtime(obj.clock_in_photo_taken_at).strftime("%d/%m/%Y %H:%M") if obj.clock_in_photo_taken_at else ""
+
+    def get_clock_out_photo_taken_display(self, obj):
+        return timezone.localtime(obj.clock_out_photo_taken_at).strftime("%d/%m/%Y %H:%M") if obj.clock_out_photo_taken_at else ""
+
+    def get_clock_in_photo_url(self, obj):
+        return _absolute_media_url(self.context.get("request"), obj.clock_in_photo)
+
+    def get_clock_out_photo_url(self, obj):
+        return _absolute_media_url(self.context.get("request"), obj.clock_out_photo)
+
+    def get_clock_in_photo_thumbnail_url(self, obj):
+        request = self.context.get("request")
+        if not obj.clock_in_photo_thumbnail_url:
+            return ""
+        return request.build_absolute_uri(obj.clock_in_photo_thumbnail_url) if request else obj.clock_in_photo_thumbnail_url
+
+    def get_clock_out_photo_thumbnail_url(self, obj):
+        request = self.context.get("request")
+        if not obj.clock_out_photo_thumbnail_url:
+            return ""
+        return request.build_absolute_uri(obj.clock_out_photo_thumbnail_url) if request else obj.clock_out_photo_thumbnail_url
+
     def get_correction_by_name(self, obj):
         if not obj.corrected_by:
             return ""
@@ -261,6 +309,24 @@ class ShiftDaySerializer(serializers.ModelSerializer):
     def get_expenses_total_display(self, obj):
         return f"{Decimal(obj.daily_expenses_total_fc or 0):,.0f} FC".replace(",", " ")
 
+    def get_attendance_status_code(self, obj):
+        return obj.get_clock_in_attendance_status()["code"]
+
+    def get_attendance_status_label(self, obj):
+        return obj.get_clock_in_attendance_status()["label"]
+
+    def get_attendance_status_detail(self, obj):
+        return obj.get_clock_in_attendance_status()["detail"]
+
+    def get_clock_out_status_code(self, obj):
+        return obj.get_clock_out_attendance_status()["code"]
+
+    def get_clock_out_status_label(self, obj):
+        return obj.get_clock_out_attendance_status()["label"]
+
+    def get_clock_out_status_detail(self, obj):
+        return obj.get_clock_out_attendance_status()["detail"]
+
 
 class EmployeeShiftHistorySerializer(serializers.ModelSerializer):
     date_display = serializers.SerializerMethodField()
@@ -268,6 +334,18 @@ class EmployeeShiftHistorySerializer(serializers.ModelSerializer):
     clock_out_display = serializers.SerializerMethodField()
     duration_display = serializers.SerializerMethodField()
     report_status_label = serializers.SerializerMethodField()
+    attendance_status_code = serializers.SerializerMethodField()
+    attendance_status_label = serializers.SerializerMethodField()
+    attendance_status_detail = serializers.SerializerMethodField()
+    clock_out_status_code = serializers.SerializerMethodField()
+    clock_out_status_label = serializers.SerializerMethodField()
+    clock_out_status_detail = serializers.SerializerMethodField()
+    clock_in_photo_url = serializers.SerializerMethodField()
+    clock_out_photo_url = serializers.SerializerMethodField()
+    clock_in_photo_thumbnail_url = serializers.SerializerMethodField()
+    clock_out_photo_thumbnail_url = serializers.SerializerMethodField()
+    clock_in_photo_taken_display = serializers.SerializerMethodField()
+    clock_out_photo_taken_display = serializers.SerializerMethodField()
 
     class Meta:
         model = ShiftDay
@@ -277,12 +355,24 @@ class EmployeeShiftHistorySerializer(serializers.ModelSerializer):
             "date_display",
             "clock_in_display",
             "clock_out_display",
+            "clock_in_photo_url",
+            "clock_out_photo_url",
+            "clock_in_photo_thumbnail_url",
+            "clock_out_photo_thumbnail_url",
+            "clock_in_photo_taken_display",
+            "clock_out_photo_taken_display",
             "clock_in_gps_status",
             "clock_out_gps_status",
             "daily_report_confirmed",
             "total_lavages_reported",
             "duration_display",
             "report_status_label",
+            "attendance_status_code",
+            "attendance_status_label",
+            "attendance_status_detail",
+            "clock_out_status_code",
+            "clock_out_status_label",
+            "clock_out_status_detail",
         ]
 
     def get_date_display(self, obj):
@@ -293,6 +383,30 @@ class EmployeeShiftHistorySerializer(serializers.ModelSerializer):
 
     def get_clock_out_display(self, obj):
         return timezone.localtime(obj.clock_out_time).strftime("%H:%M") if obj.clock_out_time else ""
+
+    def get_clock_in_photo_url(self, obj):
+        return _absolute_media_url(self.context.get("request"), obj.clock_in_photo)
+
+    def get_clock_out_photo_url(self, obj):
+        return _absolute_media_url(self.context.get("request"), obj.clock_out_photo)
+
+    def get_clock_in_photo_thumbnail_url(self, obj):
+        request = self.context.get("request")
+        if not obj.clock_in_photo_thumbnail_url:
+            return ""
+        return request.build_absolute_uri(obj.clock_in_photo_thumbnail_url) if request else obj.clock_in_photo_thumbnail_url
+
+    def get_clock_out_photo_thumbnail_url(self, obj):
+        request = self.context.get("request")
+        if not obj.clock_out_photo_thumbnail_url:
+            return ""
+        return request.build_absolute_uri(obj.clock_out_photo_thumbnail_url) if request else obj.clock_out_photo_thumbnail_url
+
+    def get_clock_in_photo_taken_display(self, obj):
+        return timezone.localtime(obj.clock_in_photo_taken_at).strftime("%d/%m/%Y %H:%M") if obj.clock_in_photo_taken_at else ""
+
+    def get_clock_out_photo_taken_display(self, obj):
+        return timezone.localtime(obj.clock_out_photo_taken_at).strftime("%d/%m/%Y %H:%M") if obj.clock_out_photo_taken_at else ""
 
     def get_duration_display(self, obj):
         duration = obj.duration()
@@ -308,6 +422,24 @@ class EmployeeShiftHistorySerializer(serializers.ModelSerializer):
         if obj.clock_in_time:
             return "En attente"
         return "Non démarré"
+
+    def get_attendance_status_code(self, obj):
+        return obj.get_clock_in_attendance_status()["code"]
+
+    def get_attendance_status_label(self, obj):
+        return obj.get_clock_in_attendance_status()["label"]
+
+    def get_attendance_status_detail(self, obj):
+        return obj.get_clock_in_attendance_status()["detail"]
+
+    def get_clock_out_status_code(self, obj):
+        return obj.get_clock_out_attendance_status()["code"]
+
+    def get_clock_out_status_label(self, obj):
+        return obj.get_clock_out_attendance_status()["label"]
+
+    def get_clock_out_status_detail(self, obj):
+        return obj.get_clock_out_attendance_status()["detail"]
 
 
 class EmployeeWaterPurchaseSerializer(serializers.ModelSerializer):

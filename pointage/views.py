@@ -177,6 +177,21 @@ def _format_fc_email_amount(amount):
     return f"{Decimal(amount or 0):,.0f} FC".replace(",", " ")
 
 
+def _parse_required_fuel_purchase_amount(value):
+    raw_value = str(value or "").strip().replace("\xa0", "").replace(" ", "")
+    if not raw_value:
+        raise ValueError("Veuillez saisir le prix du carburant acheté.")
+
+    try:
+        amount = _normalize_fc_amount(raw_value.replace(",", "."))
+    except (InvalidOperation, TypeError, ValueError):
+        raise ValueError("Le prix du carburant doit être un montant valide.")
+
+    if amount <= 0:
+        raise ValueError("Le prix du carburant doit être supérieur à 0 FC.")
+    return amount
+
+
 def _build_final_report_email_context(shift, computed_total_amount, issue_count, was_update):
     employee_name = shift.employe.get_full_name() or shift.employe.username
     action_label = "mis à jour" if was_update else "soumis"
@@ -342,6 +357,12 @@ def _build_fuel_purchase_email_context(purchase):
         "site_name": purchase.site.nom,
         "purchase_date": purchase.purchase_date,
         "billing_month": purchase.billing_month,
+        "amount_display": (
+            _format_fc_email_amount(purchase.amount_fc)
+            if purchase.amount_fc is not None else
+            "Non précisé"
+        ),
+        "has_amount": purchase.amount_fc is not None,
         "notes": notes or "Aucune note",
         "has_notes": bool(notes),
         "created_at": timezone.localtime(purchase.created_at or timezone.now()),
@@ -564,11 +585,18 @@ def employe_fuel_purchase(request):
         )
         return redirect("employe_fuel_purchase")
 
+    try:
+        amount_fc = _parse_required_fuel_purchase_amount(request.POST.get("amount_fc"))
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return redirect("employe_fuel_purchase")
+
     reporter_name = user.get_full_name() or user.username
     purchase = SiteFuelPurchase.objects.create(
         site=site,
         billing_month=billing_month,
         purchase_date=today,
+        amount_fc=amount_fc,
         notes=f"Signalé via portail employé par {reporter_name}.",
         created_by=user,
     )
@@ -579,7 +607,7 @@ def employe_fuel_purchase(request):
         action="AUTRE",
         description=(
             f"Achat de carburant signalé via portail employé: "
-            f"{site.nom} - {purchase.purchase_date}"
+            f"{site.nom} - {purchase.purchase_date} - {_format_fc_email_amount(amount_fc)}"
         ),
         ip_address=get_client_ip(request),
         user_agent=get_user_agent(request),
@@ -587,7 +615,7 @@ def employe_fuel_purchase(request):
 
     messages.success(
         request,
-        "Achat de carburant enregistré pour aujourd'hui.",
+        f"Achat de carburant enregistré pour aujourd'hui ({_format_fc_email_amount(amount_fc)}).",
     )
     return redirect("employe_fuel_purchase")
 
