@@ -669,6 +669,34 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(payload["shift_today"]["attendance_status_code"], "PRESENT")
         self.assertEqual(payload["shift_today"]["attendance_status_label"], "Présent")
 
+    def test_employee_presence_status_does_not_return_qr_prefill(self):
+        response = self.client.get(reverse("portal_api_employee_pointage"), {"site_token": self.site.site_token})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("site_token_prefill", response.json())
+
+    def test_employee_start_attendance_ignores_site_token_field(self):
+        other_site = Location.objects.create(
+            nom="Autre site",
+            adresse="Avenue 2",
+            ville="Kinshasa",
+            actif=True,
+        )
+        today = timezone.localdate()
+        capture_time = timezone.make_aware(datetime.combine(today, datetime.min.time().replace(hour=10, minute=0)))
+
+        response = self.client.post(
+            reverse("portal_api_employee_clock_in"),
+            data={
+                "photo": self._build_attendance_photo(capture_time),
+                "site_token": str(other_site.site_token),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        shift = ShiftDay.objects.get(employe=self.user, date=today)
+        self.assertEqual(shift.site, self.site)
+
     def test_employee_start_attendance_marks_late_after_grace_period(self):
         today = timezone.localdate()
         capture_time = timezone.make_aware(datetime.combine(today, datetime.min.time().replace(hour=10, minute=25)))
@@ -717,6 +745,71 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Absent")
         self.assertContains(response, "Aucun pointage")
+
+    def test_admin_site_detail_links_to_attendance_photo_gallery(self):
+        target_date = timezone.localdate()
+        admin_client = self.client_class()
+        admin_client.login(username="report_admin", password="AdminPass123!")
+
+        response = admin_client.get(
+            reverse("admin_site_detail", args=[self.site.id]),
+            data={
+                "date_debut": target_date.strftime("%Y-%m-%d"),
+                "date_fin": target_date.strftime("%Y-%m-%d"),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Photos de présence")
+        self.assertContains(
+            response,
+            f"{reverse('admin_site_attendance_photos', args=[self.site.id])}?date={target_date.strftime('%Y-%m-%d')}",
+            html=False,
+        )
+
+    def test_admin_can_open_attendance_photo_gallery_and_manage_pointage(self):
+        target_date = timezone.localdate() - timedelta(days=1)
+        while target_date.weekday() == 6:
+            target_date -= timedelta(days=1)
+
+        clock_in_time = timezone.make_aware(
+            datetime.combine(target_date, datetime.min.time().replace(hour=10, minute=2))
+        )
+        clock_out_time = timezone.make_aware(
+            datetime.combine(target_date, datetime.min.time().replace(hour=20, minute=34))
+        )
+        shift = ShiftDay.objects.create(
+            employe=self.user,
+            site=self.site,
+            date=target_date,
+            clock_in_time=clock_in_time,
+            clock_in_photo=self._build_attendance_photo(clock_in_time),
+            clock_in_photo_taken_at=clock_in_time,
+            clock_in_gps_status="OK",
+            clock_out_time=clock_out_time,
+            clock_out_photo=self._build_attendance_photo(clock_out_time),
+            clock_out_photo_taken_at=clock_out_time,
+            clock_out_gps_status="OK",
+            daily_report_confirmed=True,
+        )
+
+        admin_client = self.client_class()
+        admin_client.login(username="report_admin", password="AdminPass123!")
+        response = admin_client.get(
+            reverse("admin_site_attendance_photos", args=[self.site.id]),
+            data={"date": target_date.strftime("%Y-%m-%d")},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.user.username)
+        self.assertContains(response, "Photo d'arrivée")
+        self.assertContains(response, "Photo de fin")
+        self.assertContains(response, reverse("admin_edit_pointage", args=[self.site.id, shift.id]))
+        self.assertContains(response, reverse("admin_delete_pointage", args=[self.site.id, shift.id]))
+        self.assertContains(
+            response,
+            reverse("admin_site_employee_portal", args=[self.site.id, self.user.userprofile.id]),
+        )
 
     def test_employee_water_page_reflects_admin_edit_and_delete(self):
         today = timezone.localdate()
