@@ -79,7 +79,7 @@ export default function EmployeeDashboardPage() {
     },
     {
       title: "Historique",
-      description: "Suivre vos pointages, rapports, lavages, problèmes, eau et carburant.",
+      description: "Suivre vos présences, rapports, lavages, problèmes, eau et carburant.",
       to: "/employe/historique/",
     },
     {

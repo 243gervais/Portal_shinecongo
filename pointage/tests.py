@@ -669,6 +669,34 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(payload["shift_today"]["attendance_status_code"], "PRESENT")
         self.assertEqual(payload["shift_today"]["attendance_status_label"], "Présent")
 
+    def test_employee_presence_status_does_not_return_qr_prefill(self):
+        response = self.client.get(reverse("portal_api_employee_pointage"), {"site_token": self.site.site_token})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("site_token_prefill", response.json())
+
+    def test_employee_start_attendance_ignores_site_token_field(self):
+        other_site = Location.objects.create(
+            nom="Autre site",
+            adresse="Avenue 2",
+            ville="Kinshasa",
+            actif=True,
+        )
+        today = timezone.localdate()
+        capture_time = timezone.make_aware(datetime.combine(today, datetime.min.time().replace(hour=10, minute=0)))
+
+        response = self.client.post(
+            reverse("portal_api_employee_clock_in"),
+            data={
+                "photo": self._build_attendance_photo(capture_time),
+                "site_token": str(other_site.site_token),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        shift = ShiftDay.objects.get(employe=self.user, date=today)
+        self.assertEqual(shift.site, self.site)
+
     def test_employee_start_attendance_marks_late_after_grace_period(self):
         today = timezone.localdate()
         capture_time = timezone.make_aware(datetime.combine(today, datetime.min.time().replace(hour=10, minute=25)))

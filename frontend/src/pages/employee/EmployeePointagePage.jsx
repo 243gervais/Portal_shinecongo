@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
 
 import { apiFetch } from "../../lib/api";
 import { ErrorState, ImageThumb, LoadingState, Notice } from "../../components/Ui";
@@ -28,7 +27,6 @@ function getGeoPosition() {
 }
 
 export default function EmployeePointagePage() {
-  const [searchParams] = useSearchParams();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState(null);
@@ -39,12 +37,7 @@ export default function EmployeePointagePage() {
   async function load() {
     try {
       setError("");
-      const query = {};
-      const siteToken = searchParams.get("site_token");
-      if (siteToken) {
-        query.site_token = siteToken;
-      }
-      const payload = await apiFetch("/employee/pointage/", { query });
+      const payload = await apiFetch("/employee/pointage/");
       setData(payload);
     } catch (requestError) {
       setError(requestError.message);
@@ -53,15 +46,10 @@ export default function EmployeePointagePage() {
 
   useEffect(() => {
     load();
-  }, [searchParams]);
+  }, []);
 
   async function submit(actionKind, path, file) {
-    const siteToken = searchParams.get("site_token") || data?.site_token_prefill;
     const formData = new FormData();
-
-    if (siteToken) {
-      formData.append("site_token", siteToken);
-    }
     formData.append("photo", file);
     if (file?.lastModified) {
       formData.append("photo_last_modified", String(file.lastModified));
@@ -130,7 +118,7 @@ export default function EmployeePointagePage() {
   return (
     <div className="page-stack mobile-first-page">
       <section className="section-card mobile-hero">
-        <p className="eyebrow">Présence mobile-first</p>
+        <p className="eyebrow">Présence</p>
         <h1>{data.site.nom}</h1>
         <p>
           {data.schedule.workdays_label} · début {data.schedule.start_label} · grâce jusqu&apos;à {data.schedule.grace_label} · fin {data.schedule.end_label}

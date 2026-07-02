@@ -6,7 +6,7 @@ import { Notice } from "./Ui";
 function employeeLinks() {
   return [
     { to: "/employe/", label: "Accueil" },
-    { to: "/employe/pointage/", label: "Pointage" },
+    { to: "/employe/pointage/", label: "Présence" },
     { to: "/employe/lavage/ajouter/", label: "Ajouter un lavage" },
     { to: "/employe/lavage/mes-lavages/", label: "Mes lavages" },
     { to: "/employe/probleme/signaler/", label: "Signaler un problème" },
