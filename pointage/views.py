@@ -976,8 +976,8 @@ def scan_qr_fixe(request, site_token):
         messages.error(request, 'Ce QR ne correspond pas à votre site.')
         return redirect('dashboard')
     
-    # Rediriger vers la page React mobile-first de pointage
-    return redirect(f"{reverse('employe_pointage')}?site_token={site_token}")
+    # Rediriger vers la page React de présence sans imposer de scan additionnel
+    return redirect(reverse('employe_pointage'))
 
 
 @login_required
