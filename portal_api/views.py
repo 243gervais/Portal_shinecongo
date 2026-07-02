@@ -283,7 +283,6 @@ class EmployeePointageStatusApi(APIView):
             {
                 "today": today.isoformat(),
                 "site": SiteSummarySerializer(profile.site).data,
-                "site_token_prefill": request.query_params.get("site_token", "").strip(),
                 "shift_today": _safe_employee_shift(shift_today),
                 "attendance_status": attendance_status,
                 "clock_out_status": clock_out_status,
@@ -302,7 +301,6 @@ class EmployeeClockInApi(APIView):
         user = request.user
         today = timezone.localdate()
         profile = _employee_profile(user)
-        site_token = str(request.data.get("site_token", "")).strip()
         if not is_workday(today):
             return Response(
                 {"message": "La présence n'est requise que du lundi au samedi."},
@@ -319,10 +317,6 @@ class EmployeeClockInApi(APIView):
             )
 
         site = profile.site
-        if site_token:
-            matched_site = get_object_or_404(Location, site_token=site_token, actif=True)
-            if matched_site.id != profile.site_id:
-                return Response({"message": "Ce QR ne correspond pas à votre site."}, status=status.HTTP_400_BAD_REQUEST)
 
         photo, capture_time = _capture_time_from_request(request)
         if not photo:
@@ -399,7 +393,6 @@ class EmployeeClockOutApi(APIView):
         user = request.user
         today = timezone.localdate()
         profile = _employee_profile(user)
-        site_token = str(request.data.get("site_token", "")).strip()
         if not is_workday(today):
             return Response(
                 {"message": "La présence n'est requise que du lundi au samedi."},
@@ -421,10 +414,6 @@ class EmployeeClockOutApi(APIView):
             )
 
         site = profile.site
-        if site_token:
-            matched_site = get_object_or_404(Location, site_token=site_token, actif=True)
-            if matched_site.id != profile.site_id:
-                return Response({"message": "Ce QR ne correspond pas à votre site."}, status=status.HTTP_400_BAD_REQUEST)
 
         photo, capture_time = _capture_time_from_request(request)
         if not photo:
