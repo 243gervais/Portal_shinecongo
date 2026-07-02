@@ -5,7 +5,7 @@ import { apiFetch } from "../../lib/api";
 import { EmptyState, ErrorState, LoadingState, Pagination } from "../../components/Ui";
 
 const TAB_OPTIONS = [
-  { key: "pointages", label: "Pointages", endpoint: "/employee/history/pointages/" },
+  { key: "pointages", label: "Présences", endpoint: "/employee/history/pointages/" },
   { key: "reports", label: "Rapports", endpoint: "/employee/history/reports/" },
   { key: "lavages", label: "Lavages", endpoint: "/employee/lavages/" },
   { key: "problemes", label: "Problèmes", endpoint: "/employee/problemes/" },
