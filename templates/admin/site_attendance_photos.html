@@ -341,6 +341,636 @@
         background: rgba(255, 255, 255, 0.74);
     }
 
+    .attendance-proof-actions {
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+    }
+
+    .attendance-proof-actions .btn {
+        flex: 1 1 140px;
+        text-align: center;
+    }
+
+    .attendance-card-actions {
+        padding-top: 0.2rem;
+    }
+
+    .attendance-action-copy {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+
+    .attendance-correction {
+        padding: 0.8rem 0.9rem;
+        border-radius: 16px;
+        background: rgba(217, 119, 6, 0.08);
+        border: 1px solid rgba(217, 119, 6, 0.14);
+        color: #8a4b00;
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+
+    @media (max-width: 860px) {
+        .attendance-details,
+        .attendance-proof-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="attendance-shell">
+    <section class="attendance-hero">
+        <div class="attendance-hero-top">
+            <div>
+                <span class="attendance-eyebrow">Admin présence</span>
+                <h1>Photos de présence</h1>
+                <p class="attendance-copy">
+                    Centre de contrôle des preuves d'arrivée et de fin de journée pour <strong>{{ site.nom }}</strong>.
+                    Filtrez par date, ouvrez chaque photo en plein écran et corrigez ou supprimez un pointage depuis la même page.
+                </p>
+                <div class="attendance-chips">
+                    <span class="attendance-chip">Site <strong>{{ site.nom }}</strong></span>
+                    <span class="attendance-chip">Date <strong>{{ selected_date|date:"d/m/Y" }}</strong></span>
+                    <span class="attendance-chip">Employés affichés <strong>{{ attendance_rows_total }}</strong></span>
+                </div>
+            </div>
+            <div class="attendance-hero-actions">
+                <a href="?date={{ previous_date|date:'Y-m-d' }}{% if selected_employee_id %}&employee={{ selected_employee_id }}{% endif %}{% if selected_status_filter != 'all' %}&status={{ selected_status_filter }}{% endif %}" class="btn btn-secondary">Jour précédent</a>
+                {% if can_view_next_date %}
+                <a href="?date={{ next_date|date:'Y-m-d' }}{% if selected_employee_id %}&employee={{ selected_employee_id }}{% endif %}{% if selected_status_filter != 'all' %}&status={{ selected_status_filter }}{% endif %}" class="btn btn-secondary">Jour suivant</a>
+                {% endif %}
+                <a href="{{ site_detail_url }}" class="btn btn-info">Retour au site</a>
+                <a href="{% url 'admin_site_employees' site.id %}" class="btn btn-primary">Gestion des employés</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="attendance-stats">
+        <article class="attendance-stat">
+            <div class="attendance-stat-label">Présents</div>
+            <div class="attendance-stat-value">{{ attendance_summary.present_count }}</div>
+            <div class="attendance-stat-copy">Débuts validés avant 10:10.</div>
+        </article>
+        <article class="attendance-stat">
+            <div class="attendance-stat-label">Retards</div>
+            <div class="attendance-stat-value">{{ attendance_summary.late_count }}</div>
+            <div class="attendance-stat-copy">Photos d'arrivée validées après l'heure de grâce.</div>
+        </article>
+        <article class="attendance-stat">
+            <div class="attendance-stat-label">Absents</div>
+            <div class="attendance-stat-value">{{ attendance_summary.absent_count }}</div>
+            <div class="attendance-stat-copy">Aucune photo d'arrivée reçue pour la journée.</div>
+        </article>
+        <article class="attendance-stat">
+            <div class="attendance-stat-label">Fins clôturées</div>
+            <div class="attendance-stat-value">{{ attendance_summary.complete_count }}</div>
+            <div class="attendance-stat-copy">{{ attendance_summary.end_photo_count }} photo{{ attendance_summary.end_photo_count|pluralize }} de fin disponible{{ attendance_summary.end_photo_count|pluralize }}</div>
+        </article>
+    </section>
+
+    <section class="attendance-card" id="attendance-filters">
+        <div class="attendance-section-head">
+            <div>
+                <h2>Filtres</h2>
+                <p class="attendance-card-copy">Choisissez la journée et l'équipe à afficher.</p>
+            </div>
+        </div>
+        <form method="get" class="attendance-filters">
+            <div class="form-group">
+                <label for="id_date">Jour concerné</label>
+                <input type="date" id="id_date" name="date" class="form-control" value="{{ selected_date_iso }}" max="{{ today|date:'Y-m-d' }}">
+            </div>
+            <div class="form-group">
+                <label for="id_employee">Employé</label>
+                <select id="id_employee" name="employee" class="form-control">
+                    <option value="">Tous les employés</option>
+                    {% for profile in employee_options %}
+                    <option value="{{ profile.user_id }}" {% if selected_employee_id == profile.user_id|stringformat:"s" %}selected{% endif %}>
+                        {{ profile.user.get_full_name|default:profile.user.username }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="id_status">Statut</label>
+                <select id="id_status" name="status" class="form-control">
+                    {% for option in status_filter_options %}
+                    <option value="{{ option.value }}" {% if selected_status_filter == option.value %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="attendance-filter-actions">
+                <button type="submit" class="btn btn-primary">Appliquer</button>
+                <a href="{% url 'admin_site_attendance_photos' site.id %}?date={{ today|date:'Y-m-d' }}" class="btn btn-secondary">Réinitialiser</a>
+            </div>
+        </form>
+    </section>
+
+    <section class="attendance-card">
+        <div class="attendance-section-head">
+            <div>
+                <h2>Galerie du {{ selected_date|date:"d/m/Y" }}</h2>
+                <p class="attendance-card-copy">
+                    {{ attendance_rows_total }} employé{{ attendance_rows_total|pluralize }} dans la vue courante.
+                    {{ attendance_summary.start_photo_count }} photo{{ attendance_summary.start_photo_count|pluralize }} d'arrivée et
+                    {{ attendance_summary.end_photo_count }} photo{{ attendance_summary.end_photo_count|pluralize }} de fin disponibles sur la journée.
+                </p>
+            </div>
+        </div>
+
+        {% if attendance_page.object_list %}
+        <div class="attendance-grid">
+            {% for row in attendance_page.object_list %}
+            <article class="attendance-item">
+                <div class="attendance-card-head">
+                    <div class="attendance-person">
+                        {% if row.profile and row.profile.profile_photo %}
+                        <img
+                            src="{{ row.profile.profile_photo.url }}"
+                            alt="Photo de {{ row.employee.get_full_name|default:row.employee.username }}"
+                            class="attendance-avatar-photo"
+                            loading="lazy"
+                        >
+                        {% else %}
+                        <div class="attendance-avatar">{{ row.employee.username|slice:":1"|upper }}</div>
+                        {% endif %}
+                        <div>
+                            <h3 class="attendance-name">{{ row.employee.get_full_name|default:row.employee.username }}</h3>
+                            <div class="attendance-meta">
+                                Identifiant: {{ row.employee.username }}
+                                {% if row.profile %}
+                                <br>Rôle: {{ row.profile.get_role_display }}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="attendance-badges">
+                        <span class="attendance-badge attendance-badge--{{ row.attendance_status.code|lower }}">{{ row.attendance_status.label }}</span>
+                        <span class="attendance-badge attendance-badge--{{ row.clock_out_status.code|lower }}">{{ row.clock_out_status.label }}</span>
+                    </div>
+                </div>
+
+                <div class="attendance-details">
+                    <div class="attendance-detail-box">
+                        <div class="attendance-detail-label">Arrivée</div>
+                        <div class="attendance-detail-value">
+                            {% if row.pointage and row.pointage.clock_in_time %}{{ row.pointage.clock_in_time|date:"H:i" }}{% else %}-{% endif %}
+                        </div>
+                    </div>
+                    <div class="attendance-detail-box">
+                        <div class="attendance-detail-label">Fin</div>
+                        <div class="attendance-detail-value">
+                            {% if row.pointage and row.pointage.clock_out_time %}{{ row.pointage.clock_out_time|date:"H:i" }}{% else %}-{% endif %}
+                        </div>
+                    </div>
+                    <div class="attendance-detail-box">
+                        <div class="attendance-detail-label">Durée</div>
+                        <div class="attendance-detail-value">{{ row.duration|default:"-" }}</div>
+                    </div>
+                    <div class="attendance-detail-box">
+                        <div class="attendance-detail-label">Rapport final</div>
+                        <div class="attendance-detail-value">
+                            {% if row.pointage and row.pointage.daily_report_confirmed %}Confirmé{% elif row.pointage and row.pointage.clock_in_time %}En attente{% else %}Non démarré{% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="attendance-proof-grid">
+                    <section class="attendance-proof-card">
+                        <div class="attendance-proof-label">Photo d'arrivée</div>
+                        {% if row.has_start_photo %}
+                        <a href="{{ row.start_photo_url }}" target="_blank" rel="noopener" class="attendance-proof-link">
+                            <img src="{{ row.start_photo_thumbnail_url }}" alt="Preuve d'arrivée de {{ row.employee.get_full_name|default:row.employee.username }}" loading="lazy">
+                        </a>
+                        <div class="attendance-proof-meta">
+                            {% if row.pointage.clock_in_photo_taken_at %}Prise à {{ row.pointage.clock_in_photo_taken_at|date:"d/m/Y H:i" }}<br>{% endif %}
+                            GPS: {{ row.pointage.get_clock_in_gps_status_display|default:row.pointage.clock_in_gps_status }}
+                        </div>
+                        <a href="{{ row.start_photo_url }}" target="_blank" rel="noopener" class="attendance-proof-open">Voir plein écran</a>
+                        <div class="attendance-proof-actions">
+                            <a href="{% url 'admin_edit_pointage' site.id row.pointage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-secondary">Modifier</a>
+                            <a href="{% url 'admin_delete_pointage_item' site.id row.pointage.id 'start-photo' %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger">Suppr. photo</a>
+                            <a href="{% url 'admin_delete_pointage_item' site.id row.pointage.id 'start' %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger">Suppr. arrivée</a>
+                        </div>
+                        {% elif row.pointage and row.pointage.clock_in_time %}
+                        <div class="attendance-proof-empty">Aucune photo d'arrivée pour cette journée.</div>
+                        <div class="attendance-proof-actions">
+                            <a href="{% url 'admin_edit_pointage' site.id row.pointage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-secondary">Modifier</a>
+                            <a href="{% url 'admin_delete_pointage_item' site.id row.pointage.id 'start' %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger">Suppr. arrivée</a>
+                        </div>
+                        {% else %}
+                        <div class="attendance-proof-empty">Aucune photo d'arrivée pour cette journée.</div>
+                        {% endif %}
+                    </section>
+
+                    <section class="attendance-proof-card">
+                        <div class="attendance-proof-label">Photo de fin</div>
+                        {% if row.has_end_photo %}
+                        <a href="{{ row.end_photo_url }}" target="_blank" rel="noopener" class="attendance-proof-link">
+                            <img src="{{ row.end_photo_thumbnail_url }}" alt="Preuve de fin de {{ row.employee.get_full_name|default:row.employee.username }}" loading="lazy">
+                        </a>
+                        <div class="attendance-proof-meta">
+                            {% if row.pointage.clock_out_photo_taken_at %}Prise à {{ row.pointage.clock_out_photo_taken_at|date:"d/m/Y H:i" }}<br>{% endif %}
+                            GPS: {{ row.pointage.get_clock_out_gps_status_display|default:row.pointage.clock_out_gps_status }}
+                        </div>
+                        <a href="{{ row.end_photo_url }}" target="_blank" rel="noopener" class="attendance-proof-open">Voir plein écran</a>
+                        <div class="attendance-proof-actions">
+                            <a href="{% url 'admin_edit_pointage' site.id row.pointage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-secondary">Modifier</a>
+                            <a href="{% url 'admin_delete_pointage_item' site.id row.pointage.id 'end-photo' %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger">Suppr. photo</a>
+                            <a href="{% url 'admin_delete_pointage_item' site.id row.pointage.id 'end' %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger">Suppr. fin</a>
+                        </div>
+                        {% elif row.pointage and row.pointage.clock_out_time %}
+                        <div class="attendance-proof-empty">Aucune photo de fin disponible.</div>
+                        <div class="attendance-proof-actions">
+                            <a href="{% url 'admin_edit_pointage' site.id row.pointage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-secondary">Modifier</a>
+                            <a href="{% url 'admin_delete_pointage_item' site.id row.pointage.id 'end' %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger">Suppr. fin</a>
+                        </div>
+                        {% else %}
+                        <div class="attendance-proof-empty">Aucune photo de fin disponible.</div>
+                        {% endif %}
+                    </section>
+                </div>
+
+                {% if row.pointage and row.pointage.corrected_at %}
+                <div class="attendance-correction">
+                    Corrigé le {{ row.pointage.corrected_at|date:"d/m/Y H:i" }}
+                    {% if row.pointage.corrected_by %}par {{ row.pointage.corrected_by.get_full_name|default:row.pointage.corrected_by.username }}{% endif %}.
+                    {% if row.pointage.correction_reason %}<br>Motif: {{ row.pointage.correction_reason }}{% endif %}
+                </div>
+                {% endif %}
+
+                <div class="attendance-card-actions">
+                    <div class="attendance-action-copy">
+                        {{ row.attendance_status.detail }} {{ row.clock_out_status.detail }}
+                    </div>
+                    <div style="display: flex; gap: 0.65rem; flex-wrap: wrap;">
+                        {% if row.profile %}
+                        <a href="{% url 'admin_site_employee_portal' site.id row.profile.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-secondary">Fiche employé</a>
+                        {% endif %}
+                        {% if row.pointage %}
+                        <a href="{% url 'admin_edit_pointage' site.id row.pointage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-primary">Corriger</a>
+                        <a href="{% url 'admin_delete_pointage' site.id row.pointage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger">Supprimer</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% include "partials/pagination.html" with page_obj=attendance_page page_param="attendance_page" anchor="attendance-filters" %}
+        {% else %}
+        <div class="attendance-empty">
+            Aucun employé ne correspond à ce filtre pour le {{ selected_date|date:"d/m/Y" }}.
+        </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}
+{% extends "base.html" %}
+
+{% block title %}Photos de présence - {{ site.nom }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .attendance-shell {
+        display: grid;
+        gap: 1.35rem;
+    }
+
+    .attendance-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 30px;
+        padding: 1.8rem;
+        background:
+            radial-gradient(circle at top left, rgba(56, 189, 248, 0.22), transparent 35%),
+            linear-gradient(135deg, #071a2c 0%, #0f3352 48%, #155f91 100%);
+        color: #f7fbff;
+        box-shadow: 0 28px 72px rgba(7, 26, 44, 0.24);
+    }
+
+    .attendance-hero::after {
+        content: "";
+        position: absolute;
+        right: -4.5rem;
+        top: -4rem;
+        width: 14rem;
+        height: 14rem;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .attendance-hero > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .attendance-hero-top,
+    .attendance-hero-actions,
+    .attendance-section-head,
+    .attendance-card-head,
+    .attendance-card-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .attendance-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.42rem 0.82rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        color: rgba(247, 251, 255, 0.92);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .attendance-hero h1 {
+        margin: 0.85rem 0 0.4rem;
+        font-size: clamp(2rem, 3vw, 2.8rem);
+        line-height: 1.05;
+        color: #ffffff;
+    }
+
+    .attendance-copy {
+        margin: 0;
+        max-width: 58rem;
+        color: rgba(247, 251, 255, 0.84);
+        line-height: 1.6;
+    }
+
+    .attendance-chips {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+
+    .attendance-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.42rem;
+        padding: 0.55rem 0.82rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        color: #ffffff;
+        font-size: 0.86rem;
+        font-weight: 700;
+    }
+
+    .attendance-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+    }
+
+    .attendance-stat,
+    .attendance-card,
+    .attendance-item {
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.97);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        box-shadow: 0 18px 45px rgba(11, 31, 53, 0.08);
+    }
+
+    .attendance-stat {
+        padding: 1.15rem 1.2rem;
+    }
+
+    .attendance-stat-label,
+    .attendance-detail-label,
+    .attendance-proof-label {
+        color: var(--text-secondary);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .attendance-stat-value {
+        margin-top: 0.38rem;
+        font-size: 1.72rem;
+        font-weight: 800;
+        color: var(--primary-dark);
+    }
+
+    .attendance-stat-copy {
+        margin-top: 0.22rem;
+        color: var(--text-secondary);
+        line-height: 1.55;
+    }
+
+    .attendance-card {
+        padding: 1.25rem;
+        display: grid;
+        gap: 1rem;
+    }
+
+    .attendance-card h2,
+    .attendance-card h3 {
+        margin: 0;
+        color: var(--primary-dark);
+    }
+
+    .attendance-card-copy,
+    .attendance-empty {
+        color: var(--text-secondary);
+        line-height: 1.55;
+    }
+
+    .attendance-filters {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        align-items: end;
+    }
+
+    .attendance-filter-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .attendance-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1rem;
+    }
+
+    .attendance-item {
+        padding: 1rem;
+        display: grid;
+        gap: 0.95rem;
+    }
+
+    .attendance-person {
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+    }
+
+    .attendance-avatar,
+    .attendance-avatar-photo {
+        width: 3.25rem;
+        height: 3.25rem;
+        border-radius: 18px;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        box-shadow: 0 12px 28px rgba(10, 67, 107, 0.14);
+    }
+
+    .attendance-avatar {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #0a436b 0%, #1da7ff 100%);
+        color: #ffffff;
+        font-weight: 800;
+        font-size: 1rem;
+    }
+
+    .attendance-avatar-photo {
+        object-fit: cover;
+        background: #ffffff;
+    }
+
+    .attendance-name {
+        margin: 0;
+        color: var(--primary-dark);
+        font-size: 1.02rem;
+    }
+
+    .attendance-meta {
+        color: var(--text-secondary);
+        font-size: 0.84rem;
+        line-height: 1.45;
+    }
+
+    .attendance-badges {
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+    }
+
+    .attendance-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.42rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 800;
+        background: rgba(10, 67, 107, 0.06);
+        color: var(--primary-dark);
+    }
+
+    .attendance-badge--present,
+    .attendance-badge--complete {
+        background: rgba(15, 157, 88, 0.12);
+        color: #0f9d58;
+    }
+
+    .attendance-badge--late {
+        background: rgba(217, 119, 6, 0.12);
+        color: #d97706;
+    }
+
+    .attendance-badge--absent,
+    .attendance-badge--missing {
+        background: rgba(180, 35, 24, 0.12);
+        color: #b42318;
+    }
+
+    .attendance-badge--open,
+    .attendance-badge--pending,
+    .attendance-badge--off {
+        background: rgba(7, 26, 44, 0.08);
+        color: var(--text-secondary);
+    }
+
+    .attendance-details {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .attendance-detail-box {
+        padding: 0.85rem 0.92rem;
+        border-radius: 16px;
+        background: rgba(7, 26, 44, 0.03);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .attendance-detail-value {
+        margin-top: 0.2rem;
+        font-weight: 800;
+        color: var(--primary-dark);
+    }
+
+    .attendance-proof-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.8rem;
+    }
+
+    .attendance-proof-card {
+        padding: 0.85rem;
+        border-radius: 18px;
+        background: rgba(7, 26, 44, 0.03);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        display: grid;
+        gap: 0.7rem;
+    }
+
+    .attendance-proof-link {
+        display: block;
+        border-radius: 16px;
+        overflow: hidden;
+        background: rgba(7, 26, 44, 0.06);
+    }
+
+    .attendance-proof-link img {
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        object-fit: cover;
+        display: block;
+    }
+
+    .attendance-proof-meta {
+        color: var(--text-secondary);
+        font-size: 0.84rem;
+        line-height: 1.45;
+    }
+
+    .attendance-proof-open {
+        font-weight: 700;
+        color: var(--primary-dark);
+        text-decoration: none;
+    }
+
+    .attendance-proof-open:hover {
+        text-decoration: underline;
+    }
+
+    .attendance-proof-empty {
+        min-height: 10.5rem;
+        border-radius: 16px;
+        border: 1px dashed rgba(10, 67, 107, 0.18);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 1rem;
+        color: var(--text-secondary);
+        background: rgba(255, 255, 255, 0.74);
+    }
+
     .attendance-card-actions {
         padding-top: 0.2rem;
     }
