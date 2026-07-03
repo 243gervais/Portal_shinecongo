@@ -25,8 +25,8 @@
     </div>
     {% endif %}
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
-        <div style="padding: 0.95rem 1rem; border-radius: 12px; border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.92);">
+    <div class="pointage-proof-grid">
+        <div class="pointage-proof-card" id="proof-start">
             <div style="font-size: 0.82rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Preuve debut</div>
             <div style="margin-top: 0.45rem; color: var(--text-primary);">
                 {% if pointage.clock_in_photo %}
@@ -39,7 +39,7 @@
             <div style="margin-top: 0.35rem; color: var(--text-secondary);">{{ pointage.clock_in_photo_taken_at|date:"d/m/Y H:i" }}</div>
             {% endif %}
         </div>
-        <div style="padding: 0.95rem 1rem; border-radius: 12px; border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.92);">
+        <div class="pointage-proof-card" id="proof-end">
             <div style="font-size: 0.82rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Preuve fin</div>
             <div style="margin-top: 0.45rem; color: var(--text-primary);">
                 {% if pointage.clock_out_photo %}
@@ -54,7 +54,7 @@
         </div>
     </div>
 
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <input type="hidden" name="next" value="{{ next_url }}">
 
@@ -64,15 +64,50 @@
         </div>
 
         <div class="form-group">
+            <label for="clock_in_photo_taken_at">Heure associée à la photo d'arrivée</label>
+            <input type="datetime-local" class="form-control" id="clock_in_photo_taken_at" name="clock_in_photo_taken_at" value="{{ clock_in_photo_taken_at_value }}">
+        </div>
+
+        <div class="form-group">
+            <label for="clock_in_photo">Remplacer la photo d'arrivée</label>
+            <input type="file" class="form-control" id="clock_in_photo" name="clock_in_photo" accept="image/*">
+        </div>
+
+        <div class="form-group pointage-inline-checks">
+            <label>
+                <input type="checkbox" name="clear_clock_in_photo">
+                Supprimer uniquement la photo d'arrivée
+            </label>
+            <label>
+                <input type="checkbox" name="clear_clock_in_action">
+                Supprimer toute l'action d'arrivée
+            </label>
+        </div>
+
+        <div class="form-group">
             <label for="clock_out_time">Heure de sortie</label>
             <input type="time" class="form-control" id="clock_out_time" name="clock_out_time" value="{% if pointage.clock_out_time %}{{ pointage.clock_out_time|time:'H:i' }}{% endif %}">
             <small style="color: var(--text-secondary);">Laissez vide pour garder la valeur actuelle.</small>
         </div>
 
         <div class="form-group">
-            <label style="display: flex; align-items: center; gap: 0.5rem;">
-                <input type="checkbox" name="clear_clock_out">
-                Supprimer l'heure de sortie (remettre le pointage "en cours")
+            <label for="clock_out_photo_taken_at">Heure associée à la photo de fin</label>
+            <input type="datetime-local" class="form-control" id="clock_out_photo_taken_at" name="clock_out_photo_taken_at" value="{{ clock_out_photo_taken_at_value }}">
+        </div>
+
+        <div class="form-group">
+            <label for="clock_out_photo">Remplacer la photo de fin</label>
+            <input type="file" class="form-control" id="clock_out_photo" name="clock_out_photo" accept="image/*">
+        </div>
+
+        <div class="form-group pointage-inline-checks">
+            <label>
+                <input type="checkbox" name="clear_clock_out_photo">
+                Supprimer uniquement la photo de fin
+            </label>
+            <label>
+                <input type="checkbox" name="clear_clock_out_action">
+                Supprimer toute l'action de fin
             </label>
         </div>
 
@@ -189,6 +224,33 @@
 </div>
 
 <style>
+    .pointage-proof-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .pointage-proof-card {
+        padding: 0.95rem 1rem;
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+        background: rgba(255, 255, 255, 0.92);
+    }
+
+    .pointage-inline-checks {
+        display: grid;
+        gap: 0.5rem;
+        margin-top: -0.25rem;
+    }
+
+    .pointage-inline-checks label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--text-primary);
+    }
+
     .daily-expense-row {
         display: grid;
         grid-template-columns: minmax(0, 1.25fr) minmax(140px, 180px) auto;

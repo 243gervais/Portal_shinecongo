@@ -698,6 +698,110 @@ def _format_pointage_duration(pointage):
     return f"{hours}h{minutes:02d}min"
 
 
+def _format_optional_datetime_for_log(value):
+    return timezone.localtime(value).isoformat() if value else None
+
+
+def _pointage_admin_snapshot(pointage):
+    return {
+        "clock_in_time": _format_optional_datetime_for_log(pointage.clock_in_time),
+        "clock_in_photo": pointage.clock_in_photo.name if pointage.clock_in_photo else None,
+        "clock_in_photo_taken_at": _format_optional_datetime_for_log(pointage.clock_in_photo_taken_at),
+        "clock_in_gps_status": pointage.clock_in_gps_status,
+        "clock_out_time": _format_optional_datetime_for_log(pointage.clock_out_time),
+        "clock_out_photo": pointage.clock_out_photo.name if pointage.clock_out_photo else None,
+        "clock_out_photo_taken_at": _format_optional_datetime_for_log(pointage.clock_out_photo_taken_at),
+        "clock_out_gps_status": pointage.clock_out_gps_status,
+        "daily_report_confirmed": pointage.daily_report_confirmed,
+        "total_lavages_reported": pointage.total_lavages_reported,
+        "total_amount_reported_fc": str(pointage.total_amount_reported_fc),
+        "daily_expenses_total_fc": str(pointage.daily_expenses_total_fc),
+        "daily_expenses": pointage.daily_expenses,
+    }
+
+
+def _parse_optional_datetime_local(raw_value, field_label):
+    raw_value = (raw_value or "").strip()
+    if not raw_value:
+        return False, None
+
+    try:
+        parsed_value = datetime.strptime(raw_value, "%Y-%m-%dT%H:%M")
+    except ValueError as exc:
+        raise ValueError(f"{field_label} est invalide.") from exc
+
+    return True, timezone.make_aware(parsed_value)
+
+
+def _delete_field_file(field_file):
+    if field_file and getattr(field_file, "name", None):
+        field_file.delete(save=False)
+
+
+def _replace_field_file(instance, field_name, uploaded_file):
+    current_file = getattr(instance, field_name)
+    _delete_field_file(current_file)
+    setattr(instance, field_name, uploaded_file)
+
+
+def _clear_pointage_start_photo(pointage):
+    _delete_field_file(pointage.clock_in_photo)
+    pointage.clock_in_photo = None
+    pointage.clock_in_photo_taken_at = None
+    pointage.clock_in_gps_latitude = None
+    pointage.clock_in_gps_longitude = None
+    pointage.clock_in_gps_distance_mètres = None
+    pointage.clock_in_gps_status = "INCONNU"
+
+
+def _clear_pointage_end_photo(pointage):
+    _delete_field_file(pointage.clock_out_photo)
+    pointage.clock_out_photo = None
+    pointage.clock_out_photo_taken_at = None
+    pointage.clock_out_gps_latitude = None
+    pointage.clock_out_gps_longitude = None
+    pointage.clock_out_gps_distance_mètres = None
+    pointage.clock_out_gps_status = "INCONNU"
+
+
+def _clear_pointage_start_action(pointage):
+    pointage.clock_in_time = None
+    _clear_pointage_start_photo(pointage)
+
+
+def _clear_pointage_end_action(pointage):
+    pointage.clock_out_time = None
+    _clear_pointage_end_photo(pointage)
+
+
+POINTAGE_DELETE_TARGETS = {
+    "start": {
+        "title": "Supprimer l'action d'arrivée",
+        "label": "Action d'arrivée",
+        "description": "Efface l'heure d'arrivée, la photo d'arrivée et l'heure de prise associée.",
+        "apply": _clear_pointage_start_action,
+    },
+    "end": {
+        "title": "Supprimer l'action de fin",
+        "label": "Action de fin",
+        "description": "Efface l'heure de fin, la photo de fin et l'heure de prise associée.",
+        "apply": _clear_pointage_end_action,
+    },
+    "start-photo": {
+        "title": "Supprimer la photo d'arrivée",
+        "label": "Photo d'arrivée",
+        "description": "Efface uniquement la photo d'arrivée, son heure de prise et les informations GPS liées.",
+        "apply": _clear_pointage_start_photo,
+    },
+    "end-photo": {
+        "title": "Supprimer la photo de fin",
+        "label": "Photo de fin",
+        "description": "Efface uniquement la photo de fin, son heure de prise et les informations GPS liées.",
+        "apply": _clear_pointage_end_photo,
+    },
+}
+
+
 def _attendance_row_matches_filter(row, status_filter):
     if status_filter == "all":
         return True
@@ -4225,39 +4329,65 @@ def admin_edit_pointage(request, site_id, pointage_id):
                 messages.error(request, "Le motif de correction est obligatoire.")
                 return redirect('admin_edit_pointage', site_id=site.id, pointage_id=pointage.id)
 
-            donnees_avant = {
-                'clock_in_time': str(pointage.clock_in_time) if pointage.clock_in_time else None,
-                'clock_out_time': str(pointage.clock_out_time) if pointage.clock_out_time else None,
-                'daily_report_confirmed': pointage.daily_report_confirmed,
-                'total_lavages_reported': pointage.total_lavages_reported,
-                'total_amount_reported_fc': str(pointage.total_amount_reported_fc),
-                'daily_expenses_total_fc': str(pointage.daily_expenses_total_fc),
-                'daily_expenses': pointage.daily_expenses,
-            }
+            donnees_avant = _pointage_admin_snapshot(pointage)
 
             new_clock_in = request.POST.get('clock_in_time', '').strip()
             new_clock_out = request.POST.get('clock_out_time', '').strip()
-            clear_clock_out = request.POST.get('clear_clock_out') == 'on'
+            clear_clock_in_action = request.POST.get('clear_clock_in_action') == 'on'
+            clear_clock_out_action = (
+                request.POST.get('clear_clock_out_action') == 'on'
+                or request.POST.get('clear_clock_out') == 'on'
+            )
+            clear_clock_in_photo = request.POST.get('clear_clock_in_photo') == 'on'
+            clear_clock_out_photo = request.POST.get('clear_clock_out_photo') == 'on'
+            replace_clock_in_photo = request.FILES.get('clock_in_photo')
+            replace_clock_out_photo = request.FILES.get('clock_out_photo')
+            has_clock_in_photo_taken_at, new_clock_in_photo_taken_at = _parse_optional_datetime_local(
+                request.POST.get('clock_in_photo_taken_at'),
+                "L'heure de prise de la photo d'arrivée",
+            )
+            has_clock_out_photo_taken_at, new_clock_out_photo_taken_at = _parse_optional_datetime_local(
+                request.POST.get('clock_out_photo_taken_at'),
+                "L'heure de prise de la photo de fin",
+            )
             total_lavages_reported = request.POST.get('total_lavages_reported', '').strip()
             submitted_total_amount = request.POST.get('total_amount_reported_fc', '').strip()
             expense_form = _parse_daily_expenses_form(request.POST)
             pointage.daily_report_confirmed = request.POST.get('daily_report_confirmed') == 'on'
 
-            if new_clock_in:
+            if clear_clock_in_action:
+                _clear_pointage_start_action(pointage)
+            elif new_clock_in:
                 clock_in_dt = datetime.strptime(
                     f"{pointage.date} {new_clock_in}",
                     "%Y-%m-%d %H:%M"
                 )
                 pointage.clock_in_time = timezone.make_aware(clock_in_dt)
 
-            if new_clock_out:
+            if clear_clock_out_action:
+                _clear_pointage_end_action(pointage)
+            elif new_clock_out:
                 clock_out_dt = datetime.strptime(
                     f"{pointage.date} {new_clock_out}",
                     "%Y-%m-%d %H:%M"
                 )
                 pointage.clock_out_time = timezone.make_aware(clock_out_dt)
-            elif clear_clock_out:
-                pointage.clock_out_time = None
+
+            if not clear_clock_in_action:
+                if clear_clock_in_photo and not replace_clock_in_photo:
+                    _clear_pointage_start_photo(pointage)
+                if replace_clock_in_photo:
+                    _replace_field_file(pointage, 'clock_in_photo', replace_clock_in_photo)
+                if has_clock_in_photo_taken_at and not (clear_clock_in_photo and not replace_clock_in_photo):
+                    pointage.clock_in_photo_taken_at = new_clock_in_photo_taken_at
+
+            if not clear_clock_out_action:
+                if clear_clock_out_photo and not replace_clock_out_photo:
+                    _clear_pointage_end_photo(pointage)
+                if replace_clock_out_photo:
+                    _replace_field_file(pointage, 'clock_out_photo', replace_clock_out_photo)
+                if has_clock_out_photo_taken_at and not (clear_clock_out_photo and not replace_clock_out_photo):
+                    pointage.clock_out_photo_taken_at = new_clock_out_photo_taken_at
 
             if total_lavages_reported:
                 total_lavages_int = int(total_lavages_reported)
@@ -4293,15 +4423,7 @@ def admin_edit_pointage(request, site_id, pointage_id):
             pointage.save()
             sync_site_finance_from_daily_reports(site, pointage.date, actor=user)
 
-            donnees_apres = {
-                'clock_in_time': str(pointage.clock_in_time) if pointage.clock_in_time else None,
-                'clock_out_time': str(pointage.clock_out_time) if pointage.clock_out_time else None,
-                'daily_report_confirmed': pointage.daily_report_confirmed,
-                'total_lavages_reported': pointage.total_lavages_reported,
-                'total_amount_reported_fc': str(pointage.total_amount_reported_fc),
-                'daily_expenses_total_fc': str(pointage.daily_expenses_total_fc),
-                'daily_expenses': pointage.daily_expenses,
-            }
+            donnees_apres = _pointage_admin_snapshot(pointage)
 
             AuditLog.log(
                 user=user,
@@ -4316,7 +4438,7 @@ def admin_edit_pointage(request, site_id, pointage_id):
             )
 
             messages.success(request, "Pointage corrigé avec succès.")
-            return _redirect_to_admin_site_detail(request, site, date_obj=date_obj)
+            return _redirect_to_admin_site_detail(request, site, date_obj=pointage.date)
         except ValueError as e:
             messages.error(request, f"Erreur de validation: {str(e)}")
         except Exception as e:
@@ -4327,6 +4449,14 @@ def admin_edit_pointage(request, site_id, pointage_id):
         'pointage': pointage,
         'expense_form': expense_form,
         'submitted_total_amount': submitted_total_amount,
+        'clock_in_photo_taken_at_value': (
+            timezone.localtime(pointage.clock_in_photo_taken_at).strftime("%Y-%m-%dT%H:%M")
+            if pointage.clock_in_photo_taken_at else ''
+        ),
+        'clock_out_photo_taken_at_value': (
+            timezone.localtime(pointage.clock_out_photo_taken_at).strftime("%Y-%m-%dT%H:%M")
+            if pointage.clock_out_photo_taken_at else ''
+        ),
         'next_url': _safe_next_url(request) or '',
     })
 
@@ -4388,6 +4518,76 @@ def admin_delete_pointage(request, site_id, pointage_id):
     return render(request, 'admin/delete_pointage.html', {
         'site': site,
         'pointage': pointage,
+        'next_url': _safe_next_url(request) or '',
+    })
+
+
+@login_required
+@no_cache_view
+def admin_delete_pointage_item(request, site_id, pointage_id, target):
+    """
+    Supprime uniquement une action de présence ou une photo liée.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    target_config = POINTAGE_DELETE_TARGETS.get(target)
+    if not target_config:
+        raise Http404("Cible de suppression inconnue.")
+
+    site = get_object_or_404(Location, id=site_id)
+    pointage = get_object_or_404(
+        ShiftDay.objects.select_related('employe', 'site', 'corrected_by'),
+        id=pointage_id,
+        site=site,
+    )
+
+    if request.method == 'POST':
+        motif = request.POST.get('motif', '').strip()
+        if not motif:
+            messages.error(request, "Le motif de suppression est obligatoire.")
+            return redirect(
+                'admin_delete_pointage_item',
+                site_id=site.id,
+                pointage_id=pointage.id,
+                target=target,
+            )
+
+        donnees_avant = _pointage_admin_snapshot(pointage)
+        target_config["apply"](pointage)
+        pointage.corrected_by = user
+        pointage.correction_reason = motif
+        pointage.corrected_at = timezone.now()
+        pointage.save()
+        sync_site_finance_from_daily_reports(site, pointage.date, actor=user)
+        donnees_apres = _pointage_admin_snapshot(pointage)
+
+        AuditLog.log(
+            user=user,
+            action="CORRIGER_POINTAGE",
+            description=f"{target_config['label']} supprimée par admin pour {pointage}",
+            motif=motif,
+            content_object=pointage,
+            donnees_avant=donnees_avant,
+            donnees_apres=donnees_apres,
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request),
+        )
+
+        messages.success(request, f"{target_config['label']} supprimée avec succès.")
+        return _redirect_to_admin_site_detail(request, site, date_obj=pointage.date)
+
+    return render(request, 'admin/delete_pointage_item.html', {
+        'site': site,
+        'pointage': pointage,
+        'target': target,
+        'target_label': target_config['label'],
+        'target_title': target_config['title'],
+        'target_description': target_config['description'],
         'next_url': _safe_next_url(request) or '',
     })
 

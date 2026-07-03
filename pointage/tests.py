@@ -808,8 +808,121 @@ class EmployeeDailyReportTests(TestCase):
         self.assertContains(response, reverse("admin_delete_pointage", args=[self.site.id, shift.id]))
         self.assertContains(
             response,
+            reverse("admin_delete_pointage_item", args=[self.site.id, shift.id, "start"]),
+        )
+        self.assertContains(
+            response,
+            reverse("admin_delete_pointage_item", args=[self.site.id, shift.id, "end-photo"]),
+        )
+        self.assertContains(
+            response,
             reverse("admin_site_employee_portal", args=[self.site.id, self.user.userprofile.id]),
         )
+
+    def test_admin_can_edit_attendance_photos_and_associated_times(self):
+        target_date = timezone.localdate() - timedelta(days=1)
+        while target_date.weekday() == 6:
+            target_date -= timedelta(days=1)
+
+        clock_in_time = timezone.make_aware(
+            datetime.combine(target_date, datetime.min.time().replace(hour=10, minute=2))
+        )
+        clock_out_time = timezone.make_aware(
+            datetime.combine(target_date, datetime.min.time().replace(hour=20, minute=34))
+        )
+        shift = ShiftDay.objects.create(
+            employe=self.user,
+            site=self.site,
+            date=target_date,
+            clock_in_time=clock_in_time,
+            clock_in_photo=self._build_attendance_photo(clock_in_time),
+            clock_in_photo_taken_at=clock_in_time,
+            clock_in_gps_status="OK",
+            clock_out_time=clock_out_time,
+            clock_out_photo=self._build_attendance_photo(clock_out_time),
+            clock_out_photo_taken_at=clock_out_time,
+            clock_out_gps_status="OK",
+            daily_report_confirmed=True,
+            total_amount_reported_fc=Decimal("28000.00"),
+            total_lavages_reported=2,
+        )
+
+        admin_client = self.client_class()
+        admin_client.login(username="report_admin", password="AdminPass123!")
+
+        response = admin_client.post(
+            reverse("admin_edit_pointage", args=[self.site.id, shift.id]),
+            data={
+                "clock_in_time": "10:05",
+                "clock_in_photo_taken_at": f"{target_date.strftime('%Y-%m-%d')}T10:04",
+                "clock_in_photo": self._build_attendance_photo(
+                    timezone.make_aware(
+                        datetime.combine(target_date, datetime.min.time().replace(hour=10, minute=4))
+                    )
+                ),
+                "clock_out_time": "20:36",
+                "clear_clock_out_photo": "on",
+                "total_lavages_reported": "4",
+                "total_amount_reported_fc": "31000",
+                "daily_report_confirmed": "on",
+                "motif": "Correction des preuves de présence",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        shift.refresh_from_db()
+        self.assertEqual(timezone.localtime(shift.clock_in_time).strftime("%H:%M"), "10:05")
+        self.assertEqual(timezone.localtime(shift.clock_in_photo_taken_at).strftime("%H:%M"), "10:04")
+        self.assertTrue(bool(shift.clock_in_photo))
+        self.assertEqual(timezone.localtime(shift.clock_out_time).strftime("%H:%M"), "20:36")
+        self.assertFalse(bool(shift.clock_out_photo))
+        self.assertIsNone(shift.clock_out_photo_taken_at)
+        self.assertEqual(shift.clock_out_gps_status, "INCONNU")
+        self.assertEqual(shift.total_lavages_reported, 4)
+        self.assertEqual(shift.total_amount_reported_fc, Decimal("31000"))
+
+    def test_admin_can_delete_only_end_attendance_action(self):
+        target_date = timezone.localdate() - timedelta(days=1)
+        while target_date.weekday() == 6:
+            target_date -= timedelta(days=1)
+
+        clock_in_time = timezone.make_aware(
+            datetime.combine(target_date, datetime.min.time().replace(hour=10, minute=1))
+        )
+        clock_out_time = timezone.make_aware(
+            datetime.combine(target_date, datetime.min.time().replace(hour=20, minute=31))
+        )
+        shift = ShiftDay.objects.create(
+            employe=self.user,
+            site=self.site,
+            date=target_date,
+            clock_in_time=clock_in_time,
+            clock_in_photo=self._build_attendance_photo(clock_in_time),
+            clock_in_photo_taken_at=clock_in_time,
+            clock_in_gps_status="OK",
+            clock_out_time=clock_out_time,
+            clock_out_photo=self._build_attendance_photo(clock_out_time),
+            clock_out_photo_taken_at=clock_out_time,
+            clock_out_gps_status="OK",
+            daily_report_confirmed=True,
+        )
+
+        admin_client = self.client_class()
+        admin_client.login(username="report_admin", password="AdminPass123!")
+
+        response = admin_client.post(
+            reverse("admin_delete_pointage_item", args=[self.site.id, shift.id, "end"]),
+            data={"motif": "Photo de fin incorrecte"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        shift.refresh_from_db()
+        self.assertIsNotNone(shift.clock_in_time)
+        self.assertTrue(bool(shift.clock_in_photo))
+        self.assertIsNone(shift.clock_out_time)
+        self.assertFalse(bool(shift.clock_out_photo))
+        self.assertIsNone(shift.clock_out_photo_taken_at)
+        self.assertEqual(shift.clock_out_gps_status, "INCONNU")
 
     def test_employee_water_page_reflects_admin_edit_and_delete(self):
         today = timezone.localdate()

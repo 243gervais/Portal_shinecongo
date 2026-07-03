@@ -341,6 +341,17 @@
         background: rgba(255, 255, 255, 0.74);
     }
 
+    .attendance-proof-actions {
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+    }
+
+    .attendance-proof-actions .btn {
+        flex: 1 1 140px;
+        text-align: center;
+    }
+
     .attendance-card-actions {
         padding-top: 0.2rem;
     }
@@ -539,6 +550,17 @@
                             GPS: {{ row.pointage.get_clock_in_gps_status_display|default:row.pointage.clock_in_gps_status }}
                         </div>
                         <a href="{{ row.start_photo_url }}" target="_blank" rel="noopener" class="attendance-proof-open">Voir plein écran</a>
+                        <div class="attendance-proof-actions">
+                            <a href="{% url 'admin_edit_pointage' site.id row.pointage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-secondary">Modifier</a>
+                            <a href="{% url 'admin_delete_pointage_item' site.id row.pointage.id 'start-photo' %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger">Suppr. photo</a>
+                            <a href="{% url 'admin_delete_pointage_item' site.id row.pointage.id 'start' %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger">Suppr. arrivée</a>
+                        </div>
+                        {% elif row.pointage and row.pointage.clock_in_time %}
+                        <div class="attendance-proof-empty">Aucune photo d'arrivée pour cette journée.</div>
+                        <div class="attendance-proof-actions">
+                            <a href="{% url 'admin_edit_pointage' site.id row.pointage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-secondary">Modifier</a>
+                            <a href="{% url 'admin_delete_pointage_item' site.id row.pointage.id 'start' %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger">Suppr. arrivée</a>
+                        </div>
                         {% else %}
                         <div class="attendance-proof-empty">Aucune photo d'arrivée pour cette journée.</div>
                         {% endif %}
@@ -555,6 +577,17 @@
                             GPS: {{ row.pointage.get_clock_out_gps_status_display|default:row.pointage.clock_out_gps_status }}
                         </div>
                         <a href="{{ row.end_photo_url }}" target="_blank" rel="noopener" class="attendance-proof-open">Voir plein écran</a>
+                        <div class="attendance-proof-actions">
+                            <a href="{% url 'admin_edit_pointage' site.id row.pointage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-secondary">Modifier</a>
+                            <a href="{% url 'admin_delete_pointage_item' site.id row.pointage.id 'end-photo' %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger">Suppr. photo</a>
+                            <a href="{% url 'admin_delete_pointage_item' site.id row.pointage.id 'end' %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger">Suppr. fin</a>
+                        </div>
+                        {% elif row.pointage and row.pointage.clock_out_time %}
+                        <div class="attendance-proof-empty">Aucune photo de fin disponible.</div>
+                        <div class="attendance-proof-actions">
+                            <a href="{% url 'admin_edit_pointage' site.id row.pointage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-secondary">Modifier</a>
+                            <a href="{% url 'admin_delete_pointage_item' site.id row.pointage.id 'end' %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger">Suppr. fin</a>
+                        </div>
                         {% else %}
                         <div class="attendance-proof-empty">Aucune photo de fin disponible.</div>
                         {% endif %}

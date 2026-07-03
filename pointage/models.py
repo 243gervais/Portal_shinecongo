@@ -325,8 +325,8 @@ class ShiftDay(models.Model):
     
     def is_complete(self):
         """Vérifie si le pointage est complet (entrée ET sortie)"""
-        return self.clock_out_time is not None
-    
+        return self.clock_in_time is not None and self.clock_out_time is not None
+
     def duration(self):
         """Calcule la durée du shift si complet"""
         if self.is_complete():
@@ -335,7 +335,7 @@ class ShiftDay(models.Model):
     
     def has_missed_punch(self):
         """Vérifie si il manque un pointage de sortie"""
-        return self.clock_out_time is None
+        return self.clock_in_time is not None and self.clock_out_time is None
 
     @property
     def clock_in_photo_thumbnail_url(self):
