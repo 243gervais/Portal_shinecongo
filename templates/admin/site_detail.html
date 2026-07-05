@@ -1667,6 +1667,3409 @@
                                         <h3 style="font-size: 0.92rem;">Gestion du carburant</h3>
                                         <p>Achats de carburant déclarés sur la journée.</p>
                                     </div>
+                                    <div style="display: flex; align-items: center; gap: 0.65rem; flex-wrap: wrap;">
+                                        <span class="day-activity-section-state">{{ fuel_purchases_date|length }} entree{{ fuel_purchases_date|length|pluralize }}</span>
+                                        <a href="{% url 'admin_fuel_purchases' %}?month={{ detail_date|date:'Y-m' }}" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">Ouvrir le suivi carburant</a>
+                                    </div>
+                                </div>
+                                {% if fuel_purchases_date %}
+                                <div class="table-container">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Heure</th>
+                                                <th>Mois</th>
+                                                <th>Montant</th>
+                                                <th>Saisi par</th>
+                                                <th>Notes</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for purchase in fuel_purchases_date %}
+                                            <tr>
+                                                <td>{{ purchase.created_at|date:"H:i" }}</td>
+                                                <td>{{ purchase.billing_month|date:"m/Y" }}</td>
+                                                <td class="finance-table-money finance-table-money--warning">
+                                                    {% if purchase.amount_fc != None %}{{ purchase.amount_fc|fc_amount }} FC{% else %}-{% endif %}
+                                                </td>
+                                                <td>{% if purchase.created_by %}{{ purchase.created_by.get_full_name|default:purchase.created_by.username }}{% else %}Admin{% endif %}</td>
+                                                <td>{{ purchase.notes|default:"-" }}</td>
+                                                <td>
+                                                    <a href="{% url 'admin_edit_fuel_purchase' purchase.id %}?month={{ purchase.billing_month|date:'Y-m' }}" class="btn btn-info" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">Modifier</a>
+                                                    <a href="{% url 'admin_delete_fuel_purchase' purchase.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">Supprimer</a>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% else %}
+                                <div style="color: var(--text-secondary);">Aucun achat de carburant saisi pour cette date.</div>
+                                {% endif %}
+                            </div>
+
+                            <div id="single-day-journal-entries" style="margin-top: 1rem;">
+                                <div class="day-activity-section-head" style="margin-bottom: 0.65rem;">
+                                    <div>
+                                        <h3 style="font-size: 0.92rem;">Notes et suivi du site</h3>
+                                        <p>Informations, interventions et autres notes admin liées a cette journee.</p>
+                                        </div>
+                                        <span class="day-activity-section-state">{{ journal_entries_date|length }} note{{ journal_entries_date|length|pluralize }}</span>
+                                    </div>
+                                    {% if journal_entries_date %}
+                                    <div class="table-container">
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>Heure</th>
+                                                    <th>Categorie</th>
+                                                    <th>Titre</th>
+                                                    <th>Montant</th>
+                                                    <th>Details</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for entry in journal_entries_date %}
+                                                <tr>
+                                                    <td>{{ entry.created_at|date:"H:i" }}</td>
+                                                    <td>{{ entry.get_category_display }}</td>
+                                                    <td>{{ entry.title }}</td>
+                                                    <td>
+                                                        {% if entry.amount_fc %}
+                                                        <span class="finance-table-money finance-table-money--warning">{{ entry.amount_fc|fc_amount }} FC</span>
+                                                        {% else %}
+                                                        -
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>{{ entry.description|default:"-" }}</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    {% else %}
+                                    <div style="color: var(--text-secondary);">Aucune note du site pour cette date.</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="day-activity-section" id="single-day-problems">
+                        <div class="day-activity-section-head">
+                            <div>
+                                <h3>Problemes et observations du jour</h3>
+                                <p>Incidents remontes depuis le terrain avec leur statut et les details declarés.</p>
+                            </div>
+                            <span class="day-activity-section-state">{{ problemes_date.count }} probleme{{ problemes_date.count|pluralize }}</span>
+                        </div>
+                        {% if problemes_date %}
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Heure</th>
+                                        <th>Categorie</th>
+                                        <th>Signale par</th>
+                                        <th>Statut</th>
+                                        <th>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for probleme in problemes_date %}
+                                    <tr>
+                                        <td>{{ probleme.created_at|date:"H:i" }}</td>
+                                        <td>{{ probleme.get_categorie_display }}</td>
+                                        <td>{{ probleme.employe.get_full_name|default:probleme.employe.username }}</td>
+                                        <td>{{ probleme.get_statut_display }}</td>
+                                        <td>{{ probleme.description }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div style="color: var(--text-secondary);">Aucun probleme signale pour cette journee.</div>
+                        {% endif %}
+                    </section>
+
+                    <section class="day-activity-section" id="single-day-attendance">
+                        <div class="day-activity-section-head">
+                            <div>
+                                <h3>Presences et pointages</h3>
+                                <p>Suivi complet de chaque employe avec statut present, retard ou absent et preuves photo.</p>
+                            </div>
+                            <span class="day-activity-section-state">{{ pointages_date|length }} employe{{ pointages_date|length|pluralize }}</span>
+                        </div>
+                        {% if pointages_date %}
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Employe</th>
+                                        <th>Debut</th>
+                                        <th>Statut arrivee</th>
+                                        <th>Fin</th>
+                                        <th>Statut fin</th>
+                                        <th>Duree</th>
+                                        <th>Preuves</th>
+                                        <th>Rapport final</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in pointages_date %}
+                                    <tr>
+                                        <td>{{ item.employee.get_full_name|default:item.employee.username }}</td>
+                                        <td>{% if item.pointage and item.pointage.clock_in_time %}{{ item.pointage.clock_in_time|date:"H:i" }}{% else %}-{% endif %}</td>
+                                        <td>
+                                            <span style="font-weight: 700; color:
+                                                {% if item.attendance_status.code == 'PRESENT' %}var(--success-color)
+                                                {% elif item.attendance_status.code == 'LATE' %}var(--warning-color)
+                                                {% elif item.attendance_status.code == 'ABSENT' %}var(--error-color)
+                                                {% else %}var(--text-secondary){% endif %};">
+                                                {{ item.attendance_status.label }}
+                                            </span>
+                                        </td>
+                                        <td>{% if item.pointage and item.pointage.clock_out_time %}{{ item.pointage.clock_out_time|date:"H:i" }}{% else %}-{% endif %}</td>
+                                        <td>{{ item.clock_out_status.label }}</td>
+                                        <td>{{ item.duration|default:"-" }}</td>
+                                        <td>
+                                            {% if item.pointage and item.pointage.clock_in_photo %}
+                                            <a href="{{ item.pointage.clock_in_photo.url }}" target="_blank" rel="noopener">Debut</a>
+                                            {% else %}
+                                            <span style="color: var(--text-secondary);">-</span>
+                                            {% endif %}
+                                            {% if item.pointage and item.pointage.clock_out_photo %}
+                                            <br><a href="{{ item.pointage.clock_out_photo.url }}" target="_blank" rel="noopener">Fin</a>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if item.pointage and item.pointage.daily_report_confirmed %}
+                                            Envoye
+                                            {% elif item.pointage and item.pointage.clock_in_time %}
+                                            En attente
+                                            {% else %}
+                                            -
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div style="color: var(--text-secondary);">Aucune presence a afficher pour cette journee.</div>
+                        {% endif %}
+                    </section>
+                </div>
+            </div>
+        </details>
+
+        <details class="finance-disclosure" id="single-day-reports">
+            <summary class="finance-disclosure-head">
+                <div>
+                    <div class="finance-disclosure-title">Rapports employes</div>
+                    <div class="finance-disclosure-copy">Ouvrir le montant confirme par l'equipe et l'ecart avec le systeme.</div>
+                </div>
+                <span class="finance-disclosure-state">{{ montant_rapports_date|fc_amount }} FC</span>
+            </summary>
+            <div class="finance-disclosure-body">
+                <div class="finance-meta">
+                    <div class="finance-meta-grid">
+                        <div class="finance-meta-block">
+                            <h3>Montant déclaré par les employés</h3>
+                            <div><strong>{{ montant_rapports_date|fc_amount }} FC</strong> (~ ${{ montant_rapports_date|usd_equivalent }} USD)</div>
+                            <div style="margin-top: 0.45rem;">{{ rapports_confirmes_date }} rapport{{ rapports_confirmes_date|pluralize }} confirmé{{ rapports_confirmes_date|pluralize }} pour cette date.</div>
+                        </div>
+                        <div class="finance-meta-block">
+                            <h3>Écart rapports vs système</h3>
+                            <div style="font-weight: 700; color: {% if ecart_rapports_date < 0 %}var(--error-color){% else %}var(--primary-color){% endif %};">
+                                {{ ecart_rapports_date|fc_amount }} FC
+                            </div>
+                            <div style="margin-top: 0.45rem;">0 FC signifie que les rapports employés correspondent exactement aux lavages enregistrés.</div>
+                        </div>
+                    </div>
+                </div>
+                {% if reports_date %}
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Employe</th>
+                                <th>Heure de confirmation</th>
+                                <th>Lavages declares</th>
+                                <th>Total declare</th>
+                                <th>Depenses du rapport</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for report in reports_date %}
+                            <tr>
+                                <td>{{ report.employe.get_full_name|default:report.employe.username }}</td>
+                                <td>{{ report.updated_at|date:"H:i" }}</td>
+                                <td>{{ report.total_lavages_reported }}</td>
+                                <td class="finance-table-money finance-table-money--success">
+                                    {{ report.total_amount_reported_fc|fc_amount }} FC<br><small style="color: var(--text-secondary);">~ ${{ report.total_amount_reported_fc|usd_equivalent }}</small>
+                                </td>
+                                <td>{{ report.daily_expense_summary }}</td>
+                                <td>{{ report.report_notes|default:"-" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="finance-alert" style="margin-top: 0;">
+                    <strong>Aucun rapport final confirmé pour cette journée.</strong>
+                </div>
+                {% endif %}
+            </div>
+        </details>
+
+        <details class="finance-disclosure" id="single-day-deposit-trace" {% if not bank_deposit_date %}open{% endif %}>
+            <summary class="finance-disclosure-head">
+                <div>
+                    <div class="finance-disclosure-title">Trace du depot</div>
+                    <div class="finance-disclosure-copy">Voir la preuve de saisie du depot du jour et sa note eventuelle.</div>
+                </div>
+                <span class="finance-disclosure-state">{% if bank_deposit_date %}Enregistre{% else %}En attente{% endif %}</span>
+            </summary>
+            <div class="finance-disclosure-body">
+                {% if bank_deposit_date %}
+                <div class="finance-meta">
+                    <div class="finance-meta-grid">
+                        <div class="finance-meta-block">
+                            <h3>Depot enregistre</h3>
+                            <div><strong>{{ bank_deposit_amount_date|fc_amount }} FC</strong> (~ ${{ bank_deposit_amount_date|usd_equivalent }} USD)</div>
+                            <div style="margin-top: 0.45rem;">
+                                Enregistre le {{ bank_deposit_date.created_at|date:"d/m/Y a H:i" }}
+                                {% if bank_deposit_date.created_by %}
+                                    par {{ bank_deposit_date.created_by.get_full_name|default:bank_deposit_date.created_by.username }}
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="finance-meta-block">
+                            <h3>Note de depot</h3>
+                            <div>{% if bank_deposit_date.notes %}{{ bank_deposit_date.notes }}{% else %}Aucune note ajoutee pour ce depot.{% endif %}</div>
+                            <div style="margin-top: 0.85rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                <a href="{% url 'admin_add_bank_deposit' site.id %}?date={{ selected_single_date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}" class="btn btn-primary" style="padding: 0.45rem 0.8rem; font-size: 0.82rem;">Modifier ce dépôt</a>
+                                <a href="{% url 'admin_delete_bank_deposit' site.id bank_deposit_date.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger" style="padding: 0.45rem 0.8rem; font-size: 0.82rem;">Supprimer</a>
+                                <a href="{% url 'admin_site_losses' site.id %}?date={{ selected_single_date|date:'Y-m-d' }}&period=day&metric=bank" class="btn btn-secondary" style="padding: 0.45rem 0.8rem; font-size: 0.82rem;">Centre de correction</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="finance-alert" style="margin-top: 0;">
+                    <strong>Aucun depot bancaire enregistre pour cette date.</strong>
+                    Ajoutez le depot si l'argent a deja ete verse a la banque, sinon l'ecart de caisse restera ouvert.
+                </div>
+                {% endif %}
+            </div>
+        </details>
+
+        {% if lavages_by_employee %}
+        <details class="finance-disclosure" id="single-day-employee-performance">
+            <summary class="finance-disclosure-head">
+                <div>
+                    <div class="finance-disclosure-title">Performance par employe</div>
+                    <div class="finance-disclosure-copy">Chaque ligne montre le volume de travail et la valeur produite par personne pour cette date.</div>
+                </div>
+                <span class="finance-disclosure-state">{{ lavages_by_employee|length }} employe{{ lavages_by_employee|length|pluralize }}</span>
+            </summary>
+            <div class="finance-disclosure-body">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Employe</th>
+                                <th>Lavages</th>
+                                <th>Total</th>
+                                <th>Moyenne</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for emp_data in lavages_by_employee.values %}
+                            <tr>
+                                <td>{{ emp_data.employe.get_full_name|default:emp_data.employe.username }}</td>
+                                <td style="text-align: center;">{{ emp_data.count }}</td>
+                                <td style="text-align: right;" class="finance-table-money finance-table-money--success">
+                                    {{ emp_data.total|fc_amount }} FC<br><small style="color: var(--text-secondary);">~ ${{ emp_data.total|usd_equivalent }}</small>
+                                </td>
+                                <td style="text-align: right;">
+                                    {{ emp_data.average|fc_amount }} FC<br><small style="color: var(--text-secondary);">~ ${{ emp_data.average|usd_equivalent }}</small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </details>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Statistiques principales -->
+<section class="site-section-card" id="synthese-operationnelle">
+    <div class="site-section-head">
+        <div>
+            <h2 class="site-section-title">Synthèse opérationnelle</h2>
+            <p class="site-section-copy">
+                {% if show_period_breakdown %}
+                Chiffres complets de la période sélectionnée, avec les dépôts, pertes, rapports et événements réellement enregistrés sur cet intervalle.
+                {% else %}
+                Chiffres rapides pour la période active, la journée et le niveau de supervision du site.
+                {% endif %}
+            </p>
+        </div>
+        <span class="site-section-state">{{ period_label }}</span>
+    </div>
+    <div class="site-section-body">
+        <div class="site-metric-grid">
+            {% if show_period_breakdown %}
+            <a href="#historique-lavages" class="site-metric-card site-metric-card--link js-open-anchor">
+                <div class="site-metric-label">Cash flow période</div>
+                <div class="site-metric-value">{{ chiffre_periode|fc_amount }} FC</div>
+                <div class="site-metric-subvalue">~ ${{ chiffre_periode|usd_equivalent }} USD</div>
+                <div class="site-metric-action">Voir tous les lavages</div>
+            </a>
+            <a href="#historique-lavages" class="site-metric-card site-metric-card--link js-open-anchor">
+                <div class="site-metric-label">Lavages période</div>
+                <div class="site-metric-value">{{ total_lavages }}</div>
+                <div class="site-metric-subvalue">Volume total enregistré</div>
+                <div class="site-metric-action">Ouvrir l'historique</div>
+            </a>
+            <a href="#period-bank-deposits" class="site-metric-card site-metric-card--link js-open-anchor">
+                <div class="site-metric-label">Dépôts banque période</div>
+                <div class="site-metric-value">{{ period_bank_deposit_total|fc_amount }} FC</div>
+                <div class="site-metric-subvalue">{{ period_bank_deposits|length }} dépôt{{ period_bank_deposits|length|pluralize }} saisi{{ period_bank_deposits|length|pluralize }}</div>
+                <div class="site-metric-action">Voir tous les dépôts</div>
+            </a>
+            <a href="#period-daily-ledger" class="site-metric-card site-metric-card--link js-open-anchor">
+                <div class="site-metric-label">Banque nette période</div>
+                <div class="site-metric-value" style="color: {% if period_bank_net < 0 %}var(--error-color){% else %}var(--primary-dark){% endif %};">{{ period_bank_net|fc_amount }} FC</div>
+                <div class="site-metric-subvalue">Dépôts moins pertes financées par banque</div>
+                <div class="site-metric-action">Voir le journal quotidien</div>
+            </a>
+            <a href="#period-losses" class="site-metric-card site-metric-card--link js-open-anchor">
+                <div class="site-metric-label">Pertes période</div>
+                <div class="site-metric-value">{{ period_losses_total|fc_amount }} FC</div>
+                <div class="site-metric-subvalue">Caisse: {{ period_losses_caisse|fc_amount }} FC • Banque: {{ period_losses_banque|fc_amount }} FC</div>
+                <div class="site-metric-action">Voir chaque dépense</div>
+            </a>
+            <a href="#period-daily-ledger" class="site-metric-card site-metric-card--link js-open-anchor">
+                <div class="site-metric-label">Écart de caisse période</div>
+                <div class="site-metric-value" style="color: {% if period_caisse_balance < 0 %}var(--error-color){% elif period_caisse_balance > 0 %}var(--warning-color){% else %}var(--success-color){% endif %};">{{ period_caisse_balance|fc_amount }} FC</div>
+                <div class="site-metric-subvalue">Lecture consolidée sur la période</div>
+                <div class="site-metric-action">Voir les jours concernés</div>
+            </a>
+            <a href="#period-reports" class="site-metric-card site-metric-card--link js-open-anchor">
+                <div class="site-metric-label">Rapports employés période</div>
+                <div class="site-metric-value">{{ period_reported_total|fc_amount }} FC</div>
+                <div class="site-metric-subvalue">{{ period_reports_count }} rapport{{ period_reports_count|pluralize }} confirmé{{ period_reports_count|pluralize }} • écart: {{ period_report_variance|fc_amount }} FC</div>
+                <div class="site-metric-action">Voir tous les rapports</div>
+            </a>
+            <a href="#period-activity-stream" class="site-metric-card site-metric-card--link js-open-anchor">
+                <div class="site-metric-label">Événements période</div>
+                <div class="site-metric-value">{{ period_problem_count|add:period_water_count|add:period_fuel_count|add:period_journal_count }}</div>
+                <div class="site-metric-subvalue">Problèmes: {{ period_problem_count }} • Eau: {{ period_water_count }} • Carburant: {{ period_fuel_count }} • Journal: {{ period_journal_count }}</div>
+                <div class="site-metric-action">Voir tous les événements</div>
+            </a>
+            {% else %}
+            <a href="#historique-lavages" class="site-metric-card site-metric-card--link js-open-anchor">
+                <div class="site-metric-label">Cash flow période</div>
+                <div class="site-metric-value">{{ chiffre_periode|fc_amount }} FC</div>
+                <div class="site-metric-subvalue">~ ${{ chiffre_periode|usd_equivalent }} USD</div>
+                <div class="site-metric-action">Voir tous les lavages</div>
+            </a>
+            <a href="#historique-lavages" class="site-metric-card site-metric-card--link js-open-anchor">
+                <div class="site-metric-label">Lavages période</div>
+                <div class="site-metric-value">{{ total_lavages }}</div>
+                <div class="site-metric-subvalue">Volume total enregistré</div>
+                <div class="site-metric-action">Ouvrir l'historique</div>
+            </a>
+            <a href="{% if selected_single_date %}#journal-jour-detail{% else %}#suivi-quotidien-finance{% endif %}" class="site-metric-card site-metric-card--link js-open-anchor">
+                <div class="site-metric-label">Cash flow aujourd'hui</div>
+                <div class="site-metric-value">{{ chiffre_jour|fc_amount }} FC</div>
+                <div class="site-metric-subvalue">~ ${{ chiffre_jour|usd_equivalent }} USD</div>
+                <div class="site-metric-action">Voir le détail financier</div>
+            </a>
+            <a href="{% if selected_single_date %}#single-day-deposit-trace{% else %}#daily-deposit-trace{% endif %}" class="site-metric-card site-metric-card--link js-open-anchor">
+                <div class="site-metric-label">Dépôt du jour</div>
+                <div class="site-metric-value">{{ bank_deposit_amount_today|fc_amount }} FC</div>
+                <div class="site-metric-subvalue">{% if bank_deposit_today %}Saisi{% else %}En attente{% endif %}</div>
+                <div class="site-metric-action">Voir la trace du dépôt</div>
+            </a>
+            <a href="{% if selected_single_date %}#journal-jour-detail{% else %}#daily-reconciliation{% endif %}" class="site-metric-card site-metric-card--link js-open-anchor">
+                <div class="site-metric-label">Pertes du jour</div>
+                <div class="site-metric-value">{{ pertes_today_total|fc_amount }} FC</div>
+                <div class="site-metric-subvalue">~ ${{ pertes_today_total|usd_equivalent }} USD</div>
+                <div class="site-metric-action">Voir les corrections</div>
+            </a>
+            <a href="{% if selected_single_date %}#journal-jour-detail{% else %}#daily-reconciliation{% endif %}" class="site-metric-card site-metric-card--link js-open-anchor">
+                <div class="site-metric-label">Écart de caisse</div>
+                <div class="site-metric-value" style="color: {% if difference_today < 0 %}var(--error-color){% elif difference_today > 0 %}var(--warning-color){% else %}var(--success-color){% endif %};">{{ difference_today|fc_amount }} FC</div>
+                <div class="site-metric-subvalue">Lecture du jour</div>
+                <div class="site-metric-action">Voir la réconciliation</div>
+            </a>
+            <a href="#pointages-site" class="site-metric-card site-metric-card--link js-open-anchor">
+                <div class="site-metric-label">Présences</div>
+                <div class="site-metric-value">{{ presents }}</div>
+                <div class="site-metric-subvalue">Employé{{ presents|pluralize }} présent{{ presents|pluralize }}</div>
+                <div class="site-metric-action">Voir les pointages</div>
+            </a>
+            <a href="{% if selected_single_date %}#problemes-signales{% else %}#problemes-ouverts{% endif %}" class="site-metric-card site-metric-card--link js-open-anchor">
+                <div class="site-metric-label">Problèmes ouverts</div>
+                <div class="site-metric-value">{{ problemes_ouverts.count }}</div>
+                <div class="site-metric-subvalue">Incidents actifs à suivre</div>
+                <div class="site-metric-action">Voir les incidents</div>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+{% if show_period_breakdown %}
+<section class="site-section-card" id="lecture-complete-periode">
+    <div class="site-section-head">
+        <div>
+            <h2 class="site-section-title">Lecture complète de la période</h2>
+            <p class="site-section-copy">
+                Cette vue liste chaque journée de la période puis détaille les dépôts, pertes, rapports, achats d'eau, achats de carburant et notes de journal pour que le mois soit lisible sans aller chercher l'information ailleurs.
+            </p>
+        </div>
+        <span class="site-section-state">{{ period_label }}</span>
+    </div>
+    <div class="site-section-body">
+        <div class="finance-disclosures">
+            <details class="finance-disclosure" id="period-daily-ledger" open>
+                <summary class="finance-disclosure-head">
+                    <div>
+                        <div class="finance-disclosure-title">Journal quotidien de la période</div>
+                        <div class="finance-disclosure-copy">Chaque ligne résume une journée du mois avec cash flow, dépôt bancaire, pertes et autres événements.</div>
+                    </div>
+                    <span class="finance-disclosure-state">{{ period_daily_rows|length }} jour{{ period_daily_rows|length|pluralize }}</span>
+                </summary>
+                <div class="finance-disclosure-body">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Lavages</th>
+                                    <th>Cash flow</th>
+                                    <th>Rapports</th>
+                                    <th>Dépôt banque</th>
+                                    <th>Pertes</th>
+                                    <th>Banque nette</th>
+                                    <th>Écart caisse</th>
+                                    <th>Eau</th>
+                                    <th>Journal</th>
+                                    <th>Problèmes</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in period_daily_rows %}
+                                <tr>
+                                    <td style="font-weight: 700;">{{ row.date|date:"d/m/Y" }}</td>
+                                    <td>{{ row.lavages_count }}</td>
+                                    <td class="finance-table-money finance-table-money--primary">{{ row.cash_flow|fc_amount }} FC</td>
+                                    <td>
+                                        {{ row.reports_count }} rapport{{ row.reports_count|pluralize }}
+                                        <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.2rem;">{{ row.reported_cash|fc_amount }} FC</div>
+                                    </td>
+                                    <td class="finance-table-money finance-table-money--success">{{ row.bank_deposit|fc_amount }} FC</td>
+                                    <td class="finance-table-money finance-table-money--warning">{{ row.pertes_total|fc_amount }} FC</td>
+                                    <td class="finance-table-money {% if row.bank_net < 0 %}finance-table-money--danger{% endif %}">{{ row.bank_net|fc_amount }} FC</td>
+                                    <td class="finance-table-money {% if row.ecart_caisse < 0 %}finance-table-money--danger{% elif row.ecart_caisse > 0 %}finance-table-money--warning{% endif %}">{{ row.ecart_caisse|fc_amount }} FC</td>
+                                    <td>{{ row.water_count }}</td>
+                                    <td>{{ row.journal_count }}</td>
+                                    <td>{{ row.problems_count }}</td>
+                                    <td>
+                                        <a href="{% url 'admin_site_detail' site.id %}?{{ row.detail_query }}" class="finance-mini-btn finance-mini-btn--light">Ouvrir</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </details>
+
+            <details class="finance-disclosure" id="period-bank-deposits" {% if period_bank_deposits %}open{% endif %}>
+                <summary class="finance-disclosure-head">
+                    <div>
+                        <div class="finance-disclosure-title">Dépôts bancaires de la période</div>
+                        <div class="finance-disclosure-copy">Tous les montants réellement déposés à la banque sur la période sélectionnée.</div>
+                    </div>
+                    <span class="finance-disclosure-state">{{ period_bank_deposit_total|fc_amount }} FC</span>
+                </summary>
+                <div class="finance-disclosure-body">
+                    {% if period_bank_deposits %}
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Montant</th>
+                                    <th>Note</th>
+                                    <th>Saisi par</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for deposit in period_bank_deposits %}
+                                <tr>
+                                    <td>{{ deposit.date|date:"d/m/Y" }}</td>
+                                    <td class="finance-table-money finance-table-money--success">{{ deposit.amount|fc_amount }} FC</td>
+                                    <td>{{ deposit.notes|default:"Aucune note" }}</td>
+                                    <td>{% if deposit.created_by %}{{ deposit.created_by.get_full_name|default:deposit.created_by.username }}{% else %}Admin{% endif %}</td>
+                                    <td>
+                                        <div class="finance-action-row">
+                                            <a href="{% url 'admin_add_bank_deposit' site.id %}?date={{ deposit.date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}" class="finance-mini-btn finance-mini-btn--light">Modifier</a>
+                                            <a href="{% url 'admin_delete_bank_deposit' site.id deposit.id %}?next={{ request.get_full_path|urlencode }}" class="finance-mini-btn finance-mini-btn--warning">Supprimer</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p style="margin: 0; color: var(--text-secondary);">Aucun dépôt bancaire enregistré sur cette période.</p>
+                    {% endif %}
+                </div>
+            </details>
+
+            <details class="finance-disclosure" id="period-losses" {% if period_losses %}open{% endif %}>
+                <summary class="finance-disclosure-head">
+                    <div>
+                        <div class="finance-disclosure-title">Pertes et dépenses de la période</div>
+                        <div class="finance-disclosure-copy">Transport, réparations, consommables et autres dépenses déjà saisies sur le mois.</div>
+                    </div>
+                    <span class="finance-disclosure-state">{{ period_losses_total|fc_amount }} FC</span>
+                </summary>
+                <div class="finance-disclosure-body">
+                    {% if period_losses %}
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Titre</th>
+                                    <th>Catégorie</th>
+                                    <th>Source</th>
+                                    <th>Montant</th>
+                                    <th>Détails</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for loss in period_losses %}
+                                <tr>
+                                    <td>{{ loss.date|date:"d/m/Y" }}</td>
+                                    <td style="font-weight: 700;">{{ loss.title }}</td>
+                                    <td>{{ loss.get_category_display }}</td>
+                                    <td>{{ loss.get_funding_source_display }}</td>
+                                    <td class="finance-table-money finance-table-money--warning">{{ loss.amount|fc_amount }} FC</td>
+                                    <td>{{ loss.description|default:"Aucun détail"|truncatechars:120 }}</td>
+                                    <td>
+                                        <div class="finance-action-row">
+                                            <a href="{% url 'admin_edit_site_loss' site.id loss.id %}?next={{ request.get_full_path|urlencode }}" class="finance-mini-btn finance-mini-btn--light">Modifier</a>
+                                            <a href="{% url 'admin_delete_site_loss' site.id loss.id %}?next={{ request.get_full_path|urlencode }}" class="finance-mini-btn finance-mini-btn--warning">Supprimer</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p style="margin: 0; color: var(--text-secondary);">Aucune perte ou dépense enregistrée sur cette période.</p>
+                    {% endif %}
+                </div>
+            </details>
+
+            <details class="finance-disclosure" id="period-activity-stream">
+                <summary class="finance-disclosure-head">
+                    <div>
+                        <div class="finance-disclosure-title">Rapports employés, eau, carburant, problèmes et journal du site</div>
+                        <div class="finance-disclosure-copy">Tous les autres événements remontés sur la période: rapports fin de journée, achats d'eau, achats de carburant, incidents et notes opérationnelles.</div>
+                    </div>
+                    <span class="finance-disclosure-state">{{ period_reports_count|add:period_water_count|add:period_fuel_count|add:period_journal_count }} entrées</span>
+                </summary>
+                <div class="finance-disclosure-body">
+                    <div class="finance-meta-grid">
+                        <div class="finance-meta-block" id="period-reports">
+                            <h3>Rapports employés</h3>
+                            {% if period_reports %}
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Employé</th>
+                                            <th>Lavages</th>
+                                            <th>Montant déclaré</th>
+                                            <th>Dépenses</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for report in period_reports %}
+                                        <tr>
+                                            <td>{{ report.date|date:"d/m/Y" }}</td>
+                                            <td>{{ report.employe.get_full_name|default:report.employe.username }}</td>
+                                            <td>{{ report.total_lavages_reported }}</td>
+                                            <td class="finance-table-money">{{ report.total_amount_reported_fc|fc_amount }} FC</td>
+                                            <td class="finance-table-money finance-table-money--warning">{{ report.daily_expenses_total_fc|fc_amount }} FC</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p style="margin: 0; color: var(--text-secondary);">Aucun rapport confirmé sur cette période.</p>
+                            {% endif %}
+                        </div>
+                        <div class="finance-meta-block" id="period-water-purchases">
+                            <h3>Achats d'eau</h3>
+                            {% if period_water_purchases %}
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Fournisseur</th>
+                                            <th>Mois</th>
+                                            <th>Montant</th>
+                                            <th>Saisi par</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for purchase in period_water_purchases %}
+                                        <tr>
+                                            <td>{{ purchase.purchase_date|date:"d/m/Y" }}</td>
+                                            <td>{{ purchase.supplier.name }}</td>
+                                            <td>{{ purchase.billing_month|date:"m/Y" }}</td>
+                                            <td class="finance-table-money finance-table-money--primary">{{ purchase.amount_fc|fc_amount }} FC</td>
+                                            <td>{% if purchase.created_by %}{{ purchase.created_by.get_full_name|default:purchase.created_by.username }}{% else %}Admin{% endif %}</td>
+                                            <td>
+                                                <a href="{% url 'admin_delete_water_purchase' purchase.id %}?next={{ request.get_full_path|urlencode }}" class="finance-mini-btn finance-mini-btn--warning">Supprimer</a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p style="margin: 0; color: var(--text-secondary);">Aucun achat d'eau enregistré sur cette période.</p>
+                            {% endif %}
+                        </div>
+                        <div class="finance-meta-block" id="period-fuel-purchases">
+                            <h3>Achats de carburant</h3>
+                            {% if period_fuel_purchases %}
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Mois</th>
+                                            <th>Montant</th>
+                                            <th>Saisi par</th>
+                                            <th>Notes</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for purchase in period_fuel_purchases %}
+                                        <tr>
+                                            <td>{{ purchase.purchase_date|date:"d/m/Y" }}</td>
+                                            <td>{{ purchase.billing_month|date:"m/Y" }}</td>
+                                            <td class="finance-table-money finance-table-money--warning">
+                                                {% if purchase.amount_fc != None %}{{ purchase.amount_fc|fc_amount }} FC{% else %}-{% endif %}
+                                            </td>
+                                            <td>{% if purchase.created_by %}{{ purchase.created_by.get_full_name|default:purchase.created_by.username }}{% else %}Admin{% endif %}</td>
+                                            <td>{{ purchase.notes|default:"-" }}</td>
+                                            <td>
+                                                <a href="{% url 'admin_delete_fuel_purchase' purchase.id %}?next={{ request.get_full_path|urlencode }}" class="finance-mini-btn finance-mini-btn--warning">Supprimer</a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p style="margin: 0; color: var(--text-secondary);">Aucun achat de carburant enregistré sur cette période.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div id="period-problems" style="margin-top: 1rem;">
+                        <h3 style="margin-top: 0;">Problèmes signalés</h3>
+                        {% if period_problems %}
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Employé</th>
+                                        <th>Catégorie</th>
+                                        <th>Statut</th>
+                                        <th>Détails</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for issue in period_problems %}
+                                    <tr>
+                                        <td>{{ issue.created_at|date:"d/m/Y" }}</td>
+                                        <td>{% if issue.employe %}{{ issue.employe.get_full_name|default:issue.employe.username }}{% else %}Équipe{% endif %}</td>
+                                        <td style="font-weight: 700;">{{ issue.get_categorie_display }}</td>
+                                        <td>{{ issue.get_statut_display }}</td>
+                                        <td>{{ issue.description|default:"Aucun détail"|truncatechars:140 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <p style="margin: 0; color: var(--text-secondary);">Aucun problème signalé sur cette période.</p>
+                        {% endif %}
+                    </div>
+
+                    <div id="period-journal" style="margin-top: 1rem;">
+                        <h3 style="margin-top: 0;">Journal du site</h3>
+                        {% if period_journal_entries %}
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Catégorie</th>
+                                        <th>Titre</th>
+                                        <th>Montant lié</th>
+                                        <th>Détails</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for entry in period_journal_entries %}
+                                    <tr>
+                                        <td>{{ entry.entry_date|date:"d/m/Y" }}</td>
+                                        <td>{{ entry.get_category_display }}</td>
+                                        <td style="font-weight: 700;">{{ entry.title }}</td>
+                                        <td>{% if entry.amount_fc %}<span class="finance-table-money">{{ entry.amount_fc|fc_amount }} FC</span>{% else %}<span style="color: var(--text-secondary);">—</span>{% endif %}</td>
+                                        <td>{{ entry.description|default:"Aucun détail"|truncatechars:140 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <p style="margin: 0; color: var(--text-secondary);">Aucune entrée du journal sur cette période.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </details>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- Pilotage hebdomadaire -->
+<div class="card finance-panel mb-4" id="pilotage-hebdomadaire">
+    <div class="finance-header">
+        <div>
+            <span class="finance-eyebrow">Pilotage hebdomadaire</span>
+            <h2 class="finance-title">Semaine du {{ week_range_label }}</h2>
+            <p class="finance-copy">
+                Les quatre chiffres clefs de la semaine sont places en premier. Juste en dessous, vous voyez l'origine des pertes et l'etat reel de la caisse.
+            </p>
+        </div>
+        <div class="finance-actions">
+            <a href="{% url 'admin_site_detail' site.id %}?date_debut={{ previous_week_start|date:'Y-m-d' }}&date_fin={{ previous_week_end|date:'Y-m-d' }}&week_anchor={{ previous_week_start|date:'Y-m-d' }}" class="btn btn-secondary">Semaine precedente</a>
+            {% if can_view_next_week %}
+            <a href="{% url 'admin_site_detail' site.id %}?date_debut={{ next_week_start|date:'Y-m-d' }}&date_fin={{ next_week_end|date:'Y-m-d' }}&week_anchor={{ next_week_start|date:'Y-m-d' }}" class="btn btn-secondary">Semaine suivante</a>
+            {% endif %}
+            <a href="{% url 'admin_site_losses' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-warning">Gerer les pertes</a>
+        </div>
+    </div>
+
+    <div class="finance-summary">
+        <div class="finance-hero">
+            <div class="finance-hero-label">Cash flow semaine</div>
+            <div class="finance-hero-value">{{ chiffre_week|fc_amount }} FC</div>
+            <div class="finance-hero-usd">~ ${{ chiffre_week|usd_equivalent }} USD</div>
+            <p class="finance-hero-note">
+                Cette vue sert de reference hebdomadaire. Comparez les depots, les pertes et l'ecart de caisse pour identifier en une lecture si la semaine est correctement justifiee.
+            </p>
+        </div>
+
+        <div class="finance-card-grid">
+            <div class="finance-kpi finance-kpi--accent">
+                <div>
+                    <div class="finance-kpi-label">Banque nette</div>
+                    <div class="finance-kpi-value">{{ bank_net_week|fc_amount }} FC</div>
+                    <div class="finance-kpi-subvalue">~ ${{ bank_net_week|usd_equivalent }} USD</div>
+                </div>
+                <div class="finance-kpi-footer">
+                    <span class="finance-kpi-label" style="text-transform:none; letter-spacing:0;">Depots moins pertes banque</span>
+                    <a href="{% url 'admin_site_losses' site.id %}?date={{ detail_date|date:'Y-m-d' }}&period=week&metric=bank" class="finance-link">Voir les lignes</a>
+                </div>
+            </div>
+
+            <div class="finance-kpi finance-kpi--warning">
+                <div>
+                    <div class="finance-kpi-label">Pertes semaine</div>
+                    <div class="finance-kpi-value">{{ pertes_week_total|fc_amount }} FC</div>
+                    <div class="finance-kpi-subvalue">~ ${{ pertes_week_total|usd_equivalent }} USD</div>
+                </div>
+                <div class="finance-kpi-footer">
+                    <span class="finance-kpi-label" style="text-transform:none; letter-spacing:0;">Toutes les charges de la semaine</span>
+                    <a href="{% url 'admin_site_losses' site.id %}?date={{ detail_date|date:'Y-m-d' }}&period=week&metric=losses" class="finance-link">Gerer</a>
+                </div>
+            </div>
+
+            <div class="finance-kpi finance-kpi--accent">
+                <div>
+                    <div class="finance-kpi-label">Depots en banque</div>
+                    <div class="finance-kpi-value">{{ bank_deposit_week|fc_amount }} FC</div>
+                    <div class="finance-kpi-subvalue">~ ${{ bank_deposit_week|usd_equivalent }} USD</div>
+                </div>
+                <div class="finance-kpi-footer">
+                    <span class="finance-kpi-label" style="text-transform:none; letter-spacing:0;">Somme versee cette semaine</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="finance-badges">
+        <div class="finance-badge">
+            <div class="finance-badge-label">Rapports employés</div>
+            <div class="finance-badge-value">{{ montant_rapports_week|fc_amount }} FC</div>
+            <div class="finance-breakdown-note">{{ rapports_confirmes_week }} rapport{{ rapports_confirmes_week|pluralize }} confirmé{{ rapports_confirmes_week|pluralize }} sur la semaine.</div>
+        </div>
+        <div class="finance-badge">
+            <div class="finance-badge-label">Écart rapports vs système</div>
+            <div class="finance-badge-value" style="color: {% if ecart_rapports_week < 0 %}var(--error-color){% else %}var(--primary-color){% endif %};">{{ ecart_rapports_week|fc_amount }} FC</div>
+            <div class="finance-breakdown-note">0 FC signifie que les rapports suivent exactement les lavages.</div>
+        </div>
+        <div class="finance-badge">
+            <div class="finance-badge-label">État de la caisse</div>
+            <div class="finance-badge-value" style="color: {% if caisse_balance_week < 0 %}var(--error-color){% elif caisse_balance_week > 0 %}var(--warning-color){% else %}var(--success-color){% endif %};">{{ caisse_balance_week|fc_amount }} FC</div>
+            <div class="finance-breakdown-note">
+                {% if caisse_balance_week == 0 %}
+                Semaine equilibree.
+                {% elif caisse_balance_week > 0 %}
+                Reste a justifier ou a deposer.
+                {% else %}
+                Semaine en depassement.
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="finance-disclosures">
+        <details class="finance-disclosure">
+            <summary class="finance-disclosure-head">
+                <div>
+                    <div class="finance-disclosure-title">Ventilation financiere</div>
+                    <div class="finance-disclosure-copy">Ouvrir le detail des pertes caisse, pertes banque et de l'ecart de caisse hebdomadaire.</div>
+                </div>
+                <span class="finance-disclosure-state">Ouvrir</span>
+            </summary>
+            <div class="finance-disclosure-body">
+                <div class="finance-breakdown">
+                    <div class="finance-breakdown-item">
+                        <div class="finance-breakdown-label">Pertes caisse</div>
+                        <div class="finance-breakdown-value">{{ pertes_week_caisse|fc_amount }} FC</div>
+                        <div class="finance-breakdown-note">Depenses payees directement avec la caisse du jour.</div>
+                    </div>
+                    <div class="finance-breakdown-item">
+                        <div class="finance-breakdown-label">Pertes banque</div>
+                        <div class="finance-breakdown-value">{{ pertes_week_banque|fc_amount }} FC</div>
+                        <div class="finance-breakdown-note">Depenses financees a partir des fonds bancaires.</div>
+                    </div>
+                    <div class="finance-breakdown-item">
+                        <div class="finance-breakdown-label">Ecart caisse semaine</div>
+                        <div class="finance-breakdown-value">{{ caisse_balance_week|fc_amount }} FC</div>
+                        <div class="finance-breakdown-note">
+                            {% if caisse_balance_week == 0 %}
+                            La semaine est equilibree.
+                            {% elif caisse_balance_week > 0 %}
+                            Montant encore a justifier ou a deposer.
+                            {% else %}
+                            La semaine depasse la caisse disponible.
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </details>
+
+        <details class="finance-disclosure">
+            <summary class="finance-disclosure-head">
+                <div>
+                    <div class="finance-disclosure-title">Rapports employes</div>
+                    <div class="finance-disclosure-copy">Comparer les montants declares avec le cash flow calcule par le systeme.</div>
+                </div>
+                <span class="finance-disclosure-state">{{ rapports_confirmes_week }} rapport{{ rapports_confirmes_week|pluralize }}</span>
+            </summary>
+            <div class="finance-disclosure-body">
+                <div class="finance-meta">
+                    <div class="finance-meta-grid">
+                        <div class="finance-meta-block">
+                            <h3>Rapports employés de la semaine</h3>
+                            <div><strong>{{ montant_rapports_week|fc_amount }} FC</strong> (~ ${{ montant_rapports_week|usd_equivalent }} USD)</div>
+                            <div style="margin-top: 0.45rem;">{{ rapports_confirmes_week }} rapport{{ rapports_confirmes_week|pluralize }} confirmé{{ rapports_confirmes_week|pluralize }} sur la semaine.</div>
+                        </div>
+                        <div class="finance-meta-block">
+                            <h3>Écart rapports vs système</h3>
+                            <div style="font-weight: 700; color: {% if ecart_rapports_week < 0 %}var(--error-color){% else %}var(--primary-color){% endif %};">
+                                {{ ecart_rapports_week|fc_amount }} FC
+                            </div>
+                            <div style="margin-top: 0.45rem;">Cet écart compare les montants confirmés par les employés avec le cash flow calculé depuis les lavages.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </details>
+
+        <details class="finance-disclosure">
+            <summary class="finance-disclosure-head">
+                <div>
+                    <div class="finance-disclosure-title">Historique comparatif</div>
+                    <div class="finance-disclosure-copy">Basculer entre les vues hebdomadaire, mensuelle et annuelle pour comparer le cash flow, la banque et les pertes.</div>
+                </div>
+                <span class="finance-disclosure-state" data-history-state-display>Hebdomadaire</span>
+            </summary>
+            <div class="finance-disclosure-body">
+                <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+                    <a href="{% url 'admin_site_history_comparison' site.id %}?scope=week&date={{ detail_date|date:'Y-m-d' }}" class="btn btn-secondary">Ouvrir la page complète</a>
+                </div>
+                <div class="history-switcher" data-history-switcher>
+                    <div class="history-switcher-buttons">
+                        {% for period in comparison_periods %}
+                        <button
+                            type="button"
+                            class="history-switcher-btn {% if period.default_open %}is-active{% endif %}"
+                            data-history-target="{{ period.key }}"
+                            data-history-state-label="{{ period.toggle_label }}"
+                        >
+                            {{ period.toggle_label }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                    <div class="history-switcher-caption">Un seul niveau de lecture a la fois pour garder la comparaison nette.</div>
+                </div>
+
+                {% for period in comparison_periods %}
+                <div class="history-pane {% if period.default_open %}is-active{% endif %}" data-history-pane="{{ period.key }}"{% if not period.default_open %} hidden{% endif %}>
+                    <div class="history-pane-head">
+                        <div>
+                            <h3 class="history-pane-title">{{ period.title }}</h3>
+                            <p class="history-pane-copy">{{ period.copy }}</p>
+                        </div>
+                        <span class="history-pane-state">{{ period.item_count }} periode{{ period.item_count|pluralize }}</span>
+                    </div>
+
+                    {% if period.items %}
+                    <div class="weekly-graphs">
+                        <div class="weekly-graph-card">
+                            <div class="weekly-graph-head">
+                                <h3 class="weekly-graph-title">Cash Flow</h3>
+                                <div class="weekly-graph-note">{{ period.toggle_label }}</div>
+                            </div>
+                            <div class="weekly-graph-stack">
+                                {% for item in period.items %}
+                                <div class="weekly-graph-row {% if item.is_selected %}is-selected{% endif %}">
+                                    <div class="weekly-graph-label">{{ item.label }}</div>
+                                    <div class="weekly-graph-track">
+                                        <div class="weekly-graph-fill weekly-graph-fill--cash" style="width: {% widthratio item.cash_flow period.max_cash_flow 100 %}%;"></div>
+                                    </div>
+                                    <div class="weekly-graph-value">{{ item.cash_flow|fc_amount }} FC</div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="weekly-graph-card">
+                            <div class="weekly-graph-head">
+                                <h3 class="weekly-graph-title">Depots banque</h3>
+                                <div class="weekly-graph-note">{{ period.toggle_label }}</div>
+                            </div>
+                            <div class="weekly-graph-stack">
+                                {% for item in period.items %}
+                                <div class="weekly-graph-row {% if item.is_selected %}is-selected{% endif %}">
+                                    <div class="weekly-graph-label">{{ item.label }}</div>
+                                    <div class="weekly-graph-track">
+                                        <div class="weekly-graph-fill weekly-graph-fill--bank" style="width: {% widthratio item.bank_deposit period.max_bank_deposit 100 %}%;"></div>
+                                    </div>
+                                    <div class="weekly-graph-value">{{ item.bank_deposit|fc_amount }} FC</div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="weekly-graph-card">
+                            <div class="weekly-graph-head">
+                                <h3 class="weekly-graph-title">Pertes</h3>
+                                <div class="weekly-graph-note">{{ period.toggle_label }}</div>
+                            </div>
+                            <div class="weekly-graph-stack">
+                                {% for item in period.items %}
+                                <div class="weekly-graph-row {% if item.is_selected %}is-selected{% endif %}">
+                                    <div class="weekly-graph-label">{{ item.label }}</div>
+                                    <div class="weekly-graph-track">
+                                        <div class="weekly-graph-fill weekly-graph-fill--loss" style="width: {% widthratio item.pertes_total period.max_pertes_total 100 %}%;"></div>
+                                    </div>
+                                    <div class="weekly-graph-value">{{ item.pertes_total|fc_amount }} FC</div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>{{ period.row_label }}</th>
+                                    <th>Cash Flow</th>
+                                    <th>Rapports employés</th>
+                                    <th>Dépôts banque</th>
+                                    <th>Banque net</th>
+                                    <th>Pertes</th>
+                                    <th>Écart caisse</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in period.items %}
+                                <tr {% if item.is_selected %}class="is-selected"{% endif %}>
+                                    <td style="font-weight: 600;">{{ item.label }}</td>
+                                    <td class="finance-table-money finance-table-money--primary">{{ item.cash_flow|fc_amount }} FC</td>
+                                    <td class="finance-table-money">{{ item.reported_cash|fc_amount }} FC</td>
+                                    <td class="finance-table-money finance-table-money--success">{{ item.bank_deposit|fc_amount }} FC</td>
+                                    <td class="finance-table-money {% if item.bank_net < 0 %}finance-table-money--danger{% endif %}">{{ item.bank_net|fc_amount }} FC</td>
+                                    <td class="finance-table-money finance-table-money--warning">{{ item.pertes_total|fc_amount }} FC</td>
+                                    <td class="finance-table-money {% if item.ecart_caisse < 0 %}finance-table-money--danger{% endif %}">{{ item.ecart_caisse|fc_amount }} FC</td>
+                                    <td>
+                                        <div class="finance-action-row">
+                                            <a href="{% url 'admin_site_detail' site.id %}?{{ item.detail_query }}" class="finance-mini-btn finance-mini-btn--light">Ouvrir</a>
+                                            {% if period.show_correction_link %}
+                                            <a href="{% url 'admin_site_losses' site.id %}?date={{ item.period_start|date:'Y-m-d' }}&period=week&metric=cashflow" class="finance-mini-btn finance-mini-btn--warning">Corrections</a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p style="margin: 0; color: var(--text-secondary);">{{ period.empty_message }}</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </details>
+    </div>
+</div>
+
+<!-- Section Dépôt Bancaire (seulement si pas de date spécifique sélectionnée) -->
+{% if not selected_single_date %}
+<div class="card finance-panel mb-4" id="suivi-quotidien-finance">
+    <div class="finance-header">
+        <div>
+            <span class="finance-eyebrow">Suivi du jour</span>
+            <h2 class="finance-title">Depot bancaire quotidien</h2>
+            <p class="finance-copy">
+                Cette zone resume la journee en cours. Elle montre ce qui a ete produit, depose et depense pour eviter les oublis avant la fermeture.
+            </p>
+        </div>
+        <div class="finance-actions">
+            <a href="{% url 'admin_site_losses' site.id %}?date={{ today|date:'Y-m-d' }}" class="btn btn-warning">Corriger les actions</a>
+            <a href="{% url 'admin_add_bank_deposit' site.id %}" class="btn btn-success">
+                {% if bank_deposit_today %}Modifier le depot{% else %}Ajouter le depot{% endif %}
+            </a>
+        </div>
+    </div>
+
+    <div class="finance-summary">
+        <div class="finance-hero">
+            <div class="finance-hero-label">Cash flow aujourd'hui</div>
+            <div class="finance-hero-value">{{ chiffre_jour|fc_amount }} FC</div>
+            <div class="finance-hero-usd">~ ${{ chiffre_jour|usd_equivalent }} USD</div>
+            <p class="finance-hero-note">
+                Utilisez cette vue rapide pour confirmer que la journee est bien enregistree avant d'ajouter un depot ou une perte.
+            </p>
+        </div>
+
+        <div class="finance-card-grid">
+            <div class="finance-kpi finance-kpi--accent">
+                <div>
+                    <div class="finance-kpi-label">Depot enregistre</div>
+                    <div class="finance-kpi-value">{{ bank_deposit_amount_today|fc_amount }} FC</div>
+                    <div class="finance-kpi-subvalue">~ ${{ bank_deposit_amount_today|usd_equivalent }} USD</div>
+                </div>
+                <div class="finance-kpi-footer">
+                    <span class="finance-kpi-label" style="text-transform:none; letter-spacing:0;">Montant deja envoye a la banque</span>
+                </div>
+            </div>
+
+            <div class="finance-kpi finance-kpi--warning">
+                <div>
+                    <div class="finance-kpi-label">Pertes du jour</div>
+                    <div class="finance-kpi-value">{{ pertes_today_total|fc_amount }} FC</div>
+                    <div class="finance-kpi-subvalue">~ ${{ pertes_today_total|usd_equivalent }} USD</div>
+                </div>
+                <div class="finance-kpi-footer">
+                    <span class="finance-kpi-label" style="text-transform:none; letter-spacing:0;">Transport, achats, incidents</span>
+                </div>
+            </div>
+
+            <div class="finance-kpi {% if difference_today < 0 %}finance-kpi--danger{% else %}finance-kpi--accent{% endif %}">
+                <div>
+                    <div class="finance-kpi-label">Ecart de caisse</div>
+                    <div class="finance-kpi-value">{{ difference_today|fc_amount }} FC</div>
+                    <div class="finance-kpi-subvalue">~ ${{ difference_today|usd_equivalent }} USD</div>
+                </div>
+                <div class="finance-kpi-footer">
+                    <span class="finance-kpi-label" style="text-transform:none; letter-spacing:0;">
+                        {% if difference_today == 0 %}Journee equilibree{% elif difference_today > 0 %}Montant encore en caisse{% else %}Caisse a verifier{% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="finance-badges">
+        <div class="finance-badge">
+            <div class="finance-badge-label">Rapports employés</div>
+            <div class="finance-badge-value">{{ montant_rapports_today|fc_amount }} FC</div>
+            <div class="finance-breakdown-note">{{ rapports_confirmes_today }} rapport{{ rapports_confirmes_today|pluralize }} confirmé{{ rapports_confirmes_today|pluralize }} aujourd'hui.</div>
+        </div>
+        <div class="finance-badge">
+            <div class="finance-badge-label">Pertes banque</div>
+            <div class="finance-badge-value">{{ pertes_today_banque|fc_amount }} FC</div>
+            <div class="finance-breakdown-note">Depenses reglees depuis les fonds bancaires.</div>
+        </div>
+        <div class="finance-badge">
+            <div class="finance-badge-label">Etat du depot</div>
+            <div class="finance-badge-value">{% if bank_deposit_today %}Enregistre{% else %}En attente{% endif %}</div>
+            <div class="finance-breakdown-note">
+                {% if bank_deposit_today %}Le depot du jour est deja saisi.{% else %}Aucun depot bancaire n'a encore ete saisi pour aujourd'hui.{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="finance-disclosures">
+        <details class="finance-disclosure" id="daily-reconciliation">
+            <summary class="finance-disclosure-head">
+                <div>
+                    <div class="finance-disclosure-title">Reconciliation du jour</div>
+                    <div class="finance-disclosure-copy">Ouvrir les details de caisse, rapports employes et pertes pour la journee en cours.</div>
+                </div>
+                <span class="finance-disclosure-state">{{ difference_today|fc_amount }} FC</span>
+            </summary>
+            <div class="finance-disclosure-body">
+                <div class="finance-breakdown">
+                    <div class="finance-breakdown-item">
+                        <div class="finance-breakdown-label">Rapports employés</div>
+                        <div class="finance-breakdown-value">{{ montant_rapports_today|fc_amount }} FC</div>
+                        <div class="finance-breakdown-note">{{ rapports_confirmes_today }} rapport{{ rapports_confirmes_today|pluralize }} confirmé{{ rapports_confirmes_today|pluralize }} aujourd'hui.</div>
+                    </div>
+                    <div class="finance-breakdown-item">
+                        <div class="finance-breakdown-label">Pertes caisse</div>
+                        <div class="finance-breakdown-value">{{ pertes_today_caisse|fc_amount }} FC</div>
+                        <div class="finance-breakdown-note">Depenses reglees directement depuis la caisse du jour.</div>
+                    </div>
+                    <div class="finance-breakdown-item">
+                        <div class="finance-breakdown-label">Pertes banque</div>
+                        <div class="finance-breakdown-value">{{ pertes_today_banque|fc_amount }} FC</div>
+                        <div class="finance-breakdown-note">Depenses payees via les fonds bancaires.</div>
+                    </div>
+                    <div class="finance-breakdown-item">
+                        <div class="finance-breakdown-label">Écart rapports vs système</div>
+                        <div class="finance-breakdown-value">{{ ecart_rapports_today|fc_amount }} FC</div>
+                        <div class="finance-breakdown-note">Montant declare par les employes compare au cash flow calcule par les lavages.</div>
+                    </div>
+                </div>
+            </div>
+        </details>
+
+        <details class="finance-disclosure" id="daily-deposit-trace" {% if not bank_deposit_today %}open{% endif %}>
+            <summary class="finance-disclosure-head">
+                <div>
+                    <div class="finance-disclosure-title">Trace du depot</div>
+                    <div class="finance-disclosure-copy">Voir quand le depot du jour a ete saisi et la note associee.</div>
+                </div>
+                <span class="finance-disclosure-state">{% if bank_deposit_today %}Enregistre{% else %}En attente{% endif %}</span>
+            </summary>
+            <div class="finance-disclosure-body">
+                {% if bank_deposit_today %}
+                <div class="finance-meta">
+                    <div class="finance-meta-grid">
+                        <div class="finance-meta-block">
+                            <h3>Trace du depot</h3>
+                            <div>
+                                Enregistre le {{ bank_deposit_today.created_at|date:"d/m/Y a H:i" }}
+                                {% if bank_deposit_today.created_by %}
+                                    par {{ bank_deposit_today.created_by.get_full_name|default:bank_deposit_today.created_by.username }}
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="finance-meta-block">
+                            <h3>Note</h3>
+                            <div>{% if bank_deposit_today.notes %}{{ bank_deposit_today.notes }}{% else %}Aucune note ajoutee pour le depot du jour.{% endif %}</div>
+                            <div style="margin-top: 0.85rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                <a href="{% url 'admin_add_bank_deposit' site.id %}?date={{ today|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}" class="btn btn-primary" style="padding: 0.45rem 0.8rem; font-size: 0.82rem;">Modifier ce dépôt</a>
+                                <a href="{% url 'admin_delete_bank_deposit' site.id bank_deposit_today.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger" style="padding: 0.45rem 0.8rem; font-size: 0.82rem;">Supprimer</a>
+                                <a href="{% url 'admin_site_losses' site.id %}?date={{ today|date:'Y-m-d' }}&period=day&metric=bank" class="btn btn-secondary" style="padding: 0.45rem 0.8rem; font-size: 0.82rem;">Centre de correction</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="finance-alert" style="margin-top: 0;">
+                    <strong>Aucun depot bancaire enregistre pour aujourd'hui.</strong>
+                    Ajoutez-le des que l'argent est verse a la banque pour eviter un ecart de caisse artificiel.
+                </div>
+                {% endif %}
+            </div>
+        </details>
+    </div>
+</div>
+{% endif %}
+
+<!-- Photos des voitures lavées -->
+<details class="site-section-card" id="photos-lavages">
+    <summary class="site-section-head">
+        <div>
+            <h2 class="site-section-title">Photos des voitures lavées</h2>
+            <p class="site-section-copy">Galerie de preuves visuelles pour la période sélectionnée.</p>
+        </div>
+        <span class="site-section-state">{{ photos_lavages_total }} photo{{ photos_lavages_total|pluralize }}</span>
+    </summary>
+    <div class="site-section-body">
+    {% if photos_lavages.object_list %}
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.5rem;">
+        {% for photo in photos_lavages %}
+        <div style="border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; background: var(--card-bg); transition: all 0.3s ease; cursor: pointer;" onclick="window.open('{{ photo.photo.url }}', '_blank')">
+            <div style="position: relative; width: 100%; padding-top: 75%; background: var(--bg-secondary); overflow: hidden;">
+                <img src="{{ photo.thumbnail_url|default:photo.photo.url }}" alt="Photo lavage" loading="lazy" decoding="async" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease;">
+            </div>
+            <div style="padding: 1rem;">
+                <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem;">
+                    {{ photo.lavage.employe.get_full_name|default:photo.lavage.employe.username }}
+                </div>
+                <div style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.25rem;">
+                    {{ photo.lavage.get_type_service_display }}
+                </div>
+                <div style="font-size: 0.875rem; color: var(--success-color); font-weight: 600;">
+                    {{ photo.lavage.montant|floatformat:0 }} FC
+                </div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                    {{ photo.lavage.date|date:"d/m/Y" }} - {{ photo.lavage.created_at|date:"H:i" }}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% include "partials/pagination.html" with page_obj=photos_lavages page_param="photos_page" anchor="photos-lavages" %}
+    {% else %}
+    <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+        <p style="font-size: 1.1rem;">Aucune photo disponible pour la période sélectionnée.</p>
+    </div>
+    {% endif %}
+    </div>
+</details>
+
+<style>
+    .card div[onclick]:hover img {
+        transform: scale(1.1);
+    }
+    .card div[onclick]:hover {
+        box-shadow: 0 8px 24px rgba(10, 67, 107, 0.2);
+        transform: translateY(-4px);
+    }
+</style>
+
+<!-- Problèmes signalés -->
+<details class="site-section-card" id="problemes-signales" {% if problemes_date %}open{% endif %}>
+    <summary class="site-section-head">
+        <div>
+            <h2 class="site-section-title">Problèmes signalés</h2>
+            <p class="site-section-copy">{% if selected_single_date %}Signalements du {{ selected_single_date|date:"d/m/Y" }}.{% else %}Signalements liés au jour de référence.{% endif %}</p>
+        </div>
+        <span class="site-section-state">{{ problemes_date.count }} problème{{ problemes_date.count|pluralize }}</span>
+    </summary>
+    <div class="site-section-body">
+    {% if problemes_date %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Catégorie</th>
+                    <th>Signalé par</th>
+                    <th>Description</th>
+                    <th>Statut</th>
+                    <th>Heure</th>
+                    <th>Photo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for probleme in problemes_date %}
+                <tr>
+                    <td>
+                        <span style="background: var(--warning-color); color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
+                            {{ probleme.get_categorie_display }}
+                        </span>
+                    </td>
+                    <td>{{ probleme.employe.get_full_name|default:probleme.employe.username }}</td>
+                    <td style="max-width: 300px;">{{ probleme.description|truncatewords:15 }}</td>
+                    <td>
+                        {% if probleme.statut == "OUVERT" %}
+                            <span style="background: rgba(255, 61, 0, 0.1); color: var(--error-color); padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">Ouvert</span>
+                        {% elif probleme.statut == "EN_COURS" %}
+                            <span style="background: rgba(255, 179, 0, 0.1); color: var(--warning-color); padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">En cours</span>
+                        {% else %}
+                            <span style="background: rgba(0, 200, 83, 0.1); color: var(--success-color); padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">Résolu</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ probleme.created_at|date:"H:i" }}</td>
+                    <td>
+                        {% if probleme.photo %}
+                            <a href="{{ probleme.photo.url }}" target="_blank" style="color: var(--primary-color); text-decoration: none;">📷 Voir</a>
+                        {% else %}
+                            <span style="color: var(--text-secondary);">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+        <p>Aucun problème signalé {% if selected_single_date %}cette date{% else %}aujourd'hui{% endif %}.</p>
+    </div>
+    {% endif %}
+    </div>
+</details>
+
+<!-- Problèmes ouverts (tous statuts) -->
+{% if problemes_ouverts %}
+<details class="site-section-card" id="problemes-ouverts">
+    <summary class="site-section-head">
+        <div>
+            <h2 class="site-section-title" style="color: var(--warning-color);">Problèmes ouverts</h2>
+            <p class="site-section-copy">Vue transverse des incidents encore actifs sur ce site.</p>
+        </div>
+        <span class="site-section-state">{{ problemes_ouverts.count }} ouvert{{ problemes_ouverts.count|pluralize }}</span>
+    </summary>
+    <div class="site-section-body">
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Catégorie</th>
+                    <th>Signalé par</th>
+                    <th>Description</th>
+                    <th>Statut</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for probleme in problemes_ouverts %}
+                <tr>
+                    <td>{{ probleme.created_at|date:"d/m/Y H:i" }}</td>
+                    <td>
+                        <span style="background: var(--warning-color); color: white; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
+                            {{ probleme.get_categorie_display }}
+                        </span>
+                    </td>
+                    <td>{{ probleme.employe.get_full_name|default:probleme.employe.username }}</td>
+                    <td style="max-width: 300px;">{{ probleme.description|truncatewords:15 }}</td>
+                    <td>
+                        {% if probleme.statut == "OUVERT" %}
+                            <span style="background: rgba(255, 61, 0, 0.1); color: var(--error-color); padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">Ouvert</span>
+                        {% elif probleme.statut == "EN_COURS" %}
+                            <span style="background: rgba(255, 179, 0, 0.1); color: var(--warning-color); padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">En cours</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    </div>
+</details>
+{% endif %}
+
+<!-- Liste des lavages -->
+<details class="site-section-card" id="historique-lavages" {% if selected_single_date %}open{% endif %}>
+    <summary class="site-section-head">
+        <div>
+            <h2 class="site-section-title">Historique des lavages</h2>
+            <p class="site-section-copy">Journal opérationnel complet des lavages sur la période sélectionnée.</p>
+        </div>
+        <span class="site-section-state">{{ total_lavages }} lavage{{ total_lavages|pluralize }}</span>
+    </summary>
+    <div class="site-section-body">
+    {% if lavages_all.object_list %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Heure</th>
+                    <th>Employé</th>
+                    <th>Type de service</th>
+                    <th>Plaque</th>
+                    <th>Montant</th>
+                    <th>Photos</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lavage in lavages_all %}
+                <tr>
+                    <td style="font-weight: 600;">{{ lavage.date|date:"d/m/Y" }}</td>
+                    <td>{{ lavage.created_at|date:"H:i" }}</td>
+                    <td>{{ lavage.employe.get_full_name|default:lavage.employe.username }}</td>
+                    <td>{{ lavage.get_type_service_display }}</td>
+                    <td>
+                        {% if lavage.plaque %}
+                            {{ lavage.plaque }}
+                        {% elif lavage.plaque_photo %}
+                            📷 Photo enregistrée
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td style="font-weight: 600; color: var(--success-color);">{{ lavage.montant|floatformat:0 }} FC</td>
+                    <td>
+                        {% if lavage.photo_count %}
+                            <span style="color: var(--primary-color);">{{ lavage.photo_count }} photo(s)</span>
+                        {% else %}
+                            <span style="color: var(--text-secondary);">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <a href="{% url 'admin_edit_wash' site.id lavage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-primary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">
+                                Modifier
+                            </a>
+                            <a href="{% url 'admin_delete_wash' site.id lavage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">
+                                Supprimer
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include "partials/pagination.html" with page_obj=lavages_all page_param="lavages_page" anchor="historique-lavages" %}
+    {% else %}
+    <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+        <p>Aucun lavage enregistré pour la période sélectionnée.</p>
+    </div>
+    {% endif %}
+    </div>
+</details>
+
+<!-- Pointages du jour -->
+<details class="site-section-card" id="pointages-site" {% if selected_single_date %}open{% endif %}>
+    <summary class="site-section-head">
+        <div>
+            <h2 class="site-section-title">Pointages</h2>
+            <p class="site-section-copy">{% if selected_single_date %}Présences et durées du {{ selected_single_date|date:"d/m/Y" }}.{% else %}Présences de la journée de référence.{% endif %}</p>
+        </div>
+        <span class="site-section-state">{{ presents }} présent{{ presents|pluralize }}</span>
+    </summary>
+    <div class="site-section-body">
+    <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+        <a href="{% url 'admin_site_attendance_photos' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-secondary">Ouvrir la galerie photo</a>
+    </div>
+    {% if pointages_date %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Employé</th>
+                    <th>Début</th>
+                    <th>Statut arrivée</th>
+                    <th>Fin</th>
+                    <th>Statut fin</th>
+                    <th>Durée</th>
+                    <th>Preuves</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in pointages_date %}
+                <tr>
+                    <td>{{ item.employee.get_full_name|default:item.employee.username }}</td>
+                    <td>
+                        {% if item.pointage and item.pointage.clock_in_time %}
+                            {{ item.pointage.clock_in_time|date:"H:i" }}
+                        {% else %}
+                            <span style="color: var(--text-secondary);">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span style="font-weight: 700; color:
+                            {% if item.attendance_status.code == 'PRESENT' %}var(--success-color)
+                            {% elif item.attendance_status.code == 'LATE' %}var(--warning-color)
+                            {% elif item.attendance_status.code == 'ABSENT' %}var(--error-color)
+                            {% else %}var(--text-secondary){% endif %};">
+                            {{ item.attendance_status.label }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if item.pointage and item.pointage.clock_out_time %}
+                            {{ item.pointage.clock_out_time|date:"H:i" }}
+                        {% else %}
+                            <span style="color: var(--text-secondary);">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {{ item.clock_out_status.label }}
+                    </td>
+                    <td>
+                        {% if item.duration %}
+                            <span style="font-weight: 600; color: var(--primary-color);">{{ item.duration }}</span>
+                        {% else %}
+                            <span style="color: var(--text-secondary);">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.pointage and item.pointage.clock_in_photo %}
+                        <a href="{{ item.pointage.clock_in_photo.url }}" target="_blank" rel="noopener">Début</a>
+                        {% else %}
+                        <span style="color: var(--text-secondary);">-</span>
+                        {% endif %}
+                        {% if item.pointage and item.pointage.clock_out_photo %}
+                        <br><a href="{{ item.pointage.clock_out_photo.url }}" target="_blank" rel="noopener">Fin</a>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.pointage %}
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <a href="{% url 'admin_edit_pointage' site.id item.pointage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-primary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">
+                                Modifier
+                            </a>
+                            <a href="{% url 'admin_delete_pointage' site.id item.pointage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">
+                                Supprimer
+                            </a>
+                        </div>
+                        {% else %}
+                        <span style="color: var(--text-secondary);">Aucun pointage</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+        <p>Aucune présence enregistrée {% if selected_single_date %}cette date{% else %}aujourd'hui{% endif %}.</p>
+    </div>
+    {% endif %}
+    </div>
+</details>
+
+<div class="mt-4">
+    <a href="{% url 'admin_dashboard' %}" class="btn btn-primary">← Retour aux sites</a>
+</div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    let activeAnchorTarget = null;
+
+    function openAnchorTarget(hash, pushHash) {
+        if (!hash) {
+            return;
+        }
+
+        const normalizedHash = hash.charAt(0) === '#' ? hash : '#' + hash;
+        const target = document.querySelector(normalizedHash);
+
+        if (!target) {
+            return;
+        }
+
+        if (activeAnchorTarget && activeAnchorTarget !== target) {
+            activeAnchorTarget.classList.remove('is-anchor-target');
+        }
+
+        target.classList.add('is-anchor-target');
+        activeAnchorTarget = target;
+
+        const detailsToOpen = [];
+        if (target.tagName === 'DETAILS') {
+            detailsToOpen.push(target);
+        }
+
+        let parent = target.parentElement;
+        while (parent) {
+            if (parent.tagName === 'DETAILS') {
+                detailsToOpen.push(parent);
+            }
+            parent = parent.parentElement;
+        }
+
+        detailsToOpen.forEach(function (details) {
+            details.open = true;
+        });
+
+        if (pushHash !== false && window.location.hash !== normalizedHash) {
+            history.replaceState(null, '', normalizedHash);
+        }
+
+        requestAnimationFrame(function () {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    }
+
+    document.querySelectorAll('.js-open-anchor').forEach(function (link) {
+        link.addEventListener('click', function (event) {
+            const hash = link.getAttribute('href');
+            if (!hash || hash.charAt(0) !== '#') {
+                return;
+            }
+
+            event.preventDefault();
+            openAnchorTarget(hash, true);
+        });
+    });
+
+    document.querySelectorAll('[data-history-switcher]').forEach(function (switcher) {
+        const disclosure = switcher.closest('.finance-disclosure');
+        const buttons = Array.from(switcher.querySelectorAll('[data-history-target]'));
+        const panes = Array.from(disclosure.querySelectorAll('[data-history-pane]'));
+        const stateDisplay = disclosure.querySelector('[data-history-state-display]');
+
+        function activatePeriod(target) {
+            buttons.forEach(function (button) {
+                const isActive = button.dataset.historyTarget === target;
+                button.classList.toggle('is-active', isActive);
+                button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            });
+
+            panes.forEach(function (pane) {
+                const isActive = pane.dataset.historyPane === target;
+                pane.classList.toggle('is-active', isActive);
+                pane.hidden = !isActive;
+            });
+
+            const activeButton = buttons.find(function (button) {
+                return button.dataset.historyTarget === target;
+            });
+
+            if (stateDisplay && activeButton) {
+                stateDisplay.textContent = activeButton.dataset.historyStateLabel || activeButton.textContent.trim();
+            }
+        }
+
+        buttons.forEach(function (button) {
+            button.addEventListener('click', function () {
+                activatePeriod(button.dataset.historyTarget);
+            });
+        });
+
+        if (buttons.length) {
+            const defaultButton = buttons.find(function (button) {
+                return button.classList.contains('is-active');
+            }) || buttons[0];
+            activatePeriod(defaultButton.dataset.historyTarget);
+        }
+    });
+
+    if (window.location.hash) {
+        openAnchorTarget(window.location.hash, false);
+    }
+
+    window.addEventListener('hashchange', function () {
+        openAnchorTarget(window.location.hash, false);
+    });
+});
+</script>
+{% endblock %}
+{% extends "base.html" %}
+{% load static currency_tags %}
+
+{% block title %}Détails - {{ site.nom }}{% endblock %}
+
+{% block content %}
+<div class="site-shell">
+<section class="site-hero">
+    <div class="site-hero-top">
+        <div>
+            <span class="site-kicker">Site Command Center</span>
+            <h1 class="site-title">{{ site.nom }}</h1>
+            <p class="site-copy">
+                {{ site.adresse }} • {{ site.ville }} • Mise a jour du {{ today|date:"d/m/Y" }}
+            </p>
+            <div class="site-context-row">
+                <span class="site-chip">
+                    {% if selected_single_date %}
+                    Vue du {{ selected_single_date|date:"d/m/Y" }}
+                    {% else %}
+                    Semaine active: {{ week_range_label }}
+                    {% endif %}
+                </span>
+                <span class="site-chip">Documents: {{ documents_count }}</span>
+                <span class="site-chip">Problèmes ouverts: {{ problemes_ouverts.count }}</span>
+            </div>
+        </div>
+        <div class="site-actions">
+            <a href="{% url 'admin_site_employees' site.id %}" class="btn btn-info">Gestion des employés</a>
+            <a href="{% url 'admin_site_attendance_photos' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-info">Photos de présence</a>
+            <a href="{% url 'admin_site_camera_monitoring' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-info">Caméras & comptage</a>
+            <a href="{% url 'admin_site_documents' site.id %}" class="btn btn-success">Documents du site</a>
+            <a href="{% url 'admin_site_journal' site.id %}" class="btn btn-secondary">Journal du site</a>
+            <a href="{% url 'admin_add_bank_deposit' site.id %}?date={{ detail_date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}" class="btn btn-info">{% if bank_deposit_today %}Modifier{% else %}Ajouter{% endif %} dépôt bancaire</a>
+            <a href="{% url 'admin_site_losses' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-warning">Corrections & finance</a>
+            <a href="{% url 'admin_add_daily_total' site.id %}?date={{ detail_date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}" class="btn btn-primary">Ajouter le total quotidien</a>
+            <a href="{% url 'admin_add_wash' site.id %}?date={{ detail_date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}" class="btn btn-primary">Ajouter un lavage complet</a>
+            <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">Retour aux sites</a>
+        </div>
+    </div>
+
+    <div class="site-summary-grid">
+        <div class="site-summary-card">
+            <div class="site-summary-label">Cash flow période</div>
+            <div class="site-summary-value">{{ chiffre_periode|fc_amount }} FC</div>
+            <div class="site-summary-subvalue">~ ${{ chiffre_periode|usd_equivalent }} USD</div>
+        </div>
+        <div class="site-summary-card">
+            <div class="site-summary-label">Cash flow semaine</div>
+            <div class="site-summary-value">{{ chiffre_week|fc_amount }} FC</div>
+            <div class="site-summary-subvalue">Banque nette: {{ bank_net_week|fc_amount }} FC</div>
+        </div>
+        <div class="site-summary-card">
+            <div class="site-summary-label">Cash flow aujourd'hui</div>
+            <div class="site-summary-value">{{ chiffre_jour|fc_amount }} FC</div>
+            <div class="site-summary-subvalue">Dépôt du jour: {{ bank_deposit_amount_today|fc_amount }} FC</div>
+        </div>
+        <div class="site-summary-card">
+            <div class="site-summary-label">Supervision</div>
+            <div class="site-summary-value">{{ presents }}</div>
+            <div class="site-summary-subvalue">présent{{ presents|pluralize }} • {{ total_lavages }} lavage{{ total_lavages|pluralize }}</div>
+        </div>
+    </div>
+</section>
+<p class="site-rate-note">{% fx_rate_label %}</p>
+
+<section class="site-section-card" id="journal-site">
+    <div class="site-section-head">
+        <div>
+            <h2 class="site-section-title">Journal du site</h2>
+            <p class="site-section-copy">Gardez une trace des informations terrain, des décisions, des avances et des dépenses exceptionnelles sans les mélanger aux calculs automatiques.</p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+            <span class="site-section-state">{{ journal_entries_count }} entrée{{ journal_entries_count|pluralize }}</span>
+            <a href="{% url 'admin_site_journal' site.id %}" class="btn btn-secondary">Gérer le journal</a>
+        </div>
+    </div>
+    <div class="site-section-body">
+        {% if recent_journal_entries %}
+        <div style="display: grid; gap: 0.8rem;">
+            {% for entry in recent_journal_entries %}
+            <article style="padding: 1rem 1.05rem; border: 1px solid rgba(10, 67, 107, 0.08); border-radius: 18px; background: rgba(255, 255, 255, 0.94);">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; flex-wrap: wrap;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                            <span class="site-chip" style="background: rgba(10, 67, 107, 0.08); color: var(--primary-color);">{{ entry.get_category_display }}</span>
+                            <span style="color: var(--text-secondary); font-size: 0.85rem;">{{ entry.entry_date|date:"d/m/Y" }}</span>
+                        </div>
+                        <h3 style="margin: 0.55rem 0 0.25rem 0; color: var(--primary-dark); font-size: 1.02rem;">{{ entry.title }}</h3>
+                        {% if entry.description %}
+                        <p style="margin: 0; color: var(--text-secondary);">{{ entry.description|truncatechars:180 }}</p>
+                        {% endif %}
+                    </div>
+                    <div style="text-align: right; min-width: 140px;">
+                        {% if entry.amount_fc %}
+                        <div style="font-size: 1.05rem; font-weight: 800; color: var(--primary-color);">{{ entry.amount_fc|fc_amount }} FC</div>
+                        {% else %}
+                        <div style="font-size: 0.86rem; font-weight: 700; color: var(--text-secondary);">Sans montant</div>
+                        {% endif %}
+                        <div style="margin-top: 0.3rem; color: var(--text-secondary); font-size: 0.82rem;">
+                            {% if entry.created_by %}{{ entry.created_by.get_full_name|default:entry.created_by.username }}{% else %}Admin{% endif %}
+                        </div>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="margin: 0; color: var(--text-secondary);">Aucune note enregistrée pour ce site. Utilisez le journal pour garder une trace de vos actions, informations et dépenses exceptionnelles.</p>
+        {% endif %}
+    </div>
+</section>
+
+<style>
+    .site-shell {
+        display: grid;
+        gap: 1.5rem;
+    }
+
+    .site-hero {
+        position: relative;
+        overflow: hidden;
+        padding: 1.8rem;
+        border-radius: 28px;
+        background:
+            radial-gradient(circle at top left, rgba(244, 163, 64, 0.2), transparent 28%),
+            radial-gradient(circle at bottom right, rgba(43, 131, 184, 0.18), transparent 24%),
+            linear-gradient(135deg, #0b2438 0%, #0A436B 45%, #155f95 100%);
+        color: white;
+        box-shadow: 0 24px 60px rgba(10, 67, 107, 0.24);
+    }
+
+    .site-hero::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+            linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+        background-size: 28px 28px;
+        mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.34), transparent 82%);
+        pointer-events: none;
+    }
+
+    .site-hero > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .site-hero-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.35rem;
+    }
+
+    .site-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.35rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+        color: rgba(255, 255, 255, 0.92);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .site-title {
+        margin: 0.8rem 0 0.35rem 0;
+        font-size: clamp(2rem, 4vw, 3rem);
+        line-height: 0.98;
+        letter-spacing: -0.04em;
+    }
+
+    .site-copy {
+        margin: 0;
+        color: rgba(255, 255, 255, 0.82);
+        font-size: 0.96rem;
+    }
+
+    .site-context-row {
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+
+    .site-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.3rem 0.72rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+
+    .site-actions {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        max-width: 560px;
+        justify-content: flex-end;
+    }
+
+    .site-actions .btn-secondary {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border-color: rgba(255, 255, 255, 0.22);
+    }
+
+    .site-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.9rem;
+    }
+
+    .site-summary-card {
+        padding: 1rem 1.05rem;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(8px);
+    }
+
+    .site-summary-label {
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .site-summary-value {
+        margin-top: 0.42rem;
+        font-size: 1.55rem;
+        font-weight: 800;
+        line-height: 1.04;
+        letter-spacing: -0.03em;
+    }
+
+    .site-summary-subvalue {
+        margin-top: 0.25rem;
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 0.81rem;
+    }
+
+    .site-rate-note {
+        margin: -0.55rem 0 0 0;
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+    }
+
+    .site-metric-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.9rem;
+    }
+
+    .site-metric-card {
+        padding: 1rem 1.05rem;
+        border-radius: 18px;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        background: rgba(255, 255, 255, 0.86);
+    }
+
+    .site-metric-card--link {
+        display: block;
+        color: inherit;
+        text-decoration: none;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+
+    .site-metric-card--link:hover {
+        transform: translateY(-2px);
+        border-color: rgba(10, 67, 107, 0.18);
+        box-shadow: 0 14px 28px rgba(10, 67, 107, 0.09);
+        text-decoration: none;
+    }
+
+    .site-metric-card--link:focus-visible {
+        outline: 2px solid rgba(21, 95, 149, 0.35);
+        outline-offset: 2px;
+    }
+
+    .site-metric-label {
+        color: var(--text-secondary);
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .site-metric-value {
+        margin-top: 0.35rem;
+        color: var(--primary-dark);
+        font-size: 1.35rem;
+        font-weight: 800;
+        line-height: 1.08;
+    }
+
+    .site-metric-subvalue {
+        margin-top: 0.2rem;
+        color: var(--text-secondary);
+        font-size: 0.8rem;
+    }
+
+    .site-metric-action {
+        margin-top: 0.75rem;
+        color: var(--primary-color);
+        font-size: 0.8rem;
+        font-weight: 800;
+    }
+
+    .site-section-card {
+        border-radius: 24px;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+        box-shadow: 0 16px 36px rgba(31, 41, 51, 0.06);
+    }
+
+    .site-section-card summary {
+        list-style: none;
+        cursor: pointer;
+    }
+
+    .site-section-card summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .site-section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1.3rem 1.4rem;
+    }
+
+    .site-section-title {
+        margin: 0;
+        color: var(--primary-dark);
+        font-size: 1.14rem;
+    }
+
+    .site-section-copy {
+        margin: 0.28rem 0 0 0;
+        color: var(--text-secondary);
+        font-size: 0.88rem;
+    }
+
+    .site-section-state {
+        color: var(--primary-color);
+        font-size: 0.82rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .site-section-body {
+        padding: 0 1.4rem 1.4rem 1.4rem;
+    }
+
+    .is-anchor-target {
+        scroll-margin-top: 96px;
+        box-shadow: 0 0 0 2px rgba(21, 95, 149, 0.18), 0 18px 40px rgba(10, 67, 107, 0.08);
+    }
+
+    .finance-panel {
+        position: relative;
+        overflow: hidden;
+        border-radius: 24px;
+        border: 1px solid rgba(10, 67, 107, 0.12);
+        background:
+            radial-gradient(circle at top right, rgba(244, 163, 64, 0.16), transparent 28%),
+            linear-gradient(180deg, #ffffff 0%, #f7fafc 100%);
+    }
+
+    .finance-panel::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, rgba(10, 67, 107, 0.04), transparent 45%);
+        pointer-events: none;
+    }
+
+    .finance-panel > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .finance-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.5rem;
+    }
+
+    .finance-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.35rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(10, 67, 107, 0.08);
+        color: var(--primary-color);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+    }
+
+    .finance-title {
+        margin: 0.75rem 0 0.35rem 0;
+        font-size: 1.65rem;
+        line-height: 1.2;
+        color: var(--primary-dark);
+    }
+
+    .finance-copy {
+        max-width: 720px;
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+    }
+
+    .finance-actions {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-end;
+    }
+
+    .finance-summary {
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .finance-hero {
+        border-radius: 22px;
+        padding: 1.5rem;
+        color: white;
+        background:
+            linear-gradient(135deg, rgba(8, 50, 79, 0.96), rgba(43, 131, 184, 0.94)),
+            linear-gradient(135deg, #08324F, #2B83B8);
+        box-shadow: 0 18px 40px rgba(10, 67, 107, 0.2);
+    }
+
+    .finance-hero-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.35rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.16);
+        font-size: 0.76rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .finance-hero-value {
+        margin-top: 1rem;
+        font-size: clamp(2rem, 3.8vw, 3.25rem);
+        line-height: 1;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+    }
+
+    .finance-hero-usd {
+        margin-top: 0.45rem;
+        color: rgba(255, 255, 255, 0.82);
+        font-size: 0.82rem;
+    }
+
+    .finance-hero-note {
+        margin-top: 1rem;
+        color: rgba(255, 255, 255, 0.88);
+        font-size: 0.9rem;
+        line-height: 1.55;
+    }
+
+    .finance-card-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .finance-kpi {
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 0.85rem;
+        padding: 1.15rem 1.2rem;
+        border-radius: 20px;
+        border: 1px solid rgba(10, 67, 107, 0.09);
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: 0 12px 28px rgba(31, 41, 51, 0.06);
+    }
+
+    .finance-kpi--accent {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(232, 241, 247, 0.95));
+    }
+
+    .finance-kpi--warning {
+        background: linear-gradient(180deg, rgba(255, 248, 239, 0.96), rgba(255, 243, 224, 0.98));
+    }
+
+    .finance-kpi--danger {
+        background: linear-gradient(180deg, rgba(255, 244, 242, 0.96), rgba(255, 236, 232, 0.98));
+    }
+
+    .finance-kpi-label {
+        font-size: 0.84rem;
+        font-weight: 700;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .finance-kpi-value {
+        font-size: clamp(1.45rem, 2.5vw, 2.2rem);
+        font-weight: 800;
+        line-height: 1.05;
+        color: var(--primary-dark);
+    }
+
+    .finance-kpi-subvalue {
+        margin-top: 0.35rem;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+    }
+
+    .finance-kpi-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .finance-link {
+        color: var(--primary-color);
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 0.85rem;
+    }
+
+    .finance-link:hover {
+        text-decoration: underline;
+    }
+
+    .finance-badges {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.9rem;
+        margin: 1.15rem 0 0;
+    }
+
+    .finance-badge {
+        padding: 1rem 1.05rem;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.86);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .finance-badge-label {
+        color: var(--text-secondary);
+        font-size: 0.79rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .finance-badge-value {
+        margin-top: 0.35rem;
+        color: var(--primary-dark);
+        font-size: 1.4rem;
+        font-weight: 800;
+        line-height: 1.1;
+    }
+
+    .finance-breakdown {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem;
+        margin-top: 1.25rem;
+    }
+
+    .finance-breakdown-item {
+        padding: 1rem 1.1rem;
+        border-radius: 18px;
+        background: rgba(10, 67, 107, 0.05);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .finance-breakdown-label {
+        color: var(--text-secondary);
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .finance-breakdown-value {
+        margin-top: 0.45rem;
+        color: var(--primary-dark);
+        font-size: 1.35rem;
+        font-weight: 800;
+        line-height: 1.08;
+    }
+
+    .finance-breakdown-note {
+        margin-top: 0.3rem;
+        color: var(--text-secondary);
+        font-size: 0.8rem;
+    }
+
+    .finance-meta {
+        margin-top: 1.25rem;
+        padding: 1rem 1.15rem;
+        border-radius: 18px;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        background: rgba(255, 255, 255, 0.72);
+    }
+
+    .finance-meta-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .finance-meta-block h3 {
+        margin: 0 0 0.4rem 0;
+        color: var(--primary-dark);
+        font-size: 1rem;
+    }
+
+    .finance-meta-block p,
+    .finance-meta-block div {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+
+    .finance-alert {
+        margin-top: 1.25rem;
+        padding: 1rem 1.15rem;
+        border-radius: 18px;
+        background: rgba(244, 163, 64, 0.12);
+        border: 1px solid rgba(244, 163, 64, 0.28);
+        color: #7b5100;
+    }
+
+    .finance-subsection {
+        margin-top: 1.5rem;
+        padding-top: 1.2rem;
+        border-top: 1px solid rgba(10, 67, 107, 0.1);
+    }
+
+    .finance-subsection-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+    }
+
+    .finance-subsection-head h3 {
+        margin: 0;
+        color: var(--primary-dark);
+        font-size: 1.08rem;
+    }
+
+    .finance-subsection-head p {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 0.88rem;
+    }
+
+    .finance-history table thead th {
+        background: rgba(10, 67, 107, 0.06);
+        color: var(--primary-dark);
+    }
+
+    .finance-history table tbody tr.is-selected {
+        background: rgba(10, 67, 107, 0.06);
+    }
+
+    .finance-table-money {
+        font-weight: 700;
+    }
+
+    .finance-table-money--primary {
+        color: var(--primary-color);
+    }
+
+    .finance-table-money--success {
+        color: var(--success-color);
+    }
+
+    .finance-table-money--warning {
+        color: var(--warning-color);
+    }
+
+    .finance-table-money--danger {
+        color: var(--error-color);
+    }
+
+    .finance-action-row {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .finance-disclosures {
+        display: grid;
+        gap: 0.9rem;
+        margin-top: 1.15rem;
+    }
+
+    .finance-disclosure {
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.84);
+        overflow: hidden;
+    }
+
+    .finance-disclosure summary {
+        list-style: none;
+        cursor: pointer;
+    }
+
+    .finance-disclosure summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .finance-disclosure-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1rem 1.1rem;
+    }
+
+    .finance-disclosure-title {
+        color: var(--primary-dark);
+        font-weight: 700;
+    }
+
+    .finance-disclosure-copy {
+        margin-top: 0.2rem;
+        color: var(--text-secondary);
+        font-size: 0.84rem;
+    }
+
+    .finance-disclosure-state {
+        color: var(--primary-color);
+        font-size: 0.82rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .finance-disclosure-body {
+        padding: 0 1.1rem 1.1rem 1.1rem;
+        display: grid;
+        gap: 1rem;
+    }
+
+    .day-activity-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .day-activity-mini {
+        padding: 0.85rem 0.95rem;
+        border-radius: 16px;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 250, 253, 0.95));
+    }
+
+    .day-activity-mini-label {
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #58738a;
+        font-weight: 800;
+    }
+
+    .day-activity-mini-value {
+        margin-top: 0.35rem;
+        font-size: 1.4rem;
+        line-height: 1;
+        color: #0b2438;
+        font-weight: 900;
+    }
+
+    .day-activity-list {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .day-activity-item {
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.92);
+        padding: 0.95rem 1rem;
+        box-shadow: 0 10px 28px rgba(10, 67, 107, 0.06);
+    }
+
+    .day-activity-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.8rem;
+    }
+
+    .day-activity-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        align-items: center;
+        margin-bottom: 0.45rem;
+    }
+
+    .day-activity-kind,
+    .day-activity-status {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.28rem 0.65rem;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 800;
+    }
+
+    .day-activity-kind {
+        background: rgba(10, 67, 107, 0.09);
+        color: #0A436B;
+    }
+
+    .day-activity-kind--wash {
+        background: rgba(69, 179, 107, 0.16);
+        color: #23603a;
+    }
+
+    .day-activity-kind--report {
+        background: rgba(21, 95, 149, 0.12);
+        color: #0A436B;
+    }
+
+    .day-activity-kind--deposit {
+        background: rgba(40, 108, 76, 0.14);
+        color: #286c4c;
+    }
+
+    .day-activity-kind--loss {
+        background: rgba(244, 163, 64, 0.2);
+        color: #8a5600;
+    }
+
+    .day-activity-kind--water {
+        background: rgba(43, 131, 184, 0.14);
+        color: #155f95;
+    }
+
+    .day-activity-kind--fuel {
+        background: rgba(244, 163, 64, 0.18);
+        color: #8a5600;
+    }
+
+    .day-activity-kind--journal {
+        background: rgba(121, 92, 214, 0.14);
+        color: #533da0;
+    }
+
+    .day-activity-kind--problem {
+        background: rgba(230, 77, 46, 0.16);
+        color: #a5361b;
+    }
+
+    .day-activity-kind--attendance {
+        background: rgba(73, 95, 112, 0.14);
+        color: #294558;
+    }
+
+    .day-activity-status {
+        background: rgba(10, 67, 107, 0.08);
+        color: #35566d;
+    }
+
+    .day-activity-title {
+        margin: 0;
+        color: #0b2438;
+        font-size: 1rem;
+        font-weight: 800;
+    }
+
+    .day-activity-title a {
+        color: inherit;
+        text-decoration: none;
+    }
+
+    .day-activity-copy {
+        margin: 0.35rem 0 0.45rem 0;
+        color: var(--text-secondary);
+        font-size: 0.86rem;
+        line-height: 1.5;
+    }
+
+    .day-activity-foot {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        font-size: 0.8rem;
+        color: #5b7284;
+    }
+
+    .day-activity-amount {
+        text-align: right;
+        min-width: 132px;
+    }
+
+    .day-activity-amount strong {
+        display: block;
+        font-size: 1rem;
+        color: #0b2438;
+    }
+
+    .day-activity-amount small {
+        color: var(--text-secondary);
+        font-size: 0.74rem;
+    }
+
+    .day-activity-sections {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .day-activity-section {
+        padding: 1rem;
+        border-radius: 18px;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        background: rgba(247, 250, 252, 0.92);
+    }
+
+    .day-activity-section-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.8rem;
+    }
+
+    .day-activity-section-head h3 {
+        margin: 0;
+        color: #0b2438;
+        font-size: 0.98rem;
+    }
+
+    .day-activity-section-head p {
+        margin: 0.2rem 0 0 0;
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+    }
+
+    .day-activity-section-state {
+        color: #0A436B;
+        font-size: 0.8rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .day-activity-two-column {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .finance-mini-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.45rem 0.8rem;
+        border-radius: 10px;
+        text-decoration: none;
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
+    .finance-mini-btn--light {
+        background: rgba(10, 67, 107, 0.08);
+        color: var(--primary-color);
+    }
+
+    .finance-mini-btn--warning {
+        background: rgba(244, 163, 64, 0.16);
+        color: #8a5600;
+    }
+
+    .finance-mini-btn--light:hover,
+    .finance-mini-btn--warning:hover {
+        text-decoration: none;
+        filter: brightness(0.98);
+    }
+
+    .weekly-graphs {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .weekly-graph-card {
+        padding: 1rem;
+        border-radius: 20px;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 252, 0.95));
+        box-shadow: 0 16px 40px rgba(10, 67, 107, 0.08);
+    }
+
+    .weekly-graph-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 0.8rem;
+        margin-bottom: 0.95rem;
+    }
+
+    .weekly-graph-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 800;
+        color: #0b2438;
+    }
+
+    .weekly-graph-note {
+        color: var(--text-secondary);
+        font-size: 0.78rem;
+        white-space: nowrap;
+    }
+
+    .weekly-graph-stack {
+        display: grid;
+        gap: 0.78rem;
+    }
+
+    .weekly-graph-row {
+        display: grid;
+        grid-template-columns: minmax(88px, 118px) minmax(0, 1fr) auto;
+        gap: 0.7rem;
+        align-items: center;
+    }
+
+    .weekly-graph-row.is-selected {
+        padding: 0.3rem 0.45rem;
+        margin: -0.3rem -0.45rem;
+        border-radius: 14px;
+        background: rgba(21, 95, 149, 0.08);
+    }
+
+    .weekly-graph-label {
+        font-size: 0.77rem;
+        font-weight: 700;
+        color: #35566d;
+    }
+
+    .weekly-graph-track {
+        position: relative;
+        height: 12px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: rgba(10, 67, 107, 0.08);
+    }
+
+    .weekly-graph-fill {
+        height: 100%;
+        min-width: 8px;
+        border-radius: inherit;
+    }
+
+    .weekly-graph-fill--cash {
+        background: linear-gradient(90deg, #0A436B, #2B83B8);
+    }
+
+    .weekly-graph-fill--bank {
+        background: linear-gradient(90deg, #2f7d55, #45b36b);
+    }
+
+    .weekly-graph-fill--loss {
+        background: linear-gradient(90deg, #d97a14, #f4a340);
+    }
+
+    .weekly-graph-value {
+        font-size: 0.8rem;
+        font-weight: 800;
+        color: #0b2438;
+        white-space: nowrap;
+    }
+
+    .history-switcher {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .history-switcher-buttons {
+        display: inline-flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+    }
+
+    .history-switcher-btn {
+        appearance: none;
+        border: 1px solid rgba(10, 67, 107, 0.1);
+        background: rgba(255, 255, 255, 0.88);
+        color: #35566d;
+        border-radius: 999px;
+        padding: 0.55rem 0.9rem;
+        font-size: 0.82rem;
+        font-weight: 800;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .history-switcher-btn:hover {
+        border-color: rgba(10, 67, 107, 0.2);
+        color: #0b2438;
+    }
+
+    .history-switcher-btn.is-active {
+        background: linear-gradient(135deg, #0A436B, #155f95);
+        color: white;
+        border-color: transparent;
+        box-shadow: 0 12px 28px rgba(10, 67, 107, 0.18);
+    }
+
+    .history-switcher-caption {
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+    }
+
+    .history-pane {
+        display: none;
+        gap: 1rem;
+    }
+
+    .history-pane.is-active {
+        display: grid;
+    }
+
+    .history-pane-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+    }
+
+    .history-pane-title {
+        margin: 0;
+        color: var(--primary-dark);
+        font-size: 1.02rem;
+    }
+
+    .history-pane-copy {
+        margin: 0.3rem 0 0 0;
+        color: var(--text-secondary);
+        font-size: 0.86rem;
+    }
+
+    .history-pane-state {
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(10, 67, 107, 0.08);
+        color: var(--primary-color);
+        font-size: 0.8rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    @media (max-width: 1024px) {
+        .site-summary-grid,
+        .finance-summary,
+        .finance-card-grid,
+        .finance-badges,
+        .finance-breakdown,
+        .finance-meta-grid,
+        .weekly-graphs,
+        .day-activity-two-column {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 720px) {
+        .site-hero {
+            padding: 1.25rem;
+            border-radius: 22px;
+        }
+
+        .site-actions {
+            max-width: none;
+            width: 100%;
+            justify-content: stretch;
+        }
+
+        .site-actions .btn {
+            width: 100%;
+        }
+
+        .finance-panel {
+            padding: 1.15rem;
+        }
+
+        .finance-title {
+            font-size: 1.35rem;
+        }
+
+        .finance-hero,
+        .finance-kpi,
+        .finance-badge,
+        .finance-breakdown-item,
+        .finance-meta,
+        .finance-alert,
+        .day-activity-item,
+        .day-activity-section,
+        .day-activity-mini {
+            border-radius: 16px;
+        }
+
+        .finance-actions {
+            width: 100%;
+            justify-content: stretch;
+        }
+
+        .finance-actions .btn,
+        .finance-actions .finance-mini-btn {
+            width: 100%;
+        }
+
+        .weekly-graph-row {
+            grid-template-columns: 1fr;
+            gap: 0.4rem;
+        }
+
+        .weekly-graph-value {
+            text-align: right;
+        }
+
+        .day-activity-head {
+            flex-direction: column;
+        }
+
+        .day-activity-amount {
+            min-width: 0;
+            text-align: left;
+        }
+    }
+
+    @media (max-width: 540px) {
+        .weekly-graph-head {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .history-switcher {
+            align-items: stretch;
+        }
+
+        .history-switcher-buttons {
+            width: 100%;
+        }
+
+        .history-switcher-btn {
+            flex: 1 1 calc(50% - 0.55rem);
+            text-align: center;
+        }
+
+        .history-pane-head {
+            flex-direction: column;
+        }
+    }
+</style>
+
+<!-- Filtres de date -->
+<details class="site-section-card" open>
+    <summary class="site-section-head">
+        <div>
+            <h2 class="site-section-title">Filtres de date</h2>
+            <p class="site-section-copy">Choisissez une journée précise ou une période pour recadrer le site detail sans surcharger l'écran principal.</p>
+        </div>
+        <span class="site-section-state">{{ period_label }}</span>
+    </summary>
+    <div class="site-section-body">
+    <form method="get" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; align-items: end;">
+        <div class="form-group" style="margin-bottom: 0;">
+            <label for="date_debut">Date début</label>
+            <input type="date" class="form-control" id="date_debut" name="date_debut" value="{{ date_debut }}">
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 0;">
+            <label for="date_fin">Date fin</label>
+            <input type="date" class="form-control" id="date_fin" name="date_fin" value="{{ date_fin }}">
+            <small style="color: var(--text-secondary); font-size: 0.75rem;">Mettre la même date pour voir les détails d'un jour spécifique</small>
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 0; display: flex; gap: 0.5rem; align-items: end;">
+            <button type="submit" class="btn btn-primary" data-loading-label="Chargement...">Filtrer</button>
+            <a href="{% url 'admin_site_detail' site.id %}" class="btn btn-secondary">Réinitialiser</a>
+            <button type="submit" name="filter_today" value="true" class="btn btn-info" data-loading-label="Chargement...">Aujourd'hui</button>
+        </div>
+    </form>
+    {% if period_label %}
+    <div style="margin-top: 1rem; padding: 0.75rem; background: var(--bg-secondary); border-radius: 8px; color: var(--text-secondary);">
+        <strong>Période sélectionnée:</strong> {{ period_label }} ({{ total_lavages }} lavage{{ total_lavages|pluralize }})
+    </div>
+    {% endif %}
+    </div>
+</details>
+
+<!-- Résumé détaillé pour une date spécifique -->
+{% if selected_single_date %}
+<div class="card finance-panel mb-4" id="journal-jour-detail">
+    <div class="finance-header">
+        <div>
+            <span class="finance-eyebrow">Journal de la journee</span>
+            <h2 class="finance-title">Vue du {{ selected_single_date|date:"d/m/Y" }}</h2>
+            <p class="finance-copy">
+                Les chiffres du jour sont regroupes ici pour voir rapidement ce qui a ete produit, depose, perdu et ce qu'il reste a justifier.
+            </p>
+        </div>
+        <div class="finance-actions">
+            <a href="{% url 'admin_site_losses' site.id %}?date={{ selected_single_date|date:'Y-m-d' }}" class="btn btn-warning">Corriger cette journée</a>
+            <a href="{% url 'admin_add_bank_deposit' site.id %}?date={{ selected_single_date|date:'Y-m-d' }}" class="btn btn-secondary">
+                {% if bank_deposit_date %}Modifier le depot{% else %}Ajouter un depot{% endif %}
+            </a>
+        </div>
+    </div>
+
+    <div class="finance-summary">
+        <div class="finance-hero">
+            <div class="finance-hero-label">Cash flow du jour</div>
+            <div class="finance-hero-value">{{ chiffre_date|fc_amount }} FC</div>
+            <div class="finance-hero-usd">~ ${{ chiffre_date|usd_equivalent }} USD</div>
+            <p class="finance-hero-note">
+                Point de depart pour verifier la caisse, les depots et les depenses du jour. Utilisez les liens de gestion a droite pour corriger une ligne si necessaire.
+            </p>
+        </div>
+
+        <div class="finance-card-grid">
+            <div class="finance-kpi finance-kpi--accent">
+                <div>
+                    <div class="finance-kpi-label">Depot bancaire</div>
+                    <div class="finance-kpi-value">{{ bank_deposit_amount_date|fc_amount }} FC</div>
+                    <div class="finance-kpi-subvalue">~ ${{ bank_deposit_amount_date|usd_equivalent }} USD</div>
+                </div>
+                <div class="finance-kpi-footer">
+                    <span class="finance-kpi-label" style="text-transform:none; letter-spacing:0;">Flux vers la banque</span>
+                    <a href="{% url 'admin_site_losses' site.id %}?date={{ selected_single_date|date:'Y-m-d' }}&period=day&metric=bank" class="finance-link">Voir les lignes</a>
+                </div>
+            </div>
+
+            <div class="finance-kpi finance-kpi--warning">
+                <div>
+                    <div class="finance-kpi-label">Pertes du jour</div>
+                    <div class="finance-kpi-value">{{ pertes_date_total|fc_amount }} FC</div>
+                    <div class="finance-kpi-subvalue">~ ${{ pertes_date_total|usd_equivalent }} USD</div>
+                </div>
+                <div class="finance-kpi-footer">
+                    <span class="finance-kpi-label" style="text-transform:none; letter-spacing:0;">Depenses, transport, urgences</span>
+                    <a href="{% url 'admin_site_losses' site.id %}?date={{ selected_single_date|date:'Y-m-d' }}" class="finance-link">Gerer</a>
+                </div>
+            </div>
+
+            <div class="finance-kpi {% if difference_date < 0 %}finance-kpi--danger{% else %}finance-kpi--accent{% endif %}">
+                <div>
+                    <div class="finance-kpi-label">Ecart de caisse</div>
+                    <div class="finance-kpi-value">{{ difference_date|fc_amount }} FC</div>
+                    <div class="finance-kpi-subvalue">~ ${{ difference_date|usd_equivalent }} USD</div>
+                </div>
+                <div class="finance-kpi-footer">
+                    <span class="finance-kpi-label" style="text-transform:none; letter-spacing:0;">
+                        {% if difference_date == 0 %}Journee equilibree{% elif difference_date > 0 %}Reste a justifier{% else %}Depassement a verifier{% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="finance-badges">
+        <div class="finance-badge">
+            <div class="finance-badge-label">Lavages du jour</div>
+            <div class="finance-badge-value">{{ lavages_date|length }}</div>
+        </div>
+        <div class="finance-badge">
+            <div class="finance-badge-label">Employes presents</div>
+            <div class="finance-badge-value">{{ presents }}</div>
+        </div>
+        <div class="finance-badge">
+            <div class="finance-badge-label">Rapports recus</div>
+            <div class="finance-badge-value">{{ reports_date|length }}</div>
+        </div>
+        <div class="finance-badge">
+            <div class="finance-badge-label">Problemes signales</div>
+            <div class="finance-badge-value">{{ problemes_date.count }}</div>
+        </div>
+    </div>
+
+    <div class="finance-disclosures">
+        <details class="finance-disclosure" id="single-day-activity-stream" open>
+            <summary class="finance-disclosure-head">
+                <div>
+                    <div class="finance-disclosure-title">Journal complet de la journee</div>
+                    <div class="finance-disclosure-copy">Tous les mouvements du jour dans un seul bloc: lavages, rapports, depots, pertes, eau, carburant, notes du site et problemes.</div>
+                </div>
+                <span class="finance-disclosure-state">{{ single_day_activity_entries|length }} evenements</span>
+            </summary>
+            <div class="finance-disclosure-body">
+                <div class="day-activity-summary">
+                    <div class="day-activity-mini">
+                        <div class="day-activity-mini-label">Lavages</div>
+                        <div class="day-activity-mini-value">{{ lavages_date|length }}</div>
+                    </div>
+                    <div class="day-activity-mini">
+                        <div class="day-activity-mini-label">Rapports</div>
+                        <div class="day-activity-mini-value">{{ reports_date|length }}</div>
+                    </div>
+                    <div class="day-activity-mini">
+                        <div class="day-activity-mini-label">Pertes</div>
+                        <div class="day-activity-mini-value">{{ losses_date|length }}</div>
+                    </div>
+                    <div class="day-activity-mini">
+                        <div class="day-activity-mini-label">Problemes</div>
+                        <div class="day-activity-mini-value">{{ problemes_date.count }}</div>
+                    </div>
+                    <div class="day-activity-mini">
+                        <div class="day-activity-mini-label">Eau</div>
+                        <div class="day-activity-mini-value">{{ water_purchases_date|length }}</div>
+                    </div>
+                    <div class="day-activity-mini">
+                        <div class="day-activity-mini-label">Carburant</div>
+                        <div class="day-activity-mini-value">{{ fuel_purchases_date|length }}</div>
+                    </div>
+                    <div class="day-activity-mini">
+                        <div class="day-activity-mini-label">Notes site</div>
+                        <div class="day-activity-mini-value">{{ journal_entries_date|length }}</div>
+                    </div>
+                </div>
+
+                {% if single_day_activity_entries %}
+                <div class="day-activity-list">
+                    {% for entry in single_day_activity_entries %}
+                    <article class="day-activity-item">
+                        <div class="day-activity-head">
+                            <div>
+                                <div class="day-activity-meta">
+                                    <span class="day-activity-kind day-activity-kind--{{ entry.kind }}">{{ entry.label }}</span>
+                                    {% if entry.status %}
+                                    <span class="day-activity-status">{{ entry.status }}</span>
+                                    {% endif %}
+                                </div>
+                                <h3 class="day-activity-title">
+                                    {% if entry.anchor %}
+                                    <a href="{{ entry.anchor }}" class="js-open-anchor">{{ entry.title }}</a>
+                                    {% else %}
+                                    {{ entry.title }}
+                                    {% endif %}
+                                </h3>
+                                {% if entry.summary %}
+                                <p class="day-activity-copy">{{ entry.summary }}</p>
+                                {% endif %}
+                                <div class="day-activity-foot">
+                                    <span>{{ entry.timestamp|date:"H:i" }}</span>
+                                    {% if entry.actor %}
+                                    <span>{{ entry.actor }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% if entry.has_amount %}
+                            <div class="day-activity-amount">
+                                <strong>{{ entry.amount|fc_amount }} FC</strong>
+                                <small>~ ${{ entry.amount|usd_equivalent }} USD</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="finance-alert" style="margin-top: 0;">
+                    <strong>Aucun evenement detaille pour cette journee.</strong>
+                    Ajoutez des lavages, rapports, pertes ou observations pour voir apparaitre la chronologie complete ici.
+                </div>
+                {% endif %}
+
+                <div class="day-activity-sections">
+                    <section class="day-activity-section" id="single-day-washes">
+                        <div class="day-activity-section-head">
+                            <div>
+                                <h3>Lavages enregistres</h3>
+                                <p>Chaque lavage saisi pendant la journee avec employe, plaque, montant et photos.</p>
+                            </div>
+                            <span class="day-activity-section-state">{{ lavages_date|length }} lavage{{ lavages_date|length|pluralize }}</span>
+                        </div>
+                        {% if lavages_date %}
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Heure</th>
+                                        <th>Employe</th>
+                                        <th>Service</th>
+                                        <th>Plaque / repere</th>
+                                        <th>Montant</th>
+                                        <th>Photos</th>
+                                        <th>Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for lavage in lavages_date %}
+                                    <tr>
+                                        <td>{{ lavage.created_at|date:"H:i" }}</td>
+                                        <td>{{ lavage.employe.get_full_name|default:lavage.employe.username }}</td>
+                                        <td>{{ lavage.get_type_service_display }}</td>
+                                        <td>
+                                            {% if lavage.plaque %}
+                                                {{ lavage.plaque }}
+                                            {% elif lavage.plaque_photo %}
+                                                Photo de plaque
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td class="finance-table-money finance-table-money--success">
+                                            {{ lavage.montant|fc_amount }} FC<br><small style="color: var(--text-secondary);">~ ${{ lavage.montant|usd_equivalent }}</small>
+                                        </td>
+                                        <td>
+                                            {% if lavage.photo_count %}
+                                                {{ lavage.photo_count }} photo{{ lavage.photo_count|pluralize }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ lavage.notes|default:"-" }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div style="color: var(--text-secondary);">Aucun lavage enregistre pour cette journee.</div>
+                        {% endif %}
+                    </section>
+
+                    <section class="day-activity-section" id="single-day-losses">
+                        <div class="day-activity-section-head">
+                            <div>
+                                <h3>Flux financiers du jour</h3>
+                                <p>Depot bancaire, pertes, achats d'eau, achats de carburant et autres lignes financieres ou de suivi saisies pour cette date.</p>
+                            </div>
+                            <span class="day-activity-section-state">{{ pertes_date_total|fc_amount }} FC de pertes</span>
+                        </div>
+                        <div class="day-activity-two-column">
+                            <div>
+                                {% if bank_deposit_date %}
+                                <div class="finance-meta" style="margin-bottom: 1rem;">
+                                    <div class="finance-meta-block">
+                                        <h3>Depot bancaire</h3>
+                                        <div><strong>{{ bank_deposit_amount_date|fc_amount }} FC</strong> (~ ${{ bank_deposit_amount_date|usd_equivalent }} USD)</div>
+                                        <div style="margin-top: 0.45rem;">{{ bank_deposit_date.created_at|date:"d/m/Y H:i" }}</div>
+                                        <div style="margin-top: 0.25rem;">{{ bank_deposit_date.notes|default:"Aucune note ajoutee." }}</div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="finance-alert" style="margin-top: 0;">
+                                    <strong>Aucun depot bancaire saisi pour cette date.</strong>
+                                </div>
+                                {% endif %}
+
+                                {% if losses_date %}
+                                <div class="table-container">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Heure</th>
+                                                <th>Titre</th>
+                                                <th>Categorie</th>
+                                                <th>Source</th>
+                                                <th>Montant</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for loss in losses_date %}
+                                            <tr>
+                                                <td>{{ loss.created_at|date:"H:i" }}</td>
+                                                <td>{{ loss.title }}</td>
+                                                <td>{{ loss.get_category_display }}</td>
+                                                <td>{{ loss.get_funding_source_display }}</td>
+                                                <td class="finance-table-money finance-table-money--warning">{{ loss.amount|fc_amount }} FC</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% else %}
+                                <div style="color: var(--text-secondary);">Aucune perte ou depense saisie pour cette date.</div>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <div id="single-day-water">
+                                    <div class="day-activity-section-head" style="margin-bottom: 0.65rem;">
+                                        <div>
+                                            <h3 style="font-size: 0.92rem;">Gestion de l'eau</h3>
+                                            <p>Achat d'eau declares sur la journee.</p>
+                                        </div>
+                                        <span class="day-activity-section-state">{{ water_purchases_date|length }} entree{{ water_purchases_date|length|pluralize }}</span>
+                                    </div>
+                                    {% if water_purchases_date %}
+                                    <div class="table-container">
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>Heure</th>
+                                                <th>Fournisseur</th>
+                                                <th>Mois</th>
+                                                <th>Montant</th>
+                                                <th>Notes</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for purchase in water_purchases_date %}
+                                            <tr>
+                                                    <td>{{ purchase.created_at|date:"H:i" }}</td>
+                                                    <td>{{ purchase.supplier.name }}</td>
+                                                    <td>{{ purchase.billing_month|date:"m/Y" }}</td>
+                                                    <td class="finance-table-money finance-table-money--warning">{{ purchase.amount_fc|fc_amount }} FC</td>
+                                                    <td>{{ purchase.notes|default:"-" }}</td>
+                                                    <td>
+                                                        <a href="{% url 'admin_delete_water_purchase' purchase.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">Supprimer</a>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                {% else %}
+                                <div style="color: var(--text-secondary);">Aucun achat d'eau saisi pour cette date.</div>
+                                {% endif %}
+                            </div>
+
+                            <div id="single-day-fuel" style="margin-top: 1rem;">
+                                <div class="day-activity-section-head" style="margin-bottom: 0.65rem;">
+                                    <div>
+                                        <h3 style="font-size: 0.92rem;">Gestion du carburant</h3>
+                                        <p>Achats de carburant déclarés sur la journée.</p>
+                                    </div>
                                     <span class="day-activity-section-state">{{ fuel_purchases_date|length }} entree{{ fuel_purchases_date|length|pluralize }}</span>
                                 </div>
                                 {% if fuel_purchases_date %}
