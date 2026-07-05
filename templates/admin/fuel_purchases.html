@@ -1,0 +1,511 @@
+{% extends "base.html" %}
+{% load currency_tags %}
+
+{% block title %}Suivi carburant{% endblock %}
+
+{% block extra_css %}
+<style>
+    .fuel-shell {
+        display: grid;
+        gap: 1.5rem;
+    }
+
+    .fuel-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 28px;
+        padding: 1.8rem;
+        background:
+            radial-gradient(circle at top left, rgba(255, 194, 0, 0.18), transparent 34%),
+            linear-gradient(135deg, #2f1902 0%, #5b3205 56%, #9a5b10 100%);
+        color: #fff9ef;
+        box-shadow: 0 28px 70px rgba(47, 25, 2, 0.24);
+    }
+
+    .fuel-hero::after {
+        content: "";
+        position: absolute;
+        inset: auto -6rem -6rem auto;
+        width: 16rem;
+        height: 16rem;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .fuel-hero-top,
+    .fuel-panel-header,
+    .fuel-history-item,
+    .fuel-ledger-actions,
+    .fuel-site-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .fuel-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.45rem 0.85rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        color: rgba(255, 249, 239, 0.92);
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .fuel-hero h1 {
+        margin: 0.9rem 0 0.45rem;
+        font-size: clamp(2rem, 3vw, 2.9rem);
+        line-height: 1.05;
+        color: #ffffff;
+    }
+
+    .fuel-copy {
+        max-width: 56rem;
+        margin: 0;
+        color: rgba(255, 249, 239, 0.84);
+        line-height: 1.6;
+    }
+
+    .fuel-chips,
+    .fuel-hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.7rem;
+        margin-top: 1.1rem;
+    }
+
+    .fuel-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.55rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        color: #ffffff;
+        font-size: 0.86rem;
+        font-weight: 700;
+    }
+
+    .fuel-kpis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+    }
+
+    .fuel-kpi,
+    .fuel-panel {
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.97);
+        border: 1px solid rgba(91, 50, 5, 0.08);
+        box-shadow: 0 18px 45px rgba(43, 23, 5, 0.08);
+    }
+
+    .fuel-kpi {
+        padding: 1.15rem 1.2rem;
+    }
+
+    .fuel-kpi-label {
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .fuel-kpi-value {
+        margin-top: 0.38rem;
+        font-size: 1.7rem;
+        font-weight: 800;
+        color: #7a4207;
+    }
+
+    .fuel-kpi-copy,
+    .fuel-panel-copy {
+        margin-top: 0.22rem;
+        color: var(--text-secondary);
+        line-height: 1.55;
+    }
+
+    .fuel-grid {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 1.2rem;
+    }
+
+    .fuel-panel {
+        padding: 1.35rem;
+    }
+
+    .fuel-panel-title {
+        margin: 0;
+        color: #7a4207;
+        font-size: 1.2rem;
+    }
+
+    .fuel-panel-meta {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.45rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(154, 91, 16, 0.08);
+        color: #7a4207;
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
+    .fuel-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .fuel-form-grid .form-group,
+    .fuel-form-grid .form-group--full {
+        margin-bottom: 0;
+    }
+
+    .fuel-form-grid .form-group--full {
+        grid-column: 1 / -1;
+    }
+
+    .fuel-form-grid label {
+        display: block;
+        margin-bottom: 0.4rem;
+        font-weight: 700;
+        color: #7a4207;
+    }
+
+    .fuel-form-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+
+    .fuel-history-list,
+    .fuel-site-list,
+    .fuel-ledger-list {
+        display: grid;
+        gap: 0.85rem;
+        margin-top: 1rem;
+    }
+
+    .fuel-history-item,
+    .fuel-site-item,
+    .fuel-ledger-item {
+        padding: 0.95rem 1rem;
+        border-radius: 18px;
+        background: rgba(154, 91, 16, 0.05);
+        border: 1px solid rgba(91, 50, 5, 0.08);
+    }
+
+    .fuel-bar-track {
+        width: 100%;
+        height: 7px;
+        border-radius: 999px;
+        background: rgba(91, 50, 5, 0.1);
+        overflow: hidden;
+        margin-top: 0.6rem;
+    }
+
+    .fuel-bar-fill {
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #f59e0b 0%, #c46a13 100%);
+    }
+
+    .fuel-ledger-item {
+        display: grid;
+        gap: 0.8rem;
+    }
+
+    .fuel-ledger-main {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .fuel-ledger-title {
+        margin: 0;
+        color: var(--primary-dark);
+        font-size: 1rem;
+    }
+
+    .fuel-ledger-meta {
+        color: var(--text-secondary);
+        font-size: 0.88rem;
+        line-height: 1.55;
+    }
+
+    .fuel-amount {
+        font-size: 1.08rem;
+        font-weight: 800;
+        color: #7a4207;
+        white-space: nowrap;
+    }
+
+    .fuel-empty {
+        padding: 1rem;
+        border-radius: 18px;
+        border: 1px dashed rgba(91, 50, 5, 0.18);
+        color: var(--text-secondary);
+        background: rgba(255, 255, 255, 0.72);
+    }
+
+    @media (max-width: 980px) {
+        .fuel-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 720px) {
+        .fuel-form-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fuel-shell">
+    <section class="fuel-hero">
+        <div class="fuel-hero-top">
+            <div>
+                <span class="fuel-eyebrow">Admin carburant</span>
+                <h1>Gestion du carburant</h1>
+                <p class="fuel-copy">
+                    Centralisez les achats de carburant déclarés par les employés, ajoutez une saisie admin si nécessaire
+                    et gardez un suivi mensuel lisible par site.
+                </p>
+                <div class="fuel-chips">
+                    <span class="fuel-chip">Mois <strong>{{ selected_month|date:"m/Y" }}</strong></span>
+                    <span class="fuel-chip">Achats <strong>{{ month_count }}</strong></span>
+                    <span class="fuel-chip">Sites actifs <strong>{{ selected_sites_count }}</strong></span>
+                </div>
+            </div>
+            <div class="fuel-hero-actions">
+                <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">Retour admin</a>
+                <a href="{% url 'admin_fuel_purchases' %}" class="btn btn-info">Mois actuel</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="fuel-kpis">
+        <article class="fuel-kpi">
+            <div class="fuel-kpi-label">Total du mois</div>
+            <div class="fuel-kpi-value">{{ month_total|fc_amount }} FC</div>
+            <div class="fuel-kpi-copy">{{ month_count }} achat{{ month_count|pluralize }} enregistré{{ month_count|pluralize }}</div>
+        </article>
+        <article class="fuel-kpi">
+            <div class="fuel-kpi-label">Ticket moyen</div>
+            <div class="fuel-kpi-value">{{ average_purchase|fc_amount }} FC</div>
+            <div class="fuel-kpi-copy">Montant moyen par achat sur {{ selected_month|date:"m/Y" }}</div>
+        </article>
+        <article class="fuel-kpi">
+            <div class="fuel-kpi-label">Écart vs {{ previous_month|date:"m/Y" }}</div>
+            <div class="fuel-kpi-value">
+                {% if month_total_delta > 0 %}+{% endif %}{{ month_total_delta|fc_amount }} FC
+            </div>
+            <div class="fuel-kpi-copy">{{ previous_month_count }} achat{{ previous_month_count|pluralize }} le mois précédent</div>
+        </article>
+        <article class="fuel-kpi">
+            <div class="fuel-kpi-label">Site principal</div>
+            <div class="fuel-kpi-value">{% if top_site %}{{ top_site.site__nom }}{% else %}-{% endif %}</div>
+            <div class="fuel-kpi-copy">
+                {% if top_site %}{{ top_site.total|fc_amount }} FC sur {{ top_site.count }} entrée{{ top_site.count|pluralize }}{% else %}Aucune consommation ce mois{% endif %}
+            </div>
+        </article>
+    </section>
+
+    <section class="fuel-panel">
+        <div class="fuel-panel-header">
+            <div>
+                <h2 class="fuel-panel-title">Filtrer le mois</h2>
+                <p class="fuel-panel-copy">Chargez un autre mois pour comparer les achats de carburant et corriger l'historique.</p>
+            </div>
+            <span class="fuel-panel-meta">{{ selected_month|date:"m/Y" }}</span>
+        </div>
+
+        <form method="get" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: end; margin-top: 1rem;">
+            <div class="form-group" style="margin-bottom: 0; min-width: 220px;">
+                <label for="fuel_month">Mois</label>
+                <input type="month" id="fuel_month" name="month" class="form-control" value="{{ selected_month_input }}">
+            </div>
+            <div style="display: flex; gap: 0.65rem; flex-wrap: wrap;">
+                <button type="submit" class="btn btn-primary">Charger</button>
+                <a href="{% url 'admin_fuel_purchases' %}" class="btn btn-secondary">Mois actuel</a>
+            </div>
+        </form>
+    </section>
+
+    <section class="fuel-grid">
+        <article class="fuel-panel">
+            <div class="fuel-panel-header">
+                <div>
+                    <h2 class="fuel-panel-title">Nouvel achat</h2>
+                    <p class="fuel-panel-copy">Ajoutez une saisie carburant côté admin pour corriger ou compléter les signalements employés.</p>
+                </div>
+                <span class="fuel-panel-meta">{{ today|date:"d/m/Y" }}</span>
+            </div>
+
+            <form method="post" style="margin-top: 1rem;">
+                {% csrf_token %}
+                <div class="fuel-form-grid">
+                    <div class="form-group">
+                        <label for="{{ form.site.id_for_label }}">Site</label>
+                        {{ form.site }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.billing_month.id_for_label }}">Mois concerné</label>
+                        {{ form.billing_month }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.purchase_date.id_for_label }}">Date d'achat</label>
+                        {{ form.purchase_date }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.amount_fc.id_for_label }}">Montant (FC)</label>
+                        {{ form.amount_fc }}
+                    </div>
+                    <div class="form-group form-group--full">
+                        <label for="{{ form.notes.id_for_label }}">Notes</label>
+                        {{ form.notes }}
+                    </div>
+                </div>
+                <div class="fuel-form-actions">
+                    <button type="submit" class="btn btn-primary">Enregistrer l'achat</button>
+                    <a href="{% url 'admin_fuel_purchases' %}?month={{ selected_month_input }}" class="btn btn-secondary">Réinitialiser</a>
+                </div>
+            </form>
+        </article>
+
+        <article class="fuel-panel">
+            <div class="fuel-panel-header">
+                <div>
+                    <h2 class="fuel-panel-title">Répartition par site</h2>
+                    <p class="fuel-panel-copy">Visualisez où le carburant est consommé pendant le mois sélectionné.</p>
+                </div>
+                <span class="fuel-panel-meta">{{ selected_sites_count }} site{{ selected_sites_count|pluralize }}</span>
+            </div>
+
+            {% if site_breakdown %}
+            <div class="fuel-site-list">
+                {% for item in site_breakdown %}
+                <div class="fuel-site-item">
+                    <div style="flex: 1 1 280px;">
+                        <strong style="color: var(--primary-dark);">{{ item.site__nom }}</strong>
+                        <div class="fuel-ledger-meta">{{ item.count }} achat{{ item.count|pluralize }} sur le mois sélectionné</div>
+                        <div class="fuel-bar-track">
+                            <div class="fuel-bar-fill" style="width: {{ item.bar_width }}%;"></div>
+                        </div>
+                    </div>
+                    <div class="fuel-amount">{{ item.total|fc_amount }} FC</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="fuel-empty">Aucun achat de carburant n'est encore rattaché à ce mois.</div>
+            {% endif %}
+        </article>
+    </section>
+
+    <section class="fuel-grid">
+        <article class="fuel-panel">
+            <div class="fuel-panel-header">
+                <div>
+                    <h2 class="fuel-panel-title">Registre du mois</h2>
+                    <p class="fuel-panel-copy">Toutes les lignes carburant de {{ selected_month|date:"m/Y" }}, avec correction et suppression à portée de clic.</p>
+                </div>
+                <span class="fuel-panel-meta">{{ purchases|length }} ligne{{ purchases|length|pluralize }} affichée{{ purchases|length|pluralize }}</span>
+            </div>
+
+            {% if purchases %}
+            <div class="fuel-ledger-list">
+                {% for purchase in purchases %}
+                <div class="fuel-ledger-item">
+                    <div class="fuel-ledger-main">
+                        <div>
+                            <h3 class="fuel-ledger-title">{{ purchase.site.nom }}</h3>
+                            <div class="fuel-ledger-meta">
+                                Achat {{ purchase.purchase_date|date:"d/m/Y" }} • Mois {{ purchase.billing_month|date:"m/Y" }}<br>
+                                {% if purchase.created_by %}Saisi par {{ purchase.created_by.get_full_name|default:purchase.created_by.username }}{% else %}Saisi par admin{% endif %}
+                                {% if purchase.notes %}<br>{{ purchase.notes }}{% endif %}
+                            </div>
+                        </div>
+                        <div class="fuel-amount">{% if purchase.amount_fc != None %}{{ purchase.amount_fc|fc_amount }} FC{% else %}-{% endif %}</div>
+                    </div>
+                    <div class="fuel-ledger-actions">
+                        <div class="fuel-ledger-meta">Créé le {{ purchase.created_at|date:"d/m/Y H:i" }}</div>
+                        <div style="display: flex; gap: 0.65rem; flex-wrap: wrap;">
+                            <a href="{% url 'admin_edit_fuel_purchase' purchase.id %}?month={{ selected_month_input }}" class="btn btn-info">Modifier</a>
+                            <a href="{% url 'admin_delete_fuel_purchase' purchase.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-danger">Supprimer</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="fuel-empty">Aucun achat de carburant n'a été enregistré pour {{ selected_month|date:"m/Y" }}.</div>
+            {% endif %}
+        </article>
+
+        <article class="fuel-panel">
+            <div class="fuel-panel-header">
+                <div>
+                    <h2 class="fuel-panel-title">Historique mensuel</h2>
+                    <p class="fuel-panel-copy">Revenez rapidement sur les derniers mois déjà suivis.</p>
+                </div>
+                <span class="fuel-panel-meta">6 mois</span>
+            </div>
+
+            {% if monthly_history %}
+            <div class="fuel-history-list">
+                {% for item in monthly_history %}
+                <a href="{% url 'admin_fuel_purchases' %}?month={{ item.billing_month|date:'Y-m' }}" class="fuel-history-item" style="text-decoration: none; color: inherit; {% if item.is_selected %}box-shadow: inset 0 0 0 2px rgba(196, 106, 19, 0.24);{% endif %}">
+                    <div style="flex: 1 1 240px;">
+                        <strong style="color: var(--primary-dark);">{{ item.label }}</strong>
+                        <div class="fuel-ledger-meta">{{ item.count }} achat{{ item.count|pluralize }} • {{ item.site_count }} site{{ item.site_count|pluralize }}</div>
+                        <div class="fuel-bar-track">
+                            <div class="fuel-bar-fill" style="width: {{ item.bar_width }}%;"></div>
+                        </div>
+                    </div>
+                    <div class="fuel-amount">{{ item.total|fc_amount }} FC</div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="fuel-empty">Aucun historique carburant disponible pour le moment.</div>
+            {% endif %}
+
+            <div style="margin-top: 1.2rem;">
+                <h3 class="fuel-panel-title" style="font-size: 1rem;">Derniers achats tous mois confondus</h3>
+                {% if recent_purchases %}
+                <div class="fuel-history-list">
+                    {% for purchase in recent_purchases %}
+                    <div class="fuel-history-item">
+                        <div>
+                            <strong style="color: var(--primary-dark);">{{ purchase.site.nom }}</strong>
+                            <div class="fuel-ledger-meta">
+                                {{ purchase.purchase_date|date:"d/m/Y" }} • Mois {{ purchase.billing_month|date:"m/Y" }}
+                                {% if purchase.notes %}<br>{{ purchase.notes|truncatechars:90 }}{% endif %}
+                            </div>
+                        </div>
+                        <div class="fuel-amount">{% if purchase.amount_fc != None %}{{ purchase.amount_fc|fc_amount }} FC{% else %}-{% endif %}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="fuel-empty" style="margin-top: 0.85rem;">Aucun achat récent à afficher.</div>
+                {% endif %}
+            </div>
+        </article>
+    </section>
+</div>
+{% endblock %}
