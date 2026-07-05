@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier achat de carburant{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem;">
+    <div>
+        <h1 class="mt-2 mb-2">Modifier l'achat de carburant</h1>
+        <p style="color: var(--text-secondary); margin: 0;">{{ purchase.site.nom }} • Mois concerné {{ purchase.billing_month|date:"m/Y" }} • Achat {{ purchase.purchase_date|date:"d/m/Y" }}</p>
+    </div>
+    <a href="{% url 'admin_fuel_purchases' %}?month={{ purchase.billing_month|date:'Y-m' }}" class="btn btn-secondary">Retour au suivi carburant</a>
+</div>
+
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
+            <div class="form-group">
+                <label for="{{ form.site.id_for_label }}">Site</label>
+                {{ form.site }}
+            </div>
+            <div class="form-group">
+                <label for="{{ form.billing_month.id_for_label }}">Mois concerné</label>
+                {{ form.billing_month }}
+            </div>
+            <div class="form-group">
+                <label for="{{ form.purchase_date.id_for_label }}">Date d'achat</label>
+                {{ form.purchase_date }}
+            </div>
+            <div class="form-group">
+                <label for="{{ form.amount_fc.id_for_label }}">Montant (FC)</label>
+                {{ form.amount_fc }}
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="{{ form.notes.id_for_label }}">Notes</label>
+            {{ form.notes }}
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Enregistrer les modifications</button>
+        <a href="{% url 'admin_fuel_purchases' %}?month={{ purchase.billing_month|date:'Y-m' }}" class="btn btn-secondary btn-block mt-2">Annuler</a>
+    </form>
+</div>
+{% endblock %}
