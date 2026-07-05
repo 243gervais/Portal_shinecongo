@@ -9,6 +9,46 @@
         <h1 class="mt-2 mb-2">Supprimer l'achat de carburant</h1>
         <p style="color: var(--text-secondary); margin: 0;">{{ purchase.site.nom }} • Mois concerné {{ purchase.billing_month|date:"m/Y" }}</p>
     </div>
+    <a href="{% if next_url %}{{ next_url }}{% else %}{% url 'admin_fuel_purchases' %}?month={{ purchase.billing_month|date:'Y-m' }}{% endif %}" class="btn btn-secondary">Retour</a>
+</div>
+
+<div class="card">
+    <div style="padding: 1rem; border-radius: 14px; background: rgba(220, 38, 38, 0.08); border: 1px solid rgba(220, 38, 38, 0.12); margin-bottom: 1rem;">
+        <strong style="color: #b42318;">Cette suppression est définitive.</strong>
+    </div>
+
+    <p><strong>Site :</strong> {{ purchase.site.nom }}</p>
+    <p><strong>Mois concerné :</strong> {{ purchase.billing_month|date:"m/Y" }}</p>
+    <p><strong>Date :</strong> {{ purchase.purchase_date|date:"d/m/Y" }}</p>
+    <p><strong>Montant :</strong> {% if purchase.amount_fc != None %}{{ purchase.amount_fc|fc_amount }} FC{% else %}-{% endif %}</p>
+    {% if purchase.created_by %}
+    <p><strong>Saisi par :</strong> {{ purchase.created_by.get_full_name|default:purchase.created_by.username }}</p>
+    {% endif %}
+    {% if purchase.notes %}
+    <p><strong>Notes :</strong> {{ purchase.notes }}</p>
+    {% endif %}
+
+    <form method="post" style="margin-top: 1.5rem;">
+        {% csrf_token %}
+        {% if next_url %}
+        <input type="hidden" name="next" value="{{ next_url }}">
+        {% endif %}
+        <button type="submit" class="btn btn-danger" style="width: 100%;">Supprimer l'achat</button>
+        <a href="{% if next_url %}{{ next_url }}{% else %}{% url 'admin_fuel_purchases' %}?month={{ purchase.billing_month|date:'Y-m' }}{% endif %}" class="btn btn-secondary btn-block mt-2">Annuler</a>
+    </form>
+</div>
+{% endblock %}
+{% extends "base.html" %}
+{% load currency_tags %}
+
+{% block title %}Supprimer achat de carburant{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem;">
+    <div>
+        <h1 class="mt-2 mb-2">Supprimer l'achat de carburant</h1>
+        <p style="color: var(--text-secondary); margin: 0;">{{ purchase.site.nom }} • Mois concerné {{ purchase.billing_month|date:"m/Y" }}</p>
+    </div>
     <a href="{% if next_url %}{{ next_url }}{% else %}{% url 'admin_site_detail' purchase.site.id %}{% endif %}" class="btn btn-secondary">Retour</a>
 </div>
 
