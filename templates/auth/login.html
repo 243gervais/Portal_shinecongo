@@ -142,74 +142,6 @@
         max-width: 100%;
     }
 
-    .login-title-wrap--world-cup {
-        padding: 0.35rem 1rem 0.15rem;
-    }
-
-    .login-title-wrap--world-cup::before {
-        content: "★";
-        position: absolute;
-        top: -0.9rem;
-        left: 0.2rem;
-        color: #ffd64a;
-        font-size: 1rem;
-        text-shadow: 0 0 18px rgba(255, 214, 74, 0.34);
-    }
-
-    .login-title--world-cup {
-        position: relative;
-        z-index: 1;
-        font-size: clamp(2.45rem, 6vw, 3.4rem);
-        font-weight: 900;
-        letter-spacing: -0.045em;
-        background:
-            linear-gradient(
-                128deg,
-                #0099dc 0 38%,
-                #ffd64a 38% 44%,
-                #ce1126 44% 58%,
-                #ffd64a 58% 64%,
-                #0099dc 64% 100%
-            );
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-        filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.18));
-    }
-
-    .login-worldcup-ball {
-        position: relative;
-        z-index: 1;
-        width: 2rem;
-        height: 2rem;
-        display: inline-grid;
-        place-items: center;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.12);
-        border: 1px solid rgba(255, 255, 255, 0.16);
-        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.16);
-        font-size: 1.08rem;
-        line-height: 1;
-        animation: login-ball-bob 1.9s ease-in-out infinite;
-    }
-
-    .login-worldcup-ball--right {
-        animation-duration: 2.15s;
-        animation-delay: 0.28s;
-    }
-
-    .login-worldcup-ball--orbit {
-        position: absolute;
-        top: -0.5rem;
-        right: -0.15rem;
-        width: 1.7rem;
-        height: 1.7rem;
-        font-size: 0.92rem;
-        animation-name: login-ball-orbit;
-        animation-duration: 2.35s;
-        animation-delay: 0.44s;
-    }
-
     .login-subtitle {
         margin: 0;
         color: var(--login-copy);
@@ -385,32 +317,6 @@
         }
     }
 
-    @keyframes login-ball-bob {
-        0%,
-        100% {
-            transform: translate3d(0, 0, 0) rotate(-8deg);
-        }
-        35% {
-            transform: translate3d(-3px, -9px, 0) rotate(14deg);
-        }
-        70% {
-            transform: translate3d(4px, 5px, 0) rotate(-12deg);
-        }
-    }
-
-    @keyframes login-ball-orbit {
-        0%,
-        100% {
-            transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
-        }
-        30% {
-            transform: translate3d(7px, -12px, 0) scale(1.07) rotate(16deg);
-        }
-        65% {
-            transform: translate3d(-8px, 7px, 0) scale(0.95) rotate(-18deg);
-        }
-    }
-
     @media (max-width: 640px) {
         body {
             overflow: auto;
@@ -441,24 +347,6 @@
             width: 86px;
         }
 
-        .login-title-wrap--world-cup {
-            gap: 0.45rem;
-            padding: 0.3rem 0.55rem 0.1rem;
-        }
-
-        .login-worldcup-ball {
-            width: 1.72rem;
-            height: 1.72rem;
-            font-size: 0.92rem;
-        }
-
-        .login-worldcup-ball--orbit {
-            top: -0.3rem;
-            right: -0.05rem;
-            width: 1.45rem;
-            height: 1.45rem;
-            font-size: 0.8rem;
-        }
     }
 
     @media (max-width: 420px) {
@@ -493,15 +381,8 @@
                 <div class="login-logo-wrap">
                     <img src="{% static 'favicon.png' %}" alt="Shine Congo Logo" class="login-logo">
                 </div>
-                <div class="login-title-wrap{% if login_world_cup_theme_active %} login-title-wrap--world-cup{% endif %}">
-                    {% if login_world_cup_theme_active %}
-                    <span class="login-worldcup-ball login-worldcup-ball--left" aria-hidden="true">⚽</span>
-                    {% endif %}
-                    <h1 class="login-title{% if login_world_cup_theme_active %} login-title--world-cup{% endif %}">Connexion</h1>
-                    {% if login_world_cup_theme_active %}
-                    <span class="login-worldcup-ball login-worldcup-ball--right" aria-hidden="true">⚽</span>
-                    <span class="login-worldcup-ball login-worldcup-ball--orbit" aria-hidden="true">⚽</span>
-                    {% endif %}
+                <div class="login-title-wrap">
+                    <h1 class="login-title">Connexion</h1>
                 </div>
                 <p class="login-subtitle">Entrez vos acces.</p>
             </div>
