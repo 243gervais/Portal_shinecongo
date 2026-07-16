@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, Outlet } from "react-router-dom";
 
 import { Notice } from "./Ui";
 
@@ -27,7 +27,7 @@ function managerLinks() {
   ];
 }
 
-export function PortalLayout({ bootstrap, session, children }) {
+export function PortalLayout({ bootstrap, session }) {
   const [messages, setMessages] = useState(bootstrap.messages || []);
   const links = bootstrap.mode === "manager" ? managerLinks() : employeeLinks();
   const footerYear = new Date().getFullYear();
@@ -83,7 +83,7 @@ export function PortalLayout({ bootstrap, session, children }) {
             ))}
           </div>
         ) : null}
-        {children}
+        <Outlet />
       </main>
 
       <footer className="portal-footer">

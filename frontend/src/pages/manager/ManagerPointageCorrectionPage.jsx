@@ -14,27 +14,25 @@ export default function ManagerPointageCorrectionPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const payload = await apiFetch(`/manager/pointages/${pointageId}/`);
-        if (!cancelled) {
-          setPointage(payload);
-          setClockInTime(payload.clock_in_display || "");
-          setClockOutTime(payload.clock_out_display || "");
-        }
-      } catch (requestError) {
-        if (!cancelled) {
-          setError(requestError.message);
-        }
+  async function load(signal) {
+    try {
+      setError("");
+      const payload = await apiFetch(`/manager/pointages/${pointageId}/`, { signal });
+      setPointage(payload);
+      setClockInTime(payload.clock_in_display || "");
+      setClockOutTime(payload.clock_out_display || "");
+    } catch (requestError) {
+      if (requestError.name !== "AbortError") {
+        setError(requestError.message);
       }
     }
+  }
 
-    load();
+  useEffect(() => {
+    const controller = new AbortController();
+    load(controller.signal);
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [pointageId]);
 
@@ -60,7 +58,7 @@ export default function ManagerPointageCorrectionPage() {
   }
 
   if (error && !pointage) {
-    return <ErrorState message={error} onRetry={() => window.location.reload()} />;
+    return <ErrorState message={error} onRetry={() => load()} />;
   }
 
   if (!pointage) {

@@ -21,42 +21,42 @@ export default function EmployeeHistoryPage() {
   const activeTab = searchParams.get("tab") || "pointages";
   const currentPage = Number.parseInt(searchParams.get("page") || "1", 10);
 
-  async function loadSummary() {
-    const payload = await apiFetch("/employee/history/summary/");
+  async function loadSummary(signal) {
+    const payload = await apiFetch("/employee/history/summary/", { signal });
     setSummary(payload);
   }
 
-  async function loadTab(tabKey, pageNumber) {
+  async function loadTab(tabKey, pageNumber, signal) {
     const selectedTab = TAB_OPTIONS.find((tab) => tab.key === tabKey) || TAB_OPTIONS[0];
     const payload = await apiFetch(selectedTab.endpoint, {
       query: { page: pageNumber },
+      signal,
     });
     setPageData(payload);
   }
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        setError("");
-        await loadSummary();
-        await loadTab(activeTab, currentPage);
-      } catch (requestError) {
-        if (!cancelled) {
-          setError(requestError.message);
-        }
+  async function load(signal) {
+    try {
+      setError("");
+      await loadSummary(signal);
+      await loadTab(activeTab, currentPage, signal);
+    } catch (requestError) {
+      if (requestError.name !== "AbortError") {
+        setError(requestError.message);
       }
     }
+  }
 
-    load();
+  useEffect(() => {
+    const controller = new AbortController();
+    load(controller.signal);
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [activeTab, currentPage]);
 
   if (error) {
-    return <ErrorState message={error} onRetry={() => window.location.reload()} />;
+    return <ErrorState message={error} onRetry={() => load()} />;
   }
 
   if (!summary || !pageData) {
