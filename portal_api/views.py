@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone as dt_timezone
 from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Count, Prefetch, Q, Sum
 from django.shortcuts import get_object_or_404
@@ -59,6 +60,8 @@ PHOTO_PREFETCH = Prefetch(
     queryset=CarWashPhoto.objects.order_by("uploaded_at"),
     to_attr="prefetched_photos",
 )
+
+MANAGER_DASHBOARD_CACHE_SECONDS = 45
 
 
 def _profile(user):
@@ -1008,6 +1011,14 @@ class ManagerDashboardApi(APIView):
     def get(self, request):
         today = timezone.localdate()
         start_date, end_date, date_debut, date_fin, selected_period_label = _parse_dashboard_date_range(request, today)
+        cache_key = (
+            "portal_api:manager_dashboard:"
+            f"user:{request.user.pk}:start:{start_date.isoformat()}:end:{end_date.isoformat()}"
+        )
+        cached_payload = cache.get(cache_key)
+        if cached_payload is not None:
+            return Response(cached_payload)
+
         sites = list(_manager_accessible_sites(request.user))
         site_ids = [site.id for site in sites]
 
@@ -1067,16 +1078,17 @@ class ManagerDashboardApi(APIView):
                 }
             )
 
-        return Response(
-            {
-                "today": today.isoformat(),
-                "date_debut": date_debut,
-                "date_fin": date_fin,
-                "selected_period_label": selected_period_label,
-                "sites": cards,
-                "available_sites": _site_options(sites),
-            }
-        )
+        payload = {
+            "today": today.isoformat(),
+            "date_debut": date_debut,
+            "date_fin": date_fin,
+            "selected_period_label": selected_period_label,
+            "sites": cards,
+            "available_sites": _site_options(sites),
+            "cache_ttl_seconds": MANAGER_DASHBOARD_CACHE_SECONDS,
+        }
+        cache.set(cache_key, payload, MANAGER_DASHBOARD_CACHE_SECONDS)
+        return Response(payload)
 
 
 class ManagerPointageListApi(APIView):
@@ -1212,8 +1224,9 @@ class ManagerCarWashListApi(APIView):
         if site_id:
             queryset = queryset.filter(site_id=site_id)
 
-        total_montant = queryset.aggregate(total=Sum("montant"))["total"] or Decimal("0")
-        total_count = queryset.count()
+        aggregate_totals = queryset.aggregate(total=Sum("montant"), count=Count("id"))
+        total_montant = aggregate_totals["total"] or Decimal("0")
+        total_count = aggregate_totals["count"] or 0
 
         return _paginate(
             self,

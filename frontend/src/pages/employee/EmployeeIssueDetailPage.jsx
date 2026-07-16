@@ -9,30 +9,28 @@ export default function EmployeeIssueDetailPage() {
   const [issue, setIssue] = useState(null);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const payload = await apiFetch(`/employee/problemes/${problemeId}/`);
-        if (!cancelled) {
-          setIssue(payload);
-        }
-      } catch (requestError) {
-        if (!cancelled) {
-          setError(requestError.message);
-        }
+  async function load(signal) {
+    try {
+      setError("");
+      const payload = await apiFetch(`/employee/problemes/${problemeId}/`, { signal });
+      setIssue(payload);
+    } catch (requestError) {
+      if (requestError.name !== "AbortError") {
+        setError(requestError.message);
       }
     }
+  }
 
-    load();
+  useEffect(() => {
+    const controller = new AbortController();
+    load(controller.signal);
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [problemeId]);
 
   if (error) {
-    return <ErrorState message={error} onRetry={() => window.location.reload()} />;
+    return <ErrorState message={error} onRetry={() => load()} />;
   }
 
   if (!issue) {

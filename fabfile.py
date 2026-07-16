@@ -28,9 +28,12 @@ def _upload_frontend_bundle(conn: Connection, app_dir: str) -> None:
     remote_bundle_dir = f"{app_dir}/frontend_dist/frontend"
 
     conn.run(f"mkdir -p {shlex.quote(remote_bundle_dir)}")
-    for asset_path in sorted(local_bundle_dir.iterdir()):
+    for asset_path in sorted(local_bundle_dir.rglob("*")):
         if asset_path.is_file():
-            conn.put(str(asset_path), remote=f"{remote_bundle_dir}/{asset_path.name}")
+            relative_path = asset_path.relative_to(local_bundle_dir)
+            remote_path = f"{remote_bundle_dir}/{relative_path.as_posix()}"
+            conn.run(f"mkdir -p {shlex.quote(str(Path(remote_path).parent))}")
+            conn.put(str(asset_path), remote=remote_path)
 
 
 def _ensure_site_journal_reminder_cron(conn: Connection, app_dir: str) -> None:

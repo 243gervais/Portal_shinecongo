@@ -27,6 +27,15 @@ git pull origin main || echo "⚠️  Git pull échoué, continuons..."
 echo "📦 Installation des dépendances..."
 pip install -r requirements.txt
 
+# Construire les assets React du portail
+echo "⚛️  Construction du portail React..."
+if command -v npm >/dev/null 2>&1; then
+    (cd frontend && npm ci && npm run build)
+else
+    echo "❌ npm est requis pour construire le portail React en production"
+    exit 1
+fi
+
 # Appliquer les migrations
 echo "🗄️  Application des migrations..."
 python manage.py migrate --noinput

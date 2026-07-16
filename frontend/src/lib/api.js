@@ -30,12 +30,36 @@ async function parseResponse(response) {
   }
 }
 
+function errorMessageFromPayload(payload) {
+  if (!payload) {
+    return "Une erreur est survenue.";
+  }
+  if (typeof payload.message === "string") {
+    return payload.message;
+  }
+  if (typeof payload.detail === "string") {
+    return payload.detail;
+  }
+  if (typeof payload.error === "string") {
+    return payload.error;
+  }
+  return "Une erreur est survenue.";
+}
+
+function redirectToLogin() {
+  const bootstrap = getBootstrap();
+  const loginUrl = bootstrap.login_url || "/login/";
+  const currentUrl = `${window.location.pathname}${window.location.search}`;
+  window.location.assign(`${loginUrl}?next=${encodeURIComponent(currentUrl)}`);
+}
+
 export async function apiFetch(path, options = {}) {
   const {
     method = "GET",
     data,
     headers = {},
     query,
+    signal,
   } = options;
 
   const search = query ? `?${new URLSearchParams(query).toString()}` : "";
@@ -47,6 +71,7 @@ export async function apiFetch(path, options = {}) {
     method,
     credentials: "same-origin",
     headers: requestHeaders,
+    signal,
   };
 
   if (data instanceof FormData) {
@@ -64,7 +89,12 @@ export async function apiFetch(path, options = {}) {
   const payload = await parseResponse(response);
 
   if (!response.ok) {
-    const error = new Error(payload?.message || "Une erreur est survenue.");
+    const detail = String(payload?.detail || payload?.message || "").toLowerCase();
+    const looksUnauthenticated = detail.includes("authentication") || detail.includes("credentials") || detail.includes("connexion");
+    if (response.status === 401 || (response.status === 403 && looksUnauthenticated)) {
+      redirectToLogin();
+    }
+    const error = new Error(errorMessageFromPayload(payload));
     error.status = response.status;
     error.payload = payload;
     throw error;
