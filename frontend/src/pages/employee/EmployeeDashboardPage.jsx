@@ -8,30 +8,22 @@ export default function EmployeeDashboardPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const payload = await apiFetch("/employee/dashboard/");
-        if (!cancelled) {
-          setData(payload);
-        }
-      } catch (requestError) {
-        if (!cancelled) {
-          setError(requestError.message);
-        }
-      }
+  async function load() {
+    try {
+      setError("");
+      const payload = await apiFetch("/employee/dashboard/");
+      setData(payload);
+    } catch (requestError) {
+      setError(requestError.message);
     }
+  }
 
+  useEffect(() => {
     load();
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   if (error) {
-    return <ErrorState message={error} onRetry={() => window.location.reload()} />;
+    return <ErrorState message={error} onRetry={load} />;
   }
 
   if (!data) {

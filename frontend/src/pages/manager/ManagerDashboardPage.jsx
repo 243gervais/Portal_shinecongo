@@ -94,7 +94,9 @@ export default function ManagerDashboardPage() {
               <div><strong>{site.absents}</strong><span>Absents</span></div>
               <div><strong>{site.missed_punch}</strong><span>Sorties manquantes</span></div>
               <div><strong>{site.total_lavages}</strong><span>Lavages</span></div>
-              <div><strong>{site.revenue_display}</strong><span>Chiffre</span></div>
+              {data.can_view_money ? (
+                <div><strong>{site.revenue_display}</strong><span>Chiffre</span></div>
+              ) : null}
               <div><strong>{site.problemes_ouverts}</strong><span>Problèmes</span></div>
             </div>
             <div className="button-row">

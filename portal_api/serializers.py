@@ -141,6 +141,13 @@ class ManagerCarWashSerializer(EmployeeCarWashSerializer):
     def get_amount_display(self, obj):
         return f"{Decimal(obj.montant or 0):,.0f} FC".replace(",", " ")
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if not self.context.get("can_view_money", False):
+            data.pop("amount_fc", None)
+            data.pop("amount_display", None)
+        return data
+
 
 class EmployeeIssueSerializer(serializers.ModelSerializer):
     categorie_display = serializers.CharField(source="get_categorie_display", read_only=True)

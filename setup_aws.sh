@@ -13,7 +13,7 @@ sudo apt update && sudo apt upgrade -y
 
 # Installer les dépendances système
 echo "📦 Installation des dépendances..."
-sudo apt install -y python3-pip python3-venv python3-dev nginx git
+sudo apt install -y python3-pip python3-venv python3-dev nginx git nodejs npm
 
 # Créer le répertoire de l'application
 echo "📁 Création du répertoire..."
@@ -68,6 +68,7 @@ python manage.py createsuperuser || echo "⚠️  Superutilisateur non créé (p
 
 # Collecter les fichiers statiques
 echo "📁 Collecte des fichiers statiques..."
+(cd frontend && npm ci && npm run build)
 python manage.py collectstatic --noinput
 
 # Créer le service systemd pour Gunicorn
@@ -108,13 +109,36 @@ server {
     server_name $PUBLIC_IP;
 
     client_max_body_size 100M;
+    gzip on;
+    gzip_comp_level 5;
+    gzip_min_length 256;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml image/svg+xml;
+
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
 
     location /static/ {
         alias /home/ubuntu/portal_shinecongo/staticfiles/;
+        expires 30d;
+        add_header Cache-Control "public";
     }
 
     location /media/ {
         alias /home/ubuntu/portal_shinecongo/media/;
+        expires 7d;
+        add_header Cache-Control "public";
+    }
+
+    location /api/ {
+        include proxy_params;
+        proxy_pass http://unix:/home/ubuntu/portal_shinecongo/shinecongo.sock;
+    }
+
+    location /admin/ {
+        include proxy_params;
+        proxy_pass http://unix:/home/ubuntu/portal_shinecongo/shinecongo.sock;
     }
 
     location / {

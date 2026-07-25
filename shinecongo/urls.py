@@ -180,6 +180,8 @@ urlpatterns = [
     path("manager/pointages/<int:pointage_id>/corriger/", manager_pointage_correction_portal, name="manager_corriger_pointage"),
     path("manager/lavages/", manager_portal_shell, name="manager_lavages"),
     path("manager/problemes/", manager_portal_shell, name="manager_problemes"),
+    path("manager/probleme/signaler/", manager_portal_shell, name="manager_signaler_probleme"),
+    path("manager/rapport-journee/", manager_portal_shell, name="manager_daily_report"),
     
     # PORTAIL ADMIN
     path("admin-dashboard/", admin_dashboard, name="admin_dashboard"),
