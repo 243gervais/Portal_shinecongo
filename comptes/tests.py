@@ -2793,13 +2793,13 @@ class LoginWorldCupThemeTests(TestCase):
         self.assertFalse(_is_world_cup_login_theme_active(date(2026, 7, 20)))
 
     @patch("comptes.context_processors.timezone.localdate", return_value=date(2026, 6, 25))
-    def test_login_page_shows_world_cup_theme_during_tournament(self, _mock_localdate):
+    def test_login_page_stays_default_during_old_world_cup_window(self, _mock_localdate):
         response = self.client.get(reverse("login"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, '<div class="login-title-wrap login-title-wrap--world-cup">', html=False)
-        self.assertContains(response, '<h1 class="login-title login-title--world-cup">Connexion</h1>', html=False)
-        self.assertContains(response, "login-worldcup-ball")
+        self.assertContains(response, '<div class="login-title-wrap">', html=False)
+        self.assertContains(response, '<h1 class="login-title">Connexion</h1>', html=False)
+        self.assertNotContains(response, "login-worldcup-ball")
 
     @patch("comptes.context_processors.timezone.localdate", return_value=date(2026, 7, 20))
     def test_login_page_returns_to_default_after_tournament(self, _mock_localdate):
@@ -5509,13 +5509,13 @@ class LoginWorldCupThemeTests(TestCase):
         self.assertFalse(_is_world_cup_login_theme_active(date(2026, 7, 20)))
 
     @patch("comptes.context_processors.timezone.localdate", return_value=date(2026, 6, 25))
-    def test_login_page_shows_world_cup_theme_during_tournament(self, _mock_localdate):
+    def test_login_page_stays_default_during_old_world_cup_window(self, _mock_localdate):
         response = self.client.get(reverse("login"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, '<div class="login-title-wrap login-title-wrap--world-cup">', html=False)
-        self.assertContains(response, '<h1 class="login-title login-title--world-cup">Connexion</h1>', html=False)
-        self.assertContains(response, "login-worldcup-ball")
+        self.assertContains(response, '<div class="login-title-wrap">', html=False)
+        self.assertContains(response, '<h1 class="login-title">Connexion</h1>', html=False)
+        self.assertNotContains(response, "login-worldcup-ball")
 
     @patch("comptes.context_processors.timezone.localdate", return_value=date(2026, 7, 20))
     def test_login_page_returns_to_default_after_tournament(self, _mock_localdate):

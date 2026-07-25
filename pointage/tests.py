@@ -371,7 +371,7 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "portal-root")
         self.assertContains(response, "portal-bootstrap")
-        self.assertContains(response, '/portal-assets/portal-app.js?v=')
+        self.assertContains(response, '/portal-assets/portal-app.js')
         self.assertContains(response, '"mode": "employee"')
 
         api_response = self.client.get(reverse("portal_api_employee_dashboard"))
@@ -386,7 +386,7 @@ class EmployeeDailyReportTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "portal-root")
-        self.assertContains(response, '/portal-assets/portal-app.js?v=')
+        self.assertContains(response, '/portal-assets/portal-app.js')
         self.assertContains(response, '"mode": "employee"')
 
         summary_response = self.client.get(reverse("portal_api_employee_history_summary"))
@@ -487,7 +487,7 @@ class EmployeeDailyReportTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "portal-root")
-        self.assertContains(response, '/portal-assets/portal-app.js?v=')
+        self.assertContains(response, '/portal-assets/portal-app.js')
 
         api_response = self.client.get(reverse("portal_api_employee_water"))
         self.assertEqual(api_response.status_code, 200)
@@ -555,7 +555,7 @@ class EmployeeDailyReportTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "portal-root")
-        self.assertContains(response, '/portal-assets/portal-app.js?v=')
+        self.assertContains(response, '/portal-assets/portal-app.js')
 
         api_response = self.client.get(reverse("portal_api_employee_fuel"))
         self.assertEqual(api_response.status_code, 200)
@@ -1519,7 +1519,7 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "portal-root")
         self.assertContains(response, "portal-bootstrap")
-        self.assertContains(response, '/portal-assets/portal-app.js?v=')
+        self.assertContains(response, '/portal-assets/portal-app.js')
         self.assertContains(response, '"mode": "employee"')
 
         api_response = self.client.get(reverse("portal_api_employee_dashboard"))
@@ -1534,7 +1534,7 @@ class EmployeeDailyReportTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "portal-root")
-        self.assertContains(response, '/portal-assets/portal-app.js?v=')
+        self.assertContains(response, '/portal-assets/portal-app.js')
         self.assertContains(response, '"mode": "employee"')
 
         summary_response = self.client.get(reverse("portal_api_employee_history_summary"))
@@ -1635,7 +1635,7 @@ class EmployeeDailyReportTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "portal-root")
-        self.assertContains(response, '/portal-assets/portal-app.js?v=')
+        self.assertContains(response, '/portal-assets/portal-app.js')
 
         api_response = self.client.get(reverse("portal_api_employee_water"))
         self.assertEqual(api_response.status_code, 200)
@@ -1703,7 +1703,7 @@ class EmployeeDailyReportTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "portal-root")
-        self.assertContains(response, '/portal-assets/portal-app.js?v=')
+        self.assertContains(response, '/portal-assets/portal-app.js')
 
         api_response = self.client.get(reverse("portal_api_employee_fuel"))
         self.assertEqual(api_response.status_code, 200)

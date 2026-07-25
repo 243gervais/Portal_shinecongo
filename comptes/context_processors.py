@@ -8,6 +8,10 @@ from comptes.models import UserProfile
 from sites.models import Location
 
 
+def _is_world_cup_login_theme_active(current_date):
+    return current_date.month == 6 and current_date.day >= 11
+
+
 def _stamp_for_cache(value):
     if value is None:
         return "none"

@@ -1255,19 +1255,50 @@ class ManagerDailyReportApi(APIView):
                 return Response({"message": "Date invalide."}, status=status.HTTP_400_BAD_REQUEST)
 
         report = ShiftDay.objects.filter(employe=request.user, date=report_date).first()
-        total_washes = CarWash.objects.filter(site=site, date=report_date).count()
-        issue_count = IssueReport.objects.filter(site=site, created_at__date=report_date).count()
+        today_washes = (
+            CarWash.objects.filter(site=site, date=report_date)
+            .select_related("employe", "site")
+            .annotate(photo_count_value=Count("photos", distinct=True))
+            .prefetch_related(PHOTO_PREFETCH)
+            .order_by("-created_at")
+        )
+        today_issues = (
+            IssueReport.objects.filter(site=site, created_at__date=report_date)
+            .select_related("employe", "site", "traite_par")
+            .order_by("-created_at")
+        )
+        water_purchase_today = (
+            SiteWaterPurchase.objects.filter(site=site, purchase_date=report_date)
+            .select_related("created_by", "supplier")
+            .order_by("-created_at")
+            .first()
+        )
+        fuel_purchase_today = (
+            SiteFuelPurchase.objects.filter(site=site, purchase_date=report_date)
+            .select_related("created_by")
+            .order_by("-created_at")
+            .first()
+        )
 
         return Response(
             {
                 "date": report_date.isoformat(),
                 "site": SiteSummarySerializer(site).data,
                 "available_sites": _site_options(accessible_sites),
-                "total_lavages": total_washes,
-                "issue_count": issue_count,
+                "total_lavages": today_washes.count(),
+                "issue_count": today_issues.count(),
                 "report_submitted": bool(report and report.daily_report_confirmed),
                 "report_notes": report.report_notes if report else "",
-                "submitted_total_lavages": report.total_lavages_reported if report and report.daily_report_confirmed else total_washes,
+                "submitted_total_lavages": report.total_lavages_reported if report and report.daily_report_confirmed else today_washes.count(),
+                "today_washes": ManagerCarWashSerializer(
+                    today_washes,
+                    many=True,
+                    context={"request": request, "can_view_money": False},
+                ).data,
+                "today_issues": ManagerIssueSerializer(today_issues, many=True, context={"request": request}).data,
+                "water_purchase_today": EmployeeWaterPurchaseSerializer(water_purchase_today).data if water_purchase_today else None,
+                "fuel_purchase_today": EmployeeFuelPurchaseSerializer(fuel_purchase_today).data if fuel_purchase_today else None,
+                "can_view_money": False,
             }
         )
 
@@ -1391,6 +1422,243 @@ class ManagerCarWashListApi(APIView):
                 },
                 "can_view_money": can_view_money,
             },
+        )
+
+    def post(self, request):
+        site, _accessible_sites = _manager_selected_site(request.user, request)
+        if not site:
+            return Response({"message": "Aucun site manager accessible."}, status=status.HTTP_400_BAD_REQUEST)
+
+        type_service = str(request.data.get("type_service", "")).strip()
+        plaque = str(request.data.get("plaque", "")).strip().upper()
+        notes = str(request.data.get("notes", "")).strip()
+        plaque_photo = request.FILES.get("plaque_photo")
+        photos = request.FILES.getlist("photos")
+
+        valid_service_types = {choice[0] for choice in CarWash.TYPE_SERVICE_CHOICES}
+        if type_service not in valid_service_types:
+            return Response({"message": "Type de service invalide."}, status=status.HTTP_400_BAD_REQUEST)
+        if not photos:
+            return Response({"message": "Au moins une photo est requise."}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            duplicate_window_start = timezone.now() - timedelta(seconds=45)
+            duplicate_qs = CarWash.objects.filter(
+                employe=request.user,
+                site=site,
+                date=timezone.localdate(),
+                type_service=type_service,
+                plaque=plaque,
+                montant=Decimal("0"),
+                notes=notes,
+                created_at__gte=duplicate_window_start,
+            ).order_by("-created_at")
+
+            for existing in duplicate_qs:
+                if existing.photos.count() == len(photos):
+                    return Response(
+                        {"message": "Ce lavage vient déjà d'être enregistré. Le doublon a été bloqué."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+            lavage = CarWash.objects.create(
+                employe=request.user,
+                site=site,
+                date=timezone.localdate(),
+                type_service=type_service,
+                plaque=plaque,
+                plaque_photo=plaque_photo,
+                montant=Decimal("0"),
+                notes=notes,
+            )
+            for photo in photos:
+                CarWashPhoto.objects.create(lavage=lavage, photo=photo, type_photo="APRES")
+
+        AuditLog.log(
+            user=request.user,
+            action="CREER",
+            description=f"Nouveau lavage enregistré par manager: {lavage}",
+            content_object=lavage,
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request),
+        )
+        sync_site_finance_from_daily_reports(site, lavage.date, actor=request.user)
+
+        lavage = (
+            CarWash.objects.select_related("site", "employe")
+            .annotate(photo_count_value=Count("photos", distinct=True))
+            .prefetch_related(PHOTO_PREFETCH)
+            .get(pk=lavage.pk)
+        )
+        return Response(
+            {
+                "message": "Lavage enregistré avec succès.",
+                "lavage": ManagerCarWashSerializer(
+                    lavage,
+                    context={"request": request, "can_view_money": False},
+                ).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ManagerWaterPurchaseApi(APIView):
+    permission_classes = [IsAuthenticated, IsManagerOrAdmin]
+
+    def get(self, request):
+        site, _accessible_sites = _manager_selected_site(request.user, request)
+        if not site:
+            return Response({"message": "Aucun site manager accessible."}, status=status.HTTP_400_BAD_REQUEST)
+
+        today = timezone.localdate()
+        billing_month = today.replace(day=1)
+        today_purchase = (
+            SiteWaterPurchase.objects.filter(site=site, purchase_date=today)
+            .select_related("created_by", "supplier")
+            .order_by("-created_at")
+            .first()
+        )
+        month_purchases_qs = (
+            SiteWaterPurchase.objects.filter(site=site, billing_month=billing_month)
+            .select_related("created_by", "supplier")
+            .order_by("-purchase_date", "-created_at")
+        )
+        default_supplier = get_default_water_supplier()
+
+        return Response(
+            {
+                "today": today.isoformat(),
+                "site": SiteSummarySerializer(site).data,
+                "billing_month": billing_month.isoformat(),
+                "billing_month_display": billing_month.strftime("%m/%Y"),
+                "default_supplier_name": default_supplier.name,
+                "today_purchase": EmployeeWaterPurchaseSerializer(today_purchase).data if today_purchase else None,
+                "month_purchase_count": month_purchases_qs.count(),
+                "last_purchase": EmployeeWaterPurchaseSerializer(month_purchases_qs.first()).data if month_purchases_qs.first() else None,
+            }
+        )
+
+    def post(self, request):
+        site, _accessible_sites = _manager_selected_site(request.user, request)
+        if not site:
+            return Response({"message": "Aucun site manager accessible."}, status=status.HTTP_400_BAD_REQUEST)
+
+        today = timezone.localdate()
+        billing_month = today.replace(day=1)
+        if SiteWaterPurchase.objects.filter(site=site, purchase_date=today).exists():
+            return Response(
+                {
+                    "message": "L'achat d'eau du jour a déjà été signalé. L'administrateur peut le corriger si nécessaire.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        default_supplier = get_default_water_supplier()
+        default_amount = get_water_purchase_default_amount(billing_month, supplier=default_supplier)
+        reporter_name = request.user.get_full_name() or request.user.username
+        purchase = SiteWaterPurchase.objects.create(
+            site=site,
+            supplier=default_supplier,
+            billing_month=billing_month,
+            purchase_date=today,
+            amount_fc=default_amount,
+            notes=f"Signalé via portail manager par {reporter_name}.",
+            created_by=request.user,
+        )
+        _send_water_purchase_notification(purchase)
+        AuditLog.log(
+            user=request.user,
+            action="AUTRE",
+            description=f"Achat d'eau signalé via portail manager: {site.nom} - {default_supplier.name} - {purchase.purchase_date}",
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request),
+        )
+        return Response(
+            {
+                "message": "Achat d'eau enregistré pour aujourd'hui.",
+                "purchase": EmployeeWaterPurchaseSerializer(purchase).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ManagerFuelPurchaseApi(APIView):
+    permission_classes = [IsAuthenticated, IsManagerOrAdmin]
+
+    def get(self, request):
+        site, _accessible_sites = _manager_selected_site(request.user, request)
+        if not site:
+            return Response({"message": "Aucun site manager accessible."}, status=status.HTTP_400_BAD_REQUEST)
+
+        today = timezone.localdate()
+        billing_month = today.replace(day=1)
+        today_purchase = (
+            SiteFuelPurchase.objects.filter(site=site, purchase_date=today)
+            .select_related("created_by")
+            .order_by("-created_at")
+            .first()
+        )
+        month_purchases_qs = (
+            SiteFuelPurchase.objects.filter(site=site, billing_month=billing_month)
+            .select_related("created_by")
+            .order_by("-purchase_date", "-created_at")
+        )
+
+        return Response(
+            {
+                "today": today.isoformat(),
+                "site": SiteSummarySerializer(site).data,
+                "billing_month": billing_month.isoformat(),
+                "billing_month_display": billing_month.strftime("%m/%Y"),
+                "today_purchase": EmployeeFuelPurchaseSerializer(today_purchase).data if today_purchase else None,
+                "month_purchase_count": month_purchases_qs.count(),
+                "last_purchase": EmployeeFuelPurchaseSerializer(month_purchases_qs.first()).data if month_purchases_qs.first() else None,
+            }
+        )
+
+    def post(self, request):
+        site, _accessible_sites = _manager_selected_site(request.user, request)
+        if not site:
+            return Response({"message": "Aucun site manager accessible."}, status=status.HTTP_400_BAD_REQUEST)
+
+        today = timezone.localdate()
+        billing_month = today.replace(day=1)
+        if SiteFuelPurchase.objects.filter(site=site, purchase_date=today).exists():
+            return Response(
+                {
+                    "message": "L'achat de carburant du jour a déjà été signalé. L'administrateur peut le corriger si nécessaire.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            amount_fc = _parse_required_fuel_purchase_amount(request.data.get("amount_fc"))
+        except ValueError as exc:
+            return Response({"message": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        reporter_name = request.user.get_full_name() or request.user.username
+        purchase = SiteFuelPurchase.objects.create(
+            site=site,
+            billing_month=billing_month,
+            purchase_date=today,
+            amount_fc=amount_fc,
+            notes=f"Signalé via portail manager par {reporter_name}.",
+            created_by=request.user,
+        )
+        _send_fuel_purchase_notification(purchase)
+        AuditLog.log(
+            user=request.user,
+            action="AUTRE",
+            description=f"Achat de carburant signalé via portail manager: {site.nom} - {purchase.purchase_date}",
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request),
+        )
+        return Response(
+            {
+                "message": "Achat de carburant enregistré pour aujourd'hui.",
+                "purchase": EmployeeFuelPurchaseSerializer(purchase).data,
+            },
+            status=status.HTTP_201_CREATED,
         )
 
 

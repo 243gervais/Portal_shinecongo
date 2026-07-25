@@ -21,9 +21,12 @@ const ManagerDashboardPage = lazy(() => import("./pages/manager/ManagerDashboard
 const ManagerPointagesPage = lazy(() => import("./pages/manager/ManagerPointagesPage"));
 const ManagerPointageCorrectionPage = lazy(() => import("./pages/manager/ManagerPointageCorrectionPage"));
 const ManagerLavagesPage = lazy(() => import("./pages/manager/ManagerLavagesPage"));
+const ManagerWashFormPage = lazy(() => import("./pages/manager/ManagerWashFormPage"));
 const ManagerProblemesPage = lazy(() => import("./pages/manager/ManagerProblemesPage"));
 const ManagerIssueFormPage = lazy(() => import("./pages/manager/ManagerIssueFormPage"));
 const ManagerDailyReportPage = lazy(() => import("./pages/manager/ManagerDailyReportPage"));
+const ManagerWaterPage = lazy(() => import("./pages/manager/ManagerWaterPage"));
+const ManagerFuelPage = lazy(() => import("./pages/manager/ManagerFuelPage"));
 const ManagerQrPage = lazy(() => import("./pages/manager/ManagerQrPage"));
 
 const bootstrap = getBootstrap();
@@ -60,9 +63,12 @@ function managerRoutes(session) {
     <Route key="manager-pointages" path="/manager/pointages/" element={<ManagerPointagesPage />} />,
     <Route key="manager-pointage-correction" path="/manager/pointages/:pointageId/corriger/" element={<ManagerPointageCorrectionPage />} />,
     <Route key="manager-lavages" path="/manager/lavages/" element={<ManagerLavagesPage />} />,
+    <Route key="manager-wash-create" path="/manager/lavage/ajouter/" element={<ManagerWashFormPage />} />,
     <Route key="manager-problemes" path="/manager/problemes/" element={<ManagerProblemesPage />} />,
     <Route key="manager-issue-create" path="/manager/probleme/signaler/" element={<ManagerIssueFormPage />} />,
     <Route key="manager-report" path="/manager/rapport-journee/" element={<ManagerDailyReportPage />} />,
+    <Route key="manager-water" path="/manager/eau/" element={<ManagerWaterPage />} />,
+    <Route key="manager-fuel" path="/manager/carburant/" element={<ManagerFuelPage />} />,
     <Route key="manager-qr" path="/manager/qr/:siteId/" element={<ManagerQrPage />} />,
     <Route key="manager-fallback" path="*" element={<Navigate to="/manager/" replace />} />,
   ];

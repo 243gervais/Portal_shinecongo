@@ -20,6 +20,9 @@ test("portal navigation uses React Router links and keeps logout as a real serve
 test("portal pages are route-level lazy loaded", () => {
   assert.match(appSource, /lazy\(\(\)\s*=>\s*import\("\.\/pages\/employee\/EmployeeDashboardPage"\)\)/);
   assert.match(appSource, /lazy\(\(\)\s*=>\s*import\("\.\/pages\/manager\/ManagerDashboardPage"\)\)/);
+  assert.match(appSource, /lazy\(\(\)\s*=>\s*import\("\.\/pages\/manager\/ManagerWashFormPage"\)\)/);
+  assert.match(appSource, /lazy\(\(\)\s*=>\s*import\("\.\/pages\/manager\/ManagerWaterPage"\)\)/);
+  assert.match(appSource, /lazy\(\(\)\s*=>\s*import\("\.\/pages\/manager\/ManagerFuelPage"\)\)/);
   assert.match(appSource, /<Route element=\{<PortalLayout/);
 });
 

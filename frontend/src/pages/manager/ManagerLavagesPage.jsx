@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { apiFetch } from "../../lib/api";
 import { ErrorState, ImageThumb, LoadingState, Pagination } from "../../components/Ui";
@@ -50,7 +50,12 @@ export default function ManagerLavagesPage() {
             <p className="eyebrow">Lavages</p>
             <h1>Suivi des lavages</h1>
           </div>
-          <div className="hero-pill">{data.totals.count} lavage(s)</div>
+          <div className="button-row">
+            <Link className="button button-primary" to="/manager/lavage/ajouter/">
+              Nouveau lavage
+            </Link>
+            <div className="hero-pill">{data.totals.count} lavage(s)</div>
+          </div>
         </div>
 
         <div className="filter-grid">

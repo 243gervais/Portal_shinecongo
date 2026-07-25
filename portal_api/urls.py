@@ -20,12 +20,14 @@ from .views import (
     ManagerCarWashListApi,
     ManagerDailyReportApi,
     ManagerDashboardApi,
+    ManagerFuelPurchaseApi,
     ManagerIssueListApi,
     ManagerPointageCorrectionApi,
     ManagerPointageDetailApi,
     ManagerPointageListApi,
     ManagerQrDetailApi,
     ManagerQrRegenerateApi,
+    ManagerWaterPurchaseApi,
     PortalSessionApi,
 )
 
@@ -54,6 +56,8 @@ urlpatterns = [
     path("manager/pointages/<int:pointage_id>/", ManagerPointageDetailApi.as_view(), name="portal_api_manager_pointage_detail"),
     path("manager/pointages/<int:pointage_id>/correction/", ManagerPointageCorrectionApi.as_view(), name="portal_api_manager_pointage_correction"),
     path("manager/lavages/", ManagerCarWashListApi.as_view(), name="portal_api_manager_lavages"),
+    path("manager/eau/", ManagerWaterPurchaseApi.as_view(), name="portal_api_manager_water"),
+    path("manager/carburant/", ManagerFuelPurchaseApi.as_view(), name="portal_api_manager_fuel"),
     path("manager/problemes/", ManagerIssueListApi.as_view(), name="portal_api_manager_problemes"),
     path("manager/qr/<uuid:site_id>/", ManagerQrDetailApi.as_view(), name="portal_api_manager_qr_detail"),
     path("manager/qr/<uuid:site_id>/regenerate/", ManagerQrRegenerateApi.as_view(), name="portal_api_manager_qr_regenerate"),

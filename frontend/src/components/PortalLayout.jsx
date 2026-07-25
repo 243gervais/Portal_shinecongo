@@ -22,9 +22,12 @@ function managerLinks() {
   return [
     { to: "/manager/", label: "Dashboard" },
     { to: "/manager/pointages/", label: "Pointages" },
+    { to: "/manager/lavage/ajouter/", label: "Ajouter lavage" },
     { to: "/manager/lavages/", label: "Lavages" },
     { to: "/manager/problemes/", label: "Problèmes" },
     { to: "/manager/probleme/signaler/", label: "Signaler" },
+    { to: "/manager/eau/", label: "Eau" },
+    { to: "/manager/carburant/", label: "Carburant" },
     { to: "/manager/rapport-journee/", label: "Rapport" },
   ];
 }

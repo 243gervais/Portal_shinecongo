@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.test import Client, TestCase
 from django.test.utils import CaptureQueriesContext, override_settings
@@ -11,7 +12,7 @@ from comptes.models import UserProfile
 from lavages.models import CarWash
 from pointage.models import ShiftDay
 from problemes.models import IssueReport
-from sites.models import Location
+from sites.models import Location, SiteFuelPurchase, SiteWaterPurchase
 
 
 @override_settings(PASSWORD_HASHERS=["django.contrib.auth.hashers.MD5PasswordHasher"])
@@ -64,6 +65,18 @@ class PortalShellRoutingTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="portal-root"', html=False)
         self.assertContains(response, '"mode": "manager"', html=False)
+
+    def test_nested_manager_operation_routes_serve_react_shell(self):
+        self.client.login(username="manager", password="pass1234")
+
+        route_names = ["manager_add_lavage", "manager_water_purchase", "manager_fuel_purchase"]
+
+        for route_name in route_names:
+            with self.subTest(route_name=route_name):
+                response = self.client.get(reverse(route_name))
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, 'id="portal-root"', html=False)
+                self.assertContains(response, '"mode": "manager"', html=False)
 
     def test_unauthenticated_portal_route_redirects_to_login(self):
         response = self.client.get(reverse("manager_lavages"))
@@ -218,6 +231,47 @@ class PortalApiSecurityAndPaginationTests(TestCase):
         self.assertEqual(issue.site, self.site)
         self.assertEqual(issue.employe, self.manager)
 
+    def test_location_manager_can_create_lavage_with_photos_without_money(self):
+        self.client.login(username="manager", password="pass1234")
+        photo = SimpleUploadedFile(
+            "lavage.gif",
+            b"GIF87a\x01\x00\x01\x00\x80\x01\x00\x00\x00\x00ccc,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;",
+            content_type="image/gif",
+        )
+
+        response = self.client.post(
+            reverse("portal_api_manager_lavages"),
+            {
+                "type_service": "COMPLET",
+                "plaque": "KIN777",
+                "notes": "Controle manager",
+                "photos": photo,
+            },
+        )
+
+        self.assertEqual(response.status_code, 201)
+        lavage = CarWash.objects.get(plaque="KIN777")
+        self.assertEqual(lavage.employe, self.manager)
+        self.assertEqual(lavage.site, self.site)
+        self.assertEqual(lavage.montant, Decimal("0"))
+        self.assertEqual(lavage.photos.count(), 1)
+        payload = response.json()
+        self.assertNotIn("amount_display", payload["lavage"])
+
+    def test_location_manager_can_notify_water_and_fuel(self):
+        self.client.login(username="manager", password="pass1234")
+
+        water_response = self.client.post(reverse("portal_api_manager_water"), {})
+        fuel_response = self.client.post(reverse("portal_api_manager_fuel"), {"amount_fc": "5000"})
+
+        self.assertEqual(water_response.status_code, 201)
+        self.assertEqual(fuel_response.status_code, 201)
+        self.assertEqual(SiteWaterPurchase.objects.get().site, self.site)
+        fuel_purchase = SiteFuelPurchase.objects.get()
+        self.assertEqual(fuel_purchase.site, self.site)
+        self.assertEqual(fuel_purchase.amount_fc, Decimal("5000"))
+        self.assertEqual(fuel_purchase.created_by, self.manager)
+
     def test_location_manager_can_send_daily_report_without_money(self):
         today = timezone.localdate()
         CarWash.objects.create(
@@ -240,3 +294,33 @@ class PortalApiSecurityAndPaginationTests(TestCase):
         self.assertTrue(report.daily_report_confirmed)
         self.assertEqual(report.total_lavages_reported, 1)
         self.assertEqual(report.total_amount_reported_fc, Decimal("0"))
+
+    def test_location_manager_daily_report_includes_operations_without_money(self):
+        today = timezone.localdate()
+        CarWash.objects.create(
+            employe=self.manager,
+            site=self.site,
+            date=today,
+            type_service="COMPLET",
+            plaque="KIN888",
+            montant=Decimal("0"),
+        )
+        IssueReport.objects.create(
+            employe=self.manager,
+            site=self.site,
+            categorie="MATERIEL",
+            description="Pompe lente",
+            statut="OUVERT",
+        )
+        self.client.login(username="manager", password="pass1234")
+
+        response = self.client.get(reverse("portal_api_manager_report"))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertFalse(payload["can_view_money"])
+        self.assertEqual(payload["total_lavages"], 1)
+        self.assertEqual(payload["issue_count"], 1)
+        self.assertEqual(len(payload["today_washes"]), 1)
+        self.assertNotIn("amount_display", payload["today_washes"][0])
+        self.assertEqual(len(payload["today_issues"]), 1)
