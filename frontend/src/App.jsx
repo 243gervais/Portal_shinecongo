@@ -22,6 +22,8 @@ const ManagerPointagesPage = lazy(() => import("./pages/manager/ManagerPointages
 const ManagerPointageCorrectionPage = lazy(() => import("./pages/manager/ManagerPointageCorrectionPage"));
 const ManagerLavagesPage = lazy(() => import("./pages/manager/ManagerLavagesPage"));
 const ManagerProblemesPage = lazy(() => import("./pages/manager/ManagerProblemesPage"));
+const ManagerIssueFormPage = lazy(() => import("./pages/manager/ManagerIssueFormPage"));
+const ManagerDailyReportPage = lazy(() => import("./pages/manager/ManagerDailyReportPage"));
 const ManagerQrPage = lazy(() => import("./pages/manager/ManagerQrPage"));
 
 const bootstrap = getBootstrap();
@@ -62,6 +64,8 @@ function ManagerRouteSet({ session }) {
       <Route path="/manager/pointages/:pointageId/corriger/" element={<ManagerPointageCorrectionPage />} />
       <Route path="/manager/lavages/" element={<ManagerLavagesPage />} />
       <Route path="/manager/problemes/" element={<ManagerProblemesPage />} />
+      <Route path="/manager/probleme/signaler/" element={<ManagerIssueFormPage />} />
+      <Route path="/manager/rapport-journee/" element={<ManagerDailyReportPage />} />
       <Route path="/manager/qr/:siteId/" element={<ManagerQrPage />} />
       <Route path="*" element={<Navigate to="/manager/" replace />} />
     </>

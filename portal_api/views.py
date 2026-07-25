@@ -94,6 +94,13 @@ def _employee_profile(user):
     return profile
 
 
+def _can_view_manager_money(user):
+    if user.is_superuser:
+        return True
+    profile = _profile(user)
+    return bool(profile and profile.is_admin())
+
+
 def _manager_accessible_sites(user):
     qs = Location.objects.filter(actif=True).only(
         "id",
@@ -121,6 +128,24 @@ def _site_options(qs):
     return [{"id": str(site.id), "nom": site.nom} for site in qs]
 
 
+def _manager_selected_site(user, request):
+    accessible_sites = list(_manager_accessible_sites(user))
+    requested_site_id = request.data.get("site") or request.query_params.get("site")
+    if requested_site_id:
+        for site in accessible_sites:
+            if str(site.id) == str(requested_site_id):
+                return site, accessible_sites
+        return None, accessible_sites
+    if len(accessible_sites) == 1:
+        return accessible_sites[0], accessible_sites
+    profile = _profile(user)
+    if profile and profile.site_id:
+        for site in accessible_sites:
+            if site.id == profile.site_id:
+                return site, accessible_sites
+    return (accessible_sites[0] if accessible_sites else None), accessible_sites
+
+
 def _employee_options_for_sites(site_ids):
     queryset = (
         User.objects.filter(
@@ -140,11 +165,14 @@ def _employee_options_for_sites(site_ids):
     ]
 
 
-def _paginate(view, queryset, serializer_class, request, *, page_size=12, extra=None):
+def _paginate(view, queryset, serializer_class, request, *, page_size=12, extra=None, serializer_context=None):
     paginator = PortalPagination()
     paginator.page_size = page_size
     page = paginator.paginate_queryset(queryset, request, view=view)
-    serializer = serializer_class(page, many=True, context={"request": request})
+    context = {"request": request}
+    if serializer_context:
+        context.update(serializer_context)
+    serializer = serializer_class(page, many=True, context=context)
     return paginator.get_paginated_response(serializer.data, extra=extra)
 
 
@@ -1014,6 +1042,7 @@ class ManagerDashboardApi(APIView):
         cache_key = (
             "portal_api:manager_dashboard:"
             f"user:{request.user.pk}:start:{start_date.isoformat()}:end:{end_date.isoformat()}"
+            f":money:{int(_can_view_manager_money(request.user))}"
         )
         cached_payload = cache.get(cache_key)
         if cached_payload is not None:
@@ -1021,6 +1050,7 @@ class ManagerDashboardApi(APIView):
 
         sites = list(_manager_accessible_sites(request.user))
         site_ids = [site.id for site in sites]
+        can_view_money = _can_view_manager_money(request.user)
 
         employee_counts = {
             item["site"]: item["total"]
@@ -1041,13 +1071,16 @@ class ManagerDashboardApi(APIView):
                 missed_punch=Count("id", filter=Q(clock_in_time__isnull=False, clock_out_time__isnull=True)),
             )
         }
+        wash_annotations = {"total_lavages": Count("id")}
+        if can_view_money:
+            wash_annotations["chiffre_jour"] = Sum("montant")
         wash_stats = {
             item["site"]: item
             for item in CarWash.objects.filter(
                 site_id__in=site_ids,
                 date__gte=start_date,
                 date__lte=end_date,
-            ).values("site").annotate(total_lavages=Count("id"), chiffre_jour=Sum("montant"))
+            ).values("site").annotate(**wash_annotations)
         }
         issue_stats = {
             item["site"]: item["problemes_ouverts"]
@@ -1063,20 +1096,20 @@ class ManagerDashboardApi(APIView):
             pointage_summary = pointage_stats.get(site.id, {})
             wash_summary = wash_stats.get(site.id, {})
             presents = pointage_summary.get("presents", 0)
-            cards.append(
-                {
-                    "site_id": str(site.id),
-                    "site_name": site.nom,
-                    "total_employes": total_employes,
-                    "presents": presents,
-                    "absents": max(total_employes - presents, 0),
-                    "missed_punch": pointage_summary.get("missed_punch", 0),
-                    "total_lavages": wash_summary.get("total_lavages", 0),
-                    "revenue_fc": str(wash_summary.get("chiffre_jour") or 0),
-                    "revenue_display": _fc_display(wash_summary.get("chiffre_jour") or 0),
-                    "problemes_ouverts": issue_stats.get(site.id, 0),
-                }
-            )
+            card = {
+                "site_id": str(site.id),
+                "site_name": site.nom,
+                "total_employes": total_employes,
+                "presents": presents,
+                "absents": max(total_employes - presents, 0),
+                "missed_punch": pointage_summary.get("missed_punch", 0),
+                "total_lavages": wash_summary.get("total_lavages", 0),
+                "problemes_ouverts": issue_stats.get(site.id, 0),
+            }
+            if can_view_money:
+                card["revenue_fc"] = str(wash_summary.get("chiffre_jour") or 0)
+                card["revenue_display"] = _fc_display(wash_summary.get("chiffre_jour") or 0)
+            cards.append(card)
 
         payload = {
             "today": today.isoformat(),
@@ -1085,6 +1118,7 @@ class ManagerDashboardApi(APIView):
             "selected_period_label": selected_period_label,
             "sites": cards,
             "available_sites": _site_options(sites),
+            "can_view_money": can_view_money,
             "cache_ttl_seconds": MANAGER_DASHBOARD_CACHE_SECONDS,
         }
         cache.set(cache_key, payload, MANAGER_DASHBOARD_CACHE_SECONDS)
@@ -1097,7 +1131,11 @@ class ManagerPointageListApi(APIView):
     def get(self, request):
         accessible_sites = list(_manager_accessible_sites(request.user))
         site_ids = [site.id for site in accessible_sites]
-        queryset = ShiftDay.objects.select_related("employe", "site", "corrected_by").filter(site_id__in=site_ids).order_by("-date", "-clock_in_time")
+        queryset = (
+            ShiftDay.objects.select_related("employe", "site", "corrected_by")
+            .filter(site_id__in=site_ids, employe__userprofile__role=UserProfile.EMPLOYEE_ROLE)
+            .order_by("-date", "-clock_in_time")
+        )
 
         date_debut = request.query_params.get("date_debut")
         date_fin = request.query_params.get("date_fin")
@@ -1132,7 +1170,12 @@ class ManagerPointageCorrectionApi(APIView):
 
     def post(self, request, pointage_id):
         accessible_site_ids = {site.id for site in _manager_accessible_sites(request.user)}
-        pointage = get_object_or_404(ShiftDay.objects.select_related("site", "employe"), id=pointage_id, site_id__in=accessible_site_ids)
+        pointage = get_object_or_404(
+            ShiftDay.objects.select_related("site", "employe"),
+            id=pointage_id,
+            site_id__in=accessible_site_ids,
+            employe__userprofile__role=UserProfile.EMPLOYEE_ROLE,
+        )
         motif = str(request.data.get("motif", "")).strip()
         if not motif:
             return Response({"message": "Le motif de correction est obligatoire."}, status=status.HTTP_400_BAD_REQUEST)
@@ -1190,8 +1233,95 @@ class ManagerPointageDetailApi(APIView):
             ShiftDay.objects.select_related("site", "employe", "corrected_by"),
             id=pointage_id,
             site_id__in=accessible_site_ids,
+            employe__userprofile__role=UserProfile.EMPLOYEE_ROLE,
         )
         return Response(ShiftDaySerializer(pointage).data)
+
+
+class ManagerDailyReportApi(APIView):
+    permission_classes = [IsAuthenticated, IsManagerOrAdmin]
+
+    def get(self, request):
+        site, accessible_sites = _manager_selected_site(request.user, request)
+        if not site:
+            return Response({"message": "Aucun site manager accessible."}, status=status.HTTP_400_BAD_REQUEST)
+
+        report_date = timezone.localdate()
+        date_value = request.query_params.get("date")
+        if date_value:
+            try:
+                report_date = datetime.strptime(date_value, "%Y-%m-%d").date()
+            except ValueError:
+                return Response({"message": "Date invalide."}, status=status.HTTP_400_BAD_REQUEST)
+
+        report = ShiftDay.objects.filter(employe=request.user, date=report_date).first()
+        total_washes = CarWash.objects.filter(site=site, date=report_date).count()
+        issue_count = IssueReport.objects.filter(site=site, created_at__date=report_date).count()
+
+        return Response(
+            {
+                "date": report_date.isoformat(),
+                "site": SiteSummarySerializer(site).data,
+                "available_sites": _site_options(accessible_sites),
+                "total_lavages": total_washes,
+                "issue_count": issue_count,
+                "report_submitted": bool(report and report.daily_report_confirmed),
+                "report_notes": report.report_notes if report else "",
+                "submitted_total_lavages": report.total_lavages_reported if report and report.daily_report_confirmed else total_washes,
+            }
+        )
+
+    def post(self, request):
+        site, _accessible_sites = _manager_selected_site(request.user, request)
+        if not site:
+            return Response({"message": "Aucun site manager accessible."}, status=status.HTTP_400_BAD_REQUEST)
+
+        report_date = timezone.localdate()
+        date_value = str(request.data.get("date", "")).strip()
+        if date_value:
+            try:
+                report_date = datetime.strptime(date_value, "%Y-%m-%d").date()
+            except ValueError:
+                return Response({"message": "Date invalide."}, status=status.HTTP_400_BAD_REQUEST)
+
+        notes = str(request.data.get("notes", "")).strip()
+        total_washes = CarWash.objects.filter(site=site, date=report_date).count()
+        issue_count = IssueReport.objects.filter(site=site, created_at__date=report_date).count()
+        report, _created = ShiftDay.objects.get_or_create(
+            employe=request.user,
+            date=report_date,
+            defaults={"site": site},
+        )
+        was_update = report.daily_report_confirmed
+        report.site = site
+        report.total_lavages_reported = total_washes
+        report.total_amount_reported_fc = Decimal("0")
+        report.daily_expenses = []
+        report.daily_expenses_total_fc = Decimal("0")
+        report.report_notes = notes
+        report.daily_report_confirmed = True
+        report.save()
+
+        _send_final_report_notification(
+            shift=report,
+            computed_total_amount=Decimal("0"),
+            issue_count=issue_count,
+            was_update=was_update,
+        )
+        AuditLog.log(
+            user=request.user,
+            action="AUTRE",
+            description=f"Rapport journalier manager {'mis à jour' if was_update else 'enregistré'}: {site.nom} - {report_date}",
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request),
+        )
+        return Response(
+            {
+                "message": "Rapport manager mis à jour avec succès." if was_update else "Rapport manager envoyé avec succès.",
+                "total_lavages": total_washes,
+                "issue_count": issue_count,
+            }
+        )
 
 
 class ManagerCarWashListApi(APIView):
@@ -1224,9 +1354,14 @@ class ManagerCarWashListApi(APIView):
         if site_id:
             queryset = queryset.filter(site_id=site_id)
 
-        aggregate_totals = queryset.aggregate(total=Sum("montant"), count=Count("id"))
-        total_montant = aggregate_totals["total"] or Decimal("0")
-        total_count = aggregate_totals["count"] or 0
+        can_view_money = _can_view_manager_money(request.user)
+        if can_view_money:
+            aggregate_totals = queryset.aggregate(total=Sum("montant"), count=Count("id"))
+            total_montant = aggregate_totals["total"] or Decimal("0")
+            total_count = aggregate_totals["count"] or 0
+        else:
+            total_montant = Decimal("0")
+            total_count = queryset.count()
 
         return _paginate(
             self,
@@ -1234,11 +1369,17 @@ class ManagerCarWashListApi(APIView):
             ManagerCarWashSerializer,
             request,
             page_size=20,
+            serializer_context={"can_view_money": can_view_money},
             extra={
                 "totals": {
                     "count": total_count,
-                    "amount_fc": str(total_montant),
-                    "amount_display": _fc_display(total_montant),
+                    **(
+                        {
+                            "amount_fc": str(total_montant),
+                            "amount_display": _fc_display(total_montant),
+                        }
+                        if can_view_money else {}
+                    ),
                 },
                 "filters": {
                     "sites": _site_options(accessible_sites),
@@ -1248,6 +1389,7 @@ class ManagerCarWashListApi(APIView):
                         for value, label in CarWash.TYPE_SERVICE_CHOICES
                     ],
                 },
+                "can_view_money": can_view_money,
             },
         )
 
@@ -1293,6 +1435,45 @@ class ManagerIssueListApi(APIView):
                     ],
                 }
             },
+        )
+
+    def post(self, request):
+        site, _accessible_sites = _manager_selected_site(request.user, request)
+        if not site:
+            return Response({"message": "Aucun site manager accessible."}, status=status.HTTP_400_BAD_REQUEST)
+
+        categorie = str(request.data.get("categorie", "")).strip()
+        description = str(request.data.get("description", "")).strip()
+        photo = request.FILES.get("photo")
+
+        if categorie not in {choice[0] for choice in IssueReport.CATEGORIE_CHOICES}:
+            return Response({"message": "Catégorie invalide."}, status=status.HTTP_400_BAD_REQUEST)
+        if not description:
+            return Response({"message": "La description est requise."}, status=status.HTTP_400_BAD_REQUEST)
+
+        probleme = IssueReport.objects.create(
+            employe=request.user,
+            site=site,
+            categorie=categorie,
+            description=description,
+            photo=photo,
+            statut="OUVERT",
+        )
+        _send_issue_report_notification(probleme)
+        AuditLog.log(
+            user=request.user,
+            action="CREER",
+            description=f"Nouveau problème signalé par manager: {probleme.get_categorie_display()}",
+            content_object=probleme,
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request),
+        )
+        return Response(
+            {
+                "message": "Problème signalé avec succès.",
+                "probleme": ManagerIssueSerializer(probleme, context={"request": request}).data,
+            },
+            status=status.HTTP_201_CREATED,
         )
 
 

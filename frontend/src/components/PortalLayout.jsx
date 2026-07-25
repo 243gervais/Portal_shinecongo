@@ -24,6 +24,8 @@ function managerLinks() {
     { to: "/manager/pointages/", label: "Pointages" },
     { to: "/manager/lavages/", label: "Lavages" },
     { to: "/manager/problemes/", label: "Problèmes" },
+    { to: "/manager/probleme/signaler/", label: "Signaler" },
+    { to: "/manager/rapport-journee/", label: "Rapport" },
   ];
 }
 

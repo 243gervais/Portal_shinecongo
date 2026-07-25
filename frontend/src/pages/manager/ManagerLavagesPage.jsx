@@ -50,7 +50,7 @@ export default function ManagerLavagesPage() {
             <p className="eyebrow">Lavages</p>
             <h1>Suivi des lavages</h1>
           </div>
-          <div className="hero-pill">{data.totals.amount_display}</div>
+          <div className="hero-pill">{data.totals.count} lavage(s)</div>
         </div>
 
         <div className="filter-grid">
@@ -107,7 +107,7 @@ export default function ManagerLavagesPage() {
                 <p>{wash.employee_name}</p>
                 <p>{wash.site_name}</p>
                 <p>{wash.date_display}</p>
-                <p>{wash.amount_display}</p>
+                {data.can_view_money && wash.amount_display ? <p>{wash.amount_display}</p> : null}
               </div>
             </article>
           ))}

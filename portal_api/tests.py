@@ -9,6 +9,8 @@ from django.utils import timezone
 
 from comptes.models import UserProfile
 from lavages.models import CarWash
+from pointage.models import ShiftDay
+from problemes.models import IssueReport
 from sites.models import Location
 
 
@@ -40,6 +42,15 @@ class PortalShellRoutingTests(TestCase):
         self.client.login(username="manager", password="pass1234")
 
         response = self.client.get(reverse("manager_pointages"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="portal-root"', html=False)
+        self.assertContains(response, '"mode": "manager"', html=False)
+
+    def test_nested_manager_report_route_serves_react_shell(self):
+        self.client.login(username="manager", password="pass1234")
+
+        response = self.client.get(reverse("manager_daily_report"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="portal-root"', html=False)
@@ -125,3 +136,98 @@ class PortalApiSecurityAndPaginationTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertLessEqual(len(captured), 14)
+
+    def test_location_manager_lavage_api_hides_money(self):
+        CarWash.objects.create(
+            employe=self.employee,
+            site=self.site,
+            date=timezone.localdate(),
+            type_service="COMPLET",
+            plaque="KIN001",
+            montant=Decimal("1500.00"),
+        )
+        self.client.login(username="manager", password="pass1234")
+
+        response = self.client.get(reverse("portal_api_manager_lavages"))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertFalse(payload["can_view_money"])
+        self.assertEqual(payload["totals"], {"count": 1})
+        self.assertNotIn("amount_display", payload["results"][0])
+        self.assertNotIn("amount_fc", payload["results"][0])
+
+    def test_location_manager_dashboard_hides_revenue(self):
+        CarWash.objects.create(
+            employe=self.employee,
+            site=self.site,
+            date=timezone.localdate(),
+            type_service="COMPLET",
+            plaque="KIN002",
+            montant=Decimal("2000.00"),
+        )
+        self.client.login(username="manager", password="pass1234")
+
+        response = self.client.get(reverse("portal_api_manager_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertFalse(payload["can_view_money"])
+        self.assertNotIn("revenue_display", payload["sites"][0])
+        self.assertNotIn("revenue_fc", payload["sites"][0])
+        self.assertEqual(payload["sites"][0]["total_lavages"], 1)
+
+    def test_admin_manager_dashboard_can_still_view_revenue(self):
+        admin = User.objects.create_superuser(username="admin", password="pass1234")
+        CarWash.objects.create(
+            employe=self.employee,
+            site=self.site,
+            date=timezone.localdate(),
+            type_service="COMPLET",
+            plaque="KIN003",
+            montant=Decimal("2500.00"),
+        )
+        self.client.login(username="admin", password="pass1234")
+
+        response = self.client.get(reverse("portal_api_manager_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["can_view_money"])
+        self.assertIn("revenue_display", payload["sites"][0])
+
+    def test_location_manager_can_report_problem_for_assigned_site(self):
+        self.client.login(username="manager", password="pass1234")
+
+        response = self.client.post(
+            reverse("portal_api_manager_problemes"),
+            {"categorie": "MATERIEL", "description": "Aspirateur en panne"},
+        )
+
+        self.assertEqual(response.status_code, 201)
+        issue = IssueReport.objects.get()
+        self.assertEqual(issue.site, self.site)
+        self.assertEqual(issue.employe, self.manager)
+
+    def test_location_manager_can_send_daily_report_without_money(self):
+        today = timezone.localdate()
+        CarWash.objects.create(
+            employe=self.employee,
+            site=self.site,
+            date=today,
+            type_service="COMPLET",
+            plaque="KIN004",
+            montant=Decimal("3000.00"),
+        )
+        self.client.login(username="manager", password="pass1234")
+
+        response = self.client.post(
+            reverse("portal_api_manager_report"),
+            {"notes": "Journee normale."},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        report = ShiftDay.objects.get(employe=self.manager, date=today)
+        self.assertTrue(report.daily_report_confirmed)
+        self.assertEqual(report.total_lavages_reported, 1)
+        self.assertEqual(report.total_amount_reported_fc, Decimal("0"))
