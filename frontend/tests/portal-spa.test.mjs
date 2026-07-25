@@ -23,6 +23,15 @@ test("portal pages are route-level lazy loaded", () => {
   assert.match(appSource, /<Route element=\{<PortalLayout/);
 });
 
+test("portal route sets are inserted as Route children, not custom components", () => {
+  assert.match(appSource, /function\s+managerRoutes\(session\)/);
+  assert.match(appSource, /function\s+employeeRoutes\(session\)/);
+  assert.match(appSource, /managerRoutes\(session\)/);
+  assert.match(appSource, /employeeRoutes\(session\)/);
+  assert.doesNotMatch(appSource, /<ManagerRouteSet\b/);
+  assert.doesNotMatch(appSource, /<EmployeeRouteSet\b/);
+});
+
 test("api client keeps session credentials, csrf, and cancellation support", () => {
   assert.match(apiSource, /credentials:\s*"same-origin"/);
   assert.match(apiSource, /"X-CSRFToken"/);

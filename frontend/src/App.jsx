@@ -28,48 +28,44 @@ const ManagerQrPage = lazy(() => import("./pages/manager/ManagerQrPage"));
 
 const bootstrap = getBootstrap();
 
-function EmployeeRouteSet({ session }) {
+function employeeRoutes(session) {
   if (session.role !== "EMPLOYE") {
-    return <Route path="*" element={<Navigate to="/manager/" replace />} />;
+    return [<Route key="employee-redirect" path="*" element={<Navigate to="/manager/" replace />} />];
   }
 
-  return (
-    <>
-      <Route path="/employe/" element={<EmployeeDashboardPage />} />
-      <Route path="/employe/pointage/" element={<EmployeePointagePage />} />
-      <Route path="/employe/lavage/ajouter/" element={<EmployeeWashFormPage />} />
-      <Route path="/employe/lavage/mes-lavages/" element={<EmployeeWashesPage />} />
-      <Route path="/employe/lavage/:lavageId/" element={<EmployeeWashDetailPage />} />
-      <Route path="/employe/probleme/signaler/" element={<EmployeeIssueFormPage />} />
-      <Route path="/employe/probleme/mes-problemes/" element={<EmployeeIssuesPage />} />
-      <Route path="/employe/probleme/:problemeId/" element={<EmployeeIssueDetailPage />} />
-      <Route path="/employe/rapport-journee/" element={<EmployeeDailyReportPage />} />
-      <Route path="/employe/eau/" element={<EmployeeWaterPage />} />
-      <Route path="/employe/carburant/" element={<EmployeeFuelPage />} />
-      <Route path="/employe/historique/" element={<EmployeeHistoryPage />} />
-      <Route path="*" element={<Navigate to="/employe/" replace />} />
-    </>
-  );
+  return [
+    <Route key="employee-dashboard" path="/employe/" element={<EmployeeDashboardPage />} />,
+    <Route key="employee-pointage" path="/employe/pointage/" element={<EmployeePointagePage />} />,
+    <Route key="employee-wash-create" path="/employe/lavage/ajouter/" element={<EmployeeWashFormPage />} />,
+    <Route key="employee-washes" path="/employe/lavage/mes-lavages/" element={<EmployeeWashesPage />} />,
+    <Route key="employee-wash-detail" path="/employe/lavage/:lavageId/" element={<EmployeeWashDetailPage />} />,
+    <Route key="employee-issue-create" path="/employe/probleme/signaler/" element={<EmployeeIssueFormPage />} />,
+    <Route key="employee-issues" path="/employe/probleme/mes-problemes/" element={<EmployeeIssuesPage />} />,
+    <Route key="employee-issue-detail" path="/employe/probleme/:problemeId/" element={<EmployeeIssueDetailPage />} />,
+    <Route key="employee-report" path="/employe/rapport-journee/" element={<EmployeeDailyReportPage />} />,
+    <Route key="employee-water" path="/employe/eau/" element={<EmployeeWaterPage />} />,
+    <Route key="employee-fuel" path="/employe/carburant/" element={<EmployeeFuelPage />} />,
+    <Route key="employee-history" path="/employe/historique/" element={<EmployeeHistoryPage />} />,
+    <Route key="employee-fallback" path="*" element={<Navigate to="/employe/" replace />} />,
+  ];
 }
 
-function ManagerRouteSet({ session }) {
+function managerRoutes(session) {
   if (!["MANAGER", "ADMIN"].includes(session.role)) {
-    return <Route path="*" element={<Navigate to="/employe/" replace />} />;
+    return [<Route key="manager-redirect" path="*" element={<Navigate to="/employe/" replace />} />];
   }
 
-  return (
-    <>
-      <Route path="/manager/" element={<ManagerDashboardPage />} />
-      <Route path="/manager/pointages/" element={<ManagerPointagesPage />} />
-      <Route path="/manager/pointages/:pointageId/corriger/" element={<ManagerPointageCorrectionPage />} />
-      <Route path="/manager/lavages/" element={<ManagerLavagesPage />} />
-      <Route path="/manager/problemes/" element={<ManagerProblemesPage />} />
-      <Route path="/manager/probleme/signaler/" element={<ManagerIssueFormPage />} />
-      <Route path="/manager/rapport-journee/" element={<ManagerDailyReportPage />} />
-      <Route path="/manager/qr/:siteId/" element={<ManagerQrPage />} />
-      <Route path="*" element={<Navigate to="/manager/" replace />} />
-    </>
-  );
+  return [
+    <Route key="manager-dashboard" path="/manager/" element={<ManagerDashboardPage />} />,
+    <Route key="manager-pointages" path="/manager/pointages/" element={<ManagerPointagesPage />} />,
+    <Route key="manager-pointage-correction" path="/manager/pointages/:pointageId/corriger/" element={<ManagerPointageCorrectionPage />} />,
+    <Route key="manager-lavages" path="/manager/lavages/" element={<ManagerLavagesPage />} />,
+    <Route key="manager-problemes" path="/manager/problemes/" element={<ManagerProblemesPage />} />,
+    <Route key="manager-issue-create" path="/manager/probleme/signaler/" element={<ManagerIssueFormPage />} />,
+    <Route key="manager-report" path="/manager/rapport-journee/" element={<ManagerDailyReportPage />} />,
+    <Route key="manager-qr" path="/manager/qr/:siteId/" element={<ManagerQrPage />} />,
+    <Route key="manager-fallback" path="*" element={<Navigate to="/manager/" replace />} />,
+  ];
 }
 
 export default function App() {
@@ -110,9 +106,9 @@ export default function App() {
         <Routes>
           <Route element={<PortalLayout bootstrap={bootstrap} session={session} />}>
             {bootstrap.mode === "manager" ? (
-              <ManagerRouteSet session={session} />
+              managerRoutes(session)
             ) : (
-              <EmployeeRouteSet session={session} />
+              employeeRoutes(session)
             )}
           </Route>
         </Routes>
