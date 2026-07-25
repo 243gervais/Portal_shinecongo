@@ -474,6 +474,7 @@
             </div>
             <div class="people-hero-actions">
                 <a href="{% url 'admin_add_site_employee' site.id %}" class="btn btn-info">👤 Ajouter un membre</a>
+                <a href="{% url 'admin_add_site_employee' site.id %}?role=MANAGER" class="btn btn-success">👔 Ajouter un manager</a>
                 <a href="{% url 'admin_site_attendance_photos' site.id %}" class="btn btn-info">📸 Photos de présence</a>
                 <a href="{% url 'admin_site_documents' site.id %}" class="btn btn-success">📁 Documents du site</a>
                 <a href="{% url 'admin_site_detail' site.id %}" class="btn btn-primary">← Retour au site</a>
@@ -529,6 +530,7 @@
                 <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
                     <span class="people-card-badge">Cash flow total équipe: {{ team_total_cash_flow|fc_amount }} FC</span>
                     <a href="{% url 'admin_add_site_employee' site.id %}" class="btn btn-info">+ Nouveau membre</a>
+                    <a href="{% url 'admin_add_site_employee' site.id %}?role=MANAGER" class="btn btn-success">+ Manager</a>
                 </div>
             </div>
 

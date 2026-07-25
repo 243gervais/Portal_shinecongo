@@ -17,6 +17,10 @@ test("portal navigation uses React Router links and keeps logout as a real serve
   assert.match(layoutSource, /href=\{bootstrap\.logout_url\}/);
 });
 
+test("portal header identifies the signed-in person by display name and username", () => {
+  assert.match(layoutSource, /Identifiant:\s*\{session\.user\.full_name\}\s*\/\s*\{session\.user\.username\}/);
+});
+
 test("portal pages are route-level lazy loaded", () => {
   assert.match(appSource, /lazy\(\(\)\s*=>\s*import\("\.\/pages\/employee\/EmployeeDashboardPage"\)\)/);
   assert.match(appSource, /lazy\(\(\)\s*=>\s*import\("\.\/pages\/manager\/ManagerDashboardPage"\)\)/);

@@ -955,6 +955,77 @@ class AdminSiteEmployeeFormTests(TestCase):
         self.assertEqual(camera_staff.userprofile.role, "CONTROLE_CAMERA")
         self.assertEqual(camera_staff.userprofile.site, self.site)
 
+    def test_admin_can_open_manager_creation_mode_for_site(self):
+        response = self.client.get(
+            f"{reverse('admin_add_site_employee', args=[self.site.id])}?role=MANAGER"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["requested_role"], "MANAGER")
+        self.assertContains(response, "Ajouter un manager")
+        self.assertContains(response, "portail manager")
+
+    def test_admin_can_create_manager_account_for_site(self):
+        response = self.client.post(
+            reverse("admin_add_site_employee", args=[self.site.id]),
+            data={
+                "role": "MANAGER",
+                "username": "site_manager",
+                "first_name": "Manager",
+                "last_name": "Ngolomingo",
+                "email": "manager.ngolomingo@example.com",
+                "telephone": "0999999994",
+                "mpesa_numero": "243999999994",
+                "date_embauche": "2026-07-25",
+                "salaire_mensuel_usd": "150.00",
+                "password": "ManagerPass123!",
+                "is_active": "on",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("admin_site_employees", args=[self.site.id]),
+            fetch_redirect_response=False,
+        )
+        manager = User.objects.get(username="site_manager")
+        manager.userprofile.refresh_from_db()
+        self.assertEqual(manager.userprofile.role, UserProfile.MANAGER_ROLE)
+        self.assertEqual(manager.userprofile.site, self.site)
+        self.assertTrue(manager.userprofile.actif)
+
+        list_response = self.client.get(reverse("admin_site_employees", args=[self.site.id]))
+        self.assertContains(list_response, "Manager Ngolomingo")
+        self.assertContains(list_response, "Manager")
+
+    def test_admin_can_remove_manager_from_site(self):
+        manager = User.objects.create_user(
+            username="manager_to_remove",
+            email="manager.remove@example.com",
+            password="ManagerPass123!",
+            first_name="Manager",
+            last_name="Retirer",
+        )
+        manager.userprofile.role = UserProfile.MANAGER_ROLE
+        manager.userprofile.site = self.site
+        manager.userprofile.actif = True
+        manager.userprofile.save()
+
+        response = self.client.post(
+            reverse("admin_remove_site_employee", args=[self.site.id, manager.userprofile.id])
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("admin_site_employees", args=[self.site.id]),
+            fetch_redirect_response=False,
+        )
+        manager.refresh_from_db()
+        manager.userprofile.refresh_from_db()
+        self.assertFalse(manager.is_active)
+        self.assertFalse(manager.userprofile.actif)
+        self.assertIsNone(manager.userprofile.site)
+
 
 @override_settings(MEDIA_ROOT="/private/tmp/portal_shinecongo_camera_test_media")
 class SiteCameraMonitoringTests(TestCase):

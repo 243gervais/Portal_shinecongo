@@ -314,6 +314,7 @@ class SiteEmployeeForm(forms.Form):
         choices=[
             (UserProfile.EMPLOYEE_ROLE, "Employé lavage"),
             (UserProfile.CAMERA_CONTROLLER_ROLE, "Contrôle caméra"),
+            (UserProfile.MANAGER_ROLE, "Manager"),
         ],
         widget=forms.Select(attrs={"class": "form-control"}),
     )
@@ -483,7 +484,11 @@ class SiteEmployeeForm(forms.Form):
 
     def clean_role(self):
         role = self.cleaned_data["role"]
-        allowed_roles = {UserProfile.EMPLOYEE_ROLE, UserProfile.CAMERA_CONTROLLER_ROLE}
+        allowed_roles = {
+            UserProfile.EMPLOYEE_ROLE,
+            UserProfile.CAMERA_CONTROLLER_ROLE,
+            UserProfile.MANAGER_ROLE,
+        }
         if role not in allowed_roles:
             raise forms.ValidationError("Choisissez un rôle valide pour ce compte.")
         return role
@@ -1646,6 +1651,7 @@ class SiteEmployeeForm(forms.Form):
         choices=[
             (UserProfile.EMPLOYEE_ROLE, "Employé lavage"),
             (UserProfile.CAMERA_CONTROLLER_ROLE, "Contrôle caméra"),
+            (UserProfile.MANAGER_ROLE, "Manager"),
         ],
         widget=forms.Select(attrs={"class": "form-control"}),
     )
@@ -1815,7 +1821,11 @@ class SiteEmployeeForm(forms.Form):
 
     def clean_role(self):
         role = self.cleaned_data["role"]
-        allowed_roles = {UserProfile.EMPLOYEE_ROLE, UserProfile.CAMERA_CONTROLLER_ROLE}
+        allowed_roles = {
+            UserProfile.EMPLOYEE_ROLE,
+            UserProfile.CAMERA_CONTROLLER_ROLE,
+            UserProfile.MANAGER_ROLE,
+        }
         if role not in allowed_roles:
             raise forms.ValidationError("Choisissez un rôle valide pour ce compte.")
         return role

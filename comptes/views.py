@@ -6583,9 +6583,19 @@ def admin_add_site_employee(request, site_id):
     site = get_object_or_404(Location, id=site_id)
     next_url = _safe_next_url(request) or ""
     requested_role = (request.GET.get("role") or request.POST.get("role") or "").strip()
-    if requested_role not in {UserProfile.EMPLOYEE_ROLE, UserProfile.CAMERA_CONTROLLER_ROLE}:
+    allowed_site_roles = {
+        UserProfile.EMPLOYEE_ROLE,
+        UserProfile.CAMERA_CONTROLLER_ROLE,
+        UserProfile.MANAGER_ROLE,
+    }
+    if requested_role not in allowed_site_roles:
         requested_role = UserProfile.EMPLOYEE_ROLE
-    creation_mode_label = "contrôleur caméra" if requested_role == UserProfile.CAMERA_CONTROLLER_ROLE else "membre"
+    if requested_role == UserProfile.CAMERA_CONTROLLER_ROLE:
+        creation_mode_label = "contrôleur caméra"
+    elif requested_role == UserProfile.MANAGER_ROLE:
+        creation_mode_label = "manager"
+    else:
+        creation_mode_label = "membre"
 
     if request.method == 'POST':
         form = SiteEmployeeForm(request.POST, request.FILES, initial_role=requested_role)

@@ -49,7 +49,7 @@ export function PortalLayout({ bootstrap, session }) {
         <div className="portal-user">
           <div className="portal-user-name">{session.user.full_name}</div>
           <div className="portal-user-identifier">
-            Identifiant: {session.user.username}
+            Identifiant: {session.user.full_name} / {session.user.username}
           </div>
           <div className="portal-user-meta">
             {session.site ? session.site.nom : "Aucun site"}
