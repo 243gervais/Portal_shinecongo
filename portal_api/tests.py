@@ -47,6 +47,15 @@ class PortalShellRoutingTests(TestCase):
         self.assertContains(response, 'id="portal-root"', html=False)
         self.assertContains(response, '"mode": "manager"', html=False)
 
+    def test_portal_shell_script_url_matches_lazy_chunk_imports(self):
+        self.client.login(username="manager", password="pass1234")
+
+        response = self.client.get(reverse("manager_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'src="/portal-assets/portal-app.js"', html=False)
+        self.assertNotContains(response, "portal-app.js?v=", html=False)
+
     def test_nested_manager_report_route_serves_react_shell(self):
         self.client.login(username="manager", password="pass1234")
 
