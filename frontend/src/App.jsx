@@ -60,6 +60,7 @@ function managerRoutes(session) {
 
   return [
     <Route key="manager-dashboard" path="/manager/" element={<ManagerDashboardPage />} />,
+    <Route key="manager-presence" path="/manager/presence/" element={<EmployeePointagePage apiBase="/manager/presence" />} />,
     <Route key="manager-pointages" path="/manager/pointages/" element={<ManagerPointagesPage />} />,
     <Route key="manager-pointage-correction" path="/manager/pointages/:pointageId/corriger/" element={<ManagerPointageCorrectionPage />} />,
     <Route key="manager-lavages" path="/manager/lavages/" element={<ManagerLavagesPage />} />,

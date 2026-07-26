@@ -1,6 +1,7 @@
 from io import BytesIO
 from datetime import datetime, timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.core import mail
@@ -652,7 +653,8 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(payload["results"][0]["created_by_name"], "jules")
         self.assertNotIn("amount_fc", payload["results"][0])
 
-    def test_employee_can_record_start_attendance_with_same_day_photo(self):
+    @patch("portal_api.views.is_workday", return_value=True)
+    def test_employee_can_record_start_attendance_with_same_day_photo(self, _mock_is_workday):
         today = timezone.localdate()
         capture_time = timezone.make_aware(datetime.combine(today, datetime.min.time().replace(hour=9, minute=58)))
 
@@ -675,7 +677,8 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("site_token_prefill", response.json())
 
-    def test_employee_start_attendance_ignores_site_token_field(self):
+    @patch("portal_api.views.is_workday", return_value=True)
+    def test_employee_start_attendance_ignores_site_token_field(self, _mock_is_workday):
         other_site = Location.objects.create(
             nom="Autre site",
             adresse="Avenue 2",
@@ -697,7 +700,8 @@ class EmployeeDailyReportTests(TestCase):
         shift = ShiftDay.objects.get(employe=self.user, date=today)
         self.assertEqual(shift.site, self.site)
 
-    def test_employee_start_attendance_marks_late_after_grace_period(self):
+    @patch("portal_api.views.is_workday", return_value=True)
+    def test_employee_start_attendance_marks_late_after_grace_period(self, _mock_is_workday):
         today = timezone.localdate()
         capture_time = timezone.make_aware(datetime.combine(today, datetime.min.time().replace(hour=10, minute=25)))
 
@@ -712,7 +716,8 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(payload["shift_today"]["attendance_status_label"], "Retard")
         self.assertIn("retard", payload["message"].lower())
 
-    def test_employee_start_attendance_rejects_old_photo(self):
+    @patch("portal_api.views.is_workday", return_value=True)
+    def test_employee_start_attendance_rejects_old_photo(self, _mock_is_workday):
         today = timezone.localdate()
         capture_time = timezone.make_aware(datetime.combine(today - timedelta(days=1), datetime.min.time().replace(hour=10, minute=0)))
 
@@ -1800,7 +1805,8 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(payload["results"][0]["created_by_name"], "jules")
         self.assertNotIn("amount_fc", payload["results"][0])
 
-    def test_employee_can_record_start_attendance_with_same_day_photo(self):
+    @patch("portal_api.views.is_workday", return_value=True)
+    def test_employee_can_record_start_attendance_with_same_day_photo(self, _mock_is_workday):
         today = timezone.localdate()
         capture_time = timezone.make_aware(datetime.combine(today, datetime.min.time().replace(hour=9, minute=58)))
 
@@ -1823,7 +1829,8 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("site_token_prefill", response.json())
 
-    def test_employee_start_attendance_ignores_site_token_field(self):
+    @patch("portal_api.views.is_workday", return_value=True)
+    def test_employee_start_attendance_ignores_site_token_field(self, _mock_is_workday):
         other_site = Location.objects.create(
             nom="Autre site",
             adresse="Avenue 2",
@@ -1845,7 +1852,8 @@ class EmployeeDailyReportTests(TestCase):
         shift = ShiftDay.objects.get(employe=self.user, date=today)
         self.assertEqual(shift.site, self.site)
 
-    def test_employee_start_attendance_marks_late_after_grace_period(self):
+    @patch("portal_api.views.is_workday", return_value=True)
+    def test_employee_start_attendance_marks_late_after_grace_period(self, _mock_is_workday):
         today = timezone.localdate()
         capture_time = timezone.make_aware(datetime.combine(today, datetime.min.time().replace(hour=10, minute=25)))
 
@@ -1860,7 +1868,8 @@ class EmployeeDailyReportTests(TestCase):
         self.assertEqual(payload["shift_today"]["attendance_status_label"], "Retard")
         self.assertIn("retard", payload["message"].lower())
 
-    def test_employee_start_attendance_rejects_old_photo(self):
+    @patch("portal_api.views.is_workday", return_value=True)
+    def test_employee_start_attendance_rejects_old_photo(self, _mock_is_workday):
         today = timezone.localdate()
         capture_time = timezone.make_aware(datetime.combine(today - timedelta(days=1), datetime.min.time().replace(hour=10, minute=0)))
 

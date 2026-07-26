@@ -20,6 +20,21 @@ class IsPortalEmployee(BasePermission):
         )
 
 
+class IsPortalSelfAttendanceUser(BasePermission):
+    message = "Accès réservé aux employés et managers rattachés à un site."
+
+    def has_permission(self, request, view):
+        user = request.user
+        profile = _get_profile(user)
+        return bool(
+            user
+            and user.is_authenticated
+            and profile
+            and (profile.is_employe() or profile.is_manager())
+            and profile.site_id
+        )
+
+
 class IsManagerOrAdmin(BasePermission):
     message = "Accès réservé aux managers et administrateurs."
 

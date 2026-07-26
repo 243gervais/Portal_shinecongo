@@ -1,4 +1,5 @@
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -69,7 +70,12 @@ class PortalShellRoutingTests(TestCase):
     def test_nested_manager_operation_routes_serve_react_shell(self):
         self.client.login(username="manager", password="pass1234")
 
-        route_names = ["manager_add_lavage", "manager_water_purchase", "manager_fuel_purchase"]
+        route_names = [
+            "manager_presence",
+            "manager_add_lavage",
+            "manager_water_purchase",
+            "manager_fuel_purchase",
+        ]
 
         for route_name in route_names:
             with self.subTest(route_name=route_name):
@@ -178,6 +184,43 @@ class PortalApiSecurityAndPaginationTests(TestCase):
         self.assertEqual(payload["totals"], {"count": 1})
         self.assertNotIn("amount_display", payload["results"][0])
         self.assertNotIn("amount_fc", payload["results"][0])
+
+    def test_manager_can_load_own_presence_status(self):
+        self.client.login(username="manager", password="pass1234")
+
+        response = self.client.get(reverse("portal_api_manager_presence"))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["site"]["nom"], self.site.nom)
+        self.assertIn("can_clock_in", payload)
+        self.assertIn("schedule", payload)
+
+    @patch("portal_api.views.is_workday", return_value=True)
+    def test_manager_can_record_own_start_attendance(self, _mock_is_workday):
+        self.client.login(username="manager", password="pass1234")
+        captured_now = timezone.now()
+
+        response = self.client.post(
+            reverse("portal_api_manager_clock_in"),
+            data={
+                "photo": SimpleUploadedFile(
+                    "manager-attendance.gif",
+                    b"GIF89a\x01\x00\x01\x00\x80\x00\x00"
+                    b"\x00\x00\x00\xff\xff\xff!\xf9\x04\x01"
+                    b"\x00\x00\x00\x00,\x00\x00\x00\x00\x01"
+                    b"\x00\x01\x00\x00\x02\x02D\x01\x00;",
+                    content_type="image/gif",
+                ),
+                "photo_last_modified": str(int(captured_now.timestamp() * 1000)),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        shift = ShiftDay.objects.get(employe=self.manager, date=timezone.localdate())
+        self.assertEqual(shift.site, self.site)
+        self.assertTrue(shift.clock_in_photo.name.endswith(".gif"))
+        self.assertIsNotNone(shift.clock_in_time)
 
     def test_location_manager_dashboard_hides_revenue(self):
         CarWash.objects.create(

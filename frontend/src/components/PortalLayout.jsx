@@ -21,6 +21,7 @@ function employeeLinks() {
 function managerLinks() {
   return [
     { to: "/manager/", label: "Dashboard" },
+    { to: "/manager/presence/", label: "Ma présence" },
     { to: "/manager/pointages/", label: "Pointages" },
     { to: "/manager/lavage/ajouter/", label: "Ajouter lavage" },
     { to: "/manager/lavages/", label: "Lavages" },

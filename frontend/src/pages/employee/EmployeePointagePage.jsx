@@ -26,7 +26,7 @@ function getGeoPosition() {
   });
 }
 
-export default function EmployeePointagePage() {
+export default function EmployeePointagePage({ apiBase = "/employee/pointage" }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState(null);
@@ -37,7 +37,7 @@ export default function EmployeePointagePage() {
   async function load() {
     try {
       setError("");
-      const payload = await apiFetch("/employee/pointage/");
+      const payload = await apiFetch(`${apiBase}/`);
       setData(payload);
     } catch (requestError) {
       setError(requestError.message);
@@ -94,11 +94,11 @@ export default function EmployeePointagePage() {
     }
 
     if (actionKind === "clock-in") {
-      submit("clock-in", "/employee/pointage/clock-in/", file);
+      submit("clock-in", `${apiBase}/clock-in/`, file);
       return;
     }
 
-    submit("clock-out", "/employee/pointage/clock-out/", file);
+    submit("clock-out", `${apiBase}/clock-out/`, file);
   }
 
   if (error) {

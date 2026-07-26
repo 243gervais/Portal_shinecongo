@@ -14,6 +14,7 @@ test("portal layout renders nested route content through Outlet", () => {
 test("portal navigation uses React Router links and keeps logout as a real server link", () => {
   assert.match(layoutSource, /NavLink/);
   assert.match(layoutSource, /to=\{link\.to\}/);
+  assert.match(layoutSource, /\/manager\/presence\//);
   assert.match(layoutSource, /href=\{bootstrap\.logout_url\}/);
 });
 
@@ -27,6 +28,8 @@ test("portal pages are route-level lazy loaded", () => {
   assert.match(appSource, /lazy\(\(\)\s*=>\s*import\("\.\/pages\/manager\/ManagerWashFormPage"\)\)/);
   assert.match(appSource, /lazy\(\(\)\s*=>\s*import\("\.\/pages\/manager\/ManagerWaterPage"\)\)/);
   assert.match(appSource, /lazy\(\(\)\s*=>\s*import\("\.\/pages\/manager\/ManagerFuelPage"\)\)/);
+  assert.match(appSource, /path="\/manager\/presence\/"/);
+  assert.match(appSource, /apiBase="\/manager\/presence"/);
   assert.match(appSource, /<Route element=\{<PortalLayout/);
 });
 

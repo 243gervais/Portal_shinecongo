@@ -78,6 +78,11 @@ export default function ManagerDashboardPage() {
           </div>
         </form>
         <p className="inline-muted">Période chargée: {data.selected_period_label}</p>
+        <div className="button-row">
+          <Link className="button button-primary" to="/manager/presence/">
+            Ma présence
+          </Link>
+        </div>
       </section>
 
       <section className="stats-grid stats-grid-wide">

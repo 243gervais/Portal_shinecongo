@@ -40,7 +40,7 @@ from problemes.views import _send_issue_report_notification
 from sites.models import Location, SiteFuelPurchase, SiteWaterPurchase, get_default_water_supplier
 
 from .pagination import PortalPagination
-from .permissions import IsManagerOrAdmin, IsPortalEmployee
+from .permissions import IsManagerOrAdmin, IsPortalEmployee, IsPortalSelfAttendanceUser
 from .serializers import (
     EmployeeCarWashDetailSerializer,
     EmployeeCarWashSerializer,
@@ -90,6 +90,13 @@ def _fc_display(value):
 def _employee_profile(user):
     profile = _profile(user)
     if not profile or not profile.is_employe() or not profile.site_id:
+        return None
+    return profile
+
+
+def _self_attendance_profile(user):
+    profile = _profile(user)
+    if not profile or not (profile.is_employe() or profile.is_manager()) or not profile.site_id:
         return None
     return profile
 
@@ -295,10 +302,10 @@ class EmployeeDashboardApi(APIView):
 
 
 class EmployeePointageStatusApi(APIView):
-    permission_classes = [IsAuthenticated, IsPortalEmployee]
+    permission_classes = [IsAuthenticated, IsPortalSelfAttendanceUser]
 
     def get(self, request):
-        profile = _employee_profile(request.user)
+        profile = _self_attendance_profile(request.user)
         today = timezone.localdate()
         shift_today = ShiftDay.objects.filter(employe=request.user, date=today).first()
         attendance_status = get_clock_in_status(
@@ -326,12 +333,12 @@ class EmployeePointageStatusApi(APIView):
 
 
 class EmployeeClockInApi(APIView):
-    permission_classes = [IsAuthenticated, IsPortalEmployee]
+    permission_classes = [IsAuthenticated, IsPortalSelfAttendanceUser]
 
     def post(self, request):
         user = request.user
         today = timezone.localdate()
-        profile = _employee_profile(user)
+        profile = _self_attendance_profile(user)
         if not is_workday(today):
             return Response(
                 {"message": "La présence n'est requise que du lundi au samedi."},
@@ -418,12 +425,12 @@ class EmployeeClockInApi(APIView):
 
 
 class EmployeeClockOutApi(APIView):
-    permission_classes = [IsAuthenticated, IsPortalEmployee]
+    permission_classes = [IsAuthenticated, IsPortalSelfAttendanceUser]
 
     def post(self, request):
         user = request.user
         today = timezone.localdate()
-        profile = _employee_profile(user)
+        profile = _self_attendance_profile(user)
         if not is_workday(today):
             return Response(
                 {"message": "La présence n'est requise que du lundi au samedi."},

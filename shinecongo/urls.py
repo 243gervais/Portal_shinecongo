@@ -174,6 +174,7 @@ urlpatterns = [
     
     # PORTAIL MANAGER
     path("manager/", manager_portal_shell, name="manager_dashboard"),
+    path("manager/presence/", manager_portal_shell, name="manager_presence"),
     path("manager/qr/<uuid:site_id>/", manager_portal_shell, name="manager_qr_du_jour"),
     path("manager/qr/<uuid:site_id>/regenerer/", manager_regenerer_qr, name="manager_regenerer_qr"),
     path("manager/pointages/", manager_portal_shell, name="manager_pointages"),
