@@ -14,6 +14,18 @@ def current_month_start():
     return today.replace(day=1)
 
 
+def manager_manual_machine_image_path(instance, filename):
+    return f"manager_manual/machines/{instance.id or 'new'}/images/{filename}"
+
+
+def manager_manual_machine_video_path(instance, filename):
+    return f"manager_manual/machines/{instance.id or 'new'}/videos/{filename}"
+
+
+def manager_manual_supplier_image_path(instance, filename):
+    return f"manager_manual/suppliers/{instance.id or 'new'}/images/{filename}"
+
+
 DEFAULT_WATER_SUPPLIER_NAME = "Honosha's Forage"
 DEFAULT_WATER_SUPPLIER_RATE_FC = Decimal("22000")
 
@@ -154,6 +166,170 @@ class WaterSupplier(models.Model):
         WaterSupplier.objects.filter(pk=self.pk).update(is_default=True, is_active=True)
         self.is_default = True
         self.is_active = True
+
+    def __str__(self):
+        return self.name
+
+
+class ManagerManualSettings(models.Model):
+    """
+    Paramètres éditables du manuel opérationnel manager.
+    """
+
+    daily_target_fc = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("130000"),
+        validators=[MinValueValidator(0)],
+        verbose_name="Objectif quotidien (FC)",
+    )
+    weekly_target_fc = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("845000"),
+        validators=[MinValueValidator(0)],
+        verbose_name="Objectif hebdomadaire (FC)",
+    )
+    monthly_target_fc = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("3380000"),
+        validators=[MinValueValidator(0)],
+        verbose_name="Objectif mensuel (FC)",
+    )
+    car_price_fc = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("20000"),
+        validators=[MinValueValidator(0)],
+        verbose_name="Tarif voiture (FC)",
+    )
+    two_wheel_price_fc = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("2500"),
+        validators=[MinValueValidator(0)],
+        verbose_name="Tarif moto 2 roues (FC)",
+    )
+    three_wheel_price_fc = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("5000"),
+        validators=[MinValueValidator(0)],
+        verbose_name="Tarif moto 3 roues (FC)",
+    )
+    default_fuel_cost_fc = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0"),
+        validators=[MinValueValidator(0)],
+        verbose_name="Coût carburant par défaut (FC)",
+    )
+    default_water_cost_fc = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=DEFAULT_WATER_SUPPLIER_RATE_FC,
+        validators=[MinValueValidator(0)],
+        verbose_name="Coût eau par défaut (FC)",
+    )
+    notes = models.TextField(blank=True, verbose_name="Notes internes")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")
+
+    class Meta:
+        verbose_name = "Manuel manager - paramètres"
+        verbose_name_plural = "Manuel manager - paramètres"
+
+    def __str__(self):
+        return "Paramètres du Manuel du Manager"
+
+
+class ManagerManualMachine(models.Model):
+    """
+    Machine ou équipement affiché dans le Manuel du Manager.
+    """
+
+    name = models.CharField(max_length=200, verbose_name="Nom")
+    purpose = models.TextField(verbose_name="Utilité / rôle")
+    maintenance = models.TextField(verbose_name="Maintenance")
+    troubleshooting = models.TextField(verbose_name="Dépannage")
+    image = models.ImageField(
+        upload_to=manager_manual_machine_image_path,
+        blank=True,
+        null=True,
+        verbose_name="Photo",
+    )
+    training_video = models.FileField(
+        upload_to=manager_manual_machine_video_path,
+        blank=True,
+        null=True,
+        verbose_name="Vidéo de formation",
+    )
+    is_active = models.BooleanField(default=True, verbose_name="Actif")
+    display_order = models.PositiveIntegerField(default=0, verbose_name="Ordre d'affichage")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")
+
+    class Meta:
+        verbose_name = "Manuel manager - machine"
+        verbose_name_plural = "Manuel manager - machines"
+        ordering = ["display_order", "name"]
+
+    def save(self, *args, **kwargs):
+        if self.image and not self.image._committed:
+            self.image = optimize_image_upload(self.image)
+        super().save(*args, **kwargs)
+        if self.image:
+            ensure_image_thumbnail(self.image)
+
+    def __str__(self):
+        return self.name
+
+
+class ManagerManualSupplier(models.Model):
+    """
+    Fournisseur opérationnel affiché dans le Manuel du Manager.
+    """
+
+    CATEGORY_CHOICES = [
+        ("EAU", "Eau"),
+        ("CARBURANT", "Carburant"),
+        ("CONSOMMABLE", "Consommables"),
+        ("MAINTENANCE", "Maintenance"),
+        ("AUTRE", "Autre"),
+    ]
+
+    name = models.CharField(max_length=200, verbose_name="Nom")
+    category = models.CharField(
+        max_length=30,
+        choices=CATEGORY_CHOICES,
+        default="AUTRE",
+        verbose_name="Catégorie",
+    )
+    contact_name = models.CharField(max_length=200, blank=True, verbose_name="Contact")
+    phone = models.CharField(max_length=40, blank=True, verbose_name="Téléphone")
+    service_notes = models.TextField(blank=True, verbose_name="Notes de service")
+    image = models.ImageField(
+        upload_to=manager_manual_supplier_image_path,
+        blank=True,
+        null=True,
+        verbose_name="Photo",
+    )
+    is_active = models.BooleanField(default=True, verbose_name="Actif")
+    display_order = models.PositiveIntegerField(default=0, verbose_name="Ordre d'affichage")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")
+
+    class Meta:
+        verbose_name = "Manuel manager - fournisseur"
+        verbose_name_plural = "Manuel manager - fournisseurs"
+        ordering = ["display_order", "name"]
+
+    def save(self, *args, **kwargs):
+        if self.image and not self.image._committed:
+            self.image = optimize_image_upload(self.image)
+        super().save(*args, **kwargs)
+        if self.image:
+            ensure_image_thumbnail(self.image)
 
     def __str__(self):
         return self.name

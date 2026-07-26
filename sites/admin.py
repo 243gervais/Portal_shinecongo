@@ -4,6 +4,9 @@ from .models import (
     DailyBankDeposit,
     DailyCameraReport,
     Location,
+    ManagerManualMachine,
+    ManagerManualSettings,
+    ManagerManualSupplier,
     SiteDocument,
     SiteFuelPurchase,
     SiteWaterPurchase,
@@ -109,6 +112,77 @@ class WaterSupplierAdmin(admin.ModelAdmin):
         }),
         ("Détails", {
             "fields": ("notes",)
+        }),
+        ("Métadonnées", {
+            "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",)
+        }),
+    )
+
+
+@admin.register(ManagerManualSettings)
+class ManagerManualSettingsAdmin(admin.ModelAdmin):
+    list_display = ("daily_target_fc", "weekly_target_fc", "monthly_target_fc", "updated_at")
+    readonly_fields = ("updated_at",)
+
+    fieldsets = (
+        ("Objectifs", {
+            "fields": ("daily_target_fc", "weekly_target_fc", "monthly_target_fc")
+        }),
+        ("Tarifs", {
+            "fields": ("car_price_fc", "two_wheel_price_fc", "three_wheel_price_fc")
+        }),
+        ("Coûts opérationnels", {
+            "fields": ("default_fuel_cost_fc", "default_water_cost_fc")
+        }),
+        ("Notes", {
+            "fields": ("notes", "updated_at")
+        }),
+    )
+
+
+@admin.register(ManagerManualMachine)
+class ManagerManualMachineAdmin(admin.ModelAdmin):
+    list_display = ("name", "display_order", "is_active", "updated_at")
+    list_filter = ("is_active",)
+    search_fields = ("name", "purpose", "maintenance", "troubleshooting")
+    ordering = ("display_order", "name")
+    readonly_fields = ("created_at", "updated_at")
+
+    fieldsets = (
+        ("Machine", {
+            "fields": ("name", "purpose", "maintenance", "troubleshooting")
+        }),
+        ("Médias", {
+            "fields": ("image", "training_video")
+        }),
+        ("Affichage", {
+            "fields": ("display_order", "is_active")
+        }),
+        ("Métadonnées", {
+            "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",)
+        }),
+    )
+
+
+@admin.register(ManagerManualSupplier)
+class ManagerManualSupplierAdmin(admin.ModelAdmin):
+    list_display = ("name", "category", "contact_name", "phone", "display_order", "is_active")
+    list_filter = ("category", "is_active")
+    search_fields = ("name", "contact_name", "phone", "service_notes")
+    ordering = ("display_order", "name")
+    readonly_fields = ("created_at", "updated_at")
+
+    fieldsets = (
+        ("Fournisseur", {
+            "fields": ("name", "category", "contact_name", "phone", "service_notes")
+        }),
+        ("Média", {
+            "fields": ("image",)
+        }),
+        ("Affichage", {
+            "fields": ("display_order", "is_active")
         }),
         ("Métadonnées", {
             "fields": ("created_at", "updated_at"),

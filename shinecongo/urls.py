@@ -183,6 +183,7 @@ urlpatterns = [
     path("manager/lavage/ajouter/", manager_portal_shell, name="manager_add_lavage"),
     path("manager/eau/", manager_portal_shell, name="manager_water_purchase"),
     path("manager/carburant/", manager_portal_shell, name="manager_fuel_purchase"),
+    path("manager/manuel/", manager_portal_shell, name="manager_manual"),
     path("manager/problemes/", manager_portal_shell, name="manager_problemes"),
     path("manager/probleme/signaler/", manager_portal_shell, name="manager_signaler_probleme"),
     path("manager/rapport-journee/", manager_portal_shell, name="manager_daily_report"),

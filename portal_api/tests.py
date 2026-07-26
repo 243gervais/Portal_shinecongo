@@ -13,7 +13,7 @@ from comptes.models import UserProfile
 from lavages.models import CarWash
 from pointage.models import ShiftDay
 from problemes.models import IssueReport
-from sites.models import Location, SiteFuelPurchase, SiteWaterPurchase
+from sites.models import Location, ManagerManualSettings, SiteFuelPurchase, SiteWaterPurchase
 
 
 @override_settings(PASSWORD_HASHERS=["django.contrib.auth.hashers.MD5PasswordHasher"])
@@ -75,6 +75,7 @@ class PortalShellRoutingTests(TestCase):
             "manager_add_lavage",
             "manager_water_purchase",
             "manager_fuel_purchase",
+            "manager_manual",
         ]
 
         for route_name in route_names:
@@ -110,6 +111,13 @@ class PortalApiSecurityAndPaginationTests(TestCase):
         self.client.login(username="manager", password="pass1234")
 
         response = self.client.get(reverse("portal_api_employee_lavages"))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_employee_cannot_access_manager_manual_api(self):
+        self.client.login(username="employee", password="pass1234")
+
+        response = self.client.get(reverse("portal_api_manager_manual"))
 
         self.assertEqual(response.status_code, 403)
 
@@ -221,6 +229,44 @@ class PortalApiSecurityAndPaginationTests(TestCase):
         self.assertEqual(shift.site, self.site)
         self.assertTrue(shift.clock_in_photo.name.endswith(".gif"))
         self.assertIsNotNone(shift.clock_in_time)
+
+    def test_manager_manual_api_returns_french_sections_and_default_targets(self):
+        self.client.login(username="manager", password="pass1234")
+
+        response = self.client.get(reverse("portal_api_manager_manual"))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["title"], "Manuel du Manager")
+        self.assertEqual(payload["targets"]["daily"]["display"], "130 000 FC")
+        self.assertEqual(payload["targets"]["weekly"]["display"], "845 000 FC")
+        self.assertEqual(payload["targets"]["monthly"]["display"], "3 380 000 FC")
+        section_titles = [section["title"] for section in payload["sections"]]
+        self.assertIn("Vue d'ensemble", section_titles)
+        self.assertIn("Machines", section_titles)
+        self.assertIn("Fournisseurs", section_titles)
+        self.assertIn("Vision de Shine Congo", section_titles)
+        self.assertEqual(payload["sample_breakdown"][0], {"label": "4 voitures", "display": "80 000 FC"})
+        self.assertTrue(payload["machines"])
+        self.assertTrue(payload["suppliers"])
+
+    def test_manager_manual_api_uses_admin_editable_targets(self):
+        ManagerManualSettings.objects.create(
+            daily_target_fc=140000,
+            weekly_target_fc=910000,
+            monthly_target_fc=3640000,
+            car_price_fc=21000,
+            two_wheel_price_fc=3000,
+            three_wheel_price_fc=5500,
+        )
+        self.client.login(username="manager", password="pass1234")
+
+        response = self.client.get(reverse("portal_api_manager_manual"))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["targets"]["daily"]["display"], "140 000 FC")
+        self.assertEqual(payload["prices"][0]["display"], "21 000 FC")
 
     def test_location_manager_dashboard_hides_revenue(self):
         CarWash.objects.create(

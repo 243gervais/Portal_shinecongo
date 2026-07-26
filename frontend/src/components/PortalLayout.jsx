@@ -30,6 +30,7 @@ function managerLinks() {
     { to: "/manager/eau/", label: "Eau" },
     { to: "/manager/carburant/", label: "Carburant" },
     { to: "/manager/rapport-journee/", label: "Rapport" },
+    { to: "/manager/manuel/", label: "Manuel du Manager" },
   ];
 }
 

@@ -28,6 +28,7 @@ const ManagerDailyReportPage = lazy(() => import("./pages/manager/ManagerDailyRe
 const ManagerWaterPage = lazy(() => import("./pages/manager/ManagerWaterPage"));
 const ManagerFuelPage = lazy(() => import("./pages/manager/ManagerFuelPage"));
 const ManagerQrPage = lazy(() => import("./pages/manager/ManagerQrPage"));
+const ManagerManualPage = lazy(() => import("./pages/manager/ManagerManualPage"));
 
 const bootstrap = getBootstrap();
 
@@ -71,6 +72,7 @@ function managerRoutes(session) {
     <Route key="manager-water" path="/manager/eau/" element={<ManagerWaterPage />} />,
     <Route key="manager-fuel" path="/manager/carburant/" element={<ManagerFuelPage />} />,
     <Route key="manager-qr" path="/manager/qr/:siteId/" element={<ManagerQrPage />} />,
+    <Route key="manager-manual" path="/manager/manuel/" element={<ManagerManualPage />} />,
     <Route key="manager-fallback" path="*" element={<Navigate to="/manager/" replace />} />,
   ];
 }

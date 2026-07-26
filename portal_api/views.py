@@ -37,7 +37,15 @@ from pointage.views import (
 from pointage.views_manager import _parse_dashboard_date_range
 from problemes.models import IssueReport
 from problemes.views import _send_issue_report_notification
-from sites.models import Location, SiteFuelPurchase, SiteWaterPurchase, get_default_water_supplier
+from sites.models import (
+    Location,
+    ManagerManualMachine,
+    ManagerManualSettings,
+    ManagerManualSupplier,
+    SiteFuelPurchase,
+    SiteWaterPurchase,
+    get_default_water_supplier,
+)
 
 from .pagination import PortalPagination
 from .permissions import IsManagerOrAdmin, IsPortalEmployee, IsPortalSelfAttendanceUser
@@ -62,6 +70,137 @@ PHOTO_PREFETCH = Prefetch(
 )
 
 MANAGER_DASHBOARD_CACHE_SECONDS = 45
+
+DEFAULT_MANUAL_SECTIONS = [
+    {
+        "id": "vue-ensemble",
+        "title": "Vue d'ensemble",
+        "items": [
+            "Le manager protège la qualité du service, la discipline de l'équipe et la réputation de Shine Congo.",
+            "Le portail manager sert à suivre les lavages, les présences, les incidents, l'eau, le carburant et le rapport quotidien.",
+            "Le manager ne voit pas les montants financiers sensibles dans son portail; il suit surtout le volume de véhicules et la qualité opérationnelle.",
+        ],
+    },
+    {
+        "id": "responsabilites",
+        "title": "Responsabilités du manager",
+        "items": [
+            "Ouvrir le site à l'heure, contrôler la propreté de l'espace et vérifier que chaque employé pointe sa présence.",
+            "Suivre chaque lavage avec photos, plaque quand disponible, type de véhicule et remarques utiles.",
+            "Signaler immédiatement les problèmes de machine, d'eau, de carburant, de client ou de discipline.",
+            "Envoyer le rapport quotidien complet avant la fermeture.",
+        ],
+    },
+    {
+        "id": "journee-reussie",
+        "title": "Exemple d'une journée réussie",
+        "items": [
+            "Tous les employés pointent le début et la fin de journée avec photo.",
+            "Les véhicules sont enregistrés au fur et à mesure, sans attendre la fin de journée.",
+            "Le site reste propre, les machines sont rangées, les produits sont contrôlés et les clients sont accueillis rapidement.",
+            "Le manager envoie le rapport final avec les observations, achats d'eau, carburant et incidents éventuels.",
+        ],
+    },
+    {
+        "id": "consommables",
+        "title": "Consommables",
+        "items": [
+            "Contrôler chaque matin le savon, les chiffons, les brosses, les seaux, le carburant et l'eau.",
+            "Signaler tout achat d'eau ou de carburant dans le portail le jour même.",
+            "Éviter le gaspillage: un bon lavage utilise le strict nécessaire sans réduire la qualité.",
+        ],
+    },
+    {
+        "id": "checklist",
+        "title": "Checklist quotidienne",
+        "items": [
+            "Présence personnelle du manager enregistrée.",
+            "Présence des employés contrôlée.",
+            "Machines testées avant les premiers clients.",
+            "Stock d'eau, carburant et consommables vérifié.",
+            "Lavages enregistrés avec photos.",
+            "Incidents signalés immédiatement.",
+            "Rapport quotidien envoyé en fin de journée.",
+        ],
+    },
+    {
+        "id": "incidents",
+        "title": "Gestion des incidents",
+        "items": [
+            "Sécuriser d'abord les personnes, les clients, les véhicules et les machines.",
+            "Créer un signalement dans le portail avec une description claire et des photos si possible.",
+            "Prévenir l'admin si l'incident bloque le travail, touche un client ou nécessite une dépense.",
+        ],
+    },
+    {
+        "id": "employes",
+        "title": "Gestion des employés",
+        "items": [
+            "Contrôler les retards, absences, sorties manquantes et comportements non professionnels.",
+            "Corriger un pointage uniquement avec un motif clair et honnête.",
+            "Aider l'équipe à travailler vite, proprement et avec respect.",
+        ],
+    },
+    {
+        "id": "service-client",
+        "title": "Service client",
+        "items": [
+            "Accueillir rapidement chaque client, expliquer le service et garder un ton calme.",
+            "Vérifier la satisfaction avant le départ du véhicule.",
+            "Transformer les plaintes en signalements clairs, avec action immédiate quand c'est possible.",
+        ],
+    },
+    {
+        "id": "rapports",
+        "title": "Rapports quotidiens",
+        "items": [
+            "Le rapport final doit résumer les lavages, présences, incidents, eau, carburant et remarques de la journée.",
+            "Ne pas attendre plusieurs jours pour signaler une information opérationnelle.",
+            "Un bon rapport permet à l'admin de comprendre la journée sans appeler plusieurs personnes.",
+        ],
+    },
+    {
+        "id": "vision",
+        "title": "Vision de Shine Congo",
+        "items": [
+            "Shine Congo doit être un service fiable, propre, rapide et respectueux.",
+            "Le manager est le gardien du standard sur le terrain.",
+            "Chaque lavage bien fait, chaque rapport clair et chaque client respecté construit la marque.",
+        ],
+    },
+]
+
+DEFAULT_MACHINE_CARDS = [
+    {
+        "name": "Nettoyeur haute pression",
+        "purpose": "Laver rapidement l'extérieur des véhicules et enlever la saleté avant finition.",
+        "maintenance": "Vérifier le carburant ou l'alimentation, nettoyer le filtre, éviter de tirer le tuyau brutalement et ranger la lance après usage.",
+        "troubleshooting": "Si la pression baisse, vérifier l'eau, le filtre, les raccords et le carburant avant de déclarer une panne.",
+    },
+    {
+        "name": "Aspirateur",
+        "purpose": "Nettoyer l'intérieur des voitures, tapis, sièges et zones difficiles.",
+        "maintenance": "Vider le bac régulièrement, nettoyer le filtre et garder le câble loin de l'eau.",
+        "troubleshooting": "Si l'aspiration diminue, vider le bac, contrôler le filtre et vérifier que le tuyau n'est pas bouché.",
+    },
+]
+
+DEFAULT_SUPPLIER_CARDS = [
+    {
+        "name": "Honosha's Forage",
+        "category": "EAU",
+        "contact_name": "",
+        "phone": "",
+        "service_notes": "Fournisseur d'eau par défaut. Confirmer le remplissage et signaler l'achat dans le portail.",
+    },
+    {
+        "name": "Station carburant locale",
+        "category": "CARBURANT",
+        "contact_name": "",
+        "phone": "",
+        "service_notes": "Utiliser pour le carburant des machines. Signaler chaque achat le jour même.",
+    },
+]
 
 
 def _profile(user):
@@ -172,6 +311,67 @@ def _employee_options_for_sites(site_ids):
     ]
 
 
+def _file_url(request, file_field):
+    if not file_field:
+        return ""
+    try:
+        return request.build_absolute_uri(file_field.url)
+    except ValueError:
+        return ""
+
+
+def _first_manual_settings():
+    return ManagerManualSettings.objects.order_by("id").first() or ManagerManualSettings()
+
+
+def _machine_payload(machine, request):
+    return {
+        "id": machine.pk,
+        "name": machine.name,
+        "purpose": machine.purpose,
+        "maintenance": machine.maintenance,
+        "troubleshooting": machine.troubleshooting,
+        "image_url": _file_url(request, machine.image),
+        "training_video_url": _file_url(request, machine.training_video),
+    }
+
+
+def _default_machine_payload(item):
+    return {
+        "id": None,
+        "name": item["name"],
+        "purpose": item["purpose"],
+        "maintenance": item["maintenance"],
+        "troubleshooting": item["troubleshooting"],
+        "image_url": "",
+        "training_video_url": "",
+    }
+
+
+def _supplier_payload(supplier, request):
+    return {
+        "id": supplier.pk,
+        "name": supplier.name,
+        "category": supplier.get_category_display(),
+        "contact_name": supplier.contact_name,
+        "phone": supplier.phone,
+        "service_notes": supplier.service_notes,
+        "image_url": _file_url(request, supplier.image),
+    }
+
+
+def _default_supplier_payload(item):
+    return {
+        "id": None,
+        "name": item["name"],
+        "category": item["category"].title(),
+        "contact_name": item["contact_name"],
+        "phone": item["phone"],
+        "service_notes": item["service_notes"],
+        "image_url": "",
+    }
+
+
 def _paginate(view, queryset, serializer_class, request, *, page_size=12, extra=None, serializer_context=None):
     paginator = PortalPagination()
     paginator.page_size = page_size
@@ -242,6 +442,145 @@ class PortalSessionApi(APIView):
                     "manager_home": "/manager/",
                     "logout": "/logout/",
                 },
+            }
+        )
+
+
+class ManagerManualApi(APIView):
+    permission_classes = [IsAuthenticated, IsManagerOrAdmin]
+
+    def get(self, request):
+        settings = _first_manual_settings()
+        machine_qs = ManagerManualMachine.objects.filter(is_active=True).order_by("display_order", "name")
+        supplier_qs = ManagerManualSupplier.objects.filter(is_active=True).order_by("display_order", "name")
+        machines = [_machine_payload(machine, request) for machine in machine_qs]
+        suppliers = [_supplier_payload(supplier, request) for supplier in supplier_qs]
+        if not machines:
+            machines = [_default_machine_payload(item) for item in DEFAULT_MACHINE_CARDS]
+        if not suppliers:
+            suppliers = [_default_supplier_payload(item) for item in DEFAULT_SUPPLIER_CARDS]
+
+        targets = {
+            "daily": {
+                "label": "Objectif quotidien",
+                "value_fc": str(settings.daily_target_fc),
+                "display": _fc_display(settings.daily_target_fc),
+            },
+            "weekly": {
+                "label": "Objectif hebdomadaire",
+                "value_fc": str(settings.weekly_target_fc),
+                "display": _fc_display(settings.weekly_target_fc),
+            },
+            "monthly": {
+                "label": "Objectif mensuel",
+                "value_fc": str(settings.monthly_target_fc),
+                "display": _fc_display(settings.monthly_target_fc),
+            },
+        }
+        prices = [
+            {"label": "Voiture", "display": _fc_display(settings.car_price_fc)},
+            {"label": "Moto 2 roues", "display": _fc_display(settings.two_wheel_price_fc)},
+            {"label": "Moto 3 roues", "display": _fc_display(settings.three_wheel_price_fc)},
+        ]
+        costs = [
+            {"label": "Carburant", "display": _fc_display(settings.default_fuel_cost_fc)},
+            {"label": "Eau", "display": _fc_display(settings.default_water_cost_fc)},
+        ]
+        sample_breakdown = [
+            {"label": "4 voitures", "display": "80 000 FC"},
+            {"label": "10 motos 2 roues", "display": "25 000 FC"},
+            {"label": "5 motos 3 roues", "display": "25 000 FC"},
+        ]
+        kpis = [
+            {
+                "label": "Volume",
+                "value": "Nombre de véhicules lavés",
+                "detail": "Suivre voitures, motos 2 roues et motos 3 roues chaque jour.",
+            },
+            {
+                "label": "Présence",
+                "value": "Ponctualité de l'équipe",
+                "detail": "Contrôler retards, absences et sorties manquantes.",
+            },
+            {
+                "label": "Qualité",
+                "value": "Photos et satisfaction client",
+                "detail": "Chaque lavage doit être traçable et proprement terminé.",
+            },
+            {
+                "label": "Discipline",
+                "value": "Rapport final envoyé",
+                "detail": "Aucun achat, incident ou remarque importante ne doit rester hors système.",
+            },
+        ]
+
+        sections = [
+            DEFAULT_MANUAL_SECTIONS[0],
+            DEFAULT_MANUAL_SECTIONS[1],
+            {
+                "id": "tarifs",
+                "title": "Tarifs",
+                "items": [
+                    "Les tarifs ci-dessous sont éditables par l'administrateur.",
+                    "Le manager applique les tarifs validés et signale toute situation spéciale.",
+                ],
+            },
+            {
+                "id": "objectifs",
+                "title": "Objectifs quotidiens / hebdomadaires / mensuels",
+                "items": [
+                    f"Objectif quotidien: {_fc_display(settings.daily_target_fc)}.",
+                    f"Objectif hebdomadaire: {_fc_display(settings.weekly_target_fc)}.",
+                    f"Objectif mensuel: {_fc_display(settings.monthly_target_fc)}.",
+                    "Exemple de composition: 4 voitures, 10 motos 2 roues et 5 motos 3 roues.",
+                ],
+            },
+            DEFAULT_MANUAL_SECTIONS[2],
+            {
+                "id": "machines",
+                "title": "Machines",
+                "items": [
+                    "Chaque machine doit être contrôlée avant le début du service.",
+                    "Les photos et vidéos de formation peuvent être ajoutées par l'administrateur.",
+                ],
+            },
+            DEFAULT_MANUAL_SECTIONS[3],
+            {
+                "id": "fournisseurs",
+                "title": "Fournisseurs",
+                "items": [
+                    "Utiliser uniquement les fournisseurs validés par l'administrateur.",
+                    "Garder une trace claire des achats d'eau, carburant et consommables.",
+                ],
+            },
+            *DEFAULT_MANUAL_SECTIONS[4:-1],
+            {
+                "id": "kpis",
+                "title": "KPIs",
+                "items": [
+                    "Les KPIs servent à piloter le site sans exposer les données financières sensibles au manager.",
+                    "Le manager doit suivre le volume, la présence, la qualité, les incidents et les rapports.",
+                ],
+            },
+            DEFAULT_MANUAL_SECTIONS[-1],
+        ]
+
+        return Response(
+            {
+                "title": "Manuel du Manager",
+                "targets": targets,
+                "prices": prices,
+                "costs": costs,
+                "sample_breakdown": sample_breakdown,
+                "sections": sections,
+                "machines": machines,
+                "suppliers": suppliers,
+                "checklist": next(section["items"] for section in sections if section["id"] == "checklist"),
+                "kpis": kpis,
+                "admin_note": (
+                    "Les administrateurs peuvent modifier les paramètres, machines et fournisseurs "
+                    "dans Django admin."
+                ),
             }
         )
 
