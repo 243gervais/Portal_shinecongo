@@ -70,12 +70,12 @@ function Checklist({ items }) {
   );
 }
 
-function KpiCard({ kpi }) {
+function IcpCard({ icp }) {
   return (
     <article className="manual-kpi-card">
-      <p className="eyebrow">{kpi.label}</p>
-      <h3>{kpi.value}</h3>
-      <p>{kpi.detail}</p>
+      <p className="eyebrow">{icp.label}</p>
+      <h3>{icp.value}</h3>
+      <p>{icp.detail}</p>
     </article>
   );
 }
@@ -188,9 +188,9 @@ export default function ManagerManualPage() {
       <CollapsibleSection section={sectionsById["service-client"]} />
       <CollapsibleSection section={sectionsById.rapports} />
 
-      <CollapsibleSection section={sectionsById.kpis} defaultOpen>
+      <CollapsibleSection section={sectionsById.icps} defaultOpen>
         <div className="manual-kpi-grid">
-          {data.kpis.map((kpi) => <KpiCard key={kpi.label} kpi={kpi} />)}
+          {data.icps.map((icp) => <IcpCard key={icp.label} icp={icp} />)}
         </div>
       </CollapsibleSection>
 

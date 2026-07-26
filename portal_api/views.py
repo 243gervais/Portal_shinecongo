@@ -491,7 +491,7 @@ class ManagerManualApi(APIView):
             {"label": "10 motos 2 roues", "display": "25 000 FC"},
             {"label": "5 motos 3 roues", "display": "25 000 FC"},
         ]
-        kpis = [
+        icps = [
             {
                 "label": "Volume",
                 "value": "Nombre de véhicules lavés",
@@ -555,11 +555,11 @@ class ManagerManualApi(APIView):
             },
             *DEFAULT_MANUAL_SECTIONS[4:-1],
             {
-                "id": "kpis",
-                "title": "KPIs",
+                "id": "icps",
+                "title": "Indicateurs Clés de Performance (ICP)",
                 "items": [
-                    "Les KPIs servent à piloter le site sans exposer les données financières sensibles au manager.",
-                    "Le manager doit suivre le volume, la présence, la qualité, les incidents et les rapports.",
+                    "Les Indicateurs Clés de Performance (ICP) servent à piloter le site sans exposer les données financières sensibles au manager.",
+                    "Le manager doit suivre le volume, la présence, la qualité, les incidents et les rapports avec des ICP simples.",
                 ],
             },
             DEFAULT_MANUAL_SECTIONS[-1],
@@ -576,7 +576,7 @@ class ManagerManualApi(APIView):
                 "machines": machines,
                 "suppliers": suppliers,
                 "checklist": next(section["items"] for section in sections if section["id"] == "checklist"),
-                "kpis": kpis,
+                "icps": icps,
                 "admin_note": (
                     "Les administrateurs peuvent modifier les paramètres, machines et fournisseurs "
                     "dans Django admin."

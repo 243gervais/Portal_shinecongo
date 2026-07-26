@@ -245,8 +245,10 @@ class PortalApiSecurityAndPaginationTests(TestCase):
         self.assertIn("Vue d'ensemble", section_titles)
         self.assertIn("Machines", section_titles)
         self.assertIn("Fournisseurs", section_titles)
+        self.assertIn("Indicateurs Clés de Performance (ICP)", section_titles)
         self.assertIn("Vision de Shine Congo", section_titles)
         self.assertEqual(payload["sample_breakdown"][0], {"label": "4 voitures", "display": "80 000 FC"})
+        self.assertTrue(payload["icps"])
         self.assertTrue(payload["machines"])
         self.assertTrue(payload["suppliers"])
 
