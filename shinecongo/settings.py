@@ -75,6 +75,7 @@ if USE_S3_ENV:
 MIDDLEWARE = [
     # "corsheaders.middleware.CorsMiddleware",  # Commented out - not installed
     "django.middleware.security.SecurityMiddleware",
+    "django.middleware.gzip.GZipMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",

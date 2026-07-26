@@ -74,7 +74,7 @@ def portal_frontend_asset(request, asset_path):
         requested_path.open("rb"),
         content_type=content_type or "application/octet-stream",
     )
-    if "/assets/" in asset_path:
+    if asset_path.startswith("assets/"):
         response["Cache-Control"] = "public, max-age=31536000, immutable"
     else:
         response["Cache-Control"] = "public, max-age=300"

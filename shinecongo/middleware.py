@@ -11,8 +11,13 @@ class NoCacheMiddleware(MiddlewareMixin):
     Empêche l'accès via le bouton retour du navigateur après déconnexion
     """
     def process_response(self, request, response):
-        # Liste des chemins publics qui peuvent être mis en cache
-        public_paths = ['/login/', '/logout/', '/static/', '/media/']
+        # Les assets versionnés doivent rester cacheables, même avant connexion.
+        cacheable_paths = ['/static/', '/media/', '/portal-assets/']
+        if any(request.path.startswith(path) for path in cacheable_paths):
+            return response
+
+        # Liste des chemins publics qui peuvent être consultés sans connexion
+        public_paths = ['/login/', '/logout/']
         
         # Vérifier si c'est un chemin public
         is_public = any(request.path.startswith(path) for path in public_paths)

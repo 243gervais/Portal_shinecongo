@@ -502,12 +502,23 @@ class EmployeeDailyReportTests(TestCase):
         self.assertIn(settings.BASE_DIR / "frontend_dist", settings.STATICFILES_DIRS)
 
     def test_portal_frontend_assets_are_served_from_same_origin(self):
+        self.client.logout()
         response = self.client.get(reverse("portal_frontend_asset", args=["portal-app.js"]))
 
         self.assertEqual(response.status_code, 200)
         asset_content = b"".join(response.streaming_content)
         self.assertIn(b'"/session/"', asset_content)
         self.assertNotIn(b"/static/frontend/", asset_content)
+        self.assertIn("public", response["Cache-Control"])
+        self.assertNotIn("no-store", response["Cache-Control"])
+
+        from django.conf import settings
+
+        chunk_path = next((settings.BASE_DIR / "frontend_dist" / "frontend" / "assets").glob("*.js"))
+        chunk_response = self.client.get(reverse("portal_frontend_asset", args=[f"assets/{chunk_path.name}"]))
+        self.assertEqual(chunk_response.status_code, 200)
+        self.assertIn("immutable", chunk_response["Cache-Control"])
+        self.assertIn("max-age=31536000", chunk_response["Cache-Control"])
 
     def test_employee_water_purchase_prevents_same_day_duplicate(self):
         today = timezone.localdate()
@@ -1654,12 +1665,23 @@ class EmployeeDailyReportTests(TestCase):
         self.assertIn(settings.BASE_DIR / "frontend_dist", settings.STATICFILES_DIRS)
 
     def test_portal_frontend_assets_are_served_from_same_origin(self):
+        self.client.logout()
         response = self.client.get(reverse("portal_frontend_asset", args=["portal-app.js"]))
 
         self.assertEqual(response.status_code, 200)
         asset_content = b"".join(response.streaming_content)
         self.assertIn(b'"/session/"', asset_content)
         self.assertNotIn(b"/static/frontend/", asset_content)
+        self.assertIn("public", response["Cache-Control"])
+        self.assertNotIn("no-store", response["Cache-Control"])
+
+        from django.conf import settings
+
+        chunk_path = next((settings.BASE_DIR / "frontend_dist" / "frontend" / "assets").glob("*.js"))
+        chunk_response = self.client.get(reverse("portal_frontend_asset", args=[f"assets/{chunk_path.name}"]))
+        self.assertEqual(chunk_response.status_code, 200)
+        self.assertIn("immutable", chunk_response["Cache-Control"])
+        self.assertIn("max-age=31536000", chunk_response["Cache-Control"])
 
     def test_employee_water_purchase_prevents_same_day_duplicate(self):
         today = timezone.localdate()

@@ -50,3 +50,21 @@ test("api client keeps session credentials, csrf, and cancellation support", () 
   assert.match(apiSource, /"X-CSRFToken"/);
   assert.match(apiSource, /signal/);
 });
+
+test("api client caches short-lived get responses and clears cache after writes", () => {
+  assert.match(apiSource, /DEFAULT_GET_CACHE_TTL_MS\s*=\s*30_000/);
+  assert.match(apiSource, /apiGetCache/);
+  assert.match(apiSource, /apiInflight/);
+  assert.match(apiSource, /clearApiCache/);
+  assert.match(apiSource, /cacheTtlMs/);
+  assert.match(apiSource, /writeCachedPayload/);
+});
+
+test("portal navigation prefetches page data before likely clicks", () => {
+  assert.match(layoutSource, /prefetchApi/);
+  assert.match(layoutSource, /onMouseEnter=\{\(\)\s*=>\s*prefetchApi\(link\.prefetch\)\}/);
+  assert.match(layoutSource, /onFocus=\{\(\)\s*=>\s*prefetchApi\(link\.prefetch\)\}/);
+  assert.match(layoutSource, /onTouchStart=\{\(\)\s*=>\s*prefetchApi\(link\.prefetch\)\}/);
+  assert.match(layoutSource, /prefetch:\s*"\/manager\/dashboard\/"/);
+  assert.match(layoutSource, /prefetch:\s*"\/employee\/lavages\/"/);
+});
