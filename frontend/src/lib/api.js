@@ -1,5 +1,6 @@
 const bootstrapElement = document.getElementById("portal-bootstrap");
-const DEFAULT_GET_CACHE_TTL_MS = 30_000;
+const DEFAULT_GET_CACHE_TTL_MS = 60_000;
+const MAX_GET_CACHE_ENTRIES = 80;
 const apiGetCache = new Map();
 const apiInflight = new Map();
 
@@ -83,6 +84,11 @@ function readCachedPayload(cacheKey) {
 }
 
 function writeCachedPayload(cacheKey, payload, ttlMs) {
+  if (apiGetCache.size >= MAX_GET_CACHE_ENTRIES && !apiGetCache.has(cacheKey)) {
+    const oldestKey = apiGetCache.keys().next().value;
+    apiGetCache.delete(oldestKey);
+  }
+
   apiGetCache.set(cacheKey, {
     payload: clonePayload(payload),
     expiresAt: Date.now() + ttlMs,

@@ -93,15 +93,21 @@ class EmployeeCarWashSerializer(serializers.ModelSerializer):
         return obj.photo_count()
 
     def get_plaque_photo_url(self, obj):
+        if not self.context.get("include_image_previews", True):
+            return ""
         return _absolute_media_url(self.context.get("request"), obj.plaque_photo)
 
     def get_plaque_photo_thumbnail_url(self, obj):
+        if not self.context.get("include_image_previews", True):
+            return ""
         request = self.context.get("request")
         if not obj.plaque_photo_thumbnail_url:
             return ""
         return request.build_absolute_uri(obj.plaque_photo_thumbnail_url) if request else obj.plaque_photo_thumbnail_url
 
     def get_preview_photo(self, obj):
+        if not self.context.get("include_image_previews", True):
+            return ""
         request = self.context.get("request")
         photo = next(iter(getattr(obj, "prefetched_photos", obj.photos.all())), None)
         if not photo:

@@ -10,7 +10,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from comptes.models import UserProfile
-from lavages.models import CarWash
+from lavages.models import CarWash, CarWashPhoto
 from pointage.models import ShiftDay
 from problemes.models import IssueReport
 from sites.models import Location, ManagerManualSettings, SiteFuelPurchase, SiteWaterPurchase
@@ -157,7 +157,7 @@ class PortalApiSecurityAndPaginationTests(TestCase):
     def test_manager_lavage_list_query_count_stays_bounded(self):
         today = timezone.localdate()
         for index in range(25):
-            CarWash.objects.create(
+            lavage = CarWash.objects.create(
                 employe=self.employee,
                 site=self.site,
                 date=today,
@@ -165,6 +165,16 @@ class PortalApiSecurityAndPaginationTests(TestCase):
                 plaque=f"KIN{index:03d}",
                 montant=Decimal("1500.00"),
             )
+            for photo_index in range(3):
+                CarWashPhoto.objects.create(
+                    lavage=lavage,
+                    photo=SimpleUploadedFile(
+                        f"lavage-{index}-{photo_index}.jpg",
+                        b"not-a-real-image",
+                        content_type="image/jpeg",
+                    ),
+                    type_photo="APRES",
+                )
         self.client.login(username="manager", password="pass1234")
 
         with CaptureQueriesContext(connection) as captured:
@@ -172,6 +182,32 @@ class PortalApiSecurityAndPaginationTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertLessEqual(len(captured), 14)
+        payload = response.json()
+        self.assertEqual(payload["results"][0]["photo_count"], 3)
+        self.assertEqual(payload["results"][0]["preview_photo"], "")
+        self.assertEqual(payload["results"][0]["plaque_photo_thumbnail_url"], "")
+
+    def test_manager_daily_report_payload_is_capped_for_busy_days(self):
+        today = timezone.localdate()
+        for index in range(35):
+            CarWash.objects.create(
+                employe=self.employee,
+                site=self.site,
+                date=today,
+                type_service="COMPLET",
+                plaque=f"DAY{index:03d}",
+                montant=Decimal("1500.00"),
+            )
+        self.client.login(username="manager", password="pass1234")
+
+        response = self.client.get(reverse("portal_api_manager_report"))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["total_lavages"], 35)
+        self.assertEqual(len(payload["today_washes"]), 30)
+        self.assertTrue(payload["today_washes_truncated"])
+        self.assertEqual(payload["today_washes"][0]["preview_photo"], "")
 
     def test_location_manager_lavage_api_hides_money(self):
         CarWash.objects.create(

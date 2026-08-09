@@ -52,7 +52,8 @@ test("api client keeps session credentials, csrf, and cancellation support", () 
 });
 
 test("api client caches short-lived get responses and clears cache after writes", () => {
-  assert.match(apiSource, /DEFAULT_GET_CACHE_TTL_MS\s*=\s*30_000/);
+  assert.match(apiSource, /DEFAULT_GET_CACHE_TTL_MS\s*=\s*60_000/);
+  assert.match(apiSource, /MAX_GET_CACHE_ENTRIES\s*=\s*80/);
   assert.match(apiSource, /apiGetCache/);
   assert.match(apiSource, /apiInflight/);
   assert.match(apiSource, /clearApiCache/);

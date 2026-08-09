@@ -129,6 +129,11 @@ export default function ManagerDailyReportPage() {
         </div>
         {data.today_washes.length ? (
           <div className="list-stack">
+            {data.today_washes_truncated ? (
+              <p className="inline-muted">
+                Affichage des {data.today_washes.length} derniers lavages. La liste complète reste disponible dans la section Lavages.
+              </p>
+            ) : null}
             {data.today_washes.map((wash) => (
               <article key={wash.id} className="list-card compact-card">
                 <div className="list-content">
@@ -157,6 +162,11 @@ export default function ManagerDailyReportPage() {
         </div>
         {data.today_issues.length ? (
           <div className="list-stack">
+            {data.today_issues_truncated ? (
+              <p className="inline-muted">
+                Affichage des {data.today_issues.length} derniers problèmes. La liste complète reste disponible dans la section Problèmes.
+              </p>
+            ) : null}
             {data.today_issues.map((issue) => (
               <article key={issue.id} className="list-card compact-card">
                 <div className="list-content">

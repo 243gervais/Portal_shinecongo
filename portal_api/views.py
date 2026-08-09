@@ -70,6 +70,8 @@ PHOTO_PREFETCH = Prefetch(
 )
 
 MANAGER_DASHBOARD_CACHE_SECONDS = 45
+REPORT_PREVIEW_LIMIT = 30
+LAVAGE_LIST_SERIALIZER_CONTEXT = {"include_image_previews": False}
 
 DEFAULT_MANUAL_SECTIONS = [
     {
@@ -293,6 +295,11 @@ def _manager_selected_site(user, request):
 
 
 def _employee_options_for_sites(site_ids):
+    cache_key = "portal:employee-options:" + ",".join(sorted(str(site_id) for site_id in site_ids))
+    cached_options = cache.get(cache_key)
+    if cached_options is not None:
+        return cached_options
+
     queryset = (
         User.objects.filter(
             userprofile__site_id__in=site_ids,
@@ -302,13 +309,15 @@ def _employee_options_for_sites(site_ids):
         .order_by("first_name", "last_name", "username")
         .distinct()
     )
-    return [
+    options = [
         {
             "id": employee.id,
             "nom": employee.get_full_name() or employee.username,
         }
         for employee in queryset
     ]
+    cache.set(cache_key, options, 60)
+    return options
 
 
 def _file_url(request, file_field):
@@ -870,10 +879,16 @@ class EmployeeCarWashListCreateApi(APIView):
         queryset = (
             request.user.lavages.select_related("site")
             .annotate(photo_count_value=Count("photos", distinct=True))
-            .prefetch_related(PHOTO_PREFETCH)
             .order_by("-created_at")
         )
-        return _paginate(self, queryset, EmployeeCarWashSerializer, request, page_size=12)
+        return _paginate(
+            self,
+            queryset,
+            EmployeeCarWashSerializer,
+            request,
+            page_size=12,
+            serializer_context=LAVAGE_LIST_SERIALIZER_CONTEXT,
+        )
 
     def post(self, request):
         profile = _employee_profile(request.user)
@@ -1048,7 +1063,6 @@ class EmployeeDailyReportApi(APIView):
         today_washes = (
             CarWash.objects.filter(employe=user, site=profile.site, date=today)
             .annotate(photo_count_value=Count("photos", distinct=True))
-            .prefetch_related(PHOTO_PREFETCH)
             .order_by("-created_at")
         )
         today_issues = IssueReport.objects.filter(
@@ -1056,6 +1070,8 @@ class EmployeeDailyReportApi(APIView):
             site=profile.site,
             created_at__date=today,
         ).order_by("-created_at")
+        total_washes = today_washes.count()
+        total_issues = today_issues.count()
 
         return Response(
             {
@@ -1068,9 +1084,15 @@ class EmployeeDailyReportApi(APIView):
                     if shift.daily_report_confirmed else ""
                 ),
                 "expense_form": _build_initial_daily_expense_form(shift),
-                "computed_total_washes": today_washes.count(),
-                "today_washes": EmployeeCarWashSerializer(today_washes, many=True, context={"request": request}).data,
-                "today_issues": EmployeeIssueSerializer(today_issues, many=True, context={"request": request}).data,
+                "computed_total_washes": total_washes,
+                "today_washes": EmployeeCarWashSerializer(
+                    today_washes[:REPORT_PREVIEW_LIMIT],
+                    many=True,
+                    context={"request": request, **LAVAGE_LIST_SERIALIZER_CONTEXT},
+                ).data,
+                "today_issues": EmployeeIssueSerializer(today_issues[:REPORT_PREVIEW_LIMIT], many=True, context={"request": request}).data,
+                "today_washes_truncated": total_washes > REPORT_PREVIEW_LIMIT,
+                "today_issues_truncated": total_issues > REPORT_PREVIEW_LIMIT,
             }
         )
 
@@ -1605,7 +1627,6 @@ class ManagerDailyReportApi(APIView):
             CarWash.objects.filter(site=site, date=report_date)
             .select_related("employe", "site")
             .annotate(photo_count_value=Count("photos", distinct=True))
-            .prefetch_related(PHOTO_PREFETCH)
             .order_by("-created_at")
         )
         today_issues = (
@@ -1613,6 +1634,8 @@ class ManagerDailyReportApi(APIView):
             .select_related("employe", "site", "traite_par")
             .order_by("-created_at")
         )
+        total_washes = today_washes.count()
+        issue_count = today_issues.count()
         water_purchase_today = (
             SiteWaterPurchase.objects.filter(site=site, purchase_date=report_date)
             .select_related("created_by", "supplier")
@@ -1631,17 +1654,19 @@ class ManagerDailyReportApi(APIView):
                 "date": report_date.isoformat(),
                 "site": SiteSummarySerializer(site).data,
                 "available_sites": _site_options(accessible_sites),
-                "total_lavages": today_washes.count(),
-                "issue_count": today_issues.count(),
+                "total_lavages": total_washes,
+                "issue_count": issue_count,
                 "report_submitted": bool(report and report.daily_report_confirmed),
                 "report_notes": report.report_notes if report else "",
-                "submitted_total_lavages": report.total_lavages_reported if report and report.daily_report_confirmed else today_washes.count(),
+                "submitted_total_lavages": report.total_lavages_reported if report and report.daily_report_confirmed else total_washes,
                 "today_washes": ManagerCarWashSerializer(
-                    today_washes,
+                    today_washes[:REPORT_PREVIEW_LIMIT],
                     many=True,
-                    context={"request": request, "can_view_money": False},
+                    context={"request": request, "can_view_money": False, **LAVAGE_LIST_SERIALIZER_CONTEXT},
                 ).data,
-                "today_issues": ManagerIssueSerializer(today_issues, many=True, context={"request": request}).data,
+                "today_issues": ManagerIssueSerializer(today_issues[:REPORT_PREVIEW_LIMIT], many=True, context={"request": request}).data,
+                "today_washes_truncated": total_washes > REPORT_PREVIEW_LIMIT,
+                "today_issues_truncated": issue_count > REPORT_PREVIEW_LIMIT,
                 "water_purchase_today": EmployeeWaterPurchaseSerializer(water_purchase_today).data if water_purchase_today else None,
                 "fuel_purchase_today": EmployeeFuelPurchaseSerializer(fuel_purchase_today).data if fuel_purchase_today else None,
                 "can_view_money": False,
@@ -1710,7 +1735,6 @@ class ManagerCarWashListApi(APIView):
         queryset = (
             CarWash.objects.select_related("employe", "site")
             .annotate(photo_count_value=Count("photos", distinct=True))
-            .prefetch_related(PHOTO_PREFETCH)
             .filter(site_id__in=site_ids)
             .order_by("-created_at")
         )
@@ -1746,7 +1770,7 @@ class ManagerCarWashListApi(APIView):
             ManagerCarWashSerializer,
             request,
             page_size=20,
-            serializer_context={"can_view_money": can_view_money},
+            serializer_context={"can_view_money": can_view_money, **LAVAGE_LIST_SERIALIZER_CONTEXT},
             extra={
                 "totals": {
                     "count": total_count,
