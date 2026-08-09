@@ -6268,42 +6268,56 @@ def admin_site_documents(request, site_id):
 
     site = get_object_or_404(Location, id=site_id)
 
-    documents_queryset = SiteDocument.objects.filter(site=site).select_related('uploaded_by').order_by('-uploaded_at')
-    documents_total_count = documents_queryset.count()
-    documents_by_type = {}
-    media_documents_count = 0
-    for doc in documents_queryset:
-        file_type = doc.file_type
-        if file_type not in documents_by_type:
-            documents_by_type[file_type] = []
-        documents_by_type[file_type].append(doc)
-        if doc.is_image or doc.is_video:
-            media_documents_count += 1
+    valid_file_types = dict(SiteDocument.FILE_TYPE_CHOICES)
+    filter_type = request.GET.get('type')
+    if filter_type not in valid_file_types:
+        filter_type = ""
+
+    documents_queryset = (
+        SiteDocument.objects.filter(site=site)
+        .select_related('uploaded_by')
+        .order_by('-uploaded_at')
+    )
+    type_counts = {
+        row["file_type"]: row["count"]
+        for row in documents_queryset.values("file_type").annotate(count=Count("id"))
+    }
+    documents_total_count = sum(type_counts.values())
+    media_documents_count = sum(
+        type_counts.get(file_type, 0)
+        for file_type in {"COMPTE_BANCAIRE", "PHOTO_CONSTRUCTION", "VIDEO_CONSTRUCTION", "AUTRE_PHOTO", "AUTRE_VIDEO"}
+    )
     document_type_summaries = []
     for value, label in SiteDocument.FILE_TYPE_CHOICES:
-        docs_for_type = documents_by_type.get(value, [])
         document_type_summaries.append({
             "value": value,
             "label": label,
-            "count": len(docs_for_type),
-            "documents": docs_for_type,
+            "count": type_counts.get(value, 0),
         })
-    
-    filter_type = request.GET.get('type')
-    all_documents = documents_queryset
+
+    filtered_documents_queryset = documents_queryset
+    selected_type_label = "Tous les documents"
     if filter_type:
-        all_documents = documents_queryset.filter(file_type=filter_type)
+        filtered_documents_queryset = documents_queryset.filter(file_type=filter_type)
+        selected_type_label = valid_file_types[filter_type]
+    paginated_documents = paginate_queryset(
+        request,
+        filtered_documents_queryset,
+        per_page=24,
+        page_param="documents_page",
+    )
 
     latest_document = documents_queryset.first()
     active_document_type_count = sum(1 for summary in document_type_summaries if summary["count"])
 
     context = {
         'site': site,
-        'all_documents': all_documents,
-        'documents_by_type': documents_by_type,
+        'all_documents': paginated_documents,
+        'paginated_documents': paginated_documents,
         'file_types': SiteDocument.FILE_TYPE_CHOICES,
         'document_type_summaries': document_type_summaries,
         'filter_type': filter_type,
+        'selected_type_label': selected_type_label,
         'documents_total_count': documents_total_count,
         'latest_document': latest_document,
         'active_document_type_count': active_document_type_count,

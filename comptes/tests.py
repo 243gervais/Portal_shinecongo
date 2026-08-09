@@ -1,4 +1,6 @@
 from django.test import TestCase, override_settings
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.contrib.auth.models import User
 from django.core.cache import cache
@@ -641,6 +643,53 @@ class SiteDocumentUploadTests(TestCase):
         self.assertContains(response, "Gestion des employés")
         self.assertNotContains(response, "Vue équipe")
         self.assertNotContains(response, "Historique des paiements")
+
+    def test_site_documents_page_is_paginated_for_large_libraries(self):
+        for index in range(30):
+            SiteDocument.objects.create(
+                site=self.site,
+                file_type="PHOTO_CONSTRUCTION" if index % 2 else "AUTRE_DOCUMENT",
+                title=f"Document volumineux {index:02d}",
+                description="Archive documentaire",
+                file=SimpleUploadedFile(f"document-{index:02d}.jpg", b"fake-image-content", content_type="image/jpeg"),
+                uploaded_by=self.admin_user,
+            )
+
+        with CaptureQueriesContext(connection) as captured:
+            response = self.client.get(reverse("admin_site_documents", args=[self.site.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertLessEqual(len(captured), 12)
+        self.assertEqual(response.context["paginated_documents"].paginator.count, 30)
+        self.assertEqual(len(response.context["paginated_documents"].object_list), 24)
+        self.assertContains(response, "Page 1 sur 2")
+
+    def test_site_documents_filter_uses_paginated_type_subset(self):
+        for index in range(26):
+            SiteDocument.objects.create(
+                site=self.site,
+                file_type="AUTRE_VIDEO",
+                title=f"Video archive {index:02d}",
+                file=SimpleUploadedFile(f"video-{index:02d}.mp4", b"fake-video-content", content_type="video/mp4"),
+                uploaded_by=self.admin_user,
+            )
+        SiteDocument.objects.create(
+            site=self.site,
+            file_type="CONTRAT",
+            title="Contrat unique",
+            file=SimpleUploadedFile("contrat.pdf", b"fake-pdf-content", content_type="application/pdf"),
+            uploaded_by=self.admin_user,
+        )
+
+        response = self.client.get(
+            reverse("admin_site_documents", args=[self.site.id]),
+            data={"type": "AUTRE_VIDEO"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["selected_type_label"], "Autre vidéo")
+        self.assertEqual(response.context["paginated_documents"].paginator.count, 26)
+        self.assertNotContains(response, "Contrat unique")
 
 
 class EmployeePaymentShareTests(TestCase):

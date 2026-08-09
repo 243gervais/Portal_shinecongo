@@ -834,6 +834,8 @@ class SiteDocument(models.Model):
         ordering = ["-uploaded_at"]
         indexes = [
             models.Index(fields=["site", "file_type"]),
+            models.Index(fields=["site", "-uploaded_at"], name="site_doc_site_uploaded_idx"),
+            models.Index(fields=["site", "file_type", "-uploaded_at"], name="site_doc_type_uploaded_idx"),
             models.Index(fields=["-uploaded_at"]),
         ]
     

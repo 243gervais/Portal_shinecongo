@@ -932,6 +932,8 @@
                 .compare-hero-actions,
                 .docs-hero-actions,
                 .docs-document-actions,
+                .docs-filter-pills,
+                .docs-pagination,
                 .docs-employee-actions,
                 .docs-payment-actions,
                 .password-hero-actions,
@@ -954,6 +956,8 @@
                 .compare-hero-actions,
                 .docs-hero-actions,
                 .docs-document-actions,
+                .docs-filter-pills,
+                .docs-pagination,
                 .docs-employee-actions,
                 .docs-payment-actions,
                 .password-hero-actions,
@@ -1012,6 +1016,41 @@
             .admin-fx-input {
                 flex: 1 1 120px !important;
                 width: 100% !important;
+            }
+
+            :where(
+                .container,
+                .admin-hero,
+                .site-hero,
+                .docs-shell,
+                .docs-card,
+                .docs-document-card,
+                .site-card,
+                .finance-card,
+                .water-panel
+            ) {
+                max-width: 100% !important;
+            }
+
+            :where(
+                .btn,
+                .docs-chip,
+                .docs-filter-pill,
+                .docs-document-title,
+                .docs-document-copy,
+                .docs-document-footnote,
+                .site-chip,
+                .admin-site-card,
+                .finance-card,
+                .water-panel
+            ) {
+                min-width: 0 !important;
+                overflow-wrap: anywhere !important;
+            }
+
+            :where(img, video) {
+                max-width: 100%;
+                height: auto;
             }
 
             .table-container {

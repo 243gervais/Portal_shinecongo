@@ -36,6 +36,7 @@ input,
 select,
 textarea {
   font: inherit;
+  min-width: 0;
 }
 
 .portal-shell {
@@ -101,6 +102,8 @@ textarea {
   color: var(--portal-primary-dark);
   font-size: 0.82rem;
   font-weight: 700;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .portal-nav {
@@ -108,12 +111,16 @@ textarea {
   flex-wrap: wrap;
   gap: 0.6rem;
   padding: 1rem 0 0;
+  scrollbar-width: thin;
 }
 
 .portal-nav-link,
 .button,
 .tab-chip,
 .pagination-page {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid rgba(10, 67, 107, 0.1);
   background: rgba(255, 255, 255, 0.9);
   color: var(--portal-primary-dark);
@@ -385,6 +392,8 @@ textarea {
 .list-content {
   display: grid;
   gap: 0.2rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .compact-card {
@@ -534,6 +543,7 @@ textarea {
   display: flex;
   gap: 0.4rem;
   flex-wrap: wrap;
+  justify-content: center;
 }
 
 .pagination-page.is-active {
@@ -739,6 +749,12 @@ textarea {
     padding: 0.75rem;
   }
 
+  .portal-header {
+    padding: 1rem;
+    border-radius: 20px;
+    align-items: stretch;
+  }
+
   .portal-footer {
     gap: 0.35rem;
     font-size: 0.78rem;
@@ -759,11 +775,56 @@ textarea {
 
   .portal-user {
     align-items: flex-start;
+    width: 100%;
   }
 
   .portal-nav {
+    flex-wrap: nowrap;
     overflow-x: auto;
     padding-bottom: 0.3rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .portal-nav-link {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .hero-card,
+  .section-card,
+  .state-card {
+    padding: 1rem;
+    border-radius: 20px;
+  }
+
+  .button-row,
+  .form-actions,
+  .form-actions-inline,
+  .pagination {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .button,
+  .pagination-page {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .filter-grid,
+  .form-grid,
+  .status-grid,
+  .tab-grid,
+  .action-grid,
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .list-card {
+    align-items: stretch;
   }
 
   .expense-row,

@@ -520,6 +520,22 @@
         display: inline-flex;
     }
 
+    .docs-pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 1.1rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .docs-pagination-status {
+        color: var(--text-secondary);
+        font-weight: 800;
+    }
+
     .docs-empty {
         padding: 1.2rem;
         border-radius: 18px;
@@ -552,6 +568,38 @@
 
         .docs-form-inline .form-group {
             min-width: 100%;
+        }
+
+        .docs-shell {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .docs-filter-pills {
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+
+        .docs-filter-pill,
+        .docs-pagination .btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .docs-document-preview {
+            min-height: 150px;
+        }
+
+        .docs-document-title,
+        .docs-document-copy,
+        .docs-document-footnote {
+            overflow-wrap: anywhere;
+        }
+
+        .docs-document-actions .btn,
+        .docs-document-delete,
+        .docs-document-delete button {
+            width: 100%;
         }
     }
 </style>
@@ -622,7 +670,7 @@
                 <div class="docs-mini-item docs-card-row">
                     <div>
                         <p class="docs-mini-label">Bibliothèque documentaire</p>
-                        <div class="docs-mini-copy">{{ documents_total_count }} document{{ documents_total_count|pluralize }} enregistré{{ documents_total_count|pluralize }} sur {{ documents_by_type|length }} catégorie{{ documents_by_type|length|pluralize }} active{{ documents_by_type|length|pluralize }}.</div>
+                        <div class="docs-mini-copy">{{ documents_total_count }} document{{ documents_total_count|pluralize }} enregistré{{ documents_total_count|pluralize }} sur {{ active_document_type_count }} catégorie{{ active_document_type_count|pluralize }} active{{ active_document_type_count|pluralize }}.</div>
                     </div>
                     <div class="docs-mini-value">{{ documents_total_count }}</div>
                 </div>
@@ -658,7 +706,7 @@
                 <h2 class="docs-card-title">Bibliothèque documentaire</h2>
                 <p class="docs-card-copy">Filtrez les pièces par type, ouvrez les médias rapidement et gardez une lecture claire des preuves déjà archivées pour le site.</p>
             </div>
-            <span class="docs-card-badge">{{ all_documents|length }} résultat{{ all_documents|length|pluralize }}</span>
+            <span class="docs-card-badge">{{ paginated_documents.paginator.count }} résultat{{ paginated_documents.paginator.count|pluralize }}</span>
         </div>
 
         <div class="docs-filter-pills">
@@ -672,79 +720,85 @@
             {% endfor %}
         </div>
 
-        {% if documents_by_type %}
+        {% if paginated_documents.paginator.count %}
         <div class="docs-library-sections">
-            {% for summary in document_type_summaries %}
-                {% if not filter_type or filter_type == summary.value %}
-                {% if summary.count %}
-                <article class="docs-type-card">
-                    <div class="docs-type-header">
-                        <div>
-                            <h3 class="docs-type-title">{{ summary.label }}</h3>
-                            <div class="docs-type-copy">Classement documentaire pour {{ site.nom }}{% if filter_type == summary.value %} • filtre actif{% endif %}</div>
-                        </div>
-                        <div>
-                            <div class="docs-type-count">{{ summary.count }}</div>
-                            <div class="docs-type-subcount">document{{ summary.count|pluralize }}</div>
-                        </div>
+            <article class="docs-type-card">
+                <div class="docs-type-header">
+                    <div>
+                        <h3 class="docs-type-title">{{ selected_type_label }}</h3>
+                        <div class="docs-type-copy">Page {{ paginated_documents.number }} sur {{ paginated_documents.paginator.num_pages }} pour {{ site.nom }}{% if filter_type %} • filtre actif{% endif %}</div>
                     </div>
-
-                    <div class="docs-documents-grid">
-                        {% for doc in summary.documents %}
-                        <article class="docs-document-card" id="document-{{ doc.id }}">
-                            <div class="docs-document-preview">
-                                {% if doc.is_image %}
-                                <img src="{{ doc.file.url }}" alt="{{ doc.title }}" onclick="window.open('{{ doc.file.url }}', '_blank')" style="cursor: pointer;">
-                                {% elif doc.is_video %}
-                                <video controls>
-                                    <source src="{{ doc.file.url }}" type="video/mp4">
-                                    Votre navigateur ne supporte pas la lecture de vidéos.
-                                </video>
-                                {% elif doc.is_pdf %}
-                                <div class="docs-document-icon">
-                                    <span>📄</span>
-                                    <strong>PDF</strong>
-                                    <div class="docs-document-copy">{{ doc.filename }}</div>
-                                </div>
-                                {% else %}
-                                <div class="docs-document-icon">
-                                    <span>📎</span>
-                                    <strong>Fichier</strong>
-                                    <div class="docs-document-copy">{{ doc.filename }}</div>
-                                </div>
-                                {% endif %}
-                            </div>
-
-                            <div class="docs-document-body">
-                                <h4 class="docs-document-title">{{ doc.title }}</h4>
-                                {% if doc.description %}
-                                <div class="docs-document-copy">{{ doc.description|truncatewords:24 }}</div>
-                                {% else %}
-                                <div class="docs-document-copy">Aucune description fournie.</div>
-                                {% endif %}
-                                <div class="docs-document-meta">
-                                    <span>{{ doc.uploaded_at|date:"d/m/Y à H:i" }}</span>
-                                    <span>{% if doc.uploaded_by %}• {{ doc.uploaded_by.get_full_name|default:doc.uploaded_by.username }}{% endif %}</span>
-                                </div>
-                                <div class="docs-document-footnote">{{ doc.file_size_mb }} MB • {{ summary.label }}</div>
-                            </div>
-
-                            <div class="docs-document-actions">
-                                <a href="{% url 'admin_edit_site_document' site.id doc.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-secondary">✏️ Renommer</a>
-                                <a href="{% url 'admin_move_site_document' site.id doc.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-secondary">↔️ Migrer</a>
-                                <a href="{{ doc.file.url }}" target="_blank" class="btn btn-primary">📥 Télécharger</a>
-                                <form method="post" action="{% url 'admin_delete_site_document' site.id doc.id %}" class="docs-document-delete" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce document ?');">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-danger">🗑️ Supprimer</button>
-                                </form>
-                            </div>
-                        </article>
-                        {% endfor %}
+                    <div>
+                        <div class="docs-type-count">{{ paginated_documents.paginator.count }}</div>
+                        <div class="docs-type-subcount">document{{ paginated_documents.paginator.count|pluralize }}</div>
                     </div>
-                </article>
+                </div>
+
+                <div class="docs-documents-grid">
+                    {% for doc in paginated_documents %}
+                    <article class="docs-document-card" id="document-{{ doc.id }}">
+                        <div class="docs-document-preview">
+                            {% if doc.is_image %}
+                            <img src="{{ doc.file.url }}" alt="{{ doc.title }}" loading="lazy" decoding="async" onclick="window.open('{{ doc.file.url }}', '_blank')" style="cursor: pointer;">
+                            {% elif doc.is_video %}
+                            <video controls preload="none">
+                                <source src="{{ doc.file.url }}" type="video/mp4">
+                                Votre navigateur ne supporte pas la lecture de vidéos.
+                            </video>
+                            {% elif doc.is_pdf %}
+                            <div class="docs-document-icon">
+                                <span>📄</span>
+                                <strong>PDF</strong>
+                                <div class="docs-document-copy">{{ doc.filename }}</div>
+                            </div>
+                            {% else %}
+                            <div class="docs-document-icon">
+                                <span>📎</span>
+                                <strong>Fichier</strong>
+                                <div class="docs-document-copy">{{ doc.filename }}</div>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="docs-document-body">
+                            <h4 class="docs-document-title">{{ doc.title }}</h4>
+                            {% if doc.description %}
+                            <div class="docs-document-copy">{{ doc.description|truncatewords:24 }}</div>
+                            {% else %}
+                            <div class="docs-document-copy">Aucune description fournie.</div>
+                            {% endif %}
+                            <div class="docs-document-meta">
+                                <span>{{ doc.uploaded_at|date:"d/m/Y à H:i" }}</span>
+                                <span>{% if doc.uploaded_by %}• {{ doc.uploaded_by.get_full_name|default:doc.uploaded_by.username }}{% endif %}</span>
+                            </div>
+                            <div class="docs-document-footnote">{{ doc.file_size_mb }} MB • {{ doc.get_file_type_display }}</div>
+                        </div>
+
+                        <div class="docs-document-actions">
+                            <a href="{% url 'admin_edit_site_document' site.id doc.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-secondary">✏️ Renommer</a>
+                            <a href="{% url 'admin_move_site_document' site.id doc.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-secondary">↔️ Migrer</a>
+                            <a href="{{ doc.file.url }}" target="_blank" class="btn btn-primary">📥 Télécharger</a>
+                            <form method="post" action="{% url 'admin_delete_site_document' site.id doc.id %}" class="docs-document-delete" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce document ?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger">🗑️ Supprimer</button>
+                            </form>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+
+                {% if paginated_documents.paginator.num_pages > 1 %}
+                <nav class="docs-pagination" aria-label="Pagination des documents">
+                    {% if paginated_documents.has_previous %}
+                    <a class="btn btn-secondary" href="?{% if filter_type %}type={{ filter_type }}&{% endif %}documents_page={{ paginated_documents.previous_page_number }}">Précédent</a>
+                    {% endif %}
+                    <span class="docs-pagination-status">Page {{ paginated_documents.number }} / {{ paginated_documents.paginator.num_pages }}</span>
+                    {% if paginated_documents.has_next %}
+                    <a class="btn btn-secondary" href="?{% if filter_type %}type={{ filter_type }}&{% endif %}documents_page={{ paginated_documents.next_page_number }}">Suivant</a>
+                    {% endif %}
+                </nav>
                 {% endif %}
-                {% endif %}
-            {% endfor %}
+            </article>
         </div>
         {% else %}
         <div class="docs-empty">
