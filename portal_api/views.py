@@ -410,6 +410,41 @@ def _safe_employee_shift(shift):
     return data
 
 
+def _manager_report_attendance_rows(site, report_date):
+    pointages = (
+        ShiftDay.objects.filter(
+            site=site,
+            date=report_date,
+            clock_in_time__isnull=False,
+            employe__userprofile__role__in=[UserProfile.EMPLOYEE_ROLE, UserProfile.MANAGER_ROLE],
+        )
+        .select_related("employe", "employe__userprofile", "site")
+        .order_by("clock_in_time", "employe__first_name", "employe__last_name", "employe__username")
+    )
+    rows = []
+    for pointage in pointages:
+        profile = getattr(pointage.employe, "userprofile", None)
+        is_manager = bool(profile and profile.is_manager())
+        rows.append(
+            {
+                "id": pointage.id,
+                "employee_name": pointage.employe.get_full_name() or pointage.employe.username,
+                "username": pointage.employe.username,
+                "role": profile.role if profile else "",
+                "role_label": "Manager" if is_manager else "Employé lavage",
+                "clock_in_display": timezone.localtime(pointage.clock_in_time).strftime("%H:%M"),
+                "clock_out_display": (
+                    timezone.localtime(pointage.clock_out_time).strftime("%H:%M")
+                    if pointage.clock_out_time
+                    else ""
+                ),
+                "status_label": "Journée clôturée" if pointage.clock_out_time else "Présent, non clôturé",
+                "daily_report_confirmed": pointage.daily_report_confirmed,
+            }
+        )
+    return rows
+
+
 def _capture_time_from_request(request, *, photo_field_name="photo"):
     photo = request.FILES.get(photo_field_name)
     if not photo:
@@ -1622,7 +1657,8 @@ class ManagerDailyReportApi(APIView):
             except ValueError:
                 return Response({"message": "Date invalide."}, status=status.HTTP_400_BAD_REQUEST)
 
-        report = ShiftDay.objects.filter(employe=request.user, date=report_date).first()
+        report = ShiftDay.objects.filter(employe=request.user, site=site, date=report_date).first()
+        expense_shift = report or ShiftDay(employe=request.user, site=site, date=report_date)
         today_washes = (
             CarWash.objects.filter(site=site, date=report_date)
             .select_related("employe", "site")
@@ -1648,6 +1684,7 @@ class ManagerDailyReportApi(APIView):
             .order_by("-created_at")
             .first()
         )
+        attendance_rows = _manager_report_attendance_rows(site, report_date)
 
         return Response(
             {
@@ -1658,7 +1695,15 @@ class ManagerDailyReportApi(APIView):
                 "issue_count": issue_count,
                 "report_submitted": bool(report and report.daily_report_confirmed),
                 "report_notes": report.report_notes if report else "",
+                "shift": _safe_employee_shift(report) if report else None,
+                "submitted_total_amount": (
+                    f"{Decimal(report.total_amount_reported_fc or 0):.2f}"
+                    if report and report.daily_report_confirmed else ""
+                ),
+                "expense_form": _build_initial_daily_expense_form(expense_shift),
                 "submitted_total_lavages": report.total_lavages_reported if report and report.daily_report_confirmed else total_washes,
+                "attendance_rows": attendance_rows,
+                "attendance_count": len(attendance_rows),
                 "today_washes": ManagerCarWashSerializer(
                     today_washes[:REPORT_PREVIEW_LIMIT],
                     many=True,
@@ -1687,6 +1732,23 @@ class ManagerDailyReportApi(APIView):
                 return Response({"message": "Date invalide."}, status=status.HTTP_400_BAD_REQUEST)
 
         notes = str(request.data.get("notes", "")).strip()
+        total_amount_value = str(request.data.get("total_amount_reported_fc", "")).strip()
+        expense_form = _parse_daily_expenses_form(request.data)
+        try:
+            total_amount_reported = Decimal(total_amount_value or "0")
+            if total_amount_reported < 0:
+                raise ValueError
+        except (ArithmeticError, ValueError):
+            return Response(
+                {"message": "Veuillez entrer une valeur valide pour le montant total."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if expense_form["errors"]:
+            return Response(
+                {"message": expense_form["errors"][0], "errors": expense_form["errors"]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         total_washes = CarWash.objects.filter(site=site, date=report_date).count()
         issue_count = IssueReport.objects.filter(site=site, created_at__date=report_date).count()
         report, _created = ShiftDay.objects.get_or_create(
@@ -1697,16 +1759,16 @@ class ManagerDailyReportApi(APIView):
         was_update = report.daily_report_confirmed
         report.site = site
         report.total_lavages_reported = total_washes
-        report.total_amount_reported_fc = Decimal("0")
-        report.daily_expenses = []
-        report.daily_expenses_total_fc = Decimal("0")
+        report.total_amount_reported_fc = total_amount_reported
+        report.daily_expenses = expense_form["items"]
+        report.daily_expenses_total_fc = expense_form["total"]
         report.report_notes = notes
         report.daily_report_confirmed = True
         report.save()
 
         _send_final_report_notification(
             shift=report,
-            computed_total_amount=Decimal("0"),
+            computed_total_amount=total_amount_reported,
             issue_count=issue_count,
             was_update=was_update,
         )

@@ -399,7 +399,7 @@ class PortalApiSecurityAndPaginationTests(TestCase):
         self.assertEqual(fuel_purchase.amount_fc, Decimal("5000"))
         self.assertEqual(fuel_purchase.created_by, self.manager)
 
-    def test_location_manager_can_send_daily_report_without_money(self):
+    def test_location_manager_can_send_daily_report_with_total_and_expenses(self):
         today = timezone.localdate()
         CarWash.objects.create(
             employe=self.employee,
@@ -413,16 +413,26 @@ class PortalApiSecurityAndPaginationTests(TestCase):
 
         response = self.client.post(
             reverse("portal_api_manager_report"),
-            {"notes": "Journee normale."},
+            {
+                "notes": "Journee normale.",
+                "total_amount_reported_fc": "130000",
+                "known_expense_transport_personnels_enabled": "1",
+                "known_expense_transport_personnels_amount": "21000",
+                "custom_expense_label": ["Eau urgence"],
+                "custom_expense_amount": ["5000"],
+            },
         )
 
         self.assertEqual(response.status_code, 200)
         report = ShiftDay.objects.get(employe=self.manager, date=today)
         self.assertTrue(report.daily_report_confirmed)
         self.assertEqual(report.total_lavages_reported, 1)
-        self.assertEqual(report.total_amount_reported_fc, Decimal("0"))
+        self.assertEqual(report.total_amount_reported_fc, Decimal("130000"))
+        self.assertEqual(report.daily_expenses_total_fc, Decimal("26000"))
+        self.assertEqual(report.daily_expense_items[0]["label"], "Transport de Personnels")
+        self.assertEqual(report.daily_expense_items[1]["label"], "Eau urgence")
 
-    def test_location_manager_daily_report_includes_operations_without_money(self):
+    def test_location_manager_daily_report_includes_operations_without_lavage_money(self):
         today = timezone.localdate()
         CarWash.objects.create(
             employe=self.manager,
@@ -451,3 +461,48 @@ class PortalApiSecurityAndPaginationTests(TestCase):
         self.assertEqual(len(payload["today_washes"]), 1)
         self.assertNotIn("amount_display", payload["today_washes"][0])
         self.assertEqual(len(payload["today_issues"]), 1)
+
+    def test_location_manager_daily_report_includes_expenses_and_attendance_rows(self):
+        today = timezone.localdate()
+        base_time = timezone.now().replace(hour=8, minute=0, second=0, microsecond=0)
+        ShiftDay.objects.create(
+            employe=self.employee,
+            site=self.site,
+            date=today,
+            clock_in_time=base_time,
+            clock_out_time=base_time.replace(hour=17),
+        )
+        ShiftDay.objects.create(
+            employe=self.manager,
+            site=self.site,
+            date=today,
+            clock_in_time=base_time.replace(hour=7, minute=45),
+            clock_out_time=base_time.replace(hour=18),
+            daily_report_confirmed=True,
+            total_amount_reported_fc=Decimal("120000"),
+            daily_expenses=[
+                {
+                    "key": "transport_personnels",
+                    "label": "Transport de Personnels",
+                    "amount_fc": "21000.00",
+                    "is_known": True,
+                }
+            ],
+            daily_expenses_total_fc=Decimal("21000"),
+        )
+        self.client.login(username="manager", password="pass1234")
+
+        response = self.client.get(reverse("portal_api_manager_report"))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["submitted_total_amount"], "120000.00")
+        self.assertEqual(payload["expense_form"]["known"][0]["label"], "Transport de Personnels")
+        self.assertTrue(payload["expense_form"]["known"][0]["selected"])
+        self.assertEqual(payload["attendance_count"], 2)
+        attendance_names = [item["employee_name"] for item in payload["attendance_rows"]]
+        self.assertIn("employee", attendance_names)
+        self.assertIn("manager", attendance_names)
+        manager_row = next(item for item in payload["attendance_rows"] if item["username"] == "manager")
+        self.assertEqual(manager_row["role_label"], "Manager")
+        self.assertEqual(manager_row["clock_out_display"], timezone.localtime(base_time.replace(hour=18)).strftime("%H:%M"))
