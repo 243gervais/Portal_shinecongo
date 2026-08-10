@@ -342,6 +342,28 @@ textarea {
   font-weight: 700;
 }
 
+.proof-thumb-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.proof-thumb-row a {
+  display: grid;
+  gap: 0.35rem;
+  width: 96px;
+  color: var(--portal-primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.proof-thumb-row .image-thumb {
+  width: 96px;
+  height: 72px;
+}
+
 .filter-grid,
 .form-grid,
 .status-grid,

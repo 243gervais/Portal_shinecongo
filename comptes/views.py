@@ -3700,7 +3700,7 @@ def admin_site_attendance_photos(request, site_id):
     employee_options = list(
         UserProfile.objects.filter(
             site=site,
-            role=UserProfile.EMPLOYEE_ROLE,
+            role__in=[UserProfile.EMPLOYEE_ROLE, UserProfile.MANAGER_ROLE],
             actif=True,
         )
         .select_related("user")

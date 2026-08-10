@@ -294,8 +294,21 @@ def _manager_selected_site(user, request):
     return (accessible_sites[0] if accessible_sites else None), accessible_sites
 
 
-def _employee_options_for_sites(site_ids):
-    cache_key = "portal:employee-options:" + ",".join(sorted(str(site_id) for site_id in site_ids))
+def _manager_visible_staff_roles(user):
+    roles = [UserProfile.EMPLOYEE_ROLE]
+    if _can_view_manager_money(user):
+        roles.append(UserProfile.MANAGER_ROLE)
+    return roles
+
+
+def _employee_options_for_sites(site_ids, user=None):
+    roles = _manager_visible_staff_roles(user) if user else [UserProfile.EMPLOYEE_ROLE]
+    cache_key = (
+        "portal:employee-options:"
+        + ",".join(sorted(str(site_id) for site_id in site_ids))
+        + ":roles:"
+        + ",".join(sorted(roles))
+    )
     cached_options = cache.get(cache_key)
     if cached_options is not None:
         return cached_options
@@ -303,7 +316,7 @@ def _employee_options_for_sites(site_ids):
     queryset = (
         User.objects.filter(
             userprofile__site_id__in=site_ids,
-            userprofile__role=UserProfile.EMPLOYEE_ROLE,
+            userprofile__role__in=roles,
             userprofile__actif=True,
         )
         .order_by("first_name", "last_name", "username")
@@ -1534,9 +1547,10 @@ class ManagerPointageListApi(APIView):
     def get(self, request):
         accessible_sites = list(_manager_accessible_sites(request.user))
         site_ids = [site.id for site in accessible_sites]
+        visible_roles = _manager_visible_staff_roles(request.user)
         queryset = (
             ShiftDay.objects.select_related("employe", "site", "corrected_by")
-            .filter(site_id__in=site_ids, employe__userprofile__role=UserProfile.EMPLOYEE_ROLE)
+            .filter(site_id__in=site_ids, employe__userprofile__role__in=visible_roles)
             .order_by("-date", "-clock_in_time")
         )
 
@@ -1562,7 +1576,7 @@ class ManagerPointageListApi(APIView):
             extra={
                 "filters": {
                     "sites": _site_options(accessible_sites),
-                    "employees": _employee_options_for_sites(site_ids),
+                    "employees": _employee_options_for_sites(site_ids, request.user),
                 }
             },
         )
@@ -1573,11 +1587,12 @@ class ManagerPointageCorrectionApi(APIView):
 
     def post(self, request, pointage_id):
         accessible_site_ids = {site.id for site in _manager_accessible_sites(request.user)}
+        visible_roles = _manager_visible_staff_roles(request.user)
         pointage = get_object_or_404(
             ShiftDay.objects.select_related("site", "employe"),
             id=pointage_id,
             site_id__in=accessible_site_ids,
-            employe__userprofile__role=UserProfile.EMPLOYEE_ROLE,
+            employe__userprofile__role__in=visible_roles,
         )
         motif = str(request.data.get("motif", "")).strip()
         if not motif:
@@ -1632,11 +1647,12 @@ class ManagerPointageDetailApi(APIView):
 
     def get(self, request, pointage_id):
         accessible_site_ids = {site.id for site in _manager_accessible_sites(request.user)}
+        visible_roles = _manager_visible_staff_roles(request.user)
         pointage = get_object_or_404(
             ShiftDay.objects.select_related("site", "employe", "corrected_by"),
             id=pointage_id,
             site_id__in=accessible_site_ids,
-            employe__userprofile__role=UserProfile.EMPLOYEE_ROLE,
+            employe__userprofile__role__in=visible_roles,
         )
         return Response(ShiftDaySerializer(pointage).data)
 
@@ -1818,6 +1834,9 @@ class ManagerCarWashListApi(APIView):
             queryset = queryset.filter(site_id=site_id)
 
         can_view_money = _can_view_manager_money(request.user)
+        include_image_previews = can_view_money
+        if include_image_previews:
+            queryset = queryset.prefetch_related(PHOTO_PREFETCH)
         if can_view_money:
             aggregate_totals = queryset.aggregate(total=Sum("montant"), count=Count("id"))
             total_montant = aggregate_totals["total"] or Decimal("0")
@@ -1832,7 +1851,11 @@ class ManagerCarWashListApi(APIView):
             ManagerCarWashSerializer,
             request,
             page_size=20,
-            serializer_context={"can_view_money": can_view_money, **LAVAGE_LIST_SERIALIZER_CONTEXT},
+            serializer_context={
+                "can_view_money": can_view_money,
+                **LAVAGE_LIST_SERIALIZER_CONTEXT,
+                "include_image_previews": include_image_previews,
+            },
             extra={
                 "totals": {
                     "count": total_count,
@@ -1846,7 +1869,7 @@ class ManagerCarWashListApi(APIView):
                 },
                 "filters": {
                     "sites": _site_options(accessible_sites),
-                    "employees": _employee_options_for_sites(site_ids),
+                    "employees": _employee_options_for_sites(site_ids, request.user),
                     "types_service": [
                         {"value": value, "label": label}
                         for value, label in CarWash.TYPE_SERVICE_CHOICES

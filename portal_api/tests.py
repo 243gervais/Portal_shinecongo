@@ -345,6 +345,87 @@ class PortalApiSecurityAndPaginationTests(TestCase):
         self.assertTrue(payload["can_view_money"])
         self.assertIn("revenue_display", payload["sites"][0])
 
+    def test_admin_can_see_manager_presence_photos_in_pointage_list(self):
+        admin = User.objects.create_superuser(username="admin", password="pass1234")
+        today = timezone.localdate()
+        ShiftDay.objects.create(
+            employe=self.manager,
+            site=self.site,
+            date=today,
+            clock_in_time=timezone.now(),
+            clock_in_photo=SimpleUploadedFile(
+                "manager-start.gif",
+                b"GIF89a\x01\x00\x01\x00\x80\x00\x00"
+                b"\x00\x00\x00\xff\xff\xff!\xf9\x04\x01"
+                b"\x00\x00\x00\x00,\x00\x00\x00\x00\x01"
+                b"\x00\x01\x00\x00\x02\x02D\x01\x00;",
+                content_type="image/gif",
+            ),
+        )
+        self.client.login(username="admin", password="pass1234")
+
+        response = self.client.get(reverse("portal_api_manager_pointages"))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        manager_row = next(item for item in payload["results"] if item["employee_name"] == "manager")
+        self.assertIn("manager-start", manager_row["clock_in_photo_url"])
+        self.assertTrue(manager_row["clock_in_photo_thumbnail_url"])
+        employee_filter_names = [item["nom"] for item in payload["filters"]["employees"]]
+        self.assertIn("manager", employee_filter_names)
+
+    def test_location_manager_does_not_see_manager_pointage_rows(self):
+        today = timezone.localdate()
+        ShiftDay.objects.create(
+            employe=self.manager,
+            site=self.site,
+            date=today,
+            clock_in_time=timezone.now(),
+        )
+        self.client.login(username="manager", password="pass1234")
+
+        response = self.client.get(reverse("portal_api_manager_pointages"))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["results"], [])
+        employee_filter_names = [item["nom"] for item in payload["filters"]["employees"]]
+        self.assertNotIn("manager", employee_filter_names)
+
+    def test_admin_can_see_manager_lavage_photo_previews(self):
+        admin = User.objects.create_superuser(username="admin", password="pass1234")
+        lavage = CarWash.objects.create(
+            employe=self.manager,
+            site=self.site,
+            date=timezone.localdate(),
+            type_service="COMPLET",
+            plaque="KIN005",
+            montant=Decimal("0"),
+        )
+        CarWashPhoto.objects.create(
+            lavage=lavage,
+            photo=SimpleUploadedFile(
+                "manager-lavage.gif",
+                b"GIF89a\x01\x00\x01\x00\x80\x00\x00"
+                b"\x00\x00\x00\xff\xff\xff!\xf9\x04\x01"
+                b"\x00\x00\x00\x00,\x00\x00\x00\x00\x01"
+                b"\x00\x01\x00\x00\x02\x02D\x01\x00;",
+                content_type="image/gif",
+            ),
+            type_photo="APRES",
+        )
+        self.client.login(username="admin", password="pass1234")
+
+        response = self.client.get(reverse("portal_api_manager_lavages"))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["can_view_money"])
+        self.assertEqual(payload["results"][0]["employee_name"], "manager")
+        self.assertIn("manager-lavage", payload["results"][0]["preview_photo"])
+        employee_filter_names = [item["nom"] for item in payload["filters"]["employees"]]
+        self.assertIn("manager", employee_filter_names)
+
     def test_location_manager_can_report_problem_for_assigned_site(self):
         self.client.login(username="manager", password="pass1234")
 

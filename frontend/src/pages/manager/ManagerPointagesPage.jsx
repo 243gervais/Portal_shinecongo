@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { apiFetch } from "../../lib/api";
-import { ErrorState, LoadingState, Pagination } from "../../components/Ui";
+import { ErrorState, ImageThumb, LoadingState, Pagination } from "../../components/Ui";
 
 export default function ManagerPointagesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -103,7 +103,29 @@ export default function ManagerPointagesPage() {
                 <p>{item.date_display}</p>
                 <p>Entrée: {item.clock_in_display || "--:--"} | Sortie: {item.clock_out_display || "--:--"}</p>
                 <p>Arrivée: {item.attendance_status_label} | Fin: {item.clock_out_status_label}</p>
-                <p>Preuves: {item.clock_in_photo_url ? "début" : "aucune"}{item.clock_out_photo_url ? " · fin" : ""}</p>
+                <div className="proof-thumb-row" aria-label={`Preuves de présence de ${item.employee_name}`}>
+                  {item.clock_in_photo_url ? (
+                    <a href={item.clock_in_photo_url} target="_blank" rel="noopener noreferrer">
+                      <ImageThumb
+                        src={item.clock_in_photo_thumbnail_url || item.clock_in_photo_url}
+                        alt={`Photo d'arrivée de ${item.employee_name}`}
+                      />
+                      <span>Arrivée</span>
+                    </a>
+                  ) : null}
+                  {item.clock_out_photo_url ? (
+                    <a href={item.clock_out_photo_url} target="_blank" rel="noopener noreferrer">
+                      <ImageThumb
+                        src={item.clock_out_photo_thumbnail_url || item.clock_out_photo_url}
+                        alt={`Photo de fin de ${item.employee_name}`}
+                      />
+                      <span>Fin</span>
+                    </a>
+                  ) : null}
+                  {!item.clock_in_photo_url && !item.clock_out_photo_url ? (
+                    <span className="inline-muted">Aucune photo de présence</span>
+                  ) : null}
+                </div>
               </div>
               <Link className="button button-primary" to={`/manager/pointages/${item.id}/corriger/`}>
                 Corriger
