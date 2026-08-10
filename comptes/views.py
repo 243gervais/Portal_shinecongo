@@ -2935,7 +2935,7 @@ def admin_site_detail(request, site_id):
     )
     
     # Récupérer les lavages triés par date décroissante et paginer la table.
-    lavages_all_qs = lavages_query.order_by('-date', '-created_at')
+    lavages_all_qs = lavages_query.prefetch_related("photos").order_by('-date', '-created_at')
     lavages_all = paginate_queryset(request, lavages_all_qs, per_page=20, page_param="lavages_page")
     total_lavages = lavages_all_qs.count()
     chiffre_periode = lavages_all_qs.aggregate(total=Sum('montant'))['total'] or 0
@@ -2967,6 +2967,7 @@ def admin_site_detail(request, site_id):
     lavages_date = (
         CarWash.objects.filter(site=site, date=detail_date)
         .select_related('employe')
+        .prefetch_related("photos")
         .annotate(photo_count_value=Count("photos", distinct=True))
         .order_by('-created_at')
     )

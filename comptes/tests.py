@@ -18,7 +18,7 @@ from comptes.forms import ApprovalAuthenticationForm
 from comptes.recruitment import ReviewedCandidateCV
 from comptes.views import _daily_funding_snapshot
 from comptes.models import AdminReminder, EmployeePayment, UserProfile
-from lavages.models import CarWash
+from lavages.models import CarWash, CarWashPhoto
 from sites.models import (
     Camera,
     CameraObservation,
@@ -2816,6 +2816,61 @@ class SiteCorrectionsViewTests(TestCase):
         self.assertContains(response, "employee_fix")
         self.assertContains(response, "Modifier")
         self.assertContains(response, "Supprimer")
+
+
+@override_settings(MEDIA_ROOT="/private/tmp/portal_shinecongo_admin_lavage_photo_test_media")
+class AdminManagerLavagePhotoVisibilityTests(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            username="admin_lavage_photos",
+            email="admin_lavage_photos@example.com",
+            password="AdminPass123!",
+        )
+        self.site = Location.objects.create(
+            nom="Ngolomingo",
+            adresse="Kinshasa",
+            ville="Kinshasa",
+            actif=True,
+        )
+        self.manager = User.objects.create_user(
+            username="manager_lavage_photos_visible",
+            email="manager.visible@example.com",
+            password="ManagerPass123!",
+            first_name="Manager",
+            last_name="Ngolomingo",
+        )
+        self.manager.userprofile.role = UserProfile.MANAGER_ROLE
+        self.manager.userprofile.site = self.site
+        self.manager.userprofile.actif = True
+        self.manager.userprofile.save()
+        self.client.login(username="admin_lavage_photos", password="AdminPass123!")
+
+    def test_site_detail_shows_manager_lavage_photo_thumbnails(self):
+        lavage = CarWash.objects.create(
+            employe=self.manager,
+            site=self.site,
+            date=date(2026, 4, 11),
+            type_service="COMPLET",
+            plaque="MGR123",
+            montant=Decimal("0.00"),
+        )
+        photo = CarWashPhoto.objects.create(
+            lavage=lavage,
+            photo=SimpleUploadedFile("manager-lavage.gif", TEST_GIF_BYTES, content_type="image/gif"),
+            type_photo="APRES",
+        )
+
+        response = self.client.get(
+            reverse("admin_site_detail", args=[self.site.id]),
+            data={"date_debut": "2026-04-11", "date_fin": "2026-04-11"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Manager Ngolomingo")
+        self.assertContains(response, "MGR123")
+        self.assertContains(response, "admin-lavage-photo-thumb")
+        self.assertContains(response, photo.photo.url)
+        self.assertContains(response, photo.thumbnail_url or photo.photo.url)
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.contrib.auth.models import User

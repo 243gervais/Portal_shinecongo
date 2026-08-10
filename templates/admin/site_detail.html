@@ -1548,7 +1548,14 @@
                                         </td>
                                         <td>
                                             {% if lavage.photo_count %}
-                                                {{ lavage.photo_count }} photo{{ lavage.photo_count|pluralize }}
+                                                <div class="admin-lavage-photo-strip">
+                                                    {% for photo in lavage.photos.all %}
+                                                    <a href="{{ photo.photo.url }}" target="_blank" rel="noopener" class="admin-lavage-photo-link">
+                                                        <img src="{{ photo.thumbnail_url|default:photo.photo.url }}" alt="Photo {{ lavage.get_type_service_display }} de {{ lavage.employe.get_full_name|default:lavage.employe.username }}" loading="lazy" decoding="async" class="admin-lavage-photo-thumb">
+                                                        <span>{{ photo.get_type_photo_display }}</span>
+                                                    </a>
+                                                    {% endfor %}
+                                                </div>
                                             {% else %}
                                                 -
                                             {% endif %}
@@ -2945,7 +2952,7 @@
 {% endif %}
 
 <!-- Photos des voitures lavées -->
-<details class="site-section-card" id="photos-lavages">
+<details class="site-section-card" id="photos-lavages" {% if photos_lavages_total %}open{% endif %}>
     <summary class="site-section-head">
         <div>
             <h2 class="site-section-title">Photos des voitures lavées</h2>
@@ -2988,6 +2995,42 @@
 </details>
 
 <style>
+    .admin-lavage-photo-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        min-width: 170px;
+    }
+    .admin-lavage-photo-link {
+        display: grid;
+        gap: 0.25rem;
+        width: 76px;
+        color: var(--primary-color);
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-align: center;
+        text-decoration: none;
+    }
+    .admin-lavage-photo-thumb {
+        width: 76px;
+        height: 58px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        object-fit: cover;
+        background: var(--bg-secondary);
+    }
+    @media (max-width: 768px) {
+        .admin-lavage-photo-strip {
+            min-width: 0;
+        }
+        .admin-lavage-photo-link {
+            width: 88px;
+        }
+        .admin-lavage-photo-thumb {
+            width: 88px;
+            height: 66px;
+        }
+    }
     .card div[onclick]:hover img {
         transform: scale(1.1);
     }
@@ -3153,7 +3196,14 @@
                     <td style="font-weight: 600; color: var(--success-color);">{{ lavage.montant|floatformat:0 }} FC</td>
                     <td>
                         {% if lavage.photo_count %}
-                            <span style="color: var(--primary-color);">{{ lavage.photo_count }} photo(s)</span>
+                            <div class="admin-lavage-photo-strip">
+                                {% for photo in lavage.photos.all %}
+                                <a href="{{ photo.photo.url }}" target="_blank" rel="noopener" class="admin-lavage-photo-link">
+                                    <img src="{{ photo.thumbnail_url|default:photo.photo.url }}" alt="Photo {{ lavage.get_type_service_display }} de {{ lavage.employe.get_full_name|default:lavage.employe.username }}" loading="lazy" decoding="async" class="admin-lavage-photo-thumb">
+                                    <span>{{ photo.get_type_photo_display }}</span>
+                                </a>
+                                {% endfor %}
+                            </div>
                         {% else %}
                             <span style="color: var(--text-secondary);">-</span>
                         {% endif %}
