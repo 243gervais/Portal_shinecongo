@@ -1802,6 +1802,7 @@ class ManagerDailyReportApi(APIView):
             report.daily_report_confirmed = True
             report.save()
 
+        sync_site_finance_from_daily_reports(site, report_date, actor=request.user)
         _send_final_report_notification(
             shift=report,
             computed_total_amount=total_amount_reported,

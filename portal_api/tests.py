@@ -529,6 +529,19 @@ class PortalApiSecurityAndPaginationTests(TestCase):
         self.assertEqual(report.daily_expense_items[0]["label"], "Transport de Personnels")
         self.assertEqual(report.daily_expense_items[1]["label"], "Eau urgence")
 
+    @patch("portal_api.views.sync_site_finance_from_daily_reports")
+    def test_location_manager_daily_report_syncs_to_admin_finance(self, mock_sync):
+        today = timezone.localdate()
+        self.client.login(username="manager", password="pass1234")
+
+        response = self.client.post(
+            reverse("portal_api_manager_report"),
+            {"notes": "Rapport manager.", "total_amount_reported_fc": "130000"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        mock_sync.assert_called_once_with(self.site, today, actor=self.manager)
+
     def test_location_manager_cannot_submit_daily_report_twice(self):
         self.client.login(username="manager", password="pass1234")
 
