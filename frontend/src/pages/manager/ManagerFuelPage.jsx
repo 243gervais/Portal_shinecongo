@@ -9,6 +9,7 @@ export default function ManagerFuelPage() {
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [amountValue, setAmountValue] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   async function load() {
     try {
@@ -24,8 +25,17 @@ export default function ManagerFuelPage() {
     load();
   }, []);
 
-  async function handleSubmit(event) {
+  function handleSubmit(event) {
     event.preventDefault();
+    if (data.today_purchase) {
+      setNotice("L'achat de carburant du jour a déjà été signalé.");
+      return;
+    }
+    setNotice("");
+    setPreviewOpen(true);
+  }
+
+  async function confirmSubmit() {
     setBusy(true);
     setNotice("");
     try {
@@ -37,6 +47,7 @@ export default function ManagerFuelPage() {
       });
       setNotice(payload.message);
       setAmountValue("");
+      setPreviewOpen(false);
       await load();
     } catch (requestError) {
       setNotice(requestError.message);
@@ -76,6 +87,27 @@ export default function ManagerFuelPage() {
           </article>
         </div>
 
+        {previewOpen ? (
+          <div className="preview-panel">
+            <p className="eyebrow">Aperçu avant envoi</p>
+            <h2>Confirmer le signalement carburant</h2>
+            <div className="preview-grid">
+              <div><strong>Site</strong><span>{data.site.nom}</span></div>
+              <div><strong>Date</strong><span>{data.today}</span></div>
+              <div><strong>Mois rattaché</strong><span>{data.billing_month_display}</span></div>
+              <div><strong>Montant</strong><span>{amountValue || "0"} FC</span></div>
+            </div>
+            <div className="button-row">
+              <button type="button" className="button button-primary" onClick={confirmSubmit} disabled={busy}>
+                {busy ? "Enregistrement..." : "Confirmer et signaler une seule fois"}
+              </button>
+              <button type="button" className="button button-muted" onClick={() => setPreviewOpen(false)} disabled={busy}>
+                Modifier
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         <form className="form-grid" onSubmit={handleSubmit}>
           <label className="field">
             <span>Prix du carburant acheté (FC)</span>
@@ -97,7 +129,7 @@ export default function ManagerFuelPage() {
               className="button button-primary"
               disabled={busy || Boolean(data.today_purchase)}
             >
-              {busy ? "Enregistrement..." : "Signaler l'achat de carburant du jour"}
+              {data.today_purchase ? "Carburant déjà signalé" : busy ? "Enregistrement..." : "Voir l'aperçu avant envoi"}
             </button>
           </div>
         </form>

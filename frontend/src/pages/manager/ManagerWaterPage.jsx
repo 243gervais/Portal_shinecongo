@@ -8,6 +8,7 @@ export default function ManagerWaterPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   async function load() {
     try {
@@ -23,7 +24,16 @@ export default function ManagerWaterPage() {
     load();
   }, []);
 
-  async function handleSubmit() {
+  function handleSubmit() {
+    if (data.today_purchase) {
+      setNotice("L'achat d'eau du jour a déjà été signalé.");
+      return;
+    }
+    setNotice("");
+    setPreviewOpen(true);
+  }
+
+  async function confirmSubmit() {
     setBusy(true);
     setNotice("");
     try {
@@ -32,6 +42,7 @@ export default function ManagerWaterPage() {
         data: {},
       });
       setNotice(payload.message);
+      setPreviewOpen(false);
       await load();
     } catch (requestError) {
       setNotice(requestError.message);
@@ -71,13 +82,34 @@ export default function ManagerWaterPage() {
           </article>
         </div>
 
+        {previewOpen ? (
+          <div className="preview-panel">
+            <p className="eyebrow">Aperçu avant envoi</p>
+            <h2>Confirmer le signalement d'eau</h2>
+            <div className="preview-grid">
+              <div><strong>Site</strong><span>{data.site.nom}</span></div>
+              <div><strong>Date</strong><span>{data.today}</span></div>
+              <div><strong>Mois facturé</strong><span>{data.billing_month_display}</span></div>
+              <div><strong>Fournisseur</strong><span>{data.default_supplier_name}</span></div>
+            </div>
+            <div className="button-row">
+              <button type="button" className="button button-primary" onClick={confirmSubmit} disabled={busy}>
+                {busy ? "Enregistrement..." : "Confirmer et signaler une seule fois"}
+              </button>
+              <button type="button" className="button button-muted" onClick={() => setPreviewOpen(false)} disabled={busy}>
+                Annuler
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         <button
           type="button"
           className="button button-primary"
           disabled={busy || Boolean(data.today_purchase)}
           onClick={handleSubmit}
         >
-          {busy ? "Enregistrement..." : "Signaler l'achat d'eau du jour"}
+          {data.today_purchase ? "Eau déjà signalée" : busy ? "Enregistrement..." : "Voir l'aperçu avant envoi"}
         </button>
       </section>
     </div>

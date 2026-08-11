@@ -364,6 +364,40 @@ textarea {
   height: 72px;
 }
 
+.preview-panel {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--portal-border);
+  border-radius: 14px;
+  background: var(--portal-surface-soft);
+}
+
+.preview-panel h2,
+.preview-panel p {
+  margin: 0;
+}
+
+.preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+}
+
+.preview-grid div,
+.preview-list {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  border-radius: 12px;
+  background: var(--portal-surface);
+}
+
+.preview-grid span,
+.preview-list span {
+  color: var(--portal-muted);
+}
+
 .filter-grid,
 .form-grid,
 .status-grid,

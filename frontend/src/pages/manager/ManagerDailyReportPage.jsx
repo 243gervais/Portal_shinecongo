@@ -4,13 +4,14 @@ import { Link } from "react-router-dom";
 import { apiFetch } from "../../lib/api";
 import { EmptyState, ErrorState, LoadingState, Notice } from "../../components/Ui";
 
-function CustomExpenseRow({ value, index, onChange, onRemove }) {
+function CustomExpenseRow({ value, index, onChange, onRemove, disabled = false }) {
   return (
     <div className="expense-row">
       <input
         type="text"
         value={value.label}
         placeholder="Nom de la dépense"
+        disabled={disabled}
         onChange={(event) => onChange(index, "label", event.target.value)}
       />
       <input
@@ -19,9 +20,10 @@ function CustomExpenseRow({ value, index, onChange, onRemove }) {
         placeholder="Montant FC"
         min="0"
         step="0.01"
+        disabled={disabled}
         onChange={(event) => onChange(index, "amount_value", event.target.value)}
       />
-      <button type="button" className="button button-muted" onClick={() => onRemove(index)}>
+      <button type="button" className="button button-muted" onClick={() => onRemove(index)} disabled={disabled}>
         Retirer
       </button>
     </div>
@@ -45,6 +47,7 @@ export default function ManagerDailyReportPage() {
   const [knownExpenses, setKnownExpenses] = useState([]);
   const [customExpenses, setCustomExpenses] = useState([]);
   const [declaredAmount, setDeclaredAmount] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
   const customExpenseIdRef = useRef(0);
 
   function createCustomExpense(expense = {}) {
@@ -95,32 +98,62 @@ export default function ManagerDailyReportPage() {
     setCustomExpenses((currentExpenses) => currentExpenses.filter((_, expenseIndex) => expenseIndex !== index));
   }
 
-  async function handleSubmit(event) {
+  function selectedExpenseRows() {
+    return [
+      ...knownExpenses
+        .filter((expense) => expense.selected)
+        .map((expense) => ({
+          label: expense.label,
+          amount: expense.amount_value || "0",
+        })),
+      ...customExpenses
+        .filter((expense) => expense.label || expense.amount_value)
+        .map((expense) => ({
+          label: expense.label || "Dépense sans nom",
+          amount: expense.amount_value || "0",
+        })),
+    ];
+  }
+
+  function buildFormData() {
+    const formData = new FormData();
+    formData.append("date", data.date);
+    formData.append("site", data.site.id);
+    formData.append("notes", notes);
+    formData.append("total_amount_reported_fc", declaredAmount);
+    knownExpenses.forEach((expense) => {
+      if (expense.selected) {
+        formData.append(`known_expense_${expense.key}_enabled`, "1");
+      }
+      formData.append(`known_expense_${expense.key}_amount`, expense.amount_value || "");
+    });
+    customExpenses.forEach((expense) => {
+      formData.append("custom_expense_label", expense.label || "");
+      formData.append("custom_expense_amount", expense.amount_value || "");
+    });
+    return formData;
+  }
+
+  function handleSubmit(event) {
     event.preventDefault();
+    if (data.report_submitted) {
+      setNotice("Le rapport final du jour a déjà été envoyé. Contactez l'administrateur pour une correction.");
+      return;
+    }
+    setNotice("");
+    setPreviewOpen(true);
+  }
+
+  async function confirmSubmit() {
     setBusy(true);
     setNotice("");
     try {
-      const formData = new FormData();
-      formData.append("date", data.date);
-      formData.append("site", data.site.id);
-      formData.append("notes", notes);
-      formData.append("total_amount_reported_fc", declaredAmount);
-      knownExpenses.forEach((expense) => {
-        if (expense.selected) {
-          formData.append(`known_expense_${expense.key}_enabled`, "1");
-        }
-        formData.append(`known_expense_${expense.key}_amount`, expense.amount_value || "");
-      });
-      customExpenses.forEach((expense) => {
-        formData.append("custom_expense_label", expense.label || "");
-        formData.append("custom_expense_amount", expense.amount_value || "");
-      });
-
       const payload = await apiFetch("/manager/rapport-journalier/", {
         method: "POST",
-        data: formData,
+        data: buildFormData(),
       });
       setNotice(payload.message);
+      setPreviewOpen(false);
       await load();
     } catch (requestError) {
       setNotice(requestError.message);
@@ -136,6 +169,8 @@ export default function ManagerDailyReportPage() {
   if (!data) {
     return <LoadingState label="Chargement du rapport manager..." />;
   }
+
+  const expensePreviewRows = selectedExpenseRows();
 
   return (
     <div className="page-stack">
@@ -199,6 +234,7 @@ export default function ManagerDailyReportPage() {
               step="0.01"
               value={declaredAmount}
               onChange={(event) => setDeclaredAmount(event.target.value)}
+              disabled={data.report_submitted || busy}
               required
             />
           </label>
@@ -211,6 +247,7 @@ export default function ManagerDailyReportPage() {
                   <input
                     type="checkbox"
                     checked={expense.selected}
+                    disabled={data.report_submitted || busy}
                     onChange={(event) => updateKnownExpense(index, "selected", event.target.checked)}
                   />
                   <span>{expense.label}</span>
@@ -219,6 +256,7 @@ export default function ManagerDailyReportPage() {
                     min="0"
                     step="0.01"
                     value={expense.amount_value}
+                    disabled={data.report_submitted || busy}
                     onChange={(event) => updateKnownExpense(index, "amount_value", event.target.value)}
                   />
                 </label>
@@ -236,11 +274,13 @@ export default function ManagerDailyReportPage() {
                   index={index}
                   onChange={updateCustomExpense}
                   onRemove={removeCustomExpense}
+                  disabled={data.report_submitted || busy}
                 />
               ))}
               <button
                 type="button"
                 className="button button-muted"
+                disabled={data.report_submitted || busy}
                 onClick={() => setCustomExpenses((currentExpenses) => [...currentExpenses, createCustomExpense()])}
               >
                 Ajouter une ligne
@@ -254,12 +294,46 @@ export default function ManagerDailyReportPage() {
               rows="5"
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
+              disabled={data.report_submitted || busy}
               placeholder="Présence, incidents, remarques clients ou matériel..."
             />
           </label>
+          {previewOpen ? (
+            <div className="field-full preview-panel">
+              <p className="eyebrow">Aperçu avant envoi</p>
+              <h2>Vérifier le rapport final</h2>
+              <div className="preview-grid">
+                <div><strong>Site</strong><span>{data.site.nom}</span></div>
+                <div><strong>Date</strong><span>{data.date}</span></div>
+                <div><strong>Lavages</strong><span>{data.total_lavages}</span></div>
+                <div><strong>Présents</strong><span>{data.attendance_count}</span></div>
+                <div><strong>Montant déclaré</strong><span>{declaredAmount || "0"} FC</span></div>
+                <div><strong>Problèmes</strong><span>{data.issue_count}</span></div>
+              </div>
+              <div className="preview-list">
+                <strong>Dépenses</strong>
+                {expensePreviewRows.length ? (
+                  expensePreviewRows.map((expense, index) => (
+                    <span key={`${expense.label}-${index}`}>{expense.label}: {expense.amount} FC</span>
+                  ))
+                ) : (
+                  <span>Aucune dépense déclarée.</span>
+                )}
+              </div>
+              {notes ? <p className="inline-muted">Notes: {notes}</p> : null}
+              <div className="button-row">
+                <button type="button" className="button button-primary" onClick={confirmSubmit} disabled={busy}>
+                  {busy ? "Envoi..." : "Confirmer et envoyer une seule fois"}
+                </button>
+                <button type="button" className="button button-muted" onClick={() => setPreviewOpen(false)} disabled={busy}>
+                  Modifier
+                </button>
+              </div>
+            </div>
+          ) : null}
           <div className="field-full form-actions">
-            <button type="submit" className="button button-primary" disabled={busy}>
-              {busy ? "Envoi..." : data.report_submitted ? "Mettre à jour le rapport" : "Envoyer le rapport"}
+            <button type="submit" className="button button-primary" disabled={busy || data.report_submitted}>
+              {data.report_submitted ? "Rapport déjà envoyé" : busy ? "Envoi..." : "Voir l'aperçu avant envoi"}
             </button>
           </div>
         </form>

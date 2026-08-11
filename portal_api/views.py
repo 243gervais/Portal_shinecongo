@@ -249,6 +249,11 @@ def _can_view_manager_money(user):
     return bool(profile and profile.is_admin())
 
 
+def _is_location_manager(user):
+    profile = _profile(user)
+    return bool(profile and profile.is_manager() and not user.is_superuser)
+
+
 def _manager_accessible_sites(user):
     qs = Location.objects.filter(actif=True).only(
         "id",
@@ -1767,20 +1772,35 @@ class ManagerDailyReportApi(APIView):
 
         total_washes = CarWash.objects.filter(site=site, date=report_date).count()
         issue_count = IssueReport.objects.filter(site=site, created_at__date=report_date).count()
-        report, _created = ShiftDay.objects.get_or_create(
-            employe=request.user,
-            date=report_date,
-            defaults={"site": site},
-        )
-        was_update = report.daily_report_confirmed
-        report.site = site
-        report.total_lavages_reported = total_washes
-        report.total_amount_reported_fc = total_amount_reported
-        report.daily_expenses = expense_form["items"]
-        report.daily_expenses_total_fc = expense_form["total"]
-        report.report_notes = notes
-        report.daily_report_confirmed = True
-        report.save()
+        with transaction.atomic():
+            Location.objects.select_for_update().get(pk=site.pk)
+            report, _created = (
+                ShiftDay.objects.select_for_update()
+                .get_or_create(
+                    employe=request.user,
+                    date=report_date,
+                    defaults={"site": site},
+                )
+            )
+            was_update = report.daily_report_confirmed
+            if was_update and _is_location_manager(request.user):
+                return Response(
+                    {
+                        "message": (
+                            "Le rapport final du jour a déjà été envoyé. "
+                            "Contactez l'administrateur pour une correction."
+                        ),
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
+            report.site = site
+            report.total_lavages_reported = total_washes
+            report.total_amount_reported_fc = total_amount_reported
+            report.daily_expenses = expense_form["items"]
+            report.daily_expenses_total_fc = expense_form["total"]
+            report.report_notes = notes
+            report.daily_report_confirmed = True
+            report.save()
 
         _send_final_report_notification(
             shift=report,
@@ -2000,26 +2020,30 @@ class ManagerWaterPurchaseApi(APIView):
 
         today = timezone.localdate()
         billing_month = today.replace(day=1)
-        if SiteWaterPurchase.objects.filter(site=site, purchase_date=today).exists():
-            return Response(
-                {
-                    "message": "L'achat d'eau du jour a déjà été signalé. L'administrateur peut le corriger si nécessaire.",
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         default_supplier = get_default_water_supplier()
         default_amount = get_water_purchase_default_amount(billing_month, supplier=default_supplier)
         reporter_name = request.user.get_full_name() or request.user.username
-        purchase = SiteWaterPurchase.objects.create(
-            site=site,
-            supplier=default_supplier,
-            billing_month=billing_month,
-            purchase_date=today,
-            amount_fc=default_amount,
-            notes=f"Signalé via portail manager par {reporter_name}.",
-            created_by=request.user,
-        )
+        with transaction.atomic():
+            Location.objects.select_for_update().get(pk=site.pk)
+            if SiteWaterPurchase.objects.filter(site=site, purchase_date=today).exists():
+                return Response(
+                    {
+                        "message": (
+                            "L'achat d'eau du jour a déjà été signalé. "
+                            "L'administrateur peut le corriger si nécessaire."
+                        ),
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
+            purchase = SiteWaterPurchase.objects.create(
+                site=site,
+                supplier=default_supplier,
+                billing_month=billing_month,
+                purchase_date=today,
+                amount_fc=default_amount,
+                notes=f"Signalé via portail manager par {reporter_name}.",
+                created_by=request.user,
+            )
         _send_water_purchase_notification(purchase)
         AuditLog.log(
             user=request.user,
@@ -2078,28 +2102,32 @@ class ManagerFuelPurchaseApi(APIView):
 
         today = timezone.localdate()
         billing_month = today.replace(day=1)
-        if SiteFuelPurchase.objects.filter(site=site, purchase_date=today).exists():
-            return Response(
-                {
-                    "message": "L'achat de carburant du jour a déjà été signalé. L'administrateur peut le corriger si nécessaire.",
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         try:
             amount_fc = _parse_required_fuel_purchase_amount(request.data.get("amount_fc"))
         except ValueError as exc:
             return Response({"message": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         reporter_name = request.user.get_full_name() or request.user.username
-        purchase = SiteFuelPurchase.objects.create(
-            site=site,
-            billing_month=billing_month,
-            purchase_date=today,
-            amount_fc=amount_fc,
-            notes=f"Signalé via portail manager par {reporter_name}.",
-            created_by=request.user,
-        )
+        with transaction.atomic():
+            Location.objects.select_for_update().get(pk=site.pk)
+            if SiteFuelPurchase.objects.filter(site=site, purchase_date=today).exists():
+                return Response(
+                    {
+                        "message": (
+                            "L'achat de carburant du jour a déjà été signalé. "
+                            "L'administrateur peut le corriger si nécessaire."
+                        ),
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
+            purchase = SiteFuelPurchase.objects.create(
+                site=site,
+                billing_month=billing_month,
+                purchase_date=today,
+                amount_fc=amount_fc,
+                notes=f"Signalé via portail manager par {reporter_name}.",
+                created_by=request.user,
+            )
         _send_fuel_purchase_notification(purchase)
         AuditLog.log(
             user=request.user,

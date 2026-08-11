@@ -480,6 +480,22 @@ class PortalApiSecurityAndPaginationTests(TestCase):
         self.assertEqual(fuel_purchase.amount_fc, Decimal("5000"))
         self.assertEqual(fuel_purchase.created_by, self.manager)
 
+    def test_location_manager_cannot_notify_water_or_fuel_twice_for_same_day(self):
+        self.client.login(username="manager", password="pass1234")
+
+        first_water = self.client.post(reverse("portal_api_manager_water"), {})
+        second_water = self.client.post(reverse("portal_api_manager_water"), {})
+        first_fuel = self.client.post(reverse("portal_api_manager_fuel"), {"amount_fc": "5000"})
+        second_fuel = self.client.post(reverse("portal_api_manager_fuel"), {"amount_fc": "7000"})
+
+        self.assertEqual(first_water.status_code, 201)
+        self.assertEqual(second_water.status_code, 409)
+        self.assertEqual(first_fuel.status_code, 201)
+        self.assertEqual(second_fuel.status_code, 409)
+        self.assertEqual(SiteWaterPurchase.objects.count(), 1)
+        self.assertEqual(SiteFuelPurchase.objects.count(), 1)
+        self.assertEqual(SiteFuelPurchase.objects.get().amount_fc, Decimal("5000"))
+
     def test_location_manager_can_send_daily_report_with_total_and_expenses(self):
         today = timezone.localdate()
         CarWash.objects.create(
@@ -512,6 +528,24 @@ class PortalApiSecurityAndPaginationTests(TestCase):
         self.assertEqual(report.daily_expenses_total_fc, Decimal("26000"))
         self.assertEqual(report.daily_expense_items[0]["label"], "Transport de Personnels")
         self.assertEqual(report.daily_expense_items[1]["label"], "Eau urgence")
+
+    def test_location_manager_cannot_submit_daily_report_twice(self):
+        self.client.login(username="manager", password="pass1234")
+
+        first_response = self.client.post(
+            reverse("portal_api_manager_report"),
+            {"notes": "Premier rapport.", "total_amount_reported_fc": "130000"},
+        )
+        second_response = self.client.post(
+            reverse("portal_api_manager_report"),
+            {"notes": "Deuxième rapport.", "total_amount_reported_fc": "140000"},
+        )
+
+        self.assertEqual(first_response.status_code, 200)
+        self.assertEqual(second_response.status_code, 409)
+        report = ShiftDay.objects.get(employe=self.manager, date=timezone.localdate())
+        self.assertEqual(report.report_notes, "Premier rapport.")
+        self.assertEqual(report.total_amount_reported_fc, Decimal("130000"))
 
     def test_location_manager_daily_report_includes_operations_without_lavage_money(self):
         today = timezone.localdate()
