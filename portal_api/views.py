@@ -23,7 +23,7 @@ from pointage.attendance import (
     get_clock_out_status,
     is_workday,
 )
-from pointage.models import ShiftDay
+from pointage.models import ManagerEquipmentPhoto, ShiftDay
 from pointage.report_sync import sync_site_finance_from_daily_reports
 from pointage.utils import generate_qr_code_image, get_client_ip, get_user_agent
 from pointage.views import (
@@ -361,6 +361,36 @@ def _machine_payload(machine, request):
         "image_url": _file_url(request, machine.image),
         "training_video_url": _file_url(request, machine.training_video),
     }
+
+
+def _equipment_photo_payload(photo, request):
+    return {
+        "id": photo.pk,
+        "machine_id": photo.machine_id,
+        "machine_name": photo.machine_name,
+        "photo_url": _file_url(request, photo.photo),
+        "uploaded_at": timezone.localtime(photo.uploaded_at).strftime("%d/%m/%Y %H:%M"),
+    }
+
+
+def _manager_equipment_checklist(machines, report, request):
+    photos_by_machine = {}
+    if report:
+        for photo in (
+            ManagerEquipmentPhoto.objects.filter(daily_report=report)
+            .select_related("machine")
+            .order_by("machine__display_order", "machine_name", "uploaded_at")
+        ):
+            photos_by_machine.setdefault(photo.machine_id, []).append(_equipment_photo_payload(photo, request))
+
+    return [
+        {
+            **_machine_payload(machine, request),
+            "submitted_photos": photos_by_machine.get(machine.pk, []),
+            "submitted_photo_count": len(photos_by_machine.get(machine.pk, [])),
+        }
+        for machine in machines
+    ]
 
 
 def _default_machine_payload(item):
@@ -1706,6 +1736,7 @@ class ManagerDailyReportApi(APIView):
             .first()
         )
         attendance_rows = _manager_report_attendance_rows(site, report_date)
+        equipment_machines = list(ManagerManualMachine.objects.filter(is_active=True).order_by("display_order", "name"))
 
         return Response(
             {
@@ -1735,6 +1766,8 @@ class ManagerDailyReportApi(APIView):
                 "today_issues_truncated": issue_count > REPORT_PREVIEW_LIMIT,
                 "water_purchase_today": EmployeeWaterPurchaseSerializer(water_purchase_today).data if water_purchase_today else None,
                 "fuel_purchase_today": EmployeeFuelPurchaseSerializer(fuel_purchase_today).data if fuel_purchase_today else None,
+                "equipment_checklist": _manager_equipment_checklist(equipment_machines, report, request),
+                "equipment_required": bool(equipment_machines),
                 "can_view_money": False,
             }
         )
@@ -1770,6 +1803,46 @@ class ManagerDailyReportApi(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        equipment_machines = list(ManagerManualMachine.objects.filter(is_active=True).order_by("display_order", "name"))
+        equipment_photo_files = request.FILES.getlist("equipment_photo")
+        equipment_machine_ids = request.data.getlist("equipment_photo_machine_id")
+        equipment_machine_map = {str(machine.pk): machine for machine in equipment_machines}
+        equipment_errors = []
+        uploaded_equipment_machine_ids = set()
+
+        if len(equipment_photo_files) != len(equipment_machine_ids):
+            equipment_errors.append("Chaque photo d'équipement doit être associée à une machine.")
+
+        for machine_id, photo in zip(equipment_machine_ids, equipment_photo_files):
+            machine_id = str(machine_id).strip()
+            if machine_id not in equipment_machine_map:
+                equipment_errors.append("Machine invalide dans les photos d'équipement.")
+                continue
+            content_type = getattr(photo, "content_type", "")
+            if content_type and not content_type.startswith("image/"):
+                equipment_errors.append("Les fichiers des équipements doivent être des images.")
+                continue
+            uploaded_equipment_machine_ids.add(machine_id)
+
+        if _is_location_manager(request.user):
+            missing_machines = [
+                machine.name
+                for machine in equipment_machines
+                if str(machine.pk) not in uploaded_equipment_machine_ids
+            ]
+            if missing_machines:
+                equipment_errors.append(
+                    "Ajoutez au moins une photo de fin de journée pour: "
+                    + ", ".join(missing_machines)
+                    + "."
+                )
+
+        if equipment_errors:
+            return Response(
+                {"message": equipment_errors[0], "errors": equipment_errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         total_washes = CarWash.objects.filter(site=site, date=report_date).count()
         issue_count = IssueReport.objects.filter(site=site, created_at__date=report_date).count()
         with transaction.atomic():
@@ -1801,6 +1874,18 @@ class ManagerDailyReportApi(APIView):
             report.report_notes = notes
             report.daily_report_confirmed = True
             report.save()
+            if equipment_photo_files:
+                ManagerEquipmentPhoto.objects.filter(daily_report=report).delete()
+                for machine_id, photo in zip(equipment_machine_ids, equipment_photo_files):
+                    machine = equipment_machine_map[str(machine_id).strip()]
+                    ManagerEquipmentPhoto.objects.create(
+                        daily_report=report,
+                        machine=machine,
+                        machine_name=machine.name,
+                        photo=photo,
+                        uploaded_by=request.user,
+                        captured_at=extract_image_capture_datetime(photo),
+                    )
 
         sync_site_finance_from_daily_reports(site, report_date, actor=request.user)
         _send_final_report_notification(

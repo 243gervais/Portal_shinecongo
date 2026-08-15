@@ -1908,6 +1908,7 @@
                                 <th>Lavages declares</th>
                                 <th>Total declare</th>
                                 <th>Depenses du rapport</th>
+                                <th>Photos equipements</th>
                                 <th>Notes</th>
                             </tr>
                         </thead>
@@ -1921,6 +1922,22 @@
                                     {{ report.total_amount_reported_fc|fc_amount }} FC<br><small style="color: var(--text-secondary);">~ ${{ report.total_amount_reported_fc|usd_equivalent }}</small>
                                 </td>
                                 <td>{{ report.daily_expense_summary }}</td>
+                                <td>
+                                    {% with equipment_photos=report.equipment_photos.all %}
+                                        {% if equipment_photos %}
+                                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 0.5rem; min-width: 180px;">
+                                                {% for equipment_photo in equipment_photos %}
+                                                    <a href="{{ equipment_photo.photo.url }}" target="_blank" rel="noopener" style="display: grid; gap: 0.25rem; color: var(--text-primary); text-decoration: none;">
+                                                        <img src="{{ equipment_photo.photo.url }}" alt="{{ equipment_photo.machine_name }}" style="width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; border: 1px solid var(--border-color);">
+                                                        <small>{{ equipment_photo.machine_name }}</small>
+                                                    </a>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    {% endwith %}
+                                </td>
                                 <td>{{ report.report_notes|default:"-" }}</td>
                             </tr>
                             {% endfor %}

@@ -17,6 +17,15 @@ def attendance_photo_path(instance, filename):
     return f"pointages/{date_str}/{employee_segment}/{shift_segment}/{filename}"
 
 
+def manager_equipment_photo_path(instance, filename):
+    report = instance.daily_report
+    report_date = getattr(report, "date", None) or timezone.localdate()
+    date_str = report_date.strftime("%Y/%m/%d")
+    report_segment = report.pk or "rapport"
+    machine_segment = instance.machine_id or "equipement"
+    return f"manager_equipment/{date_str}/{report_segment}/{machine_segment}/{filename}"
+
+
 class DailyQRToken(models.Model):
     """
     QR Code du jour par site - Système de sécurité pour les pointages
@@ -363,6 +372,7 @@ class ShiftDay(models.Model):
             ensure_image_thumbnail(self.clock_in_photo)
         if self.clock_out_photo:
             ensure_image_thumbnail(self.clock_out_photo)
+
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -728,3 +738,59 @@ class ShiftDay(models.Model):
             ensure_image_thumbnail(self.clock_in_photo)
         if self.clock_out_photo:
             ensure_image_thumbnail(self.clock_out_photo)
+
+
+class ManagerEquipmentPhoto(models.Model):
+    """
+    Photo de contrôle des machines/equipements jointe au rapport manager.
+    """
+
+    daily_report = models.ForeignKey(
+        ShiftDay,
+        on_delete=models.CASCADE,
+        related_name="equipment_photos",
+        verbose_name="Rapport manager",
+    )
+    machine = models.ForeignKey(
+        "sites.ManagerManualMachine",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="daily_equipment_photos",
+        verbose_name="Machine",
+    )
+    machine_name = models.CharField(max_length=200, verbose_name="Nom de la machine")
+    photo = models.ImageField(upload_to=manager_equipment_photo_path, verbose_name="Photo")
+    uploaded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="manager_equipment_photos",
+        verbose_name="Ajouté par",
+    )
+    captured_at = models.DateTimeField(null=True, blank=True, verbose_name="Prise à")
+    uploaded_at = models.DateTimeField(auto_now_add=True, verbose_name="Ajouté le")
+
+    class Meta:
+        verbose_name = "Photo équipement manager"
+        verbose_name_plural = "Photos équipements manager"
+        ordering = ["daily_report__date", "machine_name", "uploaded_at"]
+        indexes = [
+            models.Index(fields=["daily_report", "machine"], name="mgr_equip_report_machine_idx"),
+            models.Index(fields=["uploaded_at"], name="mgr_equip_uploaded_idx"),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.machine and not self.machine_name:
+            self.machine_name = self.machine.name
+        if self.photo and not self.photo._committed:
+            self.photo = optimize_image_upload(self.photo)
+
+        super().save(*args, **kwargs)
+
+        if self.photo:
+            ensure_image_thumbnail(self.photo)
+
+    def __str__(self):
+        return f"{self.machine_name} - {self.daily_report}"

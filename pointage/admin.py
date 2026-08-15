@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import DailyQRToken, ShiftDay
+from .models import DailyQRToken, ManagerEquipmentPhoto, ShiftDay
 
 
 @admin.register(DailyQRToken)
@@ -75,3 +75,16 @@ class ShiftDayAdmin(admin.ModelAdmin):
         return obj.is_complete()
     is_complete.boolean = True
     is_complete.short_description = "Complet"
+
+
+@admin.register(ManagerEquipmentPhoto)
+class ManagerEquipmentPhotoAdmin(admin.ModelAdmin):
+    list_display = ("machine_name", "daily_report", "uploaded_by", "uploaded_at")
+    list_filter = ("daily_report__site", "daily_report__date", "machine")
+    search_fields = (
+        "machine_name",
+        "daily_report__employe__username",
+        "daily_report__site__nom",
+    )
+    ordering = ("-uploaded_at",)
+    readonly_fields = ("uploaded_at",)

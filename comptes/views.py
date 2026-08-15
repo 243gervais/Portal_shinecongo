@@ -59,7 +59,7 @@ from sites.models import (
 from lavages.models import CarWash, CarWashPhoto
 from pointage.attendance import get_clock_in_status, get_clock_out_status
 from problemes.models import IssueReport
-from pointage.models import ShiftDay
+from pointage.models import ManagerEquipmentPhoto, ShiftDay
 from pointage.views import _build_initial_daily_expense_form, _parse_daily_expenses_form
 from pointage.report_sync import ADMIN_CORRECTION_SOURCE, sync_site_finance_from_daily_reports
 from comptes.models import AdminReminder, UserProfile, EmployeePayment
@@ -2974,6 +2974,16 @@ def admin_site_detail(request, site_id):
     reports_date = (
         ShiftDay.objects.filter(site=site, date=detail_date, daily_report_confirmed=True)
         .select_related('employe')
+        .prefetch_related(
+            Prefetch(
+                "equipment_photos",
+                queryset=ManagerEquipmentPhoto.objects.select_related("machine", "uploaded_by").order_by(
+                    "machine__display_order",
+                    "machine_name",
+                    "uploaded_at",
+                ),
+            )
+        )
         .order_by('-updated_at')
     )
     water_purchases_date = (

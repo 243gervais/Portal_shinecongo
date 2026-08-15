@@ -583,6 +583,42 @@ textarea {
   align-items: center;
 }
 
+.equipment-check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.equipment-check-card {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid var(--portal-border);
+  border-radius: 18px;
+  background: var(--portal-surface-soft);
+}
+
+.equipment-check-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.equipment-check-head h3,
+.equipment-check-head p {
+  margin: 0;
+}
+
+.equipment-check-head p {
+  color: var(--portal-muted);
+}
+
+.equipment-check-head strong {
+  white-space: nowrap;
+  color: var(--portal-primary-dark);
+}
+
 .expense-known-row {
   grid-template-columns: auto 1fr 1fr;
 }

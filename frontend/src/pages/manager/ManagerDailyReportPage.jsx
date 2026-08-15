@@ -38,6 +38,20 @@ function normalizeCustomExpense(expense, clientId) {
   };
 }
 
+function buildPreviewItem(file) {
+  return {
+    id: `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2)}`,
+    file,
+    previewUrl: URL.createObjectURL(file),
+  };
+}
+
+function normalizeImageFiles(fileList) {
+  return Array.from(fileList || [])
+    .filter((file) => file && file.type && file.type.startsWith("image/"))
+    .map(buildPreviewItem);
+}
+
 export default function ManagerDailyReportPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -48,7 +62,9 @@ export default function ManagerDailyReportPage() {
   const [customExpenses, setCustomExpenses] = useState([]);
   const [declaredAmount, setDeclaredAmount] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [equipmentPhotos, setEquipmentPhotos] = useState({});
   const customExpenseIdRef = useRef(0);
+  const equipmentPhotosRef = useRef({});
 
   function createCustomExpense(expense = {}) {
     const clientId = `manager-custom-expense-${customExpenseIdRef.current}`;
@@ -65,6 +81,7 @@ export default function ManagerDailyReportPage() {
       setKnownExpenses(payload.expense_form?.known || []);
       setCustomExpenses((payload.expense_form?.custom || []).map((expense) => createCustomExpense(expense)));
       setDeclaredAmount(payload.submitted_total_amount || "");
+      setEquipmentPhotos({});
     } catch (requestError) {
       setError(requestError.message);
     }
@@ -73,6 +90,20 @@ export default function ManagerDailyReportPage() {
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    equipmentPhotosRef.current = equipmentPhotos;
+  }, [equipmentPhotos]);
+
+  useEffect(() => (
+    () => {
+      Object.values(equipmentPhotosRef.current).flat().forEach((photo) => {
+        if (photo.previewUrl) {
+          URL.revokeObjectURL(photo.previewUrl);
+        }
+      });
+    }
+  ), []);
 
   function updateKnownExpense(index, field, value) {
     const next = [...knownExpenses];
@@ -96,6 +127,37 @@ export default function ManagerDailyReportPage() {
 
   function removeCustomExpense(index) {
     setCustomExpenses((currentExpenses) => currentExpenses.filter((_, expenseIndex) => expenseIndex !== index));
+  }
+
+  function addEquipmentPhotos(machineId, fileList) {
+    const nextPhotos = normalizeImageFiles(fileList);
+    if (!nextPhotos.length) {
+      return;
+    }
+    setEquipmentPhotos((currentPhotos) => ({
+      ...currentPhotos,
+      [machineId]: [...(currentPhotos[machineId] || []), ...nextPhotos],
+    }));
+  }
+
+  function removeEquipmentPhoto(machineId, photoId) {
+    setEquipmentPhotos((currentPhotos) => {
+      const targetPhoto = (currentPhotos[machineId] || []).find((photo) => photo.id === photoId);
+      if (targetPhoto?.previewUrl) {
+        URL.revokeObjectURL(targetPhoto.previewUrl);
+      }
+      return {
+        ...currentPhotos,
+        [machineId]: (currentPhotos[machineId] || []).filter((photo) => photo.id !== photoId),
+      };
+    });
+  }
+
+  function missingEquipmentPhotos() {
+    if (data.report_submitted) {
+      return [];
+    }
+    return (data.equipment_checklist || []).filter((machine) => !(equipmentPhotos[machine.id] || []).length);
   }
 
   function selectedExpenseRows() {
@@ -131,6 +193,12 @@ export default function ManagerDailyReportPage() {
       formData.append("custom_expense_label", expense.label || "");
       formData.append("custom_expense_amount", expense.amount_value || "");
     });
+    Object.entries(equipmentPhotos).forEach(([machineId, photos]) => {
+      photos.forEach((photo) => {
+        formData.append("equipment_photo_machine_id", machineId);
+        formData.append("equipment_photo", photo.file);
+      });
+    });
     return formData;
   }
 
@@ -138,6 +206,11 @@ export default function ManagerDailyReportPage() {
     event.preventDefault();
     if (data.report_submitted) {
       setNotice("Le rapport final du jour a déjà été envoyé. Contactez l'administrateur pour une correction.");
+      return;
+    }
+    const missingMachines = missingEquipmentPhotos();
+    if (missingMachines.length) {
+      setNotice(`Ajoutez au moins une photo de fin de journée pour: ${missingMachines.map((machine) => machine.name).join(", ")}.`);
       return;
     }
     setNotice("");
@@ -171,6 +244,8 @@ export default function ManagerDailyReportPage() {
   }
 
   const expensePreviewRows = selectedExpenseRows();
+  const equipmentChecklist = data.equipment_checklist || [];
+  const missingMachines = missingEquipmentPhotos();
 
   return (
     <div className="page-stack">
@@ -288,6 +363,83 @@ export default function ManagerDailyReportPage() {
             </div>
           </div>
 
+          <div className="field field-full">
+            <span>Photos des équipements en fin de journée</span>
+            {equipmentChecklist.length ? (
+              <div className="equipment-check-grid">
+                {equipmentChecklist.map((machine) => {
+                  const pendingPhotos = equipmentPhotos[machine.id] || [];
+                  const submittedPhotos = machine.submitted_photos || [];
+                  return (
+                    <article key={machine.id} className="equipment-check-card">
+                      <div className="equipment-check-head">
+                        <div>
+                          <h3>{machine.name}</h3>
+                          <p>{data.report_submitted ? `${machine.submitted_photo_count} photo(s) envoyée(s)` : "Photo obligatoire avant l'envoi"}</p>
+                        </div>
+                        <strong>{data.report_submitted || pendingPhotos.length ? "OK" : "À faire"}</strong>
+                      </div>
+                      <input
+                        id={`equipment-photo-${machine.id}`}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        multiple
+                        hidden
+                        disabled={data.report_submitted || busy}
+                        onChange={(event) => {
+                          addEquipmentPhotos(machine.id, event.target.files);
+                          event.target.value = "";
+                        }}
+                      />
+                      {!data.report_submitted ? (
+                        <button
+                          type="button"
+                          className="button button-muted"
+                          disabled={busy}
+                          onClick={() => document.getElementById(`equipment-photo-${machine.id}`)?.click()}
+                        >
+                          Prendre photo
+                        </button>
+                      ) : null}
+                      {pendingPhotos.length ? (
+                        <div className="capture-preview-grid">
+                          {pendingPhotos.map((photo) => (
+                            <article key={photo.id} className="capture-preview-card">
+                              <button
+                                type="button"
+                                className="capture-remove"
+                                onClick={() => removeEquipmentPhoto(machine.id, photo.id)}
+                                disabled={busy}
+                                aria-label="Supprimer la photo"
+                              >
+                                ×
+                              </button>
+                              <img src={photo.previewUrl} alt={machine.name} className="capture-preview-image" />
+                              <div className="capture-preview-label">{machine.name}</div>
+                            </article>
+                          ))}
+                        </div>
+                      ) : null}
+                      {submittedPhotos.length ? (
+                        <div className="capture-preview-grid">
+                          {submittedPhotos.map((photo) => (
+                            <article key={photo.id} className="capture-preview-card">
+                              <img src={photo.photo_url} alt={photo.machine_name} className="capture-preview-image" />
+                              <div className="capture-preview-label">{photo.machine_name}</div>
+                            </article>
+                          ))}
+                        </div>
+                      ) : null}
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="inline-muted">Aucun équipement actif n'est configuré dans le Manuel du Manager.</p>
+            )}
+          </div>
+
           <label className="field field-full">
             <span>Notes opérationnelles</span>
             <textarea
@@ -319,6 +471,21 @@ export default function ManagerDailyReportPage() {
                 ) : (
                   <span>Aucune dépense déclarée.</span>
                 )}
+              </div>
+              <div className="preview-list">
+                <strong>Photos équipements</strong>
+                {equipmentChecklist.length ? (
+                  equipmentChecklist.map((machine) => (
+                    <span key={machine.id}>
+                      {machine.name}: {(equipmentPhotos[machine.id] || []).length} photo(s)
+                    </span>
+                  ))
+                ) : (
+                  <span>Aucun équipement actif configuré.</span>
+                )}
+                {missingMachines.length ? (
+                  <span>À compléter: {missingMachines.map((machine) => machine.name).join(", ")}</span>
+                ) : null}
               </div>
               {notes ? <p className="inline-muted">Notes: {notes}</p> : null}
               <div className="button-row">

@@ -11,9 +11,9 @@ from django.utils import timezone
 
 from comptes.models import UserProfile
 from lavages.models import CarWash, CarWashPhoto
-from pointage.models import ShiftDay
+from pointage.models import ManagerEquipmentPhoto, ShiftDay
 from problemes.models import IssueReport
-from sites.models import Location, ManagerManualSettings, SiteFuelPurchase, SiteWaterPurchase
+from sites.models import Location, ManagerManualMachine, ManagerManualSettings, SiteFuelPurchase, SiteWaterPurchase
 
 
 @override_settings(PASSWORD_HASHERS=["django.contrib.auth.hashers.MD5PasswordHasher"])
@@ -541,6 +541,64 @@ class PortalApiSecurityAndPaginationTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         mock_sync.assert_called_once_with(self.site, today, actor=self.manager)
+
+    def test_location_manager_daily_report_requires_active_machine_photos(self):
+        ManagerManualMachine.objects.create(
+            name="Aspirateur",
+            purpose="Nettoyage interieur",
+            maintenance="Verifier le cable",
+            troubleshooting="Signaler si faible aspiration",
+            is_active=True,
+        )
+        self.client.login(username="manager", password="pass1234")
+
+        response = self.client.post(
+            reverse("portal_api_manager_report"),
+            {"notes": "Rapport sans photo.", "total_amount_reported_fc": "130000"},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Aspirateur", response.json()["message"])
+        self.assertFalse(ShiftDay.objects.filter(employe=self.manager, daily_report_confirmed=True).exists())
+
+    def test_location_manager_daily_report_saves_equipment_photos(self):
+        today = timezone.localdate()
+        machine = ManagerManualMachine.objects.create(
+            name="Machine haute pression",
+            purpose="Lavage exterieur",
+            maintenance="Rincer apres service",
+            troubleshooting="Verifier le tuyau",
+            is_active=True,
+        )
+        photo = SimpleUploadedFile(
+            "machine.gif",
+            b"GIF87a\x01\x00\x01\x00\x80\x01\x00\x00\x00\x00ccc,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;",
+            content_type="image/gif",
+        )
+        self.client.login(username="manager", password="pass1234")
+
+        response = self.client.post(
+            reverse("portal_api_manager_report"),
+            {
+                "notes": "Machine controlee.",
+                "total_amount_reported_fc": "130000",
+                "equipment_photo_machine_id": str(machine.id),
+                "equipment_photo": photo,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        report = ShiftDay.objects.get(employe=self.manager, date=today)
+        equipment_photo = ManagerEquipmentPhoto.objects.get(daily_report=report)
+        self.assertEqual(equipment_photo.machine, machine)
+        self.assertEqual(equipment_photo.machine_name, "Machine haute pression")
+        self.assertEqual(equipment_photo.uploaded_by, self.manager)
+
+        get_response = self.client.get(reverse("portal_api_manager_report"))
+        payload = get_response.json()
+        self.assertTrue(payload["equipment_required"])
+        self.assertEqual(payload["equipment_checklist"][0]["submitted_photo_count"], 1)
+        self.assertEqual(payload["equipment_checklist"][0]["submitted_photos"][0]["machine_name"], "Machine haute pression")
 
     def test_location_manager_cannot_submit_daily_report_twice(self):
         self.client.login(username="manager", password="pass1234")
