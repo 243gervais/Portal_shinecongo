@@ -636,6 +636,16 @@ class ManagerManualApi(APIView):
                     "Les photos et vidéos de formation peuvent être ajoutées par l'administrateur.",
                 ],
             },
+            {
+                "id": "photos-equipements",
+                "title": "Photos des équipements en fin de journée",
+                "items": [
+                    "Avant d'envoyer le rapport final, le manager doit prendre au moins une photo de chaque équipement actif.",
+                    "Les photos prouvent que les machines sont présentes, rangées et dans l'état observé à la fermeture.",
+                    "Si une machine manque, est cassée ou semble dangereuse, prendre la photo puis créer aussi un signalement de problème.",
+                    "Ces photos sont envoyées automatiquement à l'administration avec le rapport final du jour.",
+                ],
+            },
             DEFAULT_MANUAL_SECTIONS[3],
             {
                 "id": "fournisseurs",

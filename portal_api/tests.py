@@ -106,6 +106,7 @@ class PortalApiSecurityAndPaginationTests(TestCase):
         self.manager.userprofile.site = self.site
         self.manager.userprofile.actif = True
         self.manager.userprofile.save()
+        ManagerManualMachine.objects.all().delete()
 
     def test_employee_list_api_requires_employee_permission(self):
         self.client.login(username="manager", password="pass1234")
@@ -280,6 +281,7 @@ class PortalApiSecurityAndPaginationTests(TestCase):
         section_titles = [section["title"] for section in payload["sections"]]
         self.assertIn("Vue d'ensemble", section_titles)
         self.assertIn("Machines", section_titles)
+        self.assertIn("Photos des équipements en fin de journée", section_titles)
         self.assertIn("Fournisseurs", section_titles)
         self.assertIn("Indicateurs Clés de Performance (ICP)", section_titles)
         self.assertIn("Vision de Shine Congo", section_titles)

@@ -167,6 +167,14 @@ export default function ManagerManualPage() {
         </div>
       </CollapsibleSection>
 
+      <CollapsibleSection section={sectionsById["photos-equipements"]} defaultOpen>
+        <div className="manual-mini-grid">
+          <SimpleMetricCard item={{ display: "1+ photo", label: "par équipement actif" }} />
+          <SimpleMetricCard item={{ display: "Rapport final", label: "envoi automatique à l'admin" }} />
+          <SimpleMetricCard item={{ display: "Problème", label: "photo + signalement si panne" }} />
+        </div>
+      </CollapsibleSection>
+
       <CollapsibleSection section={sectionsById.consommables}>
         <div className="manual-mini-grid">
           {data.costs.map((item) => <SimpleMetricCard key={item.label} item={item} />)}
