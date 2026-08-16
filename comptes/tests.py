@@ -24,6 +24,7 @@ from sites.models import (
     CameraObservation,
     CameraObservationEvidence,
     CameraOperatorDailyReport,
+    CompanySecretDocument,
     DailyCameraReport,
     Location,
     SiteDocument,
@@ -2816,6 +2817,100 @@ class SiteCorrectionsViewTests(TestCase):
         self.assertContains(response, "employee_fix")
         self.assertContains(response, "Modifier")
         self.assertContains(response, "Supprimer")
+
+
+class CompanySecretDocumentTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_superuser(
+            username="gervaismbadu",
+            email="owner@example.com",
+            password="OwnerPass123!",
+        )
+        self.admin_role_user = User.objects.create_user(
+            username="location_admin",
+            email="location_admin@example.com",
+            password="AdminPass123!",
+        )
+        self.admin_role_user.userprofile.role = UserProfile.ADMIN_ROLE
+        self.admin_role_user.userprofile.actif = True
+        self.admin_role_user.userprofile.save()
+
+    def tearDown(self):
+        for document in CompanySecretDocument.objects.all():
+            if document.file:
+                document.file.delete(save=False)
+
+    def test_owner_can_upload_and_view_secret_document(self):
+        self.client.login(username="gervaismbadu", password="OwnerPass123!")
+
+        response = self.client.post(
+            reverse("admin_upload_company_secret_document"),
+            data={
+                "category": "LEGAL",
+                "sensitivity": "TOP_SECRET",
+                "title": "Plan secret",
+                "description": "Document tres important",
+                "file": SimpleUploadedFile("secret.pdf", b"%PDF-1.4", content_type="application/pdf"),
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("admin_company_secret_documents"),
+            fetch_redirect_response=False,
+        )
+        document = CompanySecretDocument.objects.get()
+        self.assertEqual(document.uploaded_by, self.owner)
+        page = self.client.get(reverse("admin_company_secret_documents"))
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Coffre top secret")
+        self.assertContains(page, "Plan secret")
+        self.assertContains(page, reverse("admin_download_company_secret_document", args=[document.id]))
+        self.assertNotContains(page, document.file.name)
+
+    def test_admin_role_without_owner_access_cannot_open_secret_vault(self):
+        self.client.login(username="location_admin", password="AdminPass123!")
+
+        response = self.client.get(reverse("admin_company_secret_documents"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("dashboard"))
+
+    def test_secret_download_requires_owner_session(self):
+        document = CompanySecretDocument.objects.create(
+            category="CONTRACT",
+            sensitivity="CONFIDENTIAL",
+            title="Contrat prive",
+            description="Archive",
+            file=ContentFile(b"secret body", name="contrat-prive.txt"),
+            uploaded_by=self.owner,
+        )
+
+        anonymous_response = self.client.get(reverse("admin_download_company_secret_document", args=[document.id]))
+        self.assertEqual(anonymous_response.status_code, 302)
+
+        self.client.login(username="gervaismbadu", password="OwnerPass123!")
+        response = self.client.get(reverse("admin_download_company_secret_document", args=[document.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("no-store", response["Cache-Control"])
+        self.assertIn("attachment", response["Content-Disposition"])
+
+    def test_secret_upload_rejects_unsupported_file_type(self):
+        self.client.login(username="gervaismbadu", password="OwnerPass123!")
+
+        response = self.client.post(
+            reverse("admin_upload_company_secret_document"),
+            data={
+                "category": "OTHER",
+                "sensitivity": "TOP_SECRET",
+                "title": "Executable interdit",
+                "file": SimpleUploadedFile("script.exe", b"binary", content_type="application/octet-stream"),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(CompanySecretDocument.objects.exists())
 
 
 @override_settings(MEDIA_ROOT="/private/tmp/portal_shinecongo_admin_lavage_photo_test_media")

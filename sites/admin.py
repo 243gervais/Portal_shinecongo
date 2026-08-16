@@ -1,6 +1,7 @@
 from django.contrib import admin
 from .models import (
     Camera,
+    CompanySecretDocument,
     DailyBankDeposit,
     DailyCameraReport,
     Location,
@@ -92,7 +93,37 @@ class SiteDocumentAdmin(admin.ModelAdmin):
     def get_filename(self, obj):
         return obj.filename()
     get_filename.short_description = "Nom du fichier"
-    
+
+    def get_file_size(self, obj):
+        return f"{obj.file_size_mb()} MB"
+    get_file_size.short_description = "Taille"
+
+
+@admin.register(CompanySecretDocument)
+class CompanySecretDocumentAdmin(admin.ModelAdmin):
+    list_display = ("title", "category", "sensitivity", "get_filename", "get_file_size", "uploaded_by", "uploaded_at")
+    list_filter = ("category", "sensitivity", "uploaded_at")
+    search_fields = ("title", "description")
+    ordering = ("-uploaded_at",)
+    readonly_fields = ("uploaded_at", "updated_at", "get_filename", "get_file_size")
+
+    fieldsets = (
+        ("Informations confidentielles", {
+            "fields": ("category", "sensitivity", "title", "description")
+        }),
+        ("Fichier", {
+            "fields": ("file", "get_filename", "get_file_size")
+        }),
+        ("Métadonnées", {
+            "fields": ("uploaded_by", "uploaded_at", "updated_at"),
+            "classes": ("collapse",)
+        }),
+    )
+
+    def get_filename(self, obj):
+        return obj.filename()
+    get_filename.short_description = "Nom du fichier"
+
     def get_file_size(self, obj):
         return f"{obj.file_size_mb()} MB"
     get_file_size.short_description = "Taille"

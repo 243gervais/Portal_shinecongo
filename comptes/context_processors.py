@@ -60,11 +60,13 @@ def _build_admin_site_navigation(request):
         actif=True,
     )
     employee_meta = employee_qs.aggregate(total=Count("id"), latest=Max("updated_at"))
+    can_view_company_secrets = user.is_superuser or user.username == "gervaismbadu"
     cache_key = ":".join(
         [
             "admin-site-nav-v2",
             str(current_site_id or "none"),
             today.isoformat(),
+            str(can_view_company_secrets),
             str(site_meta["total"]),
             _stamp_for_cache(site_meta["latest"]),
             str(employee_meta["total"]),
@@ -146,6 +148,15 @@ def _build_admin_site_navigation(request):
             keywords="usd fc cdf franc congolais dollar convertisseur taux devise",
         ),
     ]
+    if can_view_company_secrets:
+        search_items.append(
+            build_search_item(
+                "Coffre top secret",
+                reverse("admin_company_secret_documents"),
+                description="Documents hautement confidentiels de l'entreprise",
+                keywords="top secret confidentiel documents entreprise special important coffre",
+            )
+        )
 
     site_sections = []
     for site in sites:
@@ -154,6 +165,17 @@ def _build_admin_site_navigation(request):
         site_losses_url = f"{reverse('admin_site_losses', kwargs={'site_id': site.id})}?date={today:%Y-%m-%d}"
         site_bank_deposit_url = f"{reverse('admin_add_bank_deposit', kwargs={'site_id': site.id})}?date={today:%Y-%m-%d}"
         site_items = [
+            *(
+                [
+                    {
+                        "label": "Coffre top secret",
+                        "url": reverse("admin_company_secret_documents"),
+                        "description": "Documents hautement confidentiels de l'entreprise",
+                        "keywords": "top secret confidentiel documents entreprise special important coffre",
+                    }
+                ]
+                if can_view_company_secrets else []
+            ),
             {
                 "label": "Vue site",
                 "url": site_detail_url,

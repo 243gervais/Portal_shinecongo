@@ -43,6 +43,7 @@ from .forms import (
 from sites.models import (
     Camera,
     CameraObservation,
+    CompanySecretDocument,
     DailyCameraReport,
     CameraOperatorDailyReport,
     Location,
@@ -6336,6 +6337,283 @@ def admin_site_documents(request, site_id):
     }
     
     return render(request, 'admin/site_documents.html', context)
+
+
+COMPANY_SECRET_ALLOWED_EXTENSIONS = (
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".png", ".jpg", ".jpeg", ".webp", ".txt", ".zip"
+)
+COMPANY_SECRET_MAX_SIZE_BYTES = 25 * 1024 * 1024
+
+
+def _is_company_secret_admin(user):
+    return bool(user.is_authenticated and (user.is_superuser or user.username == "gervaismbadu"))
+
+
+def _require_company_secret_admin(request):
+    user = request.user
+    ensure_superuser_admin_profile(user)
+    if _is_company_secret_admin(user):
+        return True
+    messages.error(request, "Accès refusé. Ce coffre est réservé au propriétaire principal.")
+    return False
+
+
+def _validate_company_secret_file(uploaded_file):
+    filename = (uploaded_file.name or "").lower()
+    if not filename.endswith(COMPANY_SECRET_ALLOWED_EXTENSIONS):
+        return "Format non autorisé pour un document confidentiel."
+    if uploaded_file.size > COMPANY_SECRET_MAX_SIZE_BYTES:
+        return "Le fichier dépasse la limite de 25 MB."
+    return ""
+
+
+@login_required
+@no_cache_view
+def admin_company_secret_documents(request):
+    """
+    Coffre documentaire confidentiel de l'entreprise.
+    """
+    if not _require_company_secret_admin(request):
+        return redirect('dashboard')
+
+    valid_categories = dict(CompanySecretDocument.CATEGORY_CHOICES)
+    valid_levels = dict(CompanySecretDocument.SENSITIVITY_CHOICES)
+    filter_category = request.GET.get('category', '')
+    filter_level = request.GET.get('level', '')
+    if filter_category not in valid_categories:
+        filter_category = ""
+    if filter_level not in valid_levels:
+        filter_level = ""
+
+    documents_queryset = CompanySecretDocument.objects.select_related('uploaded_by').order_by('-uploaded_at')
+    category_counts = {
+        row["category"]: row["count"]
+        for row in documents_queryset.values("category").annotate(count=Count("id"))
+    }
+    level_counts = {
+        row["sensitivity"]: row["count"]
+        for row in documents_queryset.values("sensitivity").annotate(count=Count("id"))
+    }
+    filtered_documents = documents_queryset
+    if filter_category:
+        filtered_documents = filtered_documents.filter(category=filter_category)
+    if filter_level:
+        filtered_documents = filtered_documents.filter(sensitivity=filter_level)
+
+    paginated_documents = paginate_queryset(
+        request,
+        filtered_documents,
+        per_page=24,
+        page_param="documents_page",
+    )
+
+    context = {
+        "documents_total_count": documents_queryset.count(),
+        "paginated_documents": paginated_documents,
+        "latest_document": documents_queryset.first(),
+        "category_summaries": [
+            {"value": value, "label": label, "count": category_counts.get(value, 0)}
+            for value, label in CompanySecretDocument.CATEGORY_CHOICES
+        ],
+        "level_summaries": [
+            {"value": value, "label": label, "count": level_counts.get(value, 0)}
+            for value, label in CompanySecretDocument.SENSITIVITY_CHOICES
+        ],
+        "filter_category": filter_category,
+        "filter_level": filter_level,
+        "selected_category_label": valid_categories.get(filter_category, "Toutes les catégories"),
+        "selected_level_label": valid_levels.get(filter_level, "Tous les niveaux"),
+        "top_secret_count": level_counts.get("TOP_SECRET", 0),
+    }
+    return render(request, "admin/company_secret_documents.html", context)
+
+
+@login_required
+@no_cache_view
+def admin_upload_company_secret_document(request):
+    """
+    Upload d'un document confidentiel entreprise.
+    """
+    user = request.user
+    if not _require_company_secret_admin(request):
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        category = request.POST.get('category', '').strip()
+        sensitivity = request.POST.get('sensitivity', '').strip()
+        title = request.POST.get('title', '').strip()
+        description = request.POST.get('description', '').strip()
+        files = request.FILES.getlist('file')
+        valid_categories = dict(CompanySecretDocument.CATEGORY_CHOICES)
+        valid_levels = dict(CompanySecretDocument.SENSITIVITY_CHOICES)
+
+        if category not in valid_categories:
+            messages.error(request, "La catégorie est invalide.")
+        elif sensitivity not in valid_levels:
+            messages.error(request, "Le niveau de confidentialité est invalide.")
+        elif not title:
+            messages.error(request, "Le titre est requis.")
+        elif not files:
+            messages.error(request, "Au moins un fichier est requis.")
+        else:
+            validation_error = next((error for error in (_validate_company_secret_file(file) for file in files) if error), "")
+            if validation_error:
+                messages.error(request, validation_error)
+            else:
+                created_documents = []
+                total_files = len(files)
+                for index, uploaded_file in enumerate(files, start=1):
+                    generated_title = title if total_files == 1 else f"{title} ({index})"
+                    document = CompanySecretDocument.objects.create(
+                        category=category,
+                        sensitivity=sensitivity,
+                        title=generated_title,
+                        description=description,
+                        file=uploaded_file,
+                        uploaded_by=user,
+                    )
+                    created_documents.append(document)
+                    AuditLog.log(
+                        user=user,
+                        action="CREER",
+                        description=(
+                            f"Document confidentiel entreprise uploadé: "
+                            f"{generated_title} ({document.get_sensitivity_display()})"
+                        ),
+                        content_object=document,
+                        ip_address=get_client_ip(request),
+                        user_agent=get_user_agent(request),
+                    )
+
+                if total_files == 1:
+                    messages.success(request, f'Document confidentiel "{created_documents[0].title}" uploadé avec succès.')
+                else:
+                    messages.success(request, f"{total_files} documents confidentiels uploadés avec succès.")
+                return redirect('admin_company_secret_documents')
+
+    return render(request, "admin/upload_company_secret_document.html", {
+        "categories": CompanySecretDocument.CATEGORY_CHOICES,
+        "sensitivity_levels": CompanySecretDocument.SENSITIVITY_CHOICES,
+        "max_size_mb": int(COMPANY_SECRET_MAX_SIZE_BYTES / (1024 * 1024)),
+        "allowed_extensions": ", ".join(COMPANY_SECRET_ALLOWED_EXTENSIONS),
+    })
+
+
+@login_required
+@no_cache_view
+def admin_download_company_secret_document(request, document_id):
+    """
+    Téléchargement contrôlé d'un document confidentiel.
+    """
+    if not _require_company_secret_admin(request):
+        return redirect('dashboard')
+
+    document = get_object_or_404(CompanySecretDocument, id=document_id)
+    AuditLog.log(
+        user=request.user,
+        action="VOIR",
+        description=f"Document confidentiel téléchargé: {document.title}",
+        content_object=document,
+        ip_address=get_client_ip(request),
+        user_agent=get_user_agent(request),
+    )
+    response = FileResponse(document.file.open("rb"), as_attachment=True, filename=document.download_filename())
+    response["Cache-Control"] = "no-store, private"
+    response["X-Robots-Tag"] = "noindex, nofollow"
+    return response
+
+
+@login_required
+@no_cache_view
+def admin_edit_company_secret_document(request, document_id):
+    """
+    Modifier les métadonnées d'un document confidentiel.
+    """
+    if not _require_company_secret_admin(request):
+        return redirect('dashboard')
+
+    document = get_object_or_404(CompanySecretDocument, id=document_id)
+    next_url = _safe_next_url(request) or reverse('admin_company_secret_documents')
+
+    if request.method == 'POST':
+        title = request.POST.get('title', '').strip()
+        description = request.POST.get('description', '').strip()
+        category = request.POST.get('category', '').strip()
+        sensitivity = request.POST.get('sensitivity', '').strip()
+        valid_categories = dict(CompanySecretDocument.CATEGORY_CHOICES)
+        valid_levels = dict(CompanySecretDocument.SENSITIVITY_CHOICES)
+
+        if not title:
+            messages.error(request, "Le titre est requis.")
+        elif category not in valid_categories:
+            messages.error(request, "La catégorie est invalide.")
+        elif sensitivity not in valid_levels:
+            messages.error(request, "Le niveau de confidentialité est invalide.")
+        else:
+            before = {
+                "title": document.title,
+                "category": document.category,
+                "sensitivity": document.sensitivity,
+                "description": document.description,
+            }
+            document.title = title
+            document.description = description
+            document.category = category
+            document.sensitivity = sensitivity
+            document.save(update_fields=['title', 'description', 'category', 'sensitivity', 'updated_at'])
+            AuditLog.log(
+                user=request.user,
+                action="MODIFIER",
+                description=f"Document confidentiel modifié: {document.title}",
+                content_object=document,
+                donnees_avant=before,
+                donnees_apres={
+                    "title": document.title,
+                    "category": document.category,
+                    "sensitivity": document.sensitivity,
+                    "description": document.description,
+                },
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request),
+            )
+            messages.success(request, "Document confidentiel mis à jour.")
+            return redirect(next_url)
+
+    return render(request, "admin/edit_company_secret_document.html", {
+        "document": document,
+        "categories": CompanySecretDocument.CATEGORY_CHOICES,
+        "sensitivity_levels": CompanySecretDocument.SENSITIVITY_CHOICES,
+        "next_url": next_url,
+    })
+
+
+@login_required
+@no_cache_view
+def admin_delete_company_secret_document(request, document_id):
+    """
+    Supprimer un document confidentiel.
+    """
+    if not _require_company_secret_admin(request):
+        return redirect('dashboard')
+
+    document = get_object_or_404(CompanySecretDocument, id=document_id)
+    if request.method == 'POST':
+        title = document.title
+        document.file.delete(save=False)
+        document.delete()
+        AuditLog.log(
+            user=request.user,
+            action="SUPPRIMER",
+            description=f"Document confidentiel supprimé: {title}",
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request),
+        )
+        messages.success(request, f'Document confidentiel "{title}" supprimé.')
+        return redirect('admin_company_secret_documents')
+
+    return render(request, "admin/delete_company_secret_document.html", {
+        "document": document,
+    })
 
 
 @login_required

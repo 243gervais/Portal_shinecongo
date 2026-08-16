@@ -1,7 +1,9 @@
 from django.db import models
 import uuid
 from decimal import Decimal
+from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.files.storage import FileSystemStorage
 from django.core.validators import MinValueValidator
 from django.utils import timezone
 import os
@@ -763,6 +765,34 @@ def site_document_path(instance, filename):
     return f"sites/{site_id}/{file_type}/{filename}"
 
 
+class CompanySecretDocumentStorage(FileSystemStorage):
+    """
+    Private storage for company secret documents.
+    Files are deliberately kept outside MEDIA_ROOT and have no public URL.
+    """
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault(
+            "location",
+            getattr(
+                settings,
+                "COMPANY_SECRET_DOCUMENT_ROOT",
+                os.path.join(settings.BASE_DIR, "private_media", "company_secrets"),
+            ),
+        )
+        kwargs.setdefault("base_url", None)
+        super().__init__(*args, **kwargs)
+
+
+company_secret_document_storage = CompanySecretDocumentStorage()
+
+
+def company_secret_document_path(instance, filename):
+    """Chemin privé des documents confidentiels de l'entreprise."""
+    category = (instance.category or "autre").lower()
+    return f"{category}/{filename}"
+
+
 def camera_evidence_path(instance, filename):
     """Chemin de sauvegarde des preuves vidéo/capture liées aux caméras."""
     site_id = str(instance.daily_report.site_id)
@@ -866,6 +896,95 @@ class SiteDocument(models.Model):
             size = self.file.size
             return round(size / (1024 * 1024), 2)
         except:
+            return 0
+
+
+class CompanySecretDocument(models.Model):
+    """
+    Documents confidentiels globaux de Shine Congo.
+    Accès réservé au propriétaire principal/superuser.
+    """
+
+    CATEGORY_CHOICES = [
+        ("LEGAL", "Documents légaux"),
+        ("OWNERSHIP", "Propriété / actionnariat"),
+        ("FINANCE", "Finance stratégique"),
+        ("CONTRACT", "Contrats sensibles"),
+        ("STRATEGY", "Stratégie"),
+        ("SECURITY", "Sécurité"),
+        ("OTHER", "Autre document spécial"),
+    ]
+    SENSITIVITY_CHOICES = [
+        ("IMPORTANT", "Important"),
+        ("CONFIDENTIAL", "Confidentiel"),
+        ("TOP_SECRET", "Top secret"),
+    ]
+
+    category = models.CharField(
+        max_length=30,
+        choices=CATEGORY_CHOICES,
+        default="OTHER",
+        verbose_name="Catégorie",
+    )
+    sensitivity = models.CharField(
+        max_length=30,
+        choices=SENSITIVITY_CHOICES,
+        default="TOP_SECRET",
+        verbose_name="Niveau de confidentialité",
+    )
+    title = models.CharField(max_length=200, verbose_name="Titre")
+    description = models.TextField(blank=True, verbose_name="Description")
+    file = models.FileField(
+        storage=company_secret_document_storage,
+        upload_to=company_secret_document_path,
+        verbose_name="Fichier",
+    )
+    uploaded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="company_secret_documents_uploaded",
+        verbose_name="Uploadé par",
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True, verbose_name="Uploadé le")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")
+
+    class Meta:
+        verbose_name = "Document confidentiel entreprise"
+        verbose_name_plural = "Documents confidentiels entreprise"
+        ordering = ["-uploaded_at"]
+        indexes = [
+            models.Index(fields=["category", "-uploaded_at"], name="secret_doc_cat_up_idx"),
+            models.Index(fields=["sensitivity", "-uploaded_at"], name="company_secret_level_idx"),
+            models.Index(fields=["-uploaded_at"], name="company_secret_uploaded_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.get_sensitivity_display()} - {self.title}"
+
+    def filename(self):
+        return os.path.basename(self.file.name)
+
+    def download_filename(self):
+        return os.path.basename(self.file.name) or "document-confidentiel"
+
+    def is_image(self):
+        ext = os.path.splitext(self.file.name)[1].lower()
+        return ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']
+
+    def is_video(self):
+        ext = os.path.splitext(self.file.name)[1].lower()
+        return ext in ['.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mkv']
+
+    def is_pdf(self):
+        return os.path.splitext(self.file.name)[1].lower() == '.pdf'
+
+    def file_size_mb(self):
+        try:
+            size = self.file.size
+            return round(size / (1024 * 1024), 2)
+        except Exception:
             return 0
 
 
