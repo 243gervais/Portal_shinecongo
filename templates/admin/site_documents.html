@@ -545,6 +545,38 @@
         text-align: center;
     }
 
+    .docs-secret-panel {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 1rem;
+        align-items: center;
+        padding: 1rem;
+        border-radius: 20px;
+        border: 1px solid rgba(127, 29, 29, 0.18);
+        background: linear-gradient(135deg, rgba(127, 29, 29, 0.08), rgba(255, 247, 237, 0.96));
+    }
+
+    .docs-secret-label {
+        margin: 0;
+        color: #7f1d1d;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+
+    .docs-secret-title {
+        margin: 0.25rem 0;
+        color: var(--primary-dark);
+        font-size: 1.05rem;
+    }
+
+    .docs-secret-copy {
+        margin: 0;
+        color: var(--text-secondary);
+        line-height: 1.55;
+    }
+
     @media (max-width: 1080px) {
         .docs-grid {
             grid-template-columns: 1fr;
@@ -601,6 +633,15 @@
         .docs-document-delete button {
             width: 100%;
         }
+
+        .docs-secret-panel {
+            grid-template-columns: 1fr;
+        }
+
+        .docs-secret-panel .btn {
+            width: 100%;
+            justify-content: center;
+        }
     }
 </style>
 {% endblock %}
@@ -625,11 +666,31 @@
             </div>
             <div class="docs-hero-actions">
                 <a href="{% url 'admin_site_employees' site.id %}" class="btn btn-info">👥 Gestion des employés</a>
+                {% if can_view_company_secrets %}
+                <a href="{% url 'admin_upload_company_secret_document' %}" class="btn btn-danger">🔒 Ajouter document important</a>
+                {% endif %}
                 <a href="{% url 'admin_upload_site_document' site.id %}" class="btn btn-success">➕ Uploader un document</a>
                 <a href="{% url 'admin_site_detail' site.id %}" class="btn btn-primary">← Retour</a>
             </div>
         </div>
     </section>
+
+    {% if can_view_company_secrets %}
+    <section class="docs-secret-panel" aria-label="Documents importants de l'entreprise">
+        <div>
+            <p class="docs-secret-label">Coffre top secret</p>
+            <h2 class="docs-secret-title">Documents importants de l'entreprise</h2>
+            <p class="docs-secret-copy">
+                Contrats sensibles, documents legaux, finance strategique et fichiers speciaux de Shine Congo.
+                Cette zone est separee des documents du site et reste reservee a l'admin principal.
+            </p>
+        </div>
+        <div class="docs-hero-actions">
+            <a href="{% url 'admin_company_secret_documents' %}" class="btn btn-secondary">Voir le coffre</a>
+            <a href="{% url 'admin_upload_company_secret_document' %}" class="btn btn-danger">Ajouter ici</a>
+        </div>
+    </section>
+    {% endif %}
 
     <section class="docs-kpis">
         <article class="docs-kpi">

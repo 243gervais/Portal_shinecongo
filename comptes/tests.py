@@ -2834,6 +2834,12 @@ class CompanySecretDocumentTests(TestCase):
         self.admin_role_user.userprofile.role = UserProfile.ADMIN_ROLE
         self.admin_role_user.userprofile.actif = True
         self.admin_role_user.userprofile.save()
+        self.site = Location.objects.create(
+            nom="Site Coffre",
+            adresse="Adresse Coffre",
+            ville="Kinshasa",
+            actif=True,
+        )
 
     def tearDown(self):
         for document in CompanySecretDocument.objects.all():
@@ -2911,6 +2917,25 @@ class CompanySecretDocumentTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertFalse(CompanySecretDocument.objects.exists())
+
+    def test_site_documents_page_links_owner_to_secret_company_docs(self):
+        self.client.login(username="gervaismbadu", password="OwnerPass123!")
+
+        response = self.client.get(reverse("admin_site_documents", args=[self.site.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Documents importants de l'entreprise")
+        self.assertContains(response, reverse("admin_upload_company_secret_document"))
+        self.assertContains(response, reverse("admin_company_secret_documents"))
+
+    def test_site_documents_page_hides_secret_company_docs_from_regular_admin(self):
+        self.client.login(username="location_admin", password="AdminPass123!")
+
+        response = self.client.get(reverse("admin_site_documents", args=[self.site.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Documents importants de l'entreprise")
+        self.assertNotContains(response, reverse("admin_upload_company_secret_document"))
 
 
 @override_settings(MEDIA_ROOT="/private/tmp/portal_shinecongo_admin_lavage_photo_test_media")

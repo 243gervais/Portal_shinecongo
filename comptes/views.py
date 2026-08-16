@@ -6334,6 +6334,7 @@ def admin_site_documents(request, site_id):
         'latest_document': latest_document,
         'active_document_type_count': active_document_type_count,
         'media_documents_count': media_documents_count,
+        'can_view_company_secrets': _is_company_secret_admin(request.user),
     }
     
     return render(request, 'admin/site_documents.html', context)
