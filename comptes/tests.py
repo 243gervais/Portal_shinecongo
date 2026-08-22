@@ -2649,6 +2649,118 @@ class SiteHistoryComparisonTests(TestCase):
         self.assertEqual(april_ranking["weeks"][0]["rank"], 1)
         self.assertTrue(april_ranking["weeks"][0]["is_best"])
 
+    def test_history_comparison_builds_money_analytics_expense_breakdown(self):
+        shift = ShiftDay.objects.get(site=self.site, date=date(2026, 4, 21))
+        shift.daily_expenses = [
+            {
+                "key": "transport_personnels",
+                "label": "Transport de Personnels",
+                "amount_fc": "14000.00",
+                "is_known": True,
+            },
+            {
+                "key": "",
+                "label": "Achat matériel",
+                "amount_fc": "5000.00",
+                "is_known": False,
+            },
+        ]
+        shift.daily_expenses_total_fc = Decimal("19000.00")
+        shift.save(update_fields=["daily_expenses", "daily_expenses_total_fc"])
+        SiteWaterPurchase.objects.create(
+            site=self.site,
+            purchase_date=date(2026, 4, 22),
+            billing_month=date(2026, 4, 1),
+            amount_fc=Decimal("12000.00"),
+            created_by=self.admin_user,
+        )
+        SiteFuelPurchase.objects.create(
+            site=self.site,
+            purchase_date=date(2026, 4, 23),
+            billing_month=date(2026, 4, 1),
+            amount_fc=Decimal("8000.00"),
+            created_by=self.admin_user,
+        )
+        SiteLossEntry.objects.create(
+            site=self.site,
+            date=date(2026, 4, 24),
+            funding_source="CAISSE",
+            category="CONSOMMABLE",
+            amount=Decimal("3000.00"),
+            title="Achat consommables",
+        )
+
+        response = self.client.get(
+            reverse("admin_site_history_comparison", args=[self.site.id]),
+            data={"scope": "month", "date": "2026-04-21"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Money analytics exécutif")
+        current_item = response.context["selected_period"]["current_item"]
+        self.assertEqual(current_item["water_expense"], Decimal("12000.00"))
+        self.assertEqual(current_item["fuel_expense"], Decimal("8000.00"))
+        self.assertEqual(current_item["transport_expense"], Decimal("14000.00"))
+        self.assertEqual(current_item["other_expense"], Decimal("10000.00"))
+        self.assertEqual(current_item["operating_expenses"], Decimal("44000.00"))
+        self.assertEqual(current_item["net_after_expenses"], Decimal("-34000.00"))
+
+    def test_history_comparison_builds_money_analytics_expense_breakdown_final_definition(self):
+        shift = ShiftDay.objects.get(site=self.site, date=date(2026, 4, 21))
+        shift.daily_expenses = [
+            {
+                "key": "transport_personnels",
+                "label": "Transport de Personnels",
+                "amount_fc": "14000.00",
+                "is_known": True,
+            },
+            {
+                "key": "",
+                "label": "Achat matériel",
+                "amount_fc": "5000.00",
+                "is_known": False,
+            },
+        ]
+        shift.daily_expenses_total_fc = Decimal("19000.00")
+        shift.save(update_fields=["daily_expenses", "daily_expenses_total_fc"])
+        SiteWaterPurchase.objects.create(
+            site=self.site,
+            purchase_date=date(2026, 4, 22),
+            billing_month=date(2026, 4, 1),
+            amount_fc=Decimal("12000.00"),
+            created_by=self.admin_user,
+        )
+        SiteFuelPurchase.objects.create(
+            site=self.site,
+            purchase_date=date(2026, 4, 23),
+            billing_month=date(2026, 4, 1),
+            amount_fc=Decimal("8000.00"),
+            created_by=self.admin_user,
+        )
+        SiteLossEntry.objects.create(
+            site=self.site,
+            date=date(2026, 4, 24),
+            funding_source="CAISSE",
+            category="CONSOMMABLE",
+            amount=Decimal("3000.00"),
+            title="Achat consommables",
+        )
+
+        response = self.client.get(
+            reverse("admin_site_history_comparison", args=[self.site.id]),
+            data={"scope": "month", "date": "2026-04-21"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Money analytics exécutif")
+        current_item = response.context["selected_period"]["current_item"]
+        self.assertEqual(current_item["water_expense"], Decimal("12000.00"))
+        self.assertEqual(current_item["fuel_expense"], Decimal("8000.00"))
+        self.assertEqual(current_item["transport_expense"], Decimal("14000.00"))
+        self.assertEqual(current_item["other_expense"], Decimal("10000.00"))
+        self.assertEqual(current_item["operating_expenses"], Decimal("44000.00"))
+        self.assertEqual(current_item["net_after_expenses"], Decimal("-34000.00"))
+
     def test_site_detail_links_to_history_comparison_page(self):
         response = self.client.get(reverse("admin_site_detail", args=[self.site.id]))
 
@@ -5673,6 +5785,62 @@ class SiteHistoryComparisonTests(TestCase):
         self.assertEqual(april_ranking["weeks"][0]["rank"], 1)
         self.assertTrue(april_ranking["weeks"][0]["is_best"])
 
+    def test_history_comparison_builds_money_analytics_expense_breakdown(self):
+        shift = ShiftDay.objects.get(site=self.site, date=date(2026, 4, 21))
+        shift.daily_expenses = [
+            {
+                "key": "transport_personnels",
+                "label": "Transport de Personnels",
+                "amount_fc": "14000.00",
+                "is_known": True,
+            },
+            {
+                "key": "",
+                "label": "Achat matériel",
+                "amount_fc": "5000.00",
+                "is_known": False,
+            },
+        ]
+        shift.daily_expenses_total_fc = Decimal("19000.00")
+        shift.save(update_fields=["daily_expenses", "daily_expenses_total_fc"])
+        SiteWaterPurchase.objects.create(
+            site=self.site,
+            purchase_date=date(2026, 4, 22),
+            billing_month=date(2026, 4, 1),
+            amount_fc=Decimal("12000.00"),
+            created_by=self.admin_user,
+        )
+        SiteFuelPurchase.objects.create(
+            site=self.site,
+            purchase_date=date(2026, 4, 23),
+            billing_month=date(2026, 4, 1),
+            amount_fc=Decimal("8000.00"),
+            created_by=self.admin_user,
+        )
+        SiteLossEntry.objects.create(
+            site=self.site,
+            date=date(2026, 4, 24),
+            funding_source="CAISSE",
+            category="CONSOMMABLE",
+            amount=Decimal("3000.00"),
+            title="Achat consommables",
+        )
+
+        response = self.client.get(
+            reverse("admin_site_history_comparison", args=[self.site.id]),
+            data={"scope": "month", "date": "2026-04-21"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Money analytics exécutif")
+        current_item = response.context["selected_period"]["current_item"]
+        self.assertEqual(current_item["water_expense"], Decimal("12000.00"))
+        self.assertEqual(current_item["fuel_expense"], Decimal("8000.00"))
+        self.assertEqual(current_item["transport_expense"], Decimal("14000.00"))
+        self.assertEqual(current_item["other_expense"], Decimal("10000.00"))
+        self.assertEqual(current_item["operating_expenses"], Decimal("44000.00"))
+        self.assertEqual(current_item["net_after_expenses"], Decimal("-34000.00"))
+
     def test_site_detail_links_to_history_comparison_page(self):
         response = self.client.get(reverse("admin_site_detail", args=[self.site.id]))
 
@@ -8264,6 +8432,62 @@ class SiteHistoryComparisonTests(TestCase):
         )
         self.assertEqual(april_ranking["weeks"][0]["rank"], 1)
         self.assertTrue(april_ranking["weeks"][0]["is_best"])
+
+    def test_history_comparison_builds_money_analytics_expense_breakdown_active_definition(self):
+        shift = ShiftDay.objects.get(site=self.site, date=date(2026, 4, 21))
+        shift.daily_expenses = [
+            {
+                "key": "transport_personnels",
+                "label": "Transport de Personnels",
+                "amount_fc": "14000.00",
+                "is_known": True,
+            },
+            {
+                "key": "",
+                "label": "Achat matériel",
+                "amount_fc": "5000.00",
+                "is_known": False,
+            },
+        ]
+        shift.daily_expenses_total_fc = Decimal("19000.00")
+        shift.save(update_fields=["daily_expenses", "daily_expenses_total_fc"])
+        SiteWaterPurchase.objects.create(
+            site=self.site,
+            purchase_date=date(2026, 4, 22),
+            billing_month=date(2026, 4, 1),
+            amount_fc=Decimal("12000.00"),
+            created_by=self.admin_user,
+        )
+        SiteFuelPurchase.objects.create(
+            site=self.site,
+            purchase_date=date(2026, 4, 23),
+            billing_month=date(2026, 4, 1),
+            amount_fc=Decimal("8000.00"),
+            created_by=self.admin_user,
+        )
+        SiteLossEntry.objects.create(
+            site=self.site,
+            date=date(2026, 4, 24),
+            funding_source="CAISSE",
+            category="CONSOMMABLE",
+            amount=Decimal("3000.00"),
+            title="Achat consommables",
+        )
+
+        response = self.client.get(
+            reverse("admin_site_history_comparison", args=[self.site.id]),
+            data={"scope": "month", "date": "2026-04-21"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Money analytics exécutif")
+        current_item = response.context["selected_period"]["current_item"]
+        self.assertEqual(current_item["water_expense"], Decimal("12000.00"))
+        self.assertEqual(current_item["fuel_expense"], Decimal("8000.00"))
+        self.assertEqual(current_item["transport_expense"], Decimal("14000.00"))
+        self.assertEqual(current_item["other_expense"], Decimal("10000.00"))
+        self.assertEqual(current_item["operating_expenses"], Decimal("44000.00"))
+        self.assertEqual(current_item["net_after_expenses"], Decimal("-34000.00"))
 
     def test_site_detail_links_to_history_comparison_page(self):
         response = self.client.get(reverse("admin_site_detail", args=[self.site.id]))

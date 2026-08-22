@@ -522,6 +522,95 @@
         border-color: rgba(244, 163, 64, 0.26);
     }
 
+    .money-analytics-hero {
+        padding: 1.15rem;
+        border-radius: 22px;
+        background: linear-gradient(135deg, rgba(8, 26, 40, 0.98), rgba(15, 118, 110, 0.9));
+        color: #fff;
+        box-shadow: 0 16px 34px rgba(8, 26, 40, 0.16);
+    }
+
+    .money-analytics-hero .compare-card-label,
+    .money-analytics-hero .compare-card-copy {
+        color: rgba(255, 255, 255, 0.78);
+    }
+
+    .money-analytics-hero .compare-card-title,
+    .money-analytics-hero .compare-card-value {
+        color: #fff;
+    }
+
+    .money-category-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+    }
+
+    .money-category-card {
+        padding: 1rem;
+        border-radius: 20px;
+        border: 1px solid rgba(15, 118, 110, 0.12);
+        background: rgba(255, 255, 255, 0.98);
+    }
+
+    .money-category-topline {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .money-category-name {
+        font-weight: 900;
+        color: var(--primary-dark);
+    }
+
+    .money-category-share {
+        padding: 0.28rem 0.55rem;
+        border-radius: 999px;
+        background: rgba(15, 118, 110, 0.08);
+        color: #0f766e;
+        font-size: 0.78rem;
+        font-weight: 900;
+    }
+
+    .money-category-bar {
+        height: 10px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: rgba(15, 118, 110, 0.08);
+        margin: 0.75rem 0;
+    }
+
+    .money-category-fill {
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #0f766e, #22c55e);
+    }
+
+    .money-alert-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+    }
+
+    .money-alert-card {
+        padding: 1rem;
+        border-radius: 20px;
+        border: 1px solid rgba(244, 163, 64, 0.2);
+        background: rgba(244, 163, 64, 0.09);
+    }
+
+    .money-alert-card.is-good {
+        border-color: rgba(29, 138, 76, 0.18);
+        background: rgba(29, 138, 76, 0.08);
+    }
+
+    .money-alert-card.is-risk {
+        border-color: rgba(180, 35, 24, 0.18);
+        background: rgba(180, 35, 24, 0.08);
+    }
+
     .compare-rank-pill {
         min-width: 42px;
         padding: 0.42rem 0.5rem;
@@ -574,7 +663,7 @@
             <span class="compare-kicker">Historique comparatif</span>
             <h1 class="compare-title">{{ site.nom }}</h1>
             <p class="compare-copy">
-                Lecture exécutive du site: ce que le site a réellement produit, ce qui est allé en banque, ce qui a été consommé en pertes, et la projection de clôture pour le mois prochain.
+                Money analytics du site: revenus, banque, dépenses par catégorie, semaines coûteuses, semaines économes, et périodes qui génèrent le plus de cash.
             </p>
             <div class="compare-meta-strip">
                 <div class="compare-meta-pill">
@@ -754,6 +843,16 @@
                 <div class="compare-card-copy">Dépôts moins pertes banque.</div>
             </article>
             <article class="compare-card">
+                <div class="compare-card-label">Dépenses opérationnelles</div>
+                <div class="compare-card-value">{{ selected_period.current_item.operating_expenses|fc_amount }} FC</div>
+                <div class="compare-card-copy">{{ selected_period.current_item.expense_rate_pct }}% du cash flow de la période.</div>
+            </article>
+            <article class="compare-card">
+                <div class="compare-card-label">Net après dépenses</div>
+                <div class="compare-card-value">{{ selected_period.current_item.net_after_expenses|fc_amount }} FC</div>
+                <div class="compare-card-copy">Cash généré moins eau, carburant, transport et autres dépenses.</div>
+            </article>
+            <article class="compare-card">
                 <div class="compare-card-label">Écart de caisse</div>
                 <div class="compare-card-value">{{ selected_period.current_item.ecart_caisse|fc_amount }} FC</div>
                 <div class="compare-card-copy">Plus proche de zéro signifie plus propre.</div>
@@ -784,6 +883,102 @@
                 <div class="compare-card-title">{{ selected_period.closest_gap_item.label }}</div>
                 <div class="compare-card-value">{{ selected_period.closest_gap_item.ecart_caisse|fc_amount }} FC</div>
                 <div class="compare-card-copy">La lecture la plus proche d’une caisse bien justifiée.</div>
+            </article>
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="compare-section-head">
+            <div>
+                <h2 class="compare-section-title">Money analytics exécutif</h2>
+                <p class="compare-section-copy">
+                    Lecture direction générale: où l'argent sort, où l'entreprise économise, et quelles périodes produisent le plus de cash après dépenses.
+                </p>
+            </div>
+            <div class="compare-section-state">{{ selected_period.toggle_label }} · {{ selected_period.current_item.label }}</div>
+        </div>
+
+        <div class="compare-grid-4" style="margin-bottom: 1rem;">
+            <article class="money-analytics-hero">
+                <div class="compare-card-label">Net après dépenses</div>
+                <div class="compare-card-title">{{ selected_period.current_item.label }}</div>
+                <div class="compare-card-value">{{ selected_period.current_item.net_after_expenses|fc_amount }} FC</div>
+                <div class="compare-card-copy">Revenu réel moins dépenses suivies: eau, carburant, transport et autres achats.</div>
+                {% if selected_period.current_item.net_after_expenses_delta is not None %}
+                <div class="compare-delta {% if selected_period.current_item.net_after_expenses_delta > 0 %}is-up{% elif selected_period.current_item.net_after_expenses_delta < 0 %}is-down{% else %}is-flat{% endif %}">
+                    {% if selected_period.current_item.net_after_expenses_delta > 0 %}+{% endif %}{{ selected_period.current_item.net_after_expenses_delta|fc_amount }} FC vs {{ selected_period.previous_item.label }}
+                </div>
+                {% endif %}
+            </article>
+            <article class="compare-card">
+                <div class="compare-card-label">Taux de dépenses</div>
+                <div class="compare-card-value">{{ selected_period.current_item.expense_rate_pct }}%</div>
+                <div class="compare-card-copy">Part du cash flow consommée par les dépenses suivies.</div>
+            </article>
+            <article class="compare-card">
+                <div class="compare-card-label">Marge après dépenses</div>
+                <div class="compare-card-value">{{ selected_period.current_item.profit_margin_pct }}%</div>
+                <div class="compare-card-copy">Cash restant après dépenses par rapport au cash flow.</div>
+            </article>
+            <article class="compare-card">
+                <div class="compare-card-label">Capture banque nette</div>
+                <div class="compare-card-value">{{ selected_period.current_item.bank_capture_pct }}%</div>
+                <div class="compare-card-copy">Part du cash flow qui termine en banque nette.</div>
+            </article>
+        </div>
+
+        <div class="money-category-grid" style="margin-bottom: 1rem;">
+            {% for category in selected_period.current_item.expense_breakdown.categories %}
+            <article class="money-category-card">
+                <div class="money-category-topline">
+                    <div class="money-category-name">{{ category.label }}</div>
+                    <div class="money-category-share">{{ category.share_pct }}%</div>
+                </div>
+                <div class="compare-card-value" style="font-size: 1.35rem;">{{ category.amount|fc_amount }} FC</div>
+                <div class="money-category-bar">
+                    <div class="money-category-fill" style="width: {% widthratio category.amount selected_period.current_item.expense_chart_total 100 %}%;"></div>
+                </div>
+                <div class="compare-card-copy">{{ category.count }} entrée{{ category.count|pluralize }} suivie{{ category.count|pluralize }} sur la période.</div>
+            </article>
+            {% endfor %}
+        </div>
+
+        <div class="money-alert-grid">
+            <article class="money-alert-card is-risk">
+                <div class="compare-card-label">Plus forte dépense eau</div>
+                <div class="compare-card-title">{{ selected_period.highest_water_item.label }}</div>
+                <div class="compare-card-value">{{ selected_period.highest_water_item.water_expense|fc_amount }} FC</div>
+                <div class="compare-card-copy">Période à vérifier si l'eau a consommé plus que d'habitude.</div>
+            </article>
+            <article class="money-alert-card is-risk">
+                <div class="compare-card-label">Plus forte dépense carburant</div>
+                <div class="compare-card-title">{{ selected_period.highest_fuel_item.label }}</div>
+                <div class="compare-card-value">{{ selected_period.highest_fuel_item.fuel_expense|fc_amount }} FC</div>
+                <div class="compare-card-copy">Période où le carburant pèse le plus.</div>
+            </article>
+            <article class="money-alert-card">
+                <div class="compare-card-label">Plus forte dépense transport</div>
+                <div class="compare-card-title">{{ selected_period.highest_transport_item.label }}</div>
+                <div class="compare-card-value">{{ selected_period.highest_transport_item.transport_expense|fc_amount }} FC</div>
+                <div class="compare-card-copy">Transport du personnel et dépenses transport suivies.</div>
+            </article>
+            <article class="money-alert-card">
+                <div class="compare-card-label">Plus grosses autres dépenses</div>
+                <div class="compare-card-title">{{ selected_period.highest_other_item.label }}</div>
+                <div class="compare-card-value">{{ selected_period.highest_other_item.other_expense|fc_amount }} FC</div>
+                <div class="compare-card-copy">Consommables, achats, incidents et autres dépenses.</div>
+            </article>
+            <article class="money-alert-card is-good">
+                <div class="compare-card-label">Meilleur net après dépenses</div>
+                <div class="compare-card-title">{{ selected_period.best_net_item.label }}</div>
+                <div class="compare-card-value">{{ selected_period.best_net_item.net_after_expenses|fc_amount }} FC</div>
+                <div class="compare-card-copy">Période qui a généré le plus d'argent après dépenses.</div>
+            </article>
+            <article class="money-alert-card is-good">
+                <div class="compare-card-label">Période la plus économe</div>
+                <div class="compare-card-title">{{ selected_period.lowest_expense_item.label }}</div>
+                <div class="compare-card-value">{{ selected_period.lowest_expense_item.operating_expenses|fc_amount }} FC</div>
+                <div class="compare-card-copy">Période avec le niveau de dépenses le plus faible.</div>
             </article>
         </div>
     </section>
@@ -937,6 +1132,12 @@
                         <th>Dépôts banque</th>
                         <th>Banque nette</th>
                         <th>Pertes</th>
+                        <th>Eau</th>
+                        <th>Carburant</th>
+                        <th>Transport</th>
+                        <th>Autres dépenses</th>
+                        <th>Dépenses suivies</th>
+                        <th>Net après dépenses</th>
                         <th>Écart caisse</th>
                         <th>Actions</th>
                     </tr>
@@ -953,6 +1154,12 @@
                         <td class="compare-money">{{ item.bank_deposit|fc_amount }} FC</td>
                         <td class="compare-money">{{ item.bank_net|fc_amount }} FC</td>
                         <td class="compare-money">{{ item.pertes_total|fc_amount }} FC</td>
+                        <td class="compare-money">{{ item.water_expense|fc_amount }} FC</td>
+                        <td class="compare-money">{{ item.fuel_expense|fc_amount }} FC</td>
+                        <td class="compare-money">{{ item.transport_expense|fc_amount }} FC</td>
+                        <td class="compare-money">{{ item.other_expense|fc_amount }} FC</td>
+                        <td class="compare-money">{{ item.operating_expenses|fc_amount }} FC</td>
+                        <td class="compare-money">{{ item.net_after_expenses|fc_amount }} FC</td>
                         <td class="compare-money">{{ item.ecart_caisse|fc_amount }} FC</td>
                         <td>
                             <div class="compare-action-row">

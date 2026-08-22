@@ -206,6 +206,134 @@ def _build_admin_reminders_snapshot(reference_date=None):
     }
 
 
+FINANCE_ANALYTICS_CATEGORIES = [
+    {"key": "water", "label": "Eau", "short_label": "Eau"},
+    {"key": "fuel", "label": "Carburant", "short_label": "Carburant"},
+    {"key": "transport", "label": "Transport du personnel", "short_label": "Transport"},
+    {"key": "other", "label": "Autres dépenses", "short_label": "Autres"},
+]
+
+
+def _empty_finance_category_map():
+    return {
+        category["key"]: {
+            **category,
+            "amount": Decimal("0"),
+            "count": 0,
+            "share_pct": Decimal("0"),
+        }
+        for category in FINANCE_ANALYTICS_CATEGORIES
+    }
+
+
+def _add_finance_category_amount(category_map, key, amount, count=1):
+    if key not in category_map:
+        key = "other"
+    amount = _to_decimal_amount(amount)
+    if amount <= 0:
+        return
+    category_map[key]["amount"] += amount
+    category_map[key]["count"] += count
+
+
+def _expense_item_bucket(item):
+    key = str(item.get("key", "")).strip().lower()
+    label = str(item.get("label", "")).strip().lower()
+    if key == "transport_personnels" or "transport" in label:
+        return "transport"
+    if "carburant" in label or "fuel" in label or "essence" in label:
+        return "fuel"
+    if "eau" in label or "water" in label:
+        return "water"
+    return "other"
+
+
+def _water_purchase_range_filter(period_start, period_end):
+    return (
+        Q(reporting_week_date__gte=period_start, reporting_week_date__lte=period_end)
+        | (
+            Q(reporting_week_date__isnull=True)
+            & Q(purchase_date__gte=period_start, purchase_date__lte=period_end)
+        )
+    )
+
+
+def _build_money_expense_breakdown(site, period_start, period_end):
+    category_map = _empty_finance_category_map()
+
+    water_rows = SiteWaterPurchase.objects.filter(
+        _water_purchase_range_filter(period_start, period_end),
+        site=site,
+    ).aggregate(total=Sum("amount_fc"), count=Count("id"))
+    _add_finance_category_amount(category_map, "water", water_rows["total"], count=water_rows["count"] or 0)
+
+    fuel_rows = SiteFuelPurchase.objects.filter(
+        site=site,
+        purchase_date__gte=period_start,
+        purchase_date__lte=period_end,
+        amount_fc__isnull=False,
+    ).aggregate(total=Sum("amount_fc"), count=Count("id"))
+    _add_finance_category_amount(category_map, "fuel", fuel_rows["total"], count=fuel_rows["count"] or 0)
+
+    report_shifts = list(
+        ShiftDay.objects.filter(
+            site=site,
+            date__gte=period_start,
+            date__lte=period_end,
+            daily_report_confirmed=True,
+        ).only("id", "daily_expenses", "daily_expenses_total_fc")
+    )
+    for shift in report_shifts:
+        for item in shift.daily_expense_items:
+            _add_finance_category_amount(
+                category_map,
+                _expense_item_bucket(item),
+                item["amount_fc"],
+            )
+
+    manual_losses = (
+        SiteLossEntry.objects.filter(
+            site=site,
+            date__gte=period_start,
+            date__lte=period_end,
+        )
+        .exclude(is_system_generated=True)
+        .values("category")
+        .annotate(total=Sum("amount"), count=Count("id"))
+    )
+    for row in manual_losses:
+        category = row["category"]
+        if category == "TRANSPORT":
+            bucket = "transport"
+        elif category == "CONSOMMABLE":
+            bucket = "other"
+        else:
+            bucket = "other"
+        _add_finance_category_amount(category_map, bucket, row["total"], count=row["count"] or 0)
+
+    total_expenses = sum((item["amount"] for item in category_map.values()), Decimal("0"))
+    for item in category_map.values():
+        if total_expenses:
+            item["share_pct"] = ((item["amount"] / total_expenses) * Decimal("100")).quantize(Decimal("0.1"))
+
+    categories = list(category_map.values())
+    categories.sort(key=lambda item: item["amount"], reverse=True)
+    return {
+        "categories": categories,
+        "by_key": category_map,
+        "total": total_expenses,
+        "top_category": categories[0] if categories and categories[0]["amount"] > 0 else None,
+    }
+
+
+def _pct_of_amount(numerator, denominator):
+    numerator = _to_decimal_amount(numerator)
+    denominator = _to_decimal_amount(denominator)
+    if not denominator:
+        return Decimal("0")
+    return ((numerator / denominator) * Decimal("100")).quantize(Decimal("0.1"))
+
+
 def _build_site_comparison_periods(site, detail_date, selected_scope="week"):
     week_start = detail_date - timedelta(days=detail_date.weekday())
 
@@ -283,6 +411,12 @@ def _build_site_comparison_periods(site, detail_date, selected_scope="week"):
                 history_report_total = history_reports.aggregate(total=Sum("total_amount_reported_fc"))["total"] or 0
                 ecart_caisse = history_cash - history_bank - history_pertes_caisse
                 bank_net = history_bank - history_pertes_banque
+                expense_breakdown = _build_money_expense_breakdown(site, cursor, period_end)
+                operating_expenses = expense_breakdown["total"]
+                net_after_expenses = history_cash - operating_expenses
+                profit_margin_pct = _pct_of_amount(net_after_expenses, history_cash)
+                expense_rate_pct = _pct_of_amount(operating_expenses, history_cash)
+                bank_capture_pct = _pct_of_amount(bank_net, history_cash)
                 entries.append(
                     {
                         "period_start": cursor,
@@ -297,6 +431,17 @@ def _build_site_comparison_periods(site, detail_date, selected_scope="week"):
                         "pertes_banque": history_pertes_banque,
                         "ecart_caisse": ecart_caisse,
                         "abs_ecart_caisse": abs(ecart_caisse),
+                        "expense_breakdown": expense_breakdown,
+                        "expense_chart_total": operating_expenses or Decimal("1"),
+                        "operating_expenses": operating_expenses,
+                        "net_after_expenses": net_after_expenses,
+                        "profit_margin_pct": profit_margin_pct,
+                        "expense_rate_pct": expense_rate_pct,
+                        "bank_capture_pct": bank_capture_pct,
+                        "water_expense": expense_breakdown["by_key"]["water"]["amount"],
+                        "fuel_expense": expense_breakdown["by_key"]["fuel"]["amount"],
+                        "transport_expense": expense_breakdown["by_key"]["transport"]["amount"],
+                        "other_expense": expense_breakdown["by_key"]["other"]["amount"],
                         "detail_query": detail_query,
                         "is_selected": cursor == current_start,
                     }
@@ -312,6 +457,8 @@ def _build_site_comparison_periods(site, detail_date, selected_scope="week"):
             item["bank_net_delta"] = item["bank_net"] - previous_item["bank_net"] if previous_item else None
             item["pertes_total_delta"] = item["pertes_total"] - previous_item["pertes_total"] if previous_item else None
             item["ecart_caisse_delta"] = item["ecart_caisse"] - previous_item["ecart_caisse"] if previous_item else None
+            item["operating_expenses_delta"] = item["operating_expenses"] - previous_item["operating_expenses"] if previous_item else None
+            item["net_after_expenses_delta"] = item["net_after_expenses"] - previous_item["net_after_expenses"] if previous_item else None
 
         return entries
 
@@ -412,8 +559,29 @@ def _build_site_comparison_periods(site, detail_date, selected_scope="week"):
         highest_loss_item = max(items, key=lambda item: item["pertes_total"], default=None)
         strongest_bank_item = max(items, key=lambda item: item["bank_net"], default=None)
         closest_gap_item = min(items, key=lambda item: abs(item["ecart_caisse"]), default=None)
+        best_net_item = max(items, key=lambda item: item["net_after_expenses"], default=None)
+        highest_expense_item = max(items, key=lambda item: item["operating_expenses"], default=None)
+        lowest_expense_item = min(items, key=lambda item: item["operating_expenses"], default=None)
+        highest_water_item = max(items, key=lambda item: item["water_expense"], default=None)
+        highest_fuel_item = max(items, key=lambda item: item["fuel_expense"], default=None)
+        highest_transport_item = max(items, key=lambda item: item["transport_expense"], default=None)
+        highest_other_item = max(items, key=lambda item: item["other_expense"], default=None)
         current_item = items[0] if items else None
         previous_item = items[1] if len(items) > 1 else None
+        expense_category_totals = _empty_finance_category_map()
+        for item in items:
+            for category_key, category_data in item["expense_breakdown"]["by_key"].items():
+                expense_category_totals[category_key]["amount"] += category_data["amount"]
+                expense_category_totals[category_key]["count"] += category_data["count"]
+        visible_expense_total = sum((item["amount"] for item in expense_category_totals.values()), Decimal("0"))
+        for category_data in expense_category_totals.values():
+            if visible_expense_total:
+                category_data["share_pct"] = ((category_data["amount"] / visible_expense_total) * Decimal("100")).quantize(Decimal("0.1"))
+        expense_category_totals_list = sorted(
+            expense_category_totals.values(),
+            key=lambda item: item["amount"],
+            reverse=True,
+        )
 
         comparison_periods.append(
             {
@@ -423,6 +591,10 @@ def _build_site_comparison_periods(site, detail_date, selected_scope="week"):
                 "max_bank_deposit": max((item["bank_deposit"] for item in items), default=0) or 1,
                 "max_pertes_total": max((item["pertes_total"] for item in items), default=0) or 1,
                 "max_ecart_caisse": max((item["abs_ecart_caisse"] for item in items), default=0) or 1,
+                "max_operating_expenses": max((item["operating_expenses"] for item in items), default=0) or 1,
+                "max_net_after_expenses": max((abs(item["net_after_expenses"]) for item in items), default=0) or 1,
+                "max_water_expense": max((item["water_expense"] for item in items), default=0) or 1,
+                "max_fuel_expense": max((item["fuel_expense"] for item in items), default=0) or 1,
                 "default_open": definition["key"] == selected_scope,
                 "current_item": current_item,
                 "previous_item": previous_item,
@@ -430,6 +602,15 @@ def _build_site_comparison_periods(site, detail_date, selected_scope="week"):
                 "highest_loss_item": highest_loss_item,
                 "strongest_bank_item": strongest_bank_item,
                 "closest_gap_item": closest_gap_item,
+                "best_net_item": best_net_item,
+                "highest_expense_item": highest_expense_item,
+                "lowest_expense_item": lowest_expense_item,
+                "highest_water_item": highest_water_item,
+                "highest_fuel_item": highest_fuel_item,
+                "highest_transport_item": highest_transport_item,
+                "highest_other_item": highest_other_item,
+                "expense_category_totals": expense_category_totals_list,
+                "visible_expense_total": visible_expense_total,
             }
         )
 
