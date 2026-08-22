@@ -2835,6 +2835,11 @@ class CompanyMeetingNoteAdminTests(TestCase):
         self.employee.userprofile.role = UserProfile.EMPLOYEE_ROLE
         self.employee.userprofile.actif = True
         self.employee.userprofile.save()
+        self.other_admin = User.objects.create_superuser(
+            username="other_admin",
+            email="other_admin@example.com",
+            password="OtherAdminPass123!",
+        )
 
     def test_admin_can_create_and_view_meeting_note(self):
         self.client.login(username="gervaismbadu", password="OwnerPass123!")
@@ -2866,6 +2871,15 @@ class CompanyMeetingNoteAdminTests(TestCase):
         self.assertEqual(page.status_code, 200)
         self.assertContains(page, "Réunion objectifs Shine Congo")
         self.assertContains(page, reverse("admin_meeting_note_pdf", args=[note.id]))
+
+    def test_gervaismbadu_dashboard_shows_meeting_notes_entry(self):
+        self.client.login(username="gervaismbadu", password="OwnerPass123!")
+
+        response = self.client.get(reverse("admin_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Résumés de réunions")
+        self.assertContains(response, reverse("admin_meeting_notes"))
 
     def test_admin_can_edit_meeting_note_anytime(self):
         note = CompanyMeetingNote.objects.create(
@@ -2927,6 +2941,17 @@ class CompanyMeetingNoteAdminTests(TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("dashboard"))
+
+    def test_other_admin_cannot_access_or_see_meeting_notes(self):
+        self.client.login(username="other_admin", password="OtherAdminPass123!")
+
+        meeting_response = self.client.get(reverse("admin_meeting_notes"))
+        dashboard_response = self.client.get(reverse("admin_dashboard"))
+
+        self.assertEqual(meeting_response.status_code, 302)
+        self.assertEqual(meeting_response.url, reverse("dashboard"))
+        self.assertEqual(dashboard_response.status_code, 200)
+        self.assertNotContains(dashboard_response, reverse("admin_meeting_notes"))
 
 
 class CompanySecretDocumentTests(TestCase):

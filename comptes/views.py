@@ -1827,6 +1827,7 @@ def admin_dashboard(request):
         'recent_fuel_purchases': recent_fuel_purchases,
         'fuel_purchase_summary': fuel_purchase_summary,
         'password_summary': password_overview["summary"],
+        'can_view_meeting_notes': user.username == "gervaismbadu",
     }
 
     mark_admin_inbox_seen(user)
@@ -6654,9 +6655,9 @@ def _validate_meeting_note_payload(payload):
 def _require_general_admin_access(request):
     user = request.user
     ensure_superuser_admin_profile(user)
-    if is_admin_user(user):
+    if user.username == "gervaismbadu":
         return True
-    messages.error(request, "Accès refusé. Cette section est réservée aux administrateurs.")
+    messages.error(request, "Accès refusé. Cette section est réservée à l'admin général.")
     return False
 
 

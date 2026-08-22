@@ -437,12 +437,32 @@
         </div>
         <div class="admin-toolbar">
             <a href="{% url 'admin_create_site' %}" class="btn btn-success">Créer un site</a>
+            {% if can_view_meeting_notes %}
+            <a href="{% url 'admin_meeting_notes' %}" class="btn btn-info">Résumés de réunions</a>
+            {% endif %}
             <a href="{% url 'admin_password_management' %}" class="btn btn-secondary">Mots de passe</a>
             <a href="{% url 'admin_water_purchases' %}" class="btn btn-info">Suivi eau</a>
             <a href="{% url 'admin_fuel_purchases' %}" class="btn btn-secondary">Suivi carburant</a>
             <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">Rafraîchir</a>
         </div>
     </section>
+
+    {% if can_view_meeting_notes %}
+    <section class="card" style="border: 1px solid rgba(14, 116, 144, 0.16); background: linear-gradient(135deg, rgba(14, 116, 144, 0.08), rgba(255, 255, 255, 0.98));">
+        <div class="admin-section-head">
+            <div>
+                <h2 class="admin-section-title">Résumés de réunions</h2>
+                <p class="admin-section-copy">
+                    Espace privé de l'admin général pour écrire, modifier et exporter en PDF les comptes rendus des réunions Shine Congo.
+                </p>
+            </div>
+            <div class="admin-mini-actions">
+                <a href="{% url 'admin_create_meeting_note' %}" class="btn btn-success">Nouveau résumé</a>
+                <a href="{% url 'admin_meeting_notes' %}" class="btn btn-primary">Ouvrir</a>
+            </div>
+        </div>
+    </section>
+    {% endif %}
 
     <p class="admin-rate-note">{% fx_rate_label %}</p>
     <div class="admin-fx-tools" id="admin-fx-tools">

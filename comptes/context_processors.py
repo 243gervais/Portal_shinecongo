@@ -61,12 +61,14 @@ def _build_admin_site_navigation(request):
     )
     employee_meta = employee_qs.aggregate(total=Count("id"), latest=Max("updated_at"))
     can_view_company_secrets = user.is_superuser or user.username == "gervaismbadu"
+    can_view_meeting_notes = user.username == "gervaismbadu"
     cache_key = ":".join(
         [
             "admin-site-nav-v2",
             str(current_site_id or "none"),
             today.isoformat(),
             str(can_view_company_secrets),
+            str(can_view_meeting_notes),
             str(site_meta["total"]),
             _stamp_for_cache(site_meta["latest"]),
             str(employee_meta["total"]),
@@ -130,12 +132,6 @@ def _build_admin_site_navigation(request):
             keywords="rapports fin de journée historique messages employes journalier mensuel",
         ),
         build_search_item(
-            "Résumés de réunions",
-            reverse("admin_meeting_notes"),
-            description="Notes professionnelles, décisions et actions des réunions Shine Congo",
-            keywords="reunions meeting notes resume compte rendu decisions actions pdf",
-        ),
-        build_search_item(
             "Suivi eau",
             reverse("admin_water_purchases"),
             description="Achats d'eau et mois concerné",
@@ -154,6 +150,15 @@ def _build_admin_site_navigation(request):
             keywords="usd fc cdf franc congolais dollar convertisseur taux devise",
         ),
     ]
+    if can_view_meeting_notes:
+        search_items.append(
+            build_search_item(
+                "Résumés de réunions",
+                reverse("admin_meeting_notes"),
+                description="Notes professionnelles, décisions et actions des réunions Shine Congo",
+                keywords="reunions meeting notes resume compte rendu decisions actions pdf",
+            )
+        )
     if can_view_company_secrets:
         search_items.append(
             build_search_item(
@@ -194,12 +199,17 @@ def _build_admin_site_navigation(request):
                 "description": "Cash flow, banque et pertes",
                 "keywords": "pilotage hebdomadaire cash flow banque pertes",
             },
-            {
-                "label": "Résumés de réunions",
-                "url": reverse("admin_meeting_notes"),
-                "description": "Notes professionnelles, décisions et actions des réunions Shine Congo",
-                "keywords": "reunions meeting notes resume compte rendu decisions actions pdf",
-            },
+            *(
+                [
+                    {
+                        "label": "Résumés de réunions",
+                        "url": reverse("admin_meeting_notes"),
+                        "description": "Notes professionnelles, décisions et actions des réunions Shine Congo",
+                        "keywords": "reunions meeting notes resume compte rendu decisions actions pdf",
+                    }
+                ]
+                if can_view_meeting_notes else []
+            ),
             {
                 "label": "Historique comparatif",
                 "url": reverse("admin_site_history_comparison", kwargs={"site_id": site.id}),
