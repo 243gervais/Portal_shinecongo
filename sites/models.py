@@ -988,6 +988,59 @@ class CompanySecretDocument(models.Model):
             return 0
 
 
+class CompanyMeetingNote(models.Model):
+    """
+    Résumés professionnels des réunions de Shine Congo.
+    """
+
+    title = models.CharField(max_length=220, verbose_name="Titre")
+    meeting_date = models.DateField(default=timezone.localdate, verbose_name="Date de la réunion")
+    location = models.CharField(max_length=160, blank=True, verbose_name="Lieu")
+    participants = models.TextField(blank=True, verbose_name="Participants")
+    summary = models.TextField(verbose_name="Résumé de la réunion")
+    decisions = models.TextField(blank=True, verbose_name="Décisions prises")
+    action_items = models.TextField(blank=True, verbose_name="Actions à suivre")
+    next_steps = models.TextField(blank=True, verbose_name="Prochaines étapes")
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="company_meeting_notes_created",
+        verbose_name="Créé par",
+    )
+    updated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="company_meeting_notes_updated",
+        verbose_name="Dernière modification par",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Créé le")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Modifié le")
+
+    class Meta:
+        verbose_name = "Résumé de réunion"
+        verbose_name_plural = "Résumés de réunions"
+        ordering = ["-meeting_date", "-updated_at"]
+        indexes = [
+            models.Index(fields=["-meeting_date"], name="meeting_note_date_idx"),
+            models.Index(fields=["-updated_at"], name="meeting_note_updated_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.meeting_date:%d/%m/%Y} - {self.title}"
+
+    def pdf_filename(self):
+        safe_title = "".join(
+            char.lower() if char.isalnum() else "-"
+            for char in self.title
+        ).strip("-")
+        safe_title = "-".join(part for part in safe_title.split("-") if part)[:70] or "reunion"
+        return f"resume-reunion-{self.meeting_date:%Y%m%d}-{safe_title}.pdf"
+
+
 class Camera(models.Model):
     CAMERA_POSITION_CHOICES = [
         ("GATE", "Entrée / gate"),

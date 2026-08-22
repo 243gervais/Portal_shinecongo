@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}{% if note %}Modifier le résumé{% else %}Nouveau résumé de réunion{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .meeting-form-shell {
+        display: grid;
+        gap: 1.2rem;
+    }
+
+    .meeting-form-hero,
+    .meeting-form-card {
+        border-radius: 20px;
+        padding: 1.2rem;
+        background: rgba(255, 255, 255, 0.98);
+        border: 1px solid rgba(14, 116, 144, 0.12);
+        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+    }
+
+    .meeting-form-hero {
+        background: linear-gradient(135deg, #082f49 0%, #155e75 100%);
+        color: #f8fafc;
+    }
+
+    .meeting-form-hero h1,
+    .meeting-form-hero p {
+        margin: 0;
+    }
+
+    .meeting-form-hero p {
+        margin-top: 0.5rem;
+        color: rgba(240, 253, 250, 0.86);
+    }
+
+    .meeting-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.15rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.45rem;
+        color: var(--text-primary);
+        font-weight: 800;
+    }
+
+    .form-group small {
+        display: block;
+        margin-top: 0.35rem;
+        color: var(--text-secondary);
+        line-height: 1.45;
+    }
+
+    .meeting-form-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    @media (max-width: 760px) {
+        .meeting-form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .meeting-form-actions .btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="meeting-form-shell">
+    <section class="meeting-form-hero">
+        <h1>{% if note %}Modifier le résumé{% else %}Nouveau résumé de réunion{% endif %}</h1>
+        <p>Rédigez un compte rendu clair, propre et exportable en PDF professionnel.</p>
+    </section>
+
+    <section class="meeting-form-card">
+        <form method="post">
+            {% csrf_token %}
+            <div class="meeting-form-grid">
+                <div class="form-group">
+                    <label for="title">Titre de la réunion *</label>
+                    <input class="form-control" type="text" id="title" name="title" value="{{ form_values.title }}" required placeholder="Ex: Réunion direction - Objectifs opérationnels">
+                </div>
+                <div class="form-group">
+                    <label for="meeting_date">Date *</label>
+                    <input class="form-control" type="date" id="meeting_date" name="meeting_date" value="{{ form_values.meeting_date|date:'Y-m-d' }}" required>
+                </div>
+            </div>
+
+            <div class="meeting-form-grid">
+                <div class="form-group">
+                    <label for="location">Lieu</label>
+                    <input class="form-control" type="text" id="location" name="location" value="{{ form_values.location }}" placeholder="Ex: Ngolomingo, Kinshasa, appel vidéo">
+                </div>
+                <div class="form-group">
+                    <label for="participants">Participants</label>
+                    <textarea class="form-control" id="participants" name="participants" rows="3" placeholder="Une personne par ligne ou liste séparée par virgules">{{ form_values.participants }}</textarea>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="summary">Résumé professionnel *</label>
+                <textarea class="form-control" id="summary" name="summary" rows="8" required placeholder="Synthèse claire de la discussion, contexte, points importants...">{{ form_values.summary }}</textarea>
+                <small>Ce texte devient la section principale du PDF.</small>
+            </div>
+
+            <div class="form-group">
+                <label for="decisions">Décisions prises</label>
+                <textarea class="form-control" id="decisions" name="decisions" rows="5" placeholder="Décisions validées pendant la réunion...">{{ form_values.decisions }}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="action_items">Actions à suivre</label>
+                <textarea class="form-control" id="action_items" name="action_items" rows="5" placeholder="Responsable, action, échéance...">{{ form_values.action_items }}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="next_steps">Prochaines étapes</label>
+                <textarea class="form-control" id="next_steps" name="next_steps" rows="4" placeholder="Ce qu'il faut faire après cette réunion...">{{ form_values.next_steps }}</textarea>
+            </div>
+
+            <div class="meeting-form-actions">
+                <button type="submit" class="btn btn-success" style="flex: 1; min-width: 220px;">Enregistrer le résumé</button>
+                {% if note %}
+                <a href="{% url 'admin_meeting_note_pdf' note.id %}" target="_blank" rel="noopener" class="btn btn-info">Voir PDF</a>
+                {% endif %}
+                <a href="{% url 'admin_meeting_notes' %}" class="btn btn-secondary">Annuler</a>
+            </div>
+        </form>
+    </section>
+</div>
+{% endblock %}

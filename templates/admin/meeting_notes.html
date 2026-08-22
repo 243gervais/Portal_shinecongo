@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}Résumés de réunions{% endblock %}
+
+{% block extra_css %}
+<style>
+    .meeting-shell {
+        display: grid;
+        gap: 1.25rem;
+    }
+
+    .meeting-hero {
+        border-radius: 24px;
+        padding: 1.5rem;
+        background: linear-gradient(135deg, #082f49 0%, #155e75 56%, #0f766e 100%);
+        color: #f8fafc;
+        box-shadow: 0 20px 46px rgba(8, 47, 73, 0.2);
+    }
+
+    .meeting-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .meeting-eyebrow {
+        display: inline-flex;
+        padding: 0.4rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+        color: #ecfeff;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+
+    .meeting-hero h1 {
+        margin: 0.55rem 0;
+        color: #ffffff;
+    }
+
+    .meeting-hero p {
+        margin: 0;
+        max-width: 58rem;
+        color: rgba(240, 253, 250, 0.86);
+        line-height: 1.6;
+    }
+
+    .meeting-actions {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+    }
+
+    .meeting-kpis,
+    .meeting-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 1rem;
+    }
+
+    .meeting-card {
+        border: 1px solid rgba(14, 116, 144, 0.12);
+        border-radius: 18px;
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.98);
+        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+    }
+
+    .meeting-card h2,
+    .meeting-card h3,
+    .meeting-card p {
+        margin: 0;
+    }
+
+    .meeting-muted {
+        color: var(--text-secondary);
+        line-height: 1.55;
+    }
+
+    .meeting-note-card {
+        display: grid;
+        gap: 0.75rem;
+        min-height: 100%;
+    }
+
+    .meeting-note-title {
+        color: var(--primary-dark);
+        font-size: 1.05rem;
+        line-height: 1.35;
+    }
+
+    .meeting-meta {
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+    }
+
+    .meeting-pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.35rem 0.65rem;
+        background: rgba(14, 116, 144, 0.08);
+        color: #155e75;
+        font-size: 0.8rem;
+        font-weight: 800;
+    }
+
+    .meeting-search {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+        align-items: end;
+    }
+
+    .meeting-search .form-group {
+        flex: 1;
+        min-width: 240px;
+        margin-bottom: 0;
+    }
+
+    .meeting-empty {
+        padding: 2rem;
+        text-align: center;
+        border-radius: 18px;
+        border: 1px dashed rgba(14, 116, 144, 0.18);
+        background: rgba(14, 116, 144, 0.04);
+    }
+
+    @media (max-width: 720px) {
+        .meeting-hero,
+        .meeting-card {
+            border-radius: 16px;
+        }
+
+        .meeting-actions .btn,
+        .meeting-search .btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="meeting-shell">
+    <section class="meeting-hero">
+        <div class="meeting-row">
+            <div>
+                <span class="meeting-eyebrow">Direction générale</span>
+                <h1>Résumés de réunions</h1>
+                <p>
+                    Un espace professionnel pour écrire, conserver, modifier et exporter en PDF les comptes rendus
+                    importants des réunions Shine Congo.
+                </p>
+            </div>
+            <div class="meeting-actions">
+                <a href="{% url 'admin_create_meeting_note' %}" class="btn btn-success">Nouveau résumé</a>
+                <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">Retour admin</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="meeting-kpis">
+        <article class="meeting-card">
+            <p class="meeting-muted">Résumés enregistrés</p>
+            <h2>{{ notes_total_count }}</h2>
+        </article>
+        <article class="meeting-card">
+            <p class="meeting-muted">Dernière mise à jour</p>
+            <h2>{% if latest_note %}{{ latest_note.updated_at|date:"d/m/Y" }}{% else %}-{% endif %}</h2>
+        </article>
+    </section>
+
+    <section class="meeting-card">
+        <form method="get" class="meeting-search">
+            <div class="form-group">
+                <label for="q">Rechercher</label>
+                <input class="form-control" type="search" id="q" name="q" value="{{ query }}" placeholder="Titre, participants, décisions, actions...">
+            </div>
+            <button type="submit" class="btn btn-primary">Rechercher</button>
+            <a href="{% url 'admin_meeting_notes' %}" class="btn btn-secondary">Réinitialiser</a>
+        </form>
+    </section>
+
+    <section class="meeting-card">
+        <div class="meeting-row">
+            <div>
+                <h2>Bibliothèque des comptes rendus</h2>
+                <p class="meeting-muted">{{ paginated_notes.paginator.count }} résultat{{ paginated_notes.paginator.count|pluralize }}</p>
+            </div>
+        </div>
+
+        {% if paginated_notes.paginator.count %}
+        <div class="meeting-grid" style="margin-top: 1rem;">
+            {% for note in paginated_notes %}
+            <article class="meeting-card meeting-note-card">
+                <div class="meeting-meta">
+                    <span class="meeting-pill">{{ note.meeting_date|date:"d/m/Y" }}</span>
+                    {% if note.location %}<span class="meeting-pill">{{ note.location }}</span>{% endif %}
+                </div>
+                <h3 class="meeting-note-title">{{ note.title }}</h3>
+                <p class="meeting-muted">{{ note.summary|truncatewords:32 }}</p>
+                <p class="meeting-muted">
+                    Modifié le {{ note.updated_at|date:"d/m/Y à H:i" }}
+                    {% if note.updated_by %}par {{ note.updated_by.get_full_name|default:note.updated_by.username }}{% endif %}
+                </p>
+                <div class="meeting-actions">
+                    <a href="{% url 'admin_edit_meeting_note' note.id %}" class="btn btn-primary">Modifier</a>
+                    <a href="{% url 'admin_meeting_note_pdf' note.id %}" class="btn btn-info" target="_blank" rel="noopener">Voir PDF</a>
+                    <a href="{% url 'admin_meeting_note_pdf' note.id %}?download=1" class="btn btn-success">Télécharger</a>
+                    <a href="{% url 'admin_delete_meeting_note' note.id %}" class="btn btn-danger">Supprimer</a>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% if paginated_notes.paginator.num_pages > 1 %}
+        <nav class="meeting-actions" style="justify-content: center; margin-top: 1rem;" aria-label="Pagination des résumés">
+            {% if paginated_notes.has_previous %}
+            <a class="btn btn-secondary" href="?{% if query %}q={{ query|urlencode }}&{% endif %}notes_page={{ paginated_notes.previous_page_number }}">Précédent</a>
+            {% endif %}
+            <span class="meeting-pill">Page {{ paginated_notes.number }} / {{ paginated_notes.paginator.num_pages }}</span>
+            {% if paginated_notes.has_next %}
+            <a class="btn btn-secondary" href="?{% if query %}q={{ query|urlencode }}&{% endif %}notes_page={{ paginated_notes.next_page_number }}">Suivant</a>
+            {% endif %}
+        </nav>
+        {% endif %}
+        {% else %}
+        <div class="meeting-empty">
+            <p class="meeting-muted">Aucun résumé de réunion enregistré.</p>
+            <a href="{% url 'admin_create_meeting_note' %}" class="btn btn-success">Créer le premier résumé</a>
+        </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

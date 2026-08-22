@@ -130,6 +130,12 @@ def _build_admin_site_navigation(request):
             keywords="rapports fin de journée historique messages employes journalier mensuel",
         ),
         build_search_item(
+            "Résumés de réunions",
+            reverse("admin_meeting_notes"),
+            description="Notes professionnelles, décisions et actions des réunions Shine Congo",
+            keywords="reunions meeting notes resume compte rendu decisions actions pdf",
+        ),
+        build_search_item(
             "Suivi eau",
             reverse("admin_water_purchases"),
             description="Achats d'eau et mois concerné",
@@ -187,6 +193,12 @@ def _build_admin_site_navigation(request):
                 "url": f"{site_detail_url}#pilotage-hebdomadaire",
                 "description": "Cash flow, banque et pertes",
                 "keywords": "pilotage hebdomadaire cash flow banque pertes",
+            },
+            {
+                "label": "Résumés de réunions",
+                "url": reverse("admin_meeting_notes"),
+                "description": "Notes professionnelles, décisions et actions des réunions Shine Congo",
+                "keywords": "reunions meeting notes resume compte rendu decisions actions pdf",
             },
             {
                 "label": "Historique comparatif",

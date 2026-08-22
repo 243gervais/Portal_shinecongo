@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ note.title }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 1.6cm 1.5cm;
+        }
+
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            color: #0f172a;
+            font-size: 11pt;
+            line-height: 1.45;
+        }
+
+        .header {
+            border-bottom: 3px solid #0f766e;
+            padding-bottom: 14px;
+            margin-bottom: 22px;
+        }
+
+        .brand {
+            font-size: 21pt;
+            font-weight: bold;
+            color: #082f49;
+            margin: 0;
+        }
+
+        .subtitle {
+            margin: 4px 0 0;
+            color: #475569;
+            font-size: 10pt;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        h1 {
+            font-size: 19pt;
+            color: #0f172a;
+            margin: 0 0 10px;
+        }
+
+        h2 {
+            font-size: 12pt;
+            color: #0f766e;
+            margin: 18px 0 7px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #cbd5e1;
+        }
+
+        .meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0 18px;
+        }
+
+        .meta-table td {
+            padding: 8px 9px;
+            border: 1px solid #dbe4ef;
+            vertical-align: top;
+        }
+
+        .meta-label {
+            width: 30%;
+            color: #475569;
+            font-weight: bold;
+            background: #f8fafc;
+        }
+
+        .section {
+            padding: 10px 12px;
+            border: 1px solid #dbe4ef;
+            background: #ffffff;
+            margin-bottom: 10px;
+        }
+
+        .footer {
+            margin-top: 24px;
+            padding-top: 10px;
+            border-top: 1px solid #cbd5e1;
+            color: #64748b;
+            font-size: 9pt;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <p class="brand">{{ company_name }}</p>
+        <p class="subtitle">Compte rendu professionnel de réunion</p>
+    </div>
+
+    <h1>{{ note.title }}</h1>
+
+    <table class="meta-table">
+        <tr>
+            <td class="meta-label">Date</td>
+            <td>{{ note.meeting_date|date:"d/m/Y" }}</td>
+        </tr>
+        {% if note.location %}
+        <tr>
+            <td class="meta-label">Lieu</td>
+            <td>{{ note.location }}</td>
+        </tr>
+        {% endif %}
+        {% if note.participants %}
+        <tr>
+            <td class="meta-label">Participants</td>
+            <td>{{ note.participants|linebreaksbr }}</td>
+        </tr>
+        {% endif %}
+    </table>
+
+    <h2>Résumé de la réunion</h2>
+    <div class="section">{{ note.summary|linebreaksbr }}</div>
+
+    {% if note.decisions %}
+    <h2>Décisions prises</h2>
+    <div class="section">{{ note.decisions|linebreaksbr }}</div>
+    {% endif %}
+
+    {% if note.action_items %}
+    <h2>Actions à suivre</h2>
+    <div class="section">{{ note.action_items|linebreaksbr }}</div>
+    {% endif %}
+
+    {% if note.next_steps %}
+    <h2>Prochaines étapes</h2>
+    <div class="section">{{ note.next_steps|linebreaksbr }}</div>
+    {% endif %}
+
+    <div class="footer">
+        Document généré le {{ generated_at|date:"d/m/Y à H:i" }}.
+        {% if note.updated_by %}Dernière modification par {{ note.updated_by.get_full_name|default:note.updated_by.username }}.{% endif %}
+    </div>
+</body>
+</html>

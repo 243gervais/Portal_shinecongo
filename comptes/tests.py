@@ -24,6 +24,7 @@ from sites.models import (
     CameraObservation,
     CameraObservationEvidence,
     CameraOperatorDailyReport,
+    CompanyMeetingNote,
     CompanySecretDocument,
     DailyCameraReport,
     Location,
@@ -2817,6 +2818,115 @@ class SiteCorrectionsViewTests(TestCase):
         self.assertContains(response, "employee_fix")
         self.assertContains(response, "Modifier")
         self.assertContains(response, "Supprimer")
+
+
+class CompanyMeetingNoteAdminTests(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            username="gervaismbadu",
+            email="owner@example.com",
+            password="OwnerPass123!",
+        )
+        self.employee = User.objects.create_user(
+            username="employee_notes",
+            email="employee_notes@example.com",
+            password="EmployeePass123!",
+        )
+        self.employee.userprofile.role = UserProfile.EMPLOYEE_ROLE
+        self.employee.userprofile.actif = True
+        self.employee.userprofile.save()
+
+    def test_admin_can_create_and_view_meeting_note(self):
+        self.client.login(username="gervaismbadu", password="OwnerPass123!")
+
+        response = self.client.post(
+            reverse("admin_create_meeting_note"),
+            data={
+                "title": "Réunion objectifs Shine Congo",
+                "meeting_date": "2026-08-22",
+                "location": "Ngolomingo",
+                "participants": "Gervais\nManager",
+                "summary": "Résumé professionnel de la réunion.",
+                "decisions": "Valider les objectifs de la semaine.",
+                "action_items": "Manager: envoyer le rapport.",
+                "next_steps": "Revoir les résultats vendredi.",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("admin_meeting_notes"),
+            fetch_redirect_response=False,
+        )
+        note = CompanyMeetingNote.objects.get()
+        self.assertEqual(note.created_by, self.admin_user)
+        self.assertEqual(note.updated_by, self.admin_user)
+
+        page = self.client.get(reverse("admin_meeting_notes"))
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Réunion objectifs Shine Congo")
+        self.assertContains(page, reverse("admin_meeting_note_pdf", args=[note.id]))
+
+    def test_admin_can_edit_meeting_note_anytime(self):
+        note = CompanyMeetingNote.objects.create(
+            title="Ancien titre",
+            meeting_date=date(2026, 8, 20),
+            summary="Ancien résumé",
+            created_by=self.admin_user,
+            updated_by=self.admin_user,
+        )
+        self.client.login(username="gervaismbadu", password="OwnerPass123!")
+
+        response = self.client.post(
+            reverse("admin_edit_meeting_note", args=[note.id]),
+            data={
+                "title": "Titre mis à jour",
+                "meeting_date": "2026-08-22",
+                "location": "Kinshasa",
+                "participants": "Gervais",
+                "summary": "Résumé mis à jour.",
+                "decisions": "Décision mise à jour.",
+                "action_items": "Action mise à jour.",
+                "next_steps": "Étape suivante.",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("admin_meeting_notes"),
+            fetch_redirect_response=False,
+        )
+        note.refresh_from_db()
+        self.assertEqual(note.title, "Titre mis à jour")
+        self.assertEqual(note.location, "Kinshasa")
+        self.assertEqual(note.updated_by, self.admin_user)
+
+    def test_meeting_note_pdf_export_returns_pdf(self):
+        note = CompanyMeetingNote.objects.create(
+            title="PDF réunion",
+            meeting_date=date(2026, 8, 22),
+            location="Ngolomingo",
+            participants="Gervais",
+            summary="Résumé à exporter.",
+            decisions="Décision importante.",
+            created_by=self.admin_user,
+            updated_by=self.admin_user,
+        )
+        self.client.login(username="gervaismbadu", password="OwnerPass123!")
+
+        response = self.client.get(reverse("admin_meeting_note_pdf", args=[note.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertIn("inline", response["Content-Disposition"])
+
+    def test_non_admin_cannot_access_meeting_notes(self):
+        self.client.login(username="employee_notes", password="EmployeePass123!")
+
+        response = self.client.get(reverse("admin_meeting_notes"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("dashboard"))
 
 
 class CompanySecretDocumentTests(TestCase):

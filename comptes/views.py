@@ -43,6 +43,7 @@ from .forms import (
 from sites.models import (
     Camera,
     CameraObservation,
+    CompanyMeetingNote,
     CompanySecretDocument,
     DailyCameraReport,
     CameraOperatorDailyReport,
@@ -6615,6 +6616,229 @@ def admin_delete_company_secret_document(request, document_id):
     return render(request, "admin/delete_company_secret_document.html", {
         "document": document,
     })
+
+
+def _parse_meeting_date(raw_value):
+    if not raw_value:
+        return timezone.localdate()
+    try:
+        return datetime.strptime(raw_value, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def _meeting_note_payload_from_request(request):
+    return {
+        "title": request.POST.get("title", "").strip(),
+        "meeting_date": _parse_meeting_date(request.POST.get("meeting_date", "").strip()),
+        "location": request.POST.get("location", "").strip(),
+        "participants": request.POST.get("participants", "").strip(),
+        "summary": request.POST.get("summary", "").strip(),
+        "decisions": request.POST.get("decisions", "").strip(),
+        "action_items": request.POST.get("action_items", "").strip(),
+        "next_steps": request.POST.get("next_steps", "").strip(),
+    }
+
+
+def _validate_meeting_note_payload(payload):
+    errors = []
+    if not payload["title"]:
+        errors.append("Le titre de la réunion est requis.")
+    if payload["meeting_date"] is None:
+        errors.append("La date de réunion est invalide.")
+    if not payload["summary"]:
+        errors.append("Le résumé de la réunion est requis.")
+    return errors
+
+
+def _require_general_admin_access(request):
+    user = request.user
+    ensure_superuser_admin_profile(user)
+    if is_admin_user(user):
+        return True
+    messages.error(request, "Accès refusé. Cette section est réservée aux administrateurs.")
+    return False
+
+
+@login_required
+@no_cache_view
+def admin_meeting_notes(request):
+    """
+    Bibliothèque des résumés professionnels de réunions.
+    """
+    if not _require_general_admin_access(request):
+        return redirect("dashboard")
+
+    query = request.GET.get("q", "").strip()
+    notes_queryset = CompanyMeetingNote.objects.select_related("created_by", "updated_by").order_by("-meeting_date", "-updated_at")
+    if query:
+        notes_queryset = notes_queryset.filter(
+            Q(title__icontains=query)
+            | Q(location__icontains=query)
+            | Q(participants__icontains=query)
+            | Q(summary__icontains=query)
+            | Q(decisions__icontains=query)
+            | Q(action_items__icontains=query)
+        )
+
+    paginated_notes = paginate_queryset(request, notes_queryset, per_page=18, page_param="notes_page")
+    all_notes_queryset = CompanyMeetingNote.objects.all()
+    context = {
+        "query": query,
+        "paginated_notes": paginated_notes,
+        "notes_total_count": all_notes_queryset.count(),
+        "latest_note": all_notes_queryset.order_by("-updated_at").first(),
+    }
+    return render(request, "admin/meeting_notes.html", context)
+
+
+@login_required
+@no_cache_view
+@require_http_methods(["GET", "POST"])
+def admin_meeting_note_form(request, note_id=None):
+    """
+    Création et modification d'un résumé de réunion.
+    """
+    if not _require_general_admin_access(request):
+        return redirect("dashboard")
+
+    note = get_object_or_404(CompanyMeetingNote, id=note_id) if note_id else None
+    if request.method == "POST":
+        payload = _meeting_note_payload_from_request(request)
+        errors = _validate_meeting_note_payload(payload)
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+        else:
+            before = None
+            if note is None:
+                note = CompanyMeetingNote(created_by=request.user)
+                action = "CREER"
+            else:
+                before = {
+                    "title": note.title,
+                    "meeting_date": note.meeting_date.isoformat(),
+                    "location": note.location,
+                    "participants": note.participants,
+                    "summary": note.summary,
+                    "decisions": note.decisions,
+                    "action_items": note.action_items,
+                    "next_steps": note.next_steps,
+                }
+                action = "MODIFIER"
+
+            for field, value in payload.items():
+                setattr(note, field, value)
+            note.updated_by = request.user
+            note.save()
+            AuditLog.log(
+                user=request.user,
+                action=action,
+                description=f"Résumé de réunion enregistré: {note.title}",
+                content_object=note,
+                donnees_avant=before,
+                donnees_apres={
+                    "title": note.title,
+                    "meeting_date": note.meeting_date.isoformat(),
+                    "location": note.location,
+                },
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request),
+            )
+            messages.success(request, "Résumé de réunion enregistré avec succès.")
+            return redirect("admin_meeting_notes")
+    else:
+        payload = {
+            "title": note.title if note else "",
+            "meeting_date": note.meeting_date if note else timezone.localdate(),
+            "location": note.location if note else "",
+            "participants": note.participants if note else "",
+            "summary": note.summary if note else "",
+            "decisions": note.decisions if note else "",
+            "action_items": note.action_items if note else "",
+            "next_steps": note.next_steps if note else "",
+        }
+
+    context = {
+        "note": note,
+        "form_values": payload,
+    }
+    return render(request, "admin/meeting_note_form.html", context)
+
+
+def _build_meeting_note_pdf(note):
+    logo_path = finders.find("favicon.png") or ""
+    html = render_to_string(
+        "admin/meeting_note_pdf.html",
+        {
+            "note": note,
+            "company_name": "Shine Congo",
+            "logo_path": logo_path,
+            "generated_at": timezone.now(),
+        },
+    )
+    result = BytesIO()
+    pdf = pisa.CreatePDF(src=html, dest=result, encoding="utf-8")
+    if pdf.err:
+        raise ValueError("Impossible de générer le PDF du résumé de réunion.")
+    return result.getvalue()
+
+
+@login_required
+@no_cache_view
+def admin_meeting_note_pdf(request, note_id):
+    """
+    Export PDF professionnel d'un résumé de réunion.
+    """
+    if not _require_general_admin_access(request):
+        return redirect("dashboard")
+
+    note = get_object_or_404(CompanyMeetingNote.objects.select_related("created_by", "updated_by"), id=note_id)
+    try:
+        pdf_bytes = _build_meeting_note_pdf(note)
+    except ValueError as exc:
+        messages.error(request, str(exc))
+        return redirect("admin_meeting_notes")
+
+    AuditLog.log(
+        user=request.user,
+        action="VOIR",
+        description=f"PDF résumé de réunion généré: {note.title}",
+        content_object=note,
+        ip_address=get_client_ip(request),
+        user_agent=get_user_agent(request),
+    )
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
+    disposition = "attachment" if request.GET.get("download") == "1" else "inline"
+    response["Content-Disposition"] = f'{disposition}; filename="{note.pdf_filename()}"'
+    return response
+
+
+@login_required
+@no_cache_view
+@require_http_methods(["GET", "POST"])
+def admin_delete_meeting_note(request, note_id):
+    """
+    Suppression contrôlée d'un résumé de réunion.
+    """
+    if not _require_general_admin_access(request):
+        return redirect("dashboard")
+
+    note = get_object_or_404(CompanyMeetingNote, id=note_id)
+    if request.method == "POST":
+        title = note.title
+        note.delete()
+        AuditLog.log(
+            user=request.user,
+            action="SUPPRIMER",
+            description=f"Résumé de réunion supprimé: {title}",
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request),
+        )
+        messages.success(request, f'Résumé de réunion "{title}" supprimé.')
+        return redirect("admin_meeting_notes")
+
+    return render(request, "admin/delete_meeting_note.html", {"note": note})
 
 
 @login_required

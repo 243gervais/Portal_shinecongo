@@ -1,6 +1,7 @@
 from django.contrib import admin
 from .models import (
     Camera,
+    CompanyMeetingNote,
     CompanySecretDocument,
     DailyBankDeposit,
     DailyCameraReport,
@@ -127,6 +128,28 @@ class CompanySecretDocumentAdmin(admin.ModelAdmin):
     def get_file_size(self, obj):
         return f"{obj.file_size_mb()} MB"
     get_file_size.short_description = "Taille"
+
+
+@admin.register(CompanyMeetingNote)
+class CompanyMeetingNoteAdmin(admin.ModelAdmin):
+    list_display = ("meeting_date", "title", "location", "updated_by", "updated_at")
+    list_filter = ("meeting_date", "created_at", "updated_at")
+    search_fields = ("title", "location", "participants", "summary", "decisions", "action_items")
+    ordering = ("-meeting_date", "-updated_at")
+    readonly_fields = ("created_by", "updated_by", "created_at", "updated_at")
+
+    fieldsets = (
+        ("Réunion", {
+            "fields": ("title", "meeting_date", "location", "participants")
+        }),
+        ("Compte rendu", {
+            "fields": ("summary", "decisions", "action_items", "next_steps")
+        }),
+        ("Métadonnées", {
+            "fields": ("created_by", "updated_by", "created_at", "updated_at"),
+            "classes": ("collapse",)
+        }),
+    )
 
 
 @admin.register(WaterSupplier)
