@@ -460,64 +460,92 @@
     .table-container {
         width: 100%;
         max-width: 100%;
-        overflow-x: auto;
+        overflow-x: visible;
         border: 1px solid rgba(10, 67, 107, 0.08);
         border-radius: 18px;
-        -webkit-overflow-scrolling: touch;
+        background: rgba(248, 250, 252, 0.9);
     }
 
     .compare-table {
-        width: max-content;
-        min-width: 1520px;
+        display: block;
+        width: 100%;
+        min-width: 0;
         border-collapse: separate;
         border-spacing: 0;
     }
 
-    .compare-table td,
-    .compare-table th {
-        vertical-align: top;
-        white-space: nowrap;
-        padding: 0.78rem 0.9rem;
+    .compare-table thead {
+        display: none;
     }
 
-    .compare-table thead th {
-        position: sticky;
-        top: 0;
-        z-index: 3;
-        background: #f8fafc;
+    .compare-table tbody {
+        display: grid;
+        gap: 1rem;
+        padding: 0.9rem;
+    }
+
+    .compare-table tr {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+        gap: 0.65rem;
+        padding: 0.9rem;
+        border-radius: 18px;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        background: #fff;
+        box-shadow: 0 10px 22px rgba(10, 67, 107, 0.06);
+    }
+
+    .compare-table td,
+    .compare-table th {
+        display: grid;
+        gap: 0.18rem;
+        min-width: 0;
+        vertical-align: top;
+        white-space: normal;
+        padding: 0.7rem;
+        border: 1px solid rgba(10, 67, 107, 0.06);
+        border-radius: 14px;
+        background: rgba(248, 250, 252, 0.8);
     }
 
     .compare-table td:first-child,
     .compare-table th:first-child {
-        position: sticky;
-        left: 0;
-        z-index: 2;
-        width: 230px;
-        min-width: 230px;
-        max-width: 260px;
+        position: static;
+        left: auto;
+        z-index: auto;
+        width: auto;
+        min-width: 0;
+        max-width: none;
         white-space: normal;
-        background: #fff;
-        box-shadow: 10px 0 18px rgba(10, 67, 107, 0.04);
+        background: rgba(10, 67, 107, 0.06);
+        box-shadow: none;
+        grid-column: 1 / -1;
     }
 
-    .compare-table th:first-child {
-        z-index: 4;
-        background: #f8fafc;
+    .compare-table td::before {
+        content: attr(data-label);
+        color: var(--text-secondary);
+        font-size: 0.7rem;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
     }
 
     .compare-table tbody tr.is-selected {
-        background: rgba(10, 67, 107, 0.04);
+        background: rgba(10, 67, 107, 0.035);
+        border-color: rgba(10, 67, 107, 0.2);
     }
 
     .compare-table tbody tr.is-selected td:first-child {
-        background: #f5fbff;
+        background: rgba(10, 67, 107, 0.09);
     }
 
     .compare-money {
-        min-width: 118px;
-        text-align: right;
+        min-width: 0;
+        text-align: left;
         font-weight: 800;
-        white-space: nowrap;
+        white-space: normal;
+        overflow-wrap: anywhere;
     }
 
     .compare-table-help {
@@ -891,10 +919,6 @@
             text-align: left;
         }
 
-        .compare-table {
-            min-width: 1420px;
-        }
-
         .compare-detail-grid {
             grid-template-columns: 1fr;
         }
@@ -903,10 +927,13 @@
             grid-template-columns: 1fr;
         }
 
-        .compare-table td:first-child,
-        .compare-table th:first-child {
-            width: 190px;
-            min-width: 190px;
+        .compare-table tbody {
+            padding: 0.65rem;
+        }
+
+        .compare-table tr {
+            grid-template-columns: 1fr;
+            padding: 0.65rem;
         }
     }
 
@@ -1554,7 +1581,7 @@
             {% endfor %}
         </div>
 
-        <p class="compare-table-help">Tableau compact: vous pouvez aussi faire défiler horizontalement pour une lecture ligne par ligne.</p>
+        <p class="compare-table-help">Tableau compact: les colonnes se replacent automatiquement sur les lignes suivantes pour garder toutes les informations visibles.</p>
         <div class="table-container">
             <table class="compare-table">
                 <thead>
@@ -1578,23 +1605,23 @@
                 <tbody>
                     {% for item in selected_period.items %}
                     <tr {% if item.is_selected %}class="is-selected"{% endif %}>
-                        <td>
+                        <td data-label="{{ selected_period.row_label }}">
                             <strong>{{ item.label }}</strong><br>
                             <small style="color: var(--text-secondary);">{{ item.period_start|date:"d/m/Y" }} → {{ item.period_end|date:"d/m/Y" }}</small>
                         </td>
-                        <td class="compare-money">{{ item.cash_flow|fc_amount }} FC</td>
-                        <td class="compare-money">{{ item.reported_cash|fc_amount }} FC</td>
-                        <td class="compare-money">{{ item.bank_deposit|fc_amount }} FC</td>
-                        <td class="compare-money">{{ item.bank_net|fc_amount }} FC</td>
-                        <td class="compare-money">{{ item.pertes_total|fc_amount }} FC</td>
-                        <td class="compare-money">{{ item.water_expense|fc_amount }} FC</td>
-                        <td class="compare-money">{{ item.fuel_expense|fc_amount }} FC</td>
-                        <td class="compare-money">{{ item.transport_expense|fc_amount }} FC</td>
-                        <td class="compare-money">{{ item.other_expense|fc_amount }} FC</td>
-                        <td class="compare-money">{{ item.operating_expenses|fc_amount }} FC</td>
-                        <td class="compare-money">{{ item.net_after_expenses|fc_amount }} FC</td>
-                        <td class="compare-money">{{ item.ecart_caisse|fc_amount }} FC</td>
-                        <td>
+                        <td class="compare-money" data-label="Cash flow">{{ item.cash_flow|fc_amount }} FC</td>
+                        <td class="compare-money" data-label="Rapports employés">{{ item.reported_cash|fc_amount }} FC</td>
+                        <td class="compare-money" data-label="Dépôts banque">{{ item.bank_deposit|fc_amount }} FC</td>
+                        <td class="compare-money" data-label="Banque nette">{{ item.bank_net|fc_amount }} FC</td>
+                        <td class="compare-money" data-label="Pertes">{{ item.pertes_total|fc_amount }} FC</td>
+                        <td class="compare-money" data-label="Eau">{{ item.water_expense|fc_amount }} FC</td>
+                        <td class="compare-money" data-label="Carburant">{{ item.fuel_expense|fc_amount }} FC</td>
+                        <td class="compare-money" data-label="Transport">{{ item.transport_expense|fc_amount }} FC</td>
+                        <td class="compare-money" data-label="Autres dépenses">{{ item.other_expense|fc_amount }} FC</td>
+                        <td class="compare-money" data-label="Dépenses suivies">{{ item.operating_expenses|fc_amount }} FC</td>
+                        <td class="compare-money" data-label="Net après dépenses">{{ item.net_after_expenses|fc_amount }} FC</td>
+                        <td class="compare-money" data-label="Écart caisse">{{ item.ecart_caisse|fc_amount }} FC</td>
+                        <td data-label="Actions">
                             <div class="compare-action-row">
                                 <a href="{% url 'admin_site_detail' site.id %}?{{ item.detail_query }}" class="compare-mini-btn">Ouvrir</a>
                                 {% if selected_period.show_correction_link %}

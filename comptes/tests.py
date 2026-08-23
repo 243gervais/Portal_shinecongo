@@ -2699,6 +2699,8 @@ class SiteHistoryComparisonTests(TestCase):
         self.assertContains(response, "Money analytics exécutif")
         self.assertContains(response, "Graphes money analytics")
         self.assertContains(response, "Vue complète sans défilement")
+        self.assertContains(response, "les colonnes se replacent automatiquement")
+        self.assertContains(response, 'data-label="Net après dépenses"')
         current_item = response.context["selected_period"]["current_item"]
         self.assertEqual(current_item["water_expense"], Decimal("12000.00"))
         self.assertEqual(current_item["fuel_expense"], Decimal("8000.00"))
@@ -2757,6 +2759,8 @@ class SiteHistoryComparisonTests(TestCase):
         self.assertContains(response, "Money analytics exécutif")
         self.assertContains(response, "Graphes money analytics")
         self.assertContains(response, "Vue complète sans défilement")
+        self.assertContains(response, "les colonnes se replacent automatiquement")
+        self.assertContains(response, 'data-label="Net après dépenses"')
         current_item = response.context["selected_period"]["current_item"]
         self.assertEqual(current_item["water_expense"], Decimal("12000.00"))
         self.assertEqual(current_item["fuel_expense"], Decimal("8000.00"))
@@ -5839,6 +5843,8 @@ class SiteHistoryComparisonTests(TestCase):
         self.assertContains(response, "Money analytics exécutif")
         self.assertContains(response, "Graphes money analytics")
         self.assertContains(response, "Vue complète sans défilement")
+        self.assertContains(response, "les colonnes se replacent automatiquement")
+        self.assertContains(response, 'data-label="Net après dépenses"')
         current_item = response.context["selected_period"]["current_item"]
         self.assertEqual(current_item["water_expense"], Decimal("12000.00"))
         self.assertEqual(current_item["fuel_expense"], Decimal("8000.00"))
@@ -8489,6 +8495,8 @@ class SiteHistoryComparisonTests(TestCase):
         self.assertContains(response, "Money analytics exécutif")
         self.assertContains(response, "Graphes money analytics")
         self.assertContains(response, "Vue complète sans défilement")
+        self.assertContains(response, "les colonnes se replacent automatiquement")
+        self.assertContains(response, 'data-label="Net après dépenses"')
         current_item = response.context["selected_period"]["current_item"]
         self.assertEqual(current_item["water_expense"], Decimal("12000.00"))
         self.assertEqual(current_item["fuel_expense"], Decimal("8000.00"))
