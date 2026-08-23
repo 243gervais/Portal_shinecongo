@@ -44,6 +44,7 @@ from sites.models import (
     ManagerManualSupplier,
     SiteFuelPurchase,
     SiteWaterPurchase,
+    WaterSupplier,
     get_default_water_supplier,
 )
 
@@ -78,6 +79,10 @@ MANAGER_DASHBOARD_CACHE_SECONDS = 45
 PORTAL_SUMMARY_CACHE_SECONDS = 30
 REPORT_PREVIEW_LIMIT = 30
 LAVAGE_LIST_SERIALIZER_CONTEXT = {"include_image_previews": False}
+MANAGER_WATER_STANDARD_SUPPLIERS = [
+    {"key": "honosha", "label": "Honosha", "lookup": "honosha"},
+    {"key": "muswahili", "label": "Muswahili", "lookup": "muswahili"},
+]
 
 DEFAULT_MANUAL_SECTIONS = [
     {
@@ -433,6 +438,94 @@ def _default_supplier_payload(item):
         "service_notes": item["service_notes"],
         "image_url": "",
     }
+
+
+def _water_supplier_for_standard_choice(choice):
+    supplier_config = next(
+        (item for item in MANAGER_WATER_STANDARD_SUPPLIERS if item["key"] == choice),
+        None,
+    )
+    if not supplier_config:
+        return None
+
+    supplier = (
+        WaterSupplier.objects.filter(name__icontains=supplier_config["lookup"])
+        .order_by("-is_active", "-is_default", "name")
+        .first()
+    )
+    if supplier:
+        if not supplier.is_active:
+            supplier.is_active = True
+            supplier.save(update_fields=["is_active", "updated_at"])
+        return supplier
+
+    default_price = get_default_water_supplier().price_per_tank_fc
+    return WaterSupplier.objects.create(
+        name=supplier_config["label"],
+        price_per_tank_fc=default_price,
+        is_active=True,
+        is_default=False,
+        notes="Créé automatiquement depuis le portail manager.",
+    )
+
+
+def _manager_water_supplier_options():
+    options = []
+    for supplier_config in MANAGER_WATER_STANDARD_SUPPLIERS:
+        options.append(
+            {
+                "value": supplier_config["key"],
+                "label": supplier_config["label"],
+                "requires_custom": False,
+            }
+        )
+    options.append(
+        {
+            "value": "other",
+            "label": "Autre",
+            "requires_custom": True,
+        }
+    )
+    return options
+
+
+def _parse_manager_water_supplier(data, billing_month):
+    selected = str(data.get("supplier_choice", "")).strip().lower()
+    if selected in {"", "default"}:
+        selected = "honosha"
+
+    if selected == "other":
+        supplier_name = str(data.get("other_supplier_name", "")).strip()
+        amount_raw = str(data.get("amount_fc", "")).strip()
+        if not supplier_name:
+            raise ValueError("Veuillez saisir le nom du fournisseur d'eau.")
+        if len(supplier_name) > 200:
+            raise ValueError("Le nom du fournisseur est trop long.")
+        try:
+            amount_fc = Decimal(amount_raw)
+            if amount_fc <= 0:
+                raise InvalidOperation
+        except (ArithmeticError, InvalidOperation, TypeError, ValueError):
+            raise ValueError("Veuillez saisir le prix de l'eau acheté.")
+        supplier, _created = WaterSupplier.objects.get_or_create(
+            name=supplier_name,
+            defaults={
+                "price_per_tank_fc": amount_fc,
+                "is_active": True,
+                "is_default": False,
+                "notes": "Fournisseur ajouté depuis le portail manager.",
+            },
+        )
+        if not supplier.is_active or supplier.price_per_tank_fc != amount_fc:
+            supplier.is_active = True
+            supplier.price_per_tank_fc = amount_fc
+            supplier.save(update_fields=["is_active", "price_per_tank_fc", "updated_at"])
+        return supplier, amount_fc
+
+    supplier = _water_supplier_for_standard_choice(selected)
+    if not supplier:
+        raise ValueError("Veuillez choisir Honosha, Muswahili ou Autre.")
+    return supplier, get_water_purchase_default_amount(billing_month, supplier=supplier)
 
 
 def _paginate(view, queryset, serializer_class, request, *, page_size=12, extra=None, serializer_context=None):
@@ -2118,6 +2211,7 @@ class ManagerWaterPurchaseApi(APIView):
                 "billing_month": billing_month.isoformat(),
                 "billing_month_display": billing_month.strftime("%m/%Y"),
                 "default_supplier_name": default_supplier.name,
+                "supplier_options": _manager_water_supplier_options(),
                 "today_purchase": EmployeeWaterPurchaseSerializer(today_purchase).data if today_purchase else None,
                 "month_purchase_count": month_purchases_qs.count(),
                 "last_purchase": EmployeeWaterPurchaseSerializer(last_purchase).data if last_purchase else None,
@@ -2131,8 +2225,10 @@ class ManagerWaterPurchaseApi(APIView):
 
         today = timezone.localdate()
         billing_month = today.replace(day=1)
-        default_supplier = get_default_water_supplier()
-        default_amount = get_water_purchase_default_amount(billing_month, supplier=default_supplier)
+        try:
+            selected_supplier, selected_amount = _parse_manager_water_supplier(request.data, billing_month)
+        except ValueError as exc:
+            return Response({"message": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         reporter_name = request.user.get_full_name() or request.user.username
         with transaction.atomic():
             Location.objects.select_for_update().get(pk=site.pk)
@@ -2148,18 +2244,18 @@ class ManagerWaterPurchaseApi(APIView):
                 )
             purchase = SiteWaterPurchase.objects.create(
                 site=site,
-                supplier=default_supplier,
+                supplier=selected_supplier,
                 billing_month=billing_month,
                 purchase_date=today,
-                amount_fc=default_amount,
-                notes=f"Signalé via portail manager par {reporter_name}.",
+                amount_fc=selected_amount,
+                notes=f"Signalé via portail manager par {reporter_name}. Fournisseur: {selected_supplier.name}.",
                 created_by=request.user,
             )
         _send_water_purchase_notification(purchase)
         AuditLog.log(
             user=request.user,
             action="AUTRE",
-            description=f"Achat d'eau signalé via portail manager: {site.nom} - {default_supplier.name} - {purchase.purchase_date}",
+            description=f"Achat d'eau signalé via portail manager: {site.nom} - {selected_supplier.name} - {purchase.purchase_date}",
             ip_address=get_client_ip(request),
             user_agent=get_user_agent(request),
         )

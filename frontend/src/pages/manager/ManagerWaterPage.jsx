@@ -9,12 +9,20 @@ export default function ManagerWaterPage() {
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [supplierChoice, setSupplierChoice] = useState("honosha");
+  const [otherSupplierName, setOtherSupplierName] = useState("");
+  const [otherAmountFc, setOtherAmountFc] = useState("");
 
   async function load() {
     try {
       setError("");
       const payload = await apiFetch("/manager/eau/");
       setData(payload);
+      setSupplierChoice((currentChoice) =>
+        payload.supplier_options?.some((option) => option.value === currentChoice)
+          ? currentChoice
+          : payload.supplier_options?.[0]?.value || "honosha",
+      );
     } catch (requestError) {
       setError(requestError.message);
     }
@@ -29,6 +37,20 @@ export default function ManagerWaterPage() {
       setNotice("L'achat d'eau du jour a déjà été signalé.");
       return;
     }
+    if (!supplierChoice) {
+      setNotice("Choisissez le fournisseur d'eau.");
+      return;
+    }
+    if (supplierChoice === "other") {
+      if (!otherSupplierName.trim()) {
+        setNotice("Saisissez le nom du fournisseur.");
+        return;
+      }
+      if (!otherAmountFc || Number(otherAmountFc) <= 0) {
+        setNotice("Saisissez le prix de l'eau acheté.");
+        return;
+      }
+    }
     setNotice("");
     setPreviewOpen(true);
   }
@@ -39,7 +61,11 @@ export default function ManagerWaterPage() {
     try {
       const payload = await apiFetch("/manager/eau/", {
         method: "POST",
-        data: {},
+        data: {
+          supplier_choice: supplierChoice,
+          other_supplier_name: supplierChoice === "other" ? otherSupplierName.trim() : "",
+          amount_fc: supplierChoice === "other" ? otherAmountFc : "",
+        },
       });
       setNotice(payload.message);
       setPreviewOpen(false);
@@ -58,6 +84,7 @@ export default function ManagerWaterPage() {
   if (!data) {
     return <LoadingState label="Chargement du suivi d'eau..." />;
   }
+  const selectedSupplier = data.supplier_options?.find((option) => option.value === supplierChoice);
 
   return (
     <div className="page-stack">
@@ -82,6 +109,55 @@ export default function ManagerWaterPage() {
           </article>
         </div>
 
+        {!data.today_purchase ? (
+          <div className="section-card-subtle">
+            <p className="eyebrow">Fournisseur</p>
+            <div className="filter-grid">
+              <label className="field">
+                <span>Où l'eau a été achetée ?</span>
+                <select
+                  value={supplierChoice}
+                  onChange={(event) => {
+                    setSupplierChoice(event.target.value);
+                    setPreviewOpen(false);
+                    setNotice("");
+                  }}
+                >
+                  {data.supplier_options.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {supplierChoice === "other" ? (
+                <>
+                  <label className="field">
+                    <span>Nom du fournisseur</span>
+                    <input
+                      type="text"
+                      value={otherSupplierName}
+                      onChange={(event) => setOtherSupplierName(event.target.value)}
+                      placeholder="Nom du fournisseur"
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Prix payé (FC)</span>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={otherAmountFc}
+                      onChange={(event) => setOtherAmountFc(event.target.value)}
+                      placeholder="Ex: 22000"
+                    />
+                  </label>
+                </>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
         {previewOpen ? (
           <div className="preview-panel">
             <p className="eyebrow">Aperçu avant envoi</p>
@@ -90,7 +166,10 @@ export default function ManagerWaterPage() {
               <div><strong>Site</strong><span>{data.site.nom}</span></div>
               <div><strong>Date</strong><span>{data.today}</span></div>
               <div><strong>Mois facturé</strong><span>{data.billing_month_display}</span></div>
-              <div><strong>Fournisseur</strong><span>{data.default_supplier_name}</span></div>
+              <div><strong>Fournisseur</strong><span>{supplierChoice === "other" ? otherSupplierName : selectedSupplier?.label}</span></div>
+              {supplierChoice === "other" ? (
+                <div><strong>Prix payé</strong><span>{otherAmountFc} FC</span></div>
+              ) : null}
             </div>
             <div className="button-row">
               <button type="button" className="button button-primary" onClick={confirmSubmit} disabled={busy}>

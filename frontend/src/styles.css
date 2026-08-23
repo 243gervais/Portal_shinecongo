@@ -398,6 +398,15 @@ textarea {
   color: var(--portal-muted);
 }
 
+.section-card-subtle {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid var(--portal-border);
+  border-radius: 16px;
+  background: var(--portal-surface-soft);
+}
+
 .filter-grid,
 .form-grid,
 .status-grid,

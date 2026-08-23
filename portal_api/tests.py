@@ -13,7 +13,7 @@ from comptes.models import UserProfile
 from lavages.models import CarWash, CarWashPhoto
 from pointage.models import ManagerEquipmentPhoto, ShiftDay
 from problemes.models import IssueReport
-from sites.models import Location, ManagerManualMachine, ManagerManualSettings, SiteFuelPurchase, SiteWaterPurchase
+from sites.models import Location, ManagerManualMachine, ManagerManualSettings, SiteFuelPurchase, SiteWaterPurchase, WaterSupplier
 
 
 @override_settings(PASSWORD_HASHERS=["django.contrib.auth.hashers.MD5PasswordHasher"])
@@ -481,6 +481,60 @@ class PortalApiSecurityAndPaginationTests(TestCase):
         self.assertEqual(fuel_purchase.site, self.site)
         self.assertEqual(fuel_purchase.amount_fc, Decimal("5000"))
         self.assertEqual(fuel_purchase.created_by, self.manager)
+
+    def test_manager_water_api_exposes_required_supplier_choices(self):
+        self.client.login(username="manager", password="pass1234")
+
+        response = self.client.get(reverse("portal_api_manager_water"))
+
+        self.assertEqual(response.status_code, 200)
+        option_labels = [item["label"] for item in response.json()["supplier_options"]]
+        self.assertEqual(option_labels, ["Honosha", "Muswahili", "Autre"])
+
+    def test_location_manager_can_select_muswahili_for_water_purchase(self):
+        WaterSupplier.objects.create(
+            name="Muswahili",
+            price_per_tank_fc=Decimal("24000"),
+            is_active=True,
+        )
+        self.client.login(username="manager", password="pass1234")
+
+        response = self.client.post(
+            reverse("portal_api_manager_water"),
+            {"supplier_choice": "muswahili"},
+        )
+
+        self.assertEqual(response.status_code, 201)
+        purchase = SiteWaterPurchase.objects.get()
+        self.assertEqual(purchase.supplier.name, "Muswahili")
+        self.assertEqual(purchase.amount_fc, Decimal("24000"))
+
+    def test_location_manager_other_water_supplier_requires_name_and_price(self):
+        self.client.login(username="manager", password="pass1234")
+
+        missing_name = self.client.post(
+            reverse("portal_api_manager_water"),
+            {"supplier_choice": "other", "amount_fc": "25000"},
+        )
+        missing_price = self.client.post(
+            reverse("portal_api_manager_water"),
+            {"supplier_choice": "other", "other_supplier_name": "Source locale"},
+        )
+        valid = self.client.post(
+            reverse("portal_api_manager_water"),
+            {
+                "supplier_choice": "other",
+                "other_supplier_name": "Source locale",
+                "amount_fc": "25000",
+            },
+        )
+
+        self.assertEqual(missing_name.status_code, 400)
+        self.assertEqual(missing_price.status_code, 400)
+        self.assertEqual(valid.status_code, 201)
+        purchase = SiteWaterPurchase.objects.get()
+        self.assertEqual(purchase.supplier.name, "Source locale")
+        self.assertEqual(purchase.amount_fc, Decimal("25000"))
 
     def test_location_manager_cannot_notify_water_or_fuel_twice_for_same_day(self):
         self.client.login(username="manager", password="pass1234")
