@@ -2698,7 +2698,7 @@ class SiteHistoryComparisonTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Money analytics exécutif")
         self.assertContains(response, "Graphes money analytics")
-        self.assertContains(response, "Tableau large: faites défiler horizontalement")
+        self.assertContains(response, "Vue complète sans défilement")
         current_item = response.context["selected_period"]["current_item"]
         self.assertEqual(current_item["water_expense"], Decimal("12000.00"))
         self.assertEqual(current_item["fuel_expense"], Decimal("8000.00"))
@@ -2756,7 +2756,7 @@ class SiteHistoryComparisonTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Money analytics exécutif")
         self.assertContains(response, "Graphes money analytics")
-        self.assertContains(response, "Tableau large: faites défiler horizontalement")
+        self.assertContains(response, "Vue complète sans défilement")
         current_item = response.context["selected_period"]["current_item"]
         self.assertEqual(current_item["water_expense"], Decimal("12000.00"))
         self.assertEqual(current_item["fuel_expense"], Decimal("8000.00"))
@@ -5838,7 +5838,7 @@ class SiteHistoryComparisonTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Money analytics exécutif")
         self.assertContains(response, "Graphes money analytics")
-        self.assertContains(response, "Tableau large: faites défiler horizontalement")
+        self.assertContains(response, "Vue complète sans défilement")
         current_item = response.context["selected_period"]["current_item"]
         self.assertEqual(current_item["water_expense"], Decimal("12000.00"))
         self.assertEqual(current_item["fuel_expense"], Decimal("8000.00"))
@@ -8488,7 +8488,7 @@ class SiteHistoryComparisonTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Money analytics exécutif")
         self.assertContains(response, "Graphes money analytics")
-        self.assertContains(response, "Tableau large: faites défiler horizontalement")
+        self.assertContains(response, "Vue complète sans défilement")
         current_item = response.context["selected_period"]["current_item"]
         self.assertEqual(current_item["water_expense"], Decimal("12000.00"))
         self.assertEqual(current_item["fuel_expense"], Decimal("8000.00"))

@@ -10,7 +10,7 @@
         gap: 1.35rem;
         width: 100%;
         max-width: 100%;
-        overflow-x: hidden;
+        overflow-x: visible;
     }
 
     .compare-hero {
@@ -527,6 +527,115 @@
         font-weight: 700;
     }
 
+    .compare-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.15rem;
+    }
+
+    .compare-detail-card {
+        min-width: 0;
+        padding: 1rem;
+        border-radius: 20px;
+        border: 1px solid rgba(10, 67, 107, 0.1);
+        background: linear-gradient(180deg, #fff 0%, rgba(248, 250, 252, 0.92) 100%);
+        box-shadow: 0 12px 26px rgba(10, 67, 107, 0.07);
+    }
+
+    .compare-detail-card.is-selected {
+        border-color: rgba(10, 67, 107, 0.28);
+        box-shadow: 0 16px 32px rgba(10, 67, 107, 0.12);
+    }
+
+    .compare-detail-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.8rem;
+        padding-bottom: 0.8rem;
+        margin-bottom: 0.85rem;
+        border-bottom: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .compare-detail-title {
+        margin: 0;
+        color: var(--primary-dark);
+        font-size: 1.04rem;
+        font-weight: 900;
+        overflow-wrap: anywhere;
+    }
+
+    .compare-detail-date {
+        margin-top: 0.2rem;
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
+    .compare-detail-badge {
+        flex: 0 0 auto;
+        padding: 0.32rem 0.58rem;
+        border-radius: 999px;
+        background: rgba(10, 67, 107, 0.08);
+        color: var(--primary-dark);
+        font-size: 0.72rem;
+        font-weight: 900;
+        text-transform: uppercase;
+    }
+
+    .compare-detail-metrics {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.7rem;
+    }
+
+    .compare-detail-metric {
+        min-width: 0;
+        padding: 0.72rem;
+        border-radius: 15px;
+        background: rgba(255, 255, 255, 0.96);
+        border: 1px solid rgba(10, 67, 107, 0.07);
+    }
+
+    .compare-detail-metric.is-total {
+        background: rgba(10, 67, 107, 0.06);
+        border-color: rgba(10, 67, 107, 0.11);
+    }
+
+    .compare-detail-metric.is-expense {
+        background: rgba(244, 163, 64, 0.09);
+        border-color: rgba(244, 163, 64, 0.18);
+    }
+
+    .compare-detail-metric.is-net {
+        background: rgba(29, 138, 76, 0.08);
+        border-color: rgba(29, 138, 76, 0.16);
+    }
+
+    .compare-detail-metric-label {
+        color: var(--text-secondary);
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .compare-detail-metric-value {
+        margin-top: 0.28rem;
+        color: var(--primary-dark);
+        font-size: 1.02rem;
+        font-weight: 900;
+        overflow-wrap: anywhere;
+    }
+
+    .compare-detail-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-top: 0.85rem;
+    }
+
     .compare-action-row {
         display: flex;
         gap: 0.45rem;
@@ -784,6 +893,14 @@
 
         .compare-table {
             min-width: 1420px;
+        }
+
+        .compare-detail-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .compare-detail-metrics {
+            grid-template-columns: 1fr;
         }
 
         .compare-table td:first-child,
@@ -1364,7 +1481,80 @@
         </div>
 
         {% if selected_period.items %}
-        <p class="compare-table-help">Tableau large: faites défiler horizontalement pour voir toutes les colonnes de dépenses, le net et les actions.</p>
+        <p class="compare-table-help">Vue complète sans défilement: chaque carte reprend toutes les colonnes importantes du tableau pour que rien ne soit caché sur la droite.</p>
+        <div class="compare-detail-grid">
+            {% for item in selected_period.items %}
+            <article class="compare-detail-card {% if item.is_selected %}is-selected{% endif %}">
+                <div class="compare-detail-head">
+                    <div>
+                        <h3 class="compare-detail-title">{{ item.label }}</h3>
+                        <div class="compare-detail-date">{{ item.period_start|date:"d/m/Y" }} → {{ item.period_end|date:"d/m/Y" }}</div>
+                    </div>
+                    {% if item.is_selected %}
+                    <span class="compare-detail-badge">Active</span>
+                    {% endif %}
+                </div>
+                <div class="compare-detail-metrics">
+                    <div class="compare-detail-metric is-total">
+                        <div class="compare-detail-metric-label">Cash flow</div>
+                        <div class="compare-detail-metric-value">{{ item.cash_flow|fc_amount }} FC</div>
+                    </div>
+                    <div class="compare-detail-metric">
+                        <div class="compare-detail-metric-label">Rapports employés</div>
+                        <div class="compare-detail-metric-value">{{ item.reported_cash|fc_amount }} FC</div>
+                    </div>
+                    <div class="compare-detail-metric">
+                        <div class="compare-detail-metric-label">Dépôts banque</div>
+                        <div class="compare-detail-metric-value">{{ item.bank_deposit|fc_amount }} FC</div>
+                    </div>
+                    <div class="compare-detail-metric">
+                        <div class="compare-detail-metric-label">Banque nette</div>
+                        <div class="compare-detail-metric-value">{{ item.bank_net|fc_amount }} FC</div>
+                    </div>
+                    <div class="compare-detail-metric is-expense">
+                        <div class="compare-detail-metric-label">Pertes</div>
+                        <div class="compare-detail-metric-value">{{ item.pertes_total|fc_amount }} FC</div>
+                    </div>
+                    <div class="compare-detail-metric is-expense">
+                        <div class="compare-detail-metric-label">Eau</div>
+                        <div class="compare-detail-metric-value">{{ item.water_expense|fc_amount }} FC</div>
+                    </div>
+                    <div class="compare-detail-metric is-expense">
+                        <div class="compare-detail-metric-label">Carburant</div>
+                        <div class="compare-detail-metric-value">{{ item.fuel_expense|fc_amount }} FC</div>
+                    </div>
+                    <div class="compare-detail-metric is-expense">
+                        <div class="compare-detail-metric-label">Transport</div>
+                        <div class="compare-detail-metric-value">{{ item.transport_expense|fc_amount }} FC</div>
+                    </div>
+                    <div class="compare-detail-metric is-expense">
+                        <div class="compare-detail-metric-label">Autres dépenses</div>
+                        <div class="compare-detail-metric-value">{{ item.other_expense|fc_amount }} FC</div>
+                    </div>
+                    <div class="compare-detail-metric is-expense">
+                        <div class="compare-detail-metric-label">Dépenses suivies</div>
+                        <div class="compare-detail-metric-value">{{ item.operating_expenses|fc_amount }} FC</div>
+                    </div>
+                    <div class="compare-detail-metric is-net">
+                        <div class="compare-detail-metric-label">Net après dépenses</div>
+                        <div class="compare-detail-metric-value">{{ item.net_after_expenses|fc_amount }} FC</div>
+                    </div>
+                    <div class="compare-detail-metric">
+                        <div class="compare-detail-metric-label">Écart caisse</div>
+                        <div class="compare-detail-metric-value">{{ item.ecart_caisse|fc_amount }} FC</div>
+                    </div>
+                </div>
+                <div class="compare-detail-actions">
+                    <a href="{% url 'admin_site_detail' site.id %}?{{ item.detail_query }}" class="compare-mini-btn">Ouvrir</a>
+                    {% if selected_period.show_correction_link %}
+                    <a href="{% url 'admin_site_losses' site.id %}?date={{ item.period_start|date:'Y-m-d' }}&period=week&metric=cashflow" class="compare-mini-btn compare-mini-btn--warning">Corrections</a>
+                    {% endif %}
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+
+        <p class="compare-table-help">Tableau compact: vous pouvez aussi faire défiler horizontalement pour une lecture ligne par ligne.</p>
         <div class="table-container">
             <table class="compare-table">
                 <thead>
