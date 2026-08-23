@@ -563,8 +563,10 @@
 
     .compare-rank-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 1rem;
+        width: 100%;
+        max-width: 100%;
     }
 
     .compare-rank-card {
@@ -580,6 +582,7 @@
         padding: 0.8rem 0.9rem;
         border-radius: 18px;
         background: rgba(10, 67, 107, 0.05);
+        min-width: 0;
     }
 
     .compare-rank-list {
@@ -590,7 +593,7 @@
 
     .compare-rank-row {
         display: grid;
-        grid-template-columns: auto 1fr auto;
+        grid-template-columns: auto minmax(0, 1fr) max-content;
         gap: 0.8rem;
         align-items: center;
         padding: 0.8rem 0.9rem;
@@ -715,17 +718,23 @@
     .compare-rank-label {
         font-weight: 800;
         color: var(--primary-dark);
+        overflow-wrap: anywhere;
     }
 
     .compare-rank-copy {
         margin-top: 0.18rem;
         color: var(--text-secondary);
         font-size: 0.82rem;
+        overflow-wrap: anywhere;
     }
 
     @media (max-width: 980px) {
         .compare-hero {
             grid-template-columns: 1fr;
+        }
+
+        .compare-rank-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
         .compare-hero,
@@ -781,6 +790,19 @@
         .compare-table th:first-child {
             width: 190px;
             min-width: 190px;
+        }
+    }
+
+    @media (max-width: 520px) {
+        .compare-rank-row {
+            grid-template-columns: auto minmax(0, 1fr);
+        }
+
+        .compare-rank-row .compare-money {
+            grid-column: 1 / -1;
+            width: 100%;
+            text-align: left;
+            margin-top: 0.2rem;
         }
     }
 </style>
