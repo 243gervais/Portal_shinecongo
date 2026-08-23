@@ -68,8 +68,14 @@ PHOTO_PREFETCH = Prefetch(
     queryset=CarWashPhoto.objects.order_by("uploaded_at"),
     to_attr="prefetched_photos",
 )
+PHOTO_COUNT_PREFETCH = Prefetch(
+    "photos",
+    queryset=CarWashPhoto.objects.only("id", "lavage_id").order_by(),
+    to_attr="prefetched_photo_count_items",
+)
 
 MANAGER_DASHBOARD_CACHE_SECONDS = 45
+PORTAL_SUMMARY_CACHE_SECONDS = 30
 REPORT_PREVIEW_LIMIT = 30
 LAVAGE_LIST_SERIALIZER_CONTEXT = {"include_image_previews": False}
 
@@ -971,7 +977,7 @@ class EmployeeCarWashListCreateApi(APIView):
     def get(self, request):
         queryset = (
             request.user.lavages.select_related("site")
-            .annotate(photo_count_value=Count("photos", distinct=True))
+            .prefetch_related(PHOTO_COUNT_PREFETCH)
             .order_by("-created_at")
         )
         return _paginate(
@@ -1155,7 +1161,7 @@ class EmployeeDailyReportApi(APIView):
         )
         today_washes = (
             CarWash.objects.filter(employe=user, site=profile.site, date=today)
-            .annotate(photo_count_value=Count("photos", distinct=True))
+            .prefetch_related(PHOTO_COUNT_PREFETCH)
             .order_by("-created_at")
         )
         today_issues = IssueReport.objects.filter(
@@ -1418,30 +1424,37 @@ class EmployeeHistorySummaryApi(APIView):
     def get(self, request):
         profile = _employee_profile(request.user)
         today = timezone.localdate()
-        return Response(
-            {
-                "site": SiteSummarySerializer(profile.site).data,
-                "counts": {
-                    "pointages": ShiftDay.objects.filter(employe=request.user).count(),
-                    "rapports": ShiftDay.objects.filter(employe=request.user, daily_report_confirmed=True).count(),
-                    "rapports_en_attente": ShiftDay.objects.filter(
-                        employe=request.user,
-                        clock_in_time__isnull=False,
-                        daily_report_confirmed=False,
-                    ).count(),
-                    "lavages": request.user.lavages.count(),
-                    "problemes": request.user.problemes_signales.count(),
-                    "eau_mois": SiteWaterPurchase.objects.filter(
-                        site=profile.site,
-                        billing_month=today.replace(day=1),
-                    ).count(),
-                    "carburant_mois": SiteFuelPurchase.objects.filter(
-                        site=profile.site,
-                        billing_month=today.replace(day=1),
-                    ).count(),
-                },
-            }
-        )
+        cache_key = f"portal_api:employee_history_summary:user:{request.user.pk}:month:{today:%Y-%m}"
+        cached_payload = cache.get(cache_key)
+        if cached_payload is not None:
+            return Response(cached_payload)
+
+        month_start = today.replace(day=1)
+        payload = {
+            "site": SiteSummarySerializer(profile.site).data,
+            "counts": {
+                "pointages": ShiftDay.objects.filter(employe=request.user).count(),
+                "rapports": ShiftDay.objects.filter(employe=request.user, daily_report_confirmed=True).count(),
+                "rapports_en_attente": ShiftDay.objects.filter(
+                    employe=request.user,
+                    clock_in_time__isnull=False,
+                    daily_report_confirmed=False,
+                ).count(),
+                "lavages": request.user.lavages.count(),
+                "problemes": request.user.problemes_signales.count(),
+                "eau_mois": SiteWaterPurchase.objects.filter(
+                    site=profile.site,
+                    billing_month=month_start,
+                ).count(),
+                "carburant_mois": SiteFuelPurchase.objects.filter(
+                    site=profile.site,
+                    billing_month=month_start,
+                ).count(),
+            },
+            "cache_ttl_seconds": PORTAL_SUMMARY_CACHE_SECONDS,
+        }
+        cache.set(cache_key, payload, PORTAL_SUMMARY_CACHE_SECONDS)
+        return Response(payload)
 
 
 class EmployeeHistoryPointagesApi(APIView):
@@ -1723,7 +1736,7 @@ class ManagerDailyReportApi(APIView):
         today_washes = (
             CarWash.objects.filter(site=site, date=report_date)
             .select_related("employe", "site")
-            .annotate(photo_count_value=Count("photos", distinct=True))
+            .prefetch_related(PHOTO_COUNT_PREFETCH)
             .order_by("-created_at")
         )
         today_issues = (
@@ -1928,7 +1941,6 @@ class ManagerCarWashListApi(APIView):
         site_ids = [site.id for site in accessible_sites]
         queryset = (
             CarWash.objects.select_related("employe", "site")
-            .annotate(photo_count_value=Count("photos", distinct=True))
             .filter(site_id__in=site_ids)
             .order_by("-created_at")
         )
@@ -1953,6 +1965,8 @@ class ManagerCarWashListApi(APIView):
         include_image_previews = can_view_money
         if include_image_previews:
             queryset = queryset.prefetch_related(PHOTO_PREFETCH)
+        else:
+            queryset = queryset.prefetch_related(PHOTO_COUNT_PREFETCH)
         if can_view_money:
             aggregate_totals = queryset.aggregate(total=Sum("montant"), count=Count("id"))
             total_montant = aggregate_totals["total"] or Decimal("0")
@@ -2094,6 +2108,7 @@ class ManagerWaterPurchaseApi(APIView):
             .select_related("created_by", "supplier")
             .order_by("-purchase_date", "-created_at")
         )
+        last_purchase = month_purchases_qs.first()
         default_supplier = get_default_water_supplier()
 
         return Response(
@@ -2105,7 +2120,7 @@ class ManagerWaterPurchaseApi(APIView):
                 "default_supplier_name": default_supplier.name,
                 "today_purchase": EmployeeWaterPurchaseSerializer(today_purchase).data if today_purchase else None,
                 "month_purchase_count": month_purchases_qs.count(),
-                "last_purchase": EmployeeWaterPurchaseSerializer(month_purchases_qs.first()).data if month_purchases_qs.first() else None,
+                "last_purchase": EmployeeWaterPurchaseSerializer(last_purchase).data if last_purchase else None,
             }
         )
 
@@ -2178,6 +2193,7 @@ class ManagerFuelPurchaseApi(APIView):
             .select_related("created_by")
             .order_by("-purchase_date", "-created_at")
         )
+        last_purchase = month_purchases_qs.first()
 
         return Response(
             {
@@ -2187,7 +2203,7 @@ class ManagerFuelPurchaseApi(APIView):
                 "billing_month_display": billing_month.strftime("%m/%Y"),
                 "today_purchase": EmployeeFuelPurchaseSerializer(today_purchase).data if today_purchase else None,
                 "month_purchase_count": month_purchases_qs.count(),
-                "last_purchase": EmployeeFuelPurchaseSerializer(month_purchases_qs.first()).data if month_purchases_qs.first() else None,
+                "last_purchase": EmployeeFuelPurchaseSerializer(last_purchase).data if last_purchase else None,
             }
         )
 

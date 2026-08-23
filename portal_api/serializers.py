@@ -90,6 +90,12 @@ class EmployeeCarWashSerializer(serializers.ModelSerializer):
         return timezone.localtime(obj.created_at).strftime("%d/%m/%Y %H:%M")
 
     def get_photo_count(self, obj):
+        prefetched_photos = getattr(obj, "prefetched_photos", None)
+        if prefetched_photos is not None:
+            return len(prefetched_photos)
+        prefetched_count_items = getattr(obj, "prefetched_photo_count_items", None)
+        if prefetched_count_items is not None:
+            return len(prefetched_count_items)
         return obj.photo_count()
 
     def get_plaque_photo_url(self, obj):
