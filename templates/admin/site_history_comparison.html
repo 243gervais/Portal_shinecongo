@@ -8,6 +8,9 @@
     .compare-shell {
         display: grid;
         gap: 1.35rem;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
     }
 
     .compare-hero {
@@ -205,6 +208,7 @@
     .compare-snapshot-card,
     .compare-chart-card,
     .compare-insight-card {
+        min-width: 0;
         padding: 1.05rem 1.1rem;
         border-radius: 22px;
         border: 1px solid rgba(10, 67, 107, 0.08);
@@ -250,6 +254,7 @@
         color: var(--primary-dark);
         font-size: 1.02rem;
         font-weight: 800;
+        overflow-wrap: anywhere;
     }
 
     .compare-card-value {
@@ -258,6 +263,7 @@
         font-weight: 800;
         color: var(--primary-color);
         line-height: 1.02;
+        overflow-wrap: anywhere;
     }
 
     .compare-card-subvalue,
@@ -266,6 +272,7 @@
         color: var(--text-secondary);
         font-size: 0.86rem;
         line-height: 1.45;
+        overflow-wrap: anywhere;
     }
 
     .compare-delta {
@@ -388,6 +395,8 @@
         font-size: 0.83rem;
         font-weight: 700;
         color: var(--text-primary);
+        min-width: 0;
+        overflow-wrap: anywhere;
     }
 
     .compare-chart-track {
@@ -419,6 +428,22 @@
         background: linear-gradient(90deg, #7C3AED 0%, #9F67FF 100%);
     }
 
+    .compare-chart-fill--expense {
+        background: linear-gradient(90deg, #B45309 0%, #F59E0B 100%);
+    }
+
+    .compare-chart-fill--water {
+        background: linear-gradient(90deg, #0369A1 0%, #38BDF8 100%);
+    }
+
+    .compare-chart-fill--fuel {
+        background: linear-gradient(90deg, #9333EA 0%, #C084FC 100%);
+    }
+
+    .compare-chart-fill--net {
+        background: linear-gradient(90deg, #047857 0%, #34D399 100%);
+    }
+
     .compare-chart-fill.is-negative {
         background: linear-gradient(90deg, #B42318 0%, #F04438 100%);
     }
@@ -429,21 +454,77 @@
         font-size: 0.82rem;
         font-weight: 800;
         color: var(--primary-dark);
+        white-space: nowrap;
+    }
+
+    .table-container {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        border-radius: 18px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .compare-table {
+        width: max-content;
+        min-width: 1520px;
+        border-collapse: separate;
+        border-spacing: 0;
     }
 
     .compare-table td,
     .compare-table th {
         vertical-align: top;
+        white-space: nowrap;
+        padding: 0.78rem 0.9rem;
+    }
+
+    .compare-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        background: #f8fafc;
+    }
+
+    .compare-table td:first-child,
+    .compare-table th:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        width: 230px;
+        min-width: 230px;
+        max-width: 260px;
+        white-space: normal;
+        background: #fff;
+        box-shadow: 10px 0 18px rgba(10, 67, 107, 0.04);
+    }
+
+    .compare-table th:first-child {
+        z-index: 4;
+        background: #f8fafc;
     }
 
     .compare-table tbody tr.is-selected {
         background: rgba(10, 67, 107, 0.04);
     }
 
+    .compare-table tbody tr.is-selected td:first-child {
+        background: #f5fbff;
+    }
+
     .compare-money {
+        min-width: 118px;
         text-align: right;
         font-weight: 800;
         white-space: nowrap;
+    }
+
+    .compare-table-help {
+        margin: 0 0 0.75rem 0;
+        color: var(--text-secondary);
+        font-size: 0.84rem;
+        font-weight: 700;
     }
 
     .compare-action-row {
@@ -487,6 +568,7 @@
     }
 
     .compare-rank-card {
+        min-width: 0;
         padding: 1.05rem 1.1rem;
         border-radius: 22px;
         border: 1px solid rgba(10, 67, 107, 0.08);
@@ -547,6 +629,7 @@
     }
 
     .money-category-card {
+        min-width: 0;
         padding: 1rem;
         border-radius: 20px;
         border: 1px solid rgba(15, 118, 110, 0.12);
@@ -563,6 +646,8 @@
     .money-category-name {
         font-weight: 900;
         color: var(--primary-dark);
+        min-width: 0;
+        overflow-wrap: anywhere;
     }
 
     .money-category-share {
@@ -595,6 +680,7 @@
     }
 
     .money-alert-card {
+        min-width: 0;
         padding: 1rem;
         border-radius: 20px;
         border: 1px solid rgba(244, 163, 64, 0.2);
@@ -641,9 +727,43 @@
         .compare-hero {
             grid-template-columns: 1fr;
         }
+
+        .compare-hero,
+        .card {
+            border-radius: 20px;
+        }
     }
 
     @media (max-width: 720px) {
+        .compare-shell {
+            gap: 1rem;
+        }
+
+        .compare-hero {
+            padding: 1.15rem;
+        }
+
+        .compare-title {
+            font-size: 1.75rem;
+        }
+
+        .compare-tab {
+            flex: 1 1 100%;
+            min-width: 0;
+        }
+
+        .compare-grid-3,
+        .compare-grid-4,
+        .compare-chart-grid,
+        .compare-insight-grid,
+        .compare-forecast-grid,
+        .compare-snapshot-grid,
+        .money-category-grid,
+        .money-alert-grid,
+        .compare-rank-grid {
+            grid-template-columns: 1fr;
+        }
+
         .compare-chart-row {
             grid-template-columns: 1fr;
         }
@@ -651,6 +771,16 @@
         .compare-chart-value {
             min-width: 0;
             text-align: left;
+        }
+
+        .compare-table {
+            min-width: 1420px;
+        }
+
+        .compare-table td:first-child,
+        .compare-table th:first-child {
+            width: 190px;
+            min-width: 190px;
         }
     }
 </style>
@@ -983,6 +1113,96 @@
         </div>
     </section>
 
+    <section class="card">
+        <div class="compare-section-head">
+            <div>
+                <h2 class="compare-section-title">Graphes money analytics</h2>
+                <p class="compare-section-copy">
+                    Lecture visuelle des dépenses et du net après dépenses pour identifier rapidement les périodes coûteuses, les périodes économes, et les semaines ou mois qui gardent le plus d'argent.
+                </p>
+            </div>
+            <div class="compare-section-state">{{ selected_period.items|length }} période{{ selected_period.items|length|pluralize }} visible{{ selected_period.items|length|pluralize }}</div>
+        </div>
+
+        {% if selected_period.items %}
+        <div class="compare-chart-grid">
+            <article class="compare-chart-card">
+                <div class="compare-chart-head">
+                    <div>
+                        <h3 class="compare-chart-title">Dépenses suivies</h3>
+                        <p class="compare-chart-note">Eau, carburant, transport et autres achats</p>
+                    </div>
+                </div>
+                <div class="compare-chart-stack">
+                    {% for item in selected_period.items %}
+                    <div class="compare-chart-row {% if item.is_selected %}is-selected{% endif %}">
+                        <div class="compare-chart-label">{{ item.label }}</div>
+                        <div class="compare-chart-track"><div class="compare-chart-fill compare-chart-fill--expense" style="width: {% widthratio item.operating_expenses selected_period.max_operating_expenses 100 %}%;"></div></div>
+                        <div class="compare-chart-value">{{ item.operating_expenses|fc_amount }} FC</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </article>
+
+            <article class="compare-chart-card">
+                <div class="compare-chart-head">
+                    <div>
+                        <h3 class="compare-chart-title">Net après dépenses</h3>
+                        <p class="compare-chart-note">Cash flow moins les dépenses suivies</p>
+                    </div>
+                </div>
+                <div class="compare-chart-stack">
+                    {% for item in selected_period.items %}
+                    <div class="compare-chart-row {% if item.is_selected %}is-selected{% endif %}">
+                        <div class="compare-chart-label">{{ item.label }}</div>
+                        <div class="compare-chart-track"><div class="compare-chart-fill compare-chart-fill--net {% if item.net_after_expenses < 0 %}is-negative{% endif %}" style="width: {% widthratio item.abs_net_after_expenses selected_period.max_net_after_expenses 100 %}%;"></div></div>
+                        <div class="compare-chart-value">{{ item.net_after_expenses|fc_amount }} FC</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </article>
+
+            <article class="compare-chart-card">
+                <div class="compare-chart-head">
+                    <div>
+                        <h3 class="compare-chart-title">Eau</h3>
+                        <p class="compare-chart-note">Dépenses d'eau par période</p>
+                    </div>
+                </div>
+                <div class="compare-chart-stack">
+                    {% for item in selected_period.items %}
+                    <div class="compare-chart-row {% if item.is_selected %}is-selected{% endif %}">
+                        <div class="compare-chart-label">{{ item.label }}</div>
+                        <div class="compare-chart-track"><div class="compare-chart-fill compare-chart-fill--water" style="width: {% widthratio item.water_expense selected_period.max_water_expense 100 %}%;"></div></div>
+                        <div class="compare-chart-value">{{ item.water_expense|fc_amount }} FC</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </article>
+
+            <article class="compare-chart-card">
+                <div class="compare-chart-head">
+                    <div>
+                        <h3 class="compare-chart-title">Carburant</h3>
+                        <p class="compare-chart-note">Dépenses carburant par période</p>
+                    </div>
+                </div>
+                <div class="compare-chart-stack">
+                    {% for item in selected_period.items %}
+                    <div class="compare-chart-row {% if item.is_selected %}is-selected{% endif %}">
+                        <div class="compare-chart-label">{{ item.label }}</div>
+                        <div class="compare-chart-track"><div class="compare-chart-fill compare-chart-fill--fuel" style="width: {% widthratio item.fuel_expense selected_period.max_fuel_expense 100 %}%;"></div></div>
+                        <div class="compare-chart-value">{{ item.fuel_expense|fc_amount }} FC</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </article>
+        </div>
+        {% else %}
+        <p style="margin: 0; color: var(--text-secondary);">{{ selected_period.empty_message }}</p>
+        {% endif %}
+    </section>
+
     {% if monthly_rankings_period and monthly_rankings_period.weekly_cash_rankings %}
     <section class="card">
         <div class="compare-section-head">
@@ -1122,6 +1342,7 @@
         </div>
 
         {% if selected_period.items %}
+        <p class="compare-table-help">Tableau large: faites défiler horizontalement pour voir toutes les colonnes de dépenses, le net et les actions.</p>
         <div class="table-container">
             <table class="compare-table">
                 <thead>

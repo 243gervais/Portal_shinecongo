@@ -435,6 +435,7 @@ def _build_site_comparison_periods(site, detail_date, selected_scope="week"):
                         "expense_chart_total": operating_expenses or Decimal("1"),
                         "operating_expenses": operating_expenses,
                         "net_after_expenses": net_after_expenses,
+                        "abs_net_after_expenses": abs(net_after_expenses),
                         "profit_margin_pct": profit_margin_pct,
                         "expense_rate_pct": expense_rate_pct,
                         "bank_capture_pct": bank_capture_pct,
