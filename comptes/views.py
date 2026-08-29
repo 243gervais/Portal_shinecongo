@@ -59,7 +59,12 @@ from sites.models import (
     get_default_water_supplier,
 )
 from lavages.models import CarWash, CarWashPhoto
-from pointage.attendance import get_clock_in_status, get_clock_out_status
+from pointage.attendance import (
+    attendance_penalty_label,
+    attendance_penalty_usd,
+    get_clock_in_status,
+    get_clock_out_status,
+)
 from problemes.models import IssueReport
 from pointage.models import ManagerEquipmentPhoto, ShiftDay
 from pointage.views import _build_initial_daily_expense_form, _parse_daily_expenses_form
@@ -1047,6 +1052,7 @@ def _build_site_attendance_rows(site, attendance_date, *, employee_id=None, stat
             if pointage else
             get_clock_out_status(attendance_date, None)
         )
+        penalty_usd = attendance_penalty_usd(attendance_date, attendance_status["code"])
         start_photo_url = pointage.clock_in_photo.url if pointage and pointage.clock_in_photo else ""
         end_photo_url = pointage.clock_out_photo.url if pointage and pointage.clock_out_photo else ""
         return {
@@ -1056,6 +1062,8 @@ def _build_site_attendance_rows(site, attendance_date, *, employee_id=None, stat
             "duration": _format_pointage_duration(pointage),
             "attendance_status": attendance_status,
             "clock_out_status": clock_out_status,
+            "attendance_penalty_usd": penalty_usd,
+            "attendance_penalty_label": attendance_penalty_label(penalty_usd),
             "start_photo_url": start_photo_url,
             "start_photo_thumbnail_url": (
                 pointage.clock_in_photo_thumbnail_url if pointage else ""
@@ -1086,6 +1094,7 @@ def _build_site_attendance_rows(site, attendance_date, *, employee_id=None, stat
         "present_count": sum(1 for row in rows if row["attendance_status"]["code"] == "PRESENT"),
         "late_count": sum(1 for row in rows if row["attendance_status"]["code"] == "LATE"),
         "absent_count": sum(1 for row in rows if row["attendance_status"]["code"] == "ABSENT"),
+        "attendance_penalty_total_usd": sum((row["attendance_penalty_usd"] for row in rows), Decimal("0")),
         "present_or_late_count": sum(
             1 for row in rows if row["attendance_status"]["code"] in {"PRESENT", "LATE"}
         ),

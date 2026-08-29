@@ -7,7 +7,12 @@ import secrets
 import json
 
 from comptes.image_utils import ensure_image_thumbnail, get_thumbnail_url, optimize_image_upload
-from pointage.attendance import get_clock_in_status, get_clock_out_status
+from pointage.attendance import (
+    attendance_penalty_label,
+    attendance_penalty_usd,
+    get_clock_in_status,
+    get_clock_out_status,
+)
 
 
 def attendance_photo_path(instance, filename):
@@ -359,6 +364,14 @@ class ShiftDay(models.Model):
 
     def get_clock_out_attendance_status(self, *, reference_time=None):
         return get_clock_out_status(self.date, self.clock_out_time, reference_time=reference_time)
+
+    @property
+    def attendance_penalty_usd(self):
+        return attendance_penalty_usd(self.date, self.get_clock_in_attendance_status()["code"])
+
+    @property
+    def attendance_penalty_label(self):
+        return attendance_penalty_label(self.attendance_penalty_usd)
 
     def save(self, *args, **kwargs):
         if self.clock_in_photo and not self.clock_in_photo._committed:

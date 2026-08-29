@@ -1820,6 +1820,7 @@
                                         <th>Fin</th>
                                         <th>Statut fin</th>
                                         <th>Duree</th>
+                                        <th>Retenue admin</th>
                                         <th>Preuves</th>
                                         <th>Rapport final</th>
                                     </tr>
@@ -1841,6 +1842,13 @@
                                         <td>{% if item.pointage and item.pointage.clock_out_time %}{{ item.pointage.clock_out_time|date:"H:i" }}{% else %}-{% endif %}</td>
                                         <td>{{ item.clock_out_status.label }}</td>
                                         <td>{{ item.duration|default:"-" }}</td>
+                                        <td>
+                                            {% if item.attendance_penalty_label %}
+                                            <span style="font-weight: 800; color: var(--error-color);">{{ item.attendance_penalty_label }}</span>
+                                            {% else %}
+                                            <span style="color: var(--text-secondary);">-</span>
+                                            {% endif %}
+                                        </td>
                                         <td>
                                             {% if item.pointage and item.pointage.clock_in_photo %}
                                             <a href="{{ item.pointage.clock_in_photo.url }}" target="_blank" rel="noopener">Debut</a>
@@ -3273,6 +3281,7 @@
                     <th>Fin</th>
                     <th>Statut fin</th>
                     <th>Durée</th>
+                    <th>Retenue admin</th>
                     <th>Preuves</th>
                     <th>Actions</th>
                 </tr>
@@ -3310,6 +3319,13 @@
                     <td>
                         {% if item.duration %}
                             <span style="font-weight: 600; color: var(--primary-color);">{{ item.duration }}</span>
+                        {% else %}
+                            <span style="color: var(--text-secondary);">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.attendance_penalty_label %}
+                            <span style="font-weight: 800; color: var(--error-color);">{{ item.attendance_penalty_label }}</span>
                         {% else %}
                             <span style="color: var(--text-secondary);">-</span>
                         {% endif %}

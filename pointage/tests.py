@@ -667,7 +667,7 @@ class EmployeeDailyReportTests(TestCase):
     @patch("portal_api.views.is_workday", return_value=True)
     def test_employee_can_record_start_attendance_with_same_day_photo(self, _mock_is_workday):
         today = timezone.localdate()
-        capture_time = timezone.make_aware(datetime.combine(today, datetime.min.time().replace(hour=9, minute=58)))
+        capture_time = timezone.make_aware(datetime.combine(today, datetime.min.time().replace(hour=9, minute=25)))
 
         response = self.client.post(
             reverse("portal_api_employee_clock_in"),
@@ -676,8 +676,8 @@ class EmployeeDailyReportTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         shift = ShiftDay.objects.get(employe=self.user, date=today)
-        self.assertEqual(timezone.localtime(shift.clock_in_time).strftime("%H:%M"), "09:58")
-        self.assertEqual(timezone.localtime(shift.clock_in_photo_taken_at).strftime("%H:%M"), "09:58")
+        self.assertEqual(timezone.localtime(shift.clock_in_time).strftime("%H:%M"), "09:25")
+        self.assertEqual(timezone.localtime(shift.clock_in_photo_taken_at).strftime("%H:%M"), "09:25")
         payload = response.json()
         self.assertEqual(payload["shift_today"]["attendance_status_code"], "PRESENT")
         self.assertEqual(payload["shift_today"]["attendance_status_label"], "Présent")
@@ -1830,7 +1830,7 @@ class EmployeeDailyReportTests(TestCase):
     @patch("portal_api.views.is_workday", return_value=True)
     def test_employee_can_record_start_attendance_with_same_day_photo(self, _mock_is_workday):
         today = timezone.localdate()
-        capture_time = timezone.make_aware(datetime.combine(today, datetime.min.time().replace(hour=9, minute=58)))
+        capture_time = timezone.make_aware(datetime.combine(today, datetime.min.time().replace(hour=9, minute=25)))
 
         response = self.client.post(
             reverse("portal_api_employee_clock_in"),
@@ -1839,8 +1839,8 @@ class EmployeeDailyReportTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         shift = ShiftDay.objects.get(employe=self.user, date=today)
-        self.assertEqual(timezone.localtime(shift.clock_in_time).strftime("%H:%M"), "09:58")
-        self.assertEqual(timezone.localtime(shift.clock_in_photo_taken_at).strftime("%H:%M"), "09:58")
+        self.assertEqual(timezone.localtime(shift.clock_in_time).strftime("%H:%M"), "09:25")
+        self.assertEqual(timezone.localtime(shift.clock_in_photo_taken_at).strftime("%H:%M"), "09:25")
         payload = response.json()
         self.assertEqual(payload["shift_today"]["attendance_status_code"], "PRESENT")
         self.assertEqual(payload["shift_today"]["attendance_status_label"], "Présent")

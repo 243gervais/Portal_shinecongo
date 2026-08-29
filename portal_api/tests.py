@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -11,6 +12,7 @@ from django.utils import timezone
 
 from comptes.models import UserProfile
 from lavages.models import CarWash, CarWashPhoto
+from pointage.attendance import attendance_penalty_usd
 from pointage.models import ManagerEquipmentPhoto, ShiftDay
 from problemes.models import IssueReport
 from sites.models import Location, ManagerManualMachine, ManagerManualSettings, SiteFuelPurchase, SiteWaterPurchase, WaterSupplier
@@ -393,6 +395,68 @@ class PortalApiSecurityAndPaginationTests(TestCase):
         self.assertEqual(payload["results"], [])
         employee_filter_names = [item["nom"] for item in payload["filters"]["employees"]]
         self.assertNotIn("manager", employee_filter_names)
+
+    def test_location_manager_can_record_employee_arrival_and_departure(self):
+        today = timezone.localdate()
+        self.client.login(username="manager", password="pass1234")
+
+        arrival_response = self.client.post(
+            reverse("portal_api_manager_team_attendance"),
+            {
+                "employee_id": self.employee.id,
+                "action": "clock_in",
+                "time": "09:05",
+                "date": today.isoformat(),
+            },
+        )
+        departure_response = self.client.post(
+            reverse("portal_api_manager_team_attendance"),
+            {
+                "employee_id": self.employee.id,
+                "action": "clock_out",
+                "time": "19:15",
+                "date": today.isoformat(),
+            },
+        )
+
+        self.assertEqual(arrival_response.status_code, 200)
+        self.assertEqual(departure_response.status_code, 200)
+        shift = ShiftDay.objects.get(employe=self.employee, date=today)
+        self.assertEqual(timezone.localtime(shift.clock_in_time).strftime("%H:%M"), "09:05")
+        self.assertEqual(timezone.localtime(shift.clock_out_time).strftime("%H:%M"), "19:15")
+        self.assertEqual(shift.corrected_by, self.manager)
+        payload = self.client.get(reverse("portal_api_manager_pointages"), {"team_date": today.isoformat()}).json()
+        employee_row = next(item for item in payload["team_attendance"] if item["employee_id"] == self.employee.id)
+        self.assertEqual(employee_row["shift"]["clock_in_display"], "09:05")
+        self.assertNotIn("attendance_penalty_usd", employee_row)
+        self.assertNotIn("attendance_penalty_label", employee_row)
+
+    def test_location_manager_cannot_record_other_site_employee_or_manager_self(self):
+        other_site = Location.objects.create(nom="Autre", adresse="Kinshasa", actif=True)
+        other_employee = User.objects.create_user(username="outside", password="pass1234")
+        other_employee.userprofile.role = UserProfile.EMPLOYEE_ROLE
+        other_employee.userprofile.site = other_site
+        other_employee.userprofile.actif = True
+        other_employee.userprofile.save()
+        self.client.login(username="manager", password="pass1234")
+
+        outside_response = self.client.post(
+            reverse("portal_api_manager_team_attendance"),
+            {"employee_id": other_employee.id, "action": "clock_in", "time": "09:00"},
+        )
+        self_response = self.client.post(
+            reverse("portal_api_manager_team_attendance"),
+            {"employee_id": self.manager.id, "action": "clock_in", "time": "09:00"},
+        )
+
+        self.assertEqual(outside_response.status_code, 404)
+        self.assertEqual(self_response.status_code, 404)
+        self.assertFalse(ShiftDay.objects.filter(employe__in=[other_employee, self.manager]).exists())
+
+    def test_attendance_penalties_start_in_september_for_admin_only_calculation(self):
+        self.assertEqual(attendance_penalty_usd(date(2026, 8, 31), "LATE"), Decimal("0"))
+        self.assertEqual(attendance_penalty_usd(date(2026, 9, 1), "LATE"), Decimal("3"))
+        self.assertEqual(attendance_penalty_usd(date(2026, 9, 1), "ABSENT"), Decimal("5"))
 
     def test_admin_can_see_manager_lavage_photo_previews(self):
         admin = User.objects.create_superuser(username="admin", password="pass1234")

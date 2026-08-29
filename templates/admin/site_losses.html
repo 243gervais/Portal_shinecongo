@@ -196,6 +196,7 @@
                     <th>Sortie</th>
                     <th>Rapport final</th>
                     <th>Montant déclaré</th>
+                    <th>Retenue admin</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -208,6 +209,7 @@
                     <td>{% if pointage.clock_out_time %}{{ pointage.clock_out_time|date:"H:i" }}{% else %}<span style="color: var(--warning-color);">En cours</span>{% endif %}</td>
                     <td>{% if pointage.daily_report_confirmed %}Confirmé{% else %}-{% endif %}</td>
                     <td>{% if pointage.daily_report_confirmed %}{{ pointage.total_amount_reported_fc|fc_amount }} FC{% else %}-{% endif %}</td>
+                    <td>{% if pointage.attendance_penalty_label %}<span style="font-weight: 800; color: var(--error-color);">{{ pointage.attendance_penalty_label }}</span>{% else %}-{% endif %}</td>
                     <td>
                         <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                             <a href="{% url 'admin_edit_pointage' site.id pointage.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-primary" style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">Modifier</a>

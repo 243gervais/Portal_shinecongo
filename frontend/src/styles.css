@@ -407,6 +407,62 @@ textarea {
   background: var(--portal-surface-soft);
 }
 
+.panel-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: start;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  background: var(--portal-surface);
+  color: var(--portal-primary-dark);
+  font-size: 0.85rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.manager-attendance-panel {
+  gap: 1rem;
+}
+
+.team-attendance-grid {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.team-attendance-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.9fr);
+  gap: 1rem;
+  align-items: end;
+  padding: 1rem;
+  border: 1px solid var(--portal-border);
+  border-radius: 16px;
+  background: var(--portal-surface);
+}
+
+.team-attendance-card h3,
+.team-attendance-card p {
+  margin: 0;
+}
+
+.team-attendance-card p {
+  color: var(--portal-muted);
+}
+
+.team-attendance-form {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(110px, 0.8fr) auto;
+  gap: 0.75rem;
+  align-items: end;
+}
+
 .filter-grid,
 .form-grid,
 .status-grid,
@@ -869,6 +925,7 @@ textarea {
   .section-heading,
   .detail-grid,
   .qr-layout,
+  .panel-heading,
   .list-card,
   .compact-card {
     flex-direction: column;
@@ -901,6 +958,8 @@ textarea {
   .button-row,
   .form-actions,
   .form-actions-inline,
+  .team-attendance-card,
+  .team-attendance-form,
   .pagination {
     display: grid;
     grid-template-columns: 1fr;

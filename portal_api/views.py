@@ -349,6 +349,62 @@ def _employee_options_for_sites(site_ids, user=None):
     return options
 
 
+def _parse_portal_date(value):
+    if not value:
+        return timezone.localdate()
+    try:
+        return datetime.strptime(str(value), "%Y-%m-%d").date()
+    except ValueError as exc:
+        raise ValueError("Format de date invalide.") from exc
+
+
+def _parse_portal_time(target_date, value):
+    cleaned = str(value or "").strip()
+    if not cleaned:
+        raise ValueError("L'heure est obligatoire.")
+    try:
+        parsed_time = datetime.strptime(cleaned, "%H:%M").time()
+    except ValueError as exc:
+        raise ValueError("Format d'heure invalide.") from exc
+    return timezone.make_aware(datetime.combine(target_date, parsed_time))
+
+
+def _manager_team_attendance_rows(site, target_date, request):
+    employees = list(
+        User.objects.filter(
+            userprofile__site=site,
+            userprofile__role=UserProfile.EMPLOYEE_ROLE,
+            userprofile__actif=True,
+        )
+        .select_related("userprofile")
+        .order_by("first_name", "last_name", "username")
+    )
+    shifts_by_employee_id = {
+        shift.employe_id: shift
+        for shift in ShiftDay.objects.filter(site=site, date=target_date, employe__in=employees)
+        .select_related("employe", "site", "corrected_by")
+    }
+    rows = []
+    for employee in employees:
+        shift = shifts_by_employee_id.get(employee.id)
+        rows.append(
+            {
+                "employee_id": employee.id,
+                "employee_name": employee.get_full_name() or employee.username,
+                "shift": ShiftDaySerializer(shift, context={"request": request}).data if shift else None,
+                "attendance_status": (
+                    shift.get_clock_in_attendance_status()
+                    if shift else get_clock_in_status(target_date, None)
+                ),
+                "clock_out_status": (
+                    shift.get_clock_out_attendance_status()
+                    if shift else get_clock_out_status(target_date, None)
+                ),
+            }
+        )
+    return rows
+
+
 def _file_url(request, file_field):
     if not file_field:
         return ""
@@ -1698,6 +1754,11 @@ class ManagerPointageListApi(APIView):
     def get(self, request):
         accessible_sites = list(_manager_accessible_sites(request.user))
         site_ids = [site.id for site in accessible_sites]
+        selected_site, _accessible_sites = _manager_selected_site(request.user, request)
+        try:
+            team_date = _parse_portal_date(request.query_params.get("team_date"))
+        except ValueError as exc:
+            return Response({"message": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         visible_roles = _manager_visible_staff_roles(request.user)
         queryset = (
             ShiftDay.objects.select_related("employe", "site", "corrected_by")
@@ -1728,8 +1789,110 @@ class ManagerPointageListApi(APIView):
                 "filters": {
                     "sites": _site_options(accessible_sites),
                     "employees": _employee_options_for_sites(site_ids, request.user),
-                }
+                },
+                "today": timezone.localdate().isoformat(),
+                "team_date": team_date.isoformat(),
+                "schedule": attendance_schedule_context(),
+                "selected_team_site": SiteSummarySerializer(selected_site).data if selected_site else None,
+                "team_attendance": (
+                    _manager_team_attendance_rows(selected_site, team_date, request)
+                    if selected_site else []
+                ),
             },
+        )
+
+
+class ManagerTeamAttendanceApi(APIView):
+    permission_classes = [IsAuthenticated, IsManagerOrAdmin]
+
+    def post(self, request):
+        site, _accessible_sites = _manager_selected_site(request.user, request)
+        if not site:
+            return Response({"message": "Aucun site manager accessible."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            target_date = _parse_portal_date(request.data.get("date"))
+            target_time = _parse_portal_time(target_date, request.data.get("time"))
+        except ValueError as exc:
+            return Response({"message": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        if target_date > timezone.localdate():
+            return Response({"message": "Impossible de pointer une date future."}, status=status.HTTP_400_BAD_REQUEST)
+
+        action = str(request.data.get("action", "")).strip()
+        if action not in {"clock_in", "clock_out"}:
+            return Response({"message": "Action de pointage invalide."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            employee_id = int(request.data.get("employee_id"))
+        except (TypeError, ValueError):
+            return Response({"message": "Employé invalide."}, status=status.HTTP_400_BAD_REQUEST)
+
+        employee = get_object_or_404(
+            User.objects.select_related("userprofile"),
+            pk=employee_id,
+            userprofile__site=site,
+            userprofile__role=UserProfile.EMPLOYEE_ROLE,
+            userprofile__actif=True,
+        )
+
+        with transaction.atomic():
+            shift, _created = ShiftDay.objects.select_for_update().get_or_create(
+                employe=employee,
+                date=target_date,
+                defaults={"site": site},
+            )
+            if shift.site_id != site.id:
+                return Response({"message": "Cet employé n'appartient pas à ce site."}, status=status.HTTP_403_FORBIDDEN)
+
+            before = {
+                "clock_in_time": str(shift.clock_in_time) if shift.clock_in_time else None,
+                "clock_out_time": str(shift.clock_out_time) if shift.clock_out_time else None,
+            }
+
+            if action == "clock_in":
+                shift.clock_in_time = target_time
+                message = "Heure d'arrivée enregistrée."
+            else:
+                if not shift.clock_in_time:
+                    return Response(
+                        {"message": "Enregistrez d'abord l'heure d'arrivée de cet employé."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                if target_time < shift.clock_in_time:
+                    return Response(
+                        {"message": "L'heure de fin ne peut pas être avant l'arrivée."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                shift.clock_out_time = target_time
+                message = "Heure de fin enregistrée."
+
+            manager_name = request.user.get_full_name() or request.user.username
+            shift.corrected_by = request.user
+            shift.correction_reason = f"Pointage équipe saisi par le manager {manager_name}."
+            shift.corrected_at = timezone.now()
+            shift.save()
+
+        AuditLog.log(
+            user=request.user,
+            action="CORRIGER_POINTAGE",
+            description=f"Pointage équipe saisi par manager: {employee.get_full_name() or employee.username} - {target_date}",
+            motif=shift.correction_reason,
+            content_object=shift,
+            donnees_avant=before,
+            donnees_apres={
+                "clock_in_time": str(shift.clock_in_time) if shift.clock_in_time else None,
+                "clock_out_time": str(shift.clock_out_time) if shift.clock_out_time else None,
+            },
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request),
+        )
+
+        return Response(
+            {
+                "message": message,
+                "pointage": ShiftDaySerializer(shift, context={"request": request}).data,
+            },
+            status=status.HTTP_200_OK,
         )
 
 
