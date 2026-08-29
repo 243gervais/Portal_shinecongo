@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -430,6 +430,81 @@ class PortalApiSecurityAndPaginationTests(TestCase):
         self.assertEqual(employee_row["shift"]["clock_in_display"], "09:05")
         self.assertNotIn("attendance_penalty_usd", employee_row)
         self.assertNotIn("attendance_penalty_label", employee_row)
+
+    def test_location_manager_cannot_overwrite_employee_attendance_times(self):
+        today = timezone.localdate()
+        base_time = timezone.make_aware(datetime.combine(today, datetime.min.time().replace(hour=9, minute=0)))
+        ShiftDay.objects.create(
+            employe=self.employee,
+            site=self.site,
+            date=today,
+            clock_in_time=base_time,
+            clock_out_time=base_time.replace(hour=19, minute=0),
+        )
+        self.client.login(username="manager", password="pass1234")
+
+        arrival_response = self.client.post(
+            reverse("portal_api_manager_team_attendance"),
+            {
+                "employee_id": self.employee.id,
+                "action": "clock_in",
+                "time": "09:45",
+                "date": today.isoformat(),
+            },
+        )
+        departure_response = self.client.post(
+            reverse("portal_api_manager_team_attendance"),
+            {
+                "employee_id": self.employee.id,
+                "action": "clock_out",
+                "time": "19:20",
+                "date": today.isoformat(),
+            },
+        )
+
+        self.assertEqual(arrival_response.status_code, 409)
+        self.assertEqual(departure_response.status_code, 409)
+        shift = ShiftDay.objects.get(employe=self.employee, date=today)
+        self.assertEqual(timezone.localtime(shift.clock_in_time).strftime("%H:%M"), "09:00")
+        self.assertEqual(timezone.localtime(shift.clock_out_time).strftime("%H:%M"), "19:00")
+
+    def test_location_manager_cannot_use_pointage_correction_endpoint(self):
+        today = timezone.localdate()
+        shift = ShiftDay.objects.create(
+            employe=self.employee,
+            site=self.site,
+            date=today,
+            clock_in_time=timezone.make_aware(datetime.combine(today, datetime.min.time().replace(hour=9, minute=0))),
+        )
+        self.client.login(username="manager", password="pass1234")
+
+        response = self.client.post(
+            reverse("portal_api_manager_pointage_correction", args=[shift.id]),
+            {"clock_in_time": "09:30", "motif": "Correction manager"},
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_admin_can_still_use_pointage_correction_endpoint(self):
+        admin = User.objects.create_superuser(username="admin", password="pass1234")
+        today = timezone.localdate()
+        shift = ShiftDay.objects.create(
+            employe=self.employee,
+            site=self.site,
+            date=today,
+            clock_in_time=timezone.make_aware(datetime.combine(today, datetime.min.time().replace(hour=9, minute=0))),
+        )
+        self.client.login(username="admin", password="pass1234")
+
+        response = self.client.post(
+            reverse("portal_api_manager_pointage_correction", args=[shift.id]),
+            {"clock_in_time": "09:30", "motif": "Correction admin"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        shift.refresh_from_db()
+        self.assertEqual(timezone.localtime(shift.clock_in_time).strftime("%H:%M"), "09:30")
+        self.assertEqual(shift.corrected_by, admin)
 
     def test_location_manager_cannot_record_other_site_employee_or_manager_self(self):
         other_site = Location.objects.create(nom="Autre", adresse="Kinshasa", actif=True)

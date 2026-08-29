@@ -24,6 +24,11 @@ def is_manager_or_admin(user):
     return user.userprofile.is_manager() or user.userprofile.is_admin()
 
 
+def is_admin_user(user):
+    """Vérifier que l'utilisateur est admin"""
+    return bool(user.is_superuser or (hasattr(user, 'userprofile') and user.userprofile.is_admin()))
+
+
 def _parse_dashboard_date_range(request, today):
     date_debut = request.GET.get("date_debut") or today.strftime("%Y-%m-%d")
     date_fin = request.GET.get("date_fin") or date_debut
@@ -266,7 +271,7 @@ def manager_pointages(request):
 
 
 @login_required
-@user_passes_test(is_manager_or_admin)
+@user_passes_test(is_admin_user)
 def manager_corriger_pointage(request, pointage_id):
     """
     Corriger un pointage (avec motif obligatoire)

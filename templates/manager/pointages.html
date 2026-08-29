@@ -81,7 +81,11 @@
                     {% if pointage.corrected_by %}
                     <span style="color: var(--warning-color); font-size: 0.875rem;">✓ Corrigé</span><br>
                     {% endif %}
+                    {% if request.user.is_superuser or request.user.userprofile.is_admin %}
                     <a href="{% url 'manager_corriger_pointage' pointage.id %}" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.875rem; margin-top: 0.25rem;">Corriger</a>
+                    {% else %}
+                    <span style="color: var(--text-secondary); font-size: 0.875rem;">Correction admin uniquement</span>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}

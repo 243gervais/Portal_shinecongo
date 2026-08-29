@@ -260,9 +260,11 @@ export default function ManagerPointagesPage() {
                   ) : null}
                 </div>
               </div>
-              <Link className="button button-primary" to={`/manager/pointages/${item.id}/corriger/`}>
-                Corriger
-              </Link>
+              {data.can_correct_time ? (
+                <Link className="button button-primary" to={`/manager/pointages/${item.id}/corriger/`}>
+                  Corriger
+                </Link>
+              ) : null}
             </article>
           ))}
         </div>

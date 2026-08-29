@@ -1798,6 +1798,7 @@ class ManagerPointageListApi(APIView):
                     _manager_team_attendance_rows(selected_site, team_date, request)
                     if selected_site else []
                 ),
+                "can_correct_time": _can_view_manager_money(request.user),
             },
         )
 
@@ -1850,6 +1851,11 @@ class ManagerTeamAttendanceApi(APIView):
             }
 
             if action == "clock_in":
+                if shift.clock_in_time and not _can_view_manager_money(request.user):
+                    return Response(
+                        {"message": "L'arrivée existe déjà. Seul l'administrateur peut corriger l'heure."},
+                        status=status.HTTP_409_CONFLICT,
+                    )
                 shift.clock_in_time = target_time
                 message = "Heure d'arrivée enregistrée."
             else:
@@ -1862,6 +1868,11 @@ class ManagerTeamAttendanceApi(APIView):
                     return Response(
                         {"message": "L'heure de fin ne peut pas être avant l'arrivée."},
                         status=status.HTTP_400_BAD_REQUEST,
+                    )
+                if shift.clock_out_time and not _can_view_manager_money(request.user):
+                    return Response(
+                        {"message": "La fin de journée existe déjà. Seul l'administrateur peut corriger l'heure."},
+                        status=status.HTTP_409_CONFLICT,
                     )
                 shift.clock_out_time = target_time
                 message = "Heure de fin enregistrée."
@@ -1900,6 +1911,12 @@ class ManagerPointageCorrectionApi(APIView):
     permission_classes = [IsAuthenticated, IsManagerOrAdmin]
 
     def post(self, request, pointage_id):
+        if not _can_view_manager_money(request.user):
+            return Response(
+                {"message": "Seul l'administrateur peut corriger les heures de pointage."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         accessible_site_ids = {site.id for site in _manager_accessible_sites(request.user)}
         visible_roles = _manager_visible_staff_roles(request.user)
         pointage = get_object_or_404(
