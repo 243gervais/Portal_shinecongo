@@ -27,7 +27,7 @@
         </div>
         <div class="site-actions">
             <a href="{% url 'admin_site_employees' site.id %}" class="btn btn-info">Gestion des employés</a>
-            <a href="{% url 'admin_site_attendance_photos' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-info">Photos de présence</a>
+            <a href="{% url 'admin_site_attendance_photos' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-info">Pointage</a>
             <a href="{% url 'admin_site_camera_monitoring' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-info">Caméras & comptage</a>
             <a href="{% url 'admin_site_documents' site.id %}" class="btn btn-success">Documents du site</a>
             <a href="{% url 'admin_site_journal' site.id %}" class="btn btn-secondary">Journal du site</a>
@@ -3268,7 +3268,7 @@
     </summary>
     <div class="site-section-body">
     <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
-        <a href="{% url 'admin_site_attendance_photos' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-secondary">Ouvrir la galerie photo</a>
+        <a href="{% url 'admin_site_attendance_photos' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-secondary">Ouvrir le dashboard pointage</a>
     </div>
     {% if pointages_date %}
     <div class="table-container">

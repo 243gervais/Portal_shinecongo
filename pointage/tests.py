@@ -776,7 +776,8 @@ class EmployeeDailyReportTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Photos de présence")
+        self.assertContains(response, "Pointage")
+        self.assertContains(response, "Ouvrir le dashboard pointage")
         self.assertContains(
             response,
             f"{reverse('admin_site_attendance_photos', args=[self.site.id])}?date={target_date.strftime('%Y-%m-%d')}",
@@ -817,6 +818,8 @@ class EmployeeDailyReportTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Dashboard des heures du personnel")
+        self.assertContains(response, "Objectif semaine: 60h00")
         self.assertContains(response, self.user.username)
         self.assertContains(response, "Photo d'arrivée")
         self.assertContains(response, "Photo de fin")
@@ -834,6 +837,44 @@ class EmployeeDailyReportTests(TestCase):
             response,
             reverse("admin_site_employee_portal", args=[self.site.id, self.user.userprofile.id]),
         )
+
+    @patch("pointage.attendance.timezone.now", return_value=timezone.make_aware(datetime(2026, 9, 13, 12, 0)))
+    @patch("pointage.attendance.timezone.localdate", return_value=datetime(2026, 9, 13).date())
+    @patch("comptes.views.timezone.localdate", return_value=datetime(2026, 9, 13).date())
+    def test_admin_pointage_dashboard_tracks_week_hours_and_penalties(self, _view_today, _attendance_today, _attendance_now):
+        target_date = datetime(2026, 9, 9).date()
+        monday_clock_in = timezone.make_aware(datetime(2026, 9, 7, 9, 0))
+        monday_clock_out = timezone.make_aware(datetime(2026, 9, 7, 19, 30))
+        tuesday_clock_in = timezone.make_aware(datetime(2026, 9, 8, 10, 0))
+        tuesday_clock_out = timezone.make_aware(datetime(2026, 9, 8, 19, 30))
+        ShiftDay.objects.create(
+            employe=self.user,
+            site=self.site,
+            date=monday_clock_in.date(),
+            clock_in_time=monday_clock_in,
+            clock_out_time=monday_clock_out,
+        )
+        ShiftDay.objects.create(
+            employe=self.user,
+            site=self.site,
+            date=tuesday_clock_in.date(),
+            clock_in_time=tuesday_clock_in,
+            clock_out_time=tuesday_clock_out,
+        )
+
+        admin_client = self.client_class()
+        admin_client.login(username="report_admin", password="AdminPass123!")
+        response = admin_client.get(
+            reverse("admin_site_attendance_photos", args=[self.site.id]),
+            data={"date": target_date.strftime("%Y-%m-%d")},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "20h00 / 60h00 cette semaine")
+        self.assertContains(response, "40h00")
+        self.assertContains(response, "Perte semaine")
+        self.assertContains(response, "$23.00")
+        self.assertContains(response, "4 absence")
 
     def test_admin_can_edit_attendance_photos_and_associated_times(self):
         target_date = timezone.localdate() - timedelta(days=1)
@@ -1939,7 +1980,8 @@ class EmployeeDailyReportTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Photos de présence")
+        self.assertContains(response, "Pointage")
+        self.assertContains(response, "Ouvrir le dashboard pointage")
         self.assertContains(
             response,
             f"{reverse('admin_site_attendance_photos', args=[self.site.id])}?date={target_date.strftime('%Y-%m-%d')}",
@@ -1980,6 +2022,8 @@ class EmployeeDailyReportTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Dashboard des heures du personnel")
+        self.assertContains(response, "Objectif semaine: 60h00")
         self.assertContains(response, self.user.username)
         self.assertContains(response, "Photo d'arrivée")
         self.assertContains(response, "Photo de fin")
@@ -1989,6 +2033,44 @@ class EmployeeDailyReportTests(TestCase):
             response,
             reverse("admin_site_employee_portal", args=[self.site.id, self.user.userprofile.id]),
         )
+
+    @patch("pointage.attendance.timezone.now", return_value=timezone.make_aware(datetime(2026, 9, 13, 12, 0)))
+    @patch("pointage.attendance.timezone.localdate", return_value=datetime(2026, 9, 13).date())
+    @patch("comptes.views.timezone.localdate", return_value=datetime(2026, 9, 13).date())
+    def test_admin_pointage_dashboard_tracks_week_hours_and_penalties(self, _view_today, _attendance_today, _attendance_now):
+        target_date = datetime(2026, 9, 9).date()
+        monday_clock_in = timezone.make_aware(datetime(2026, 9, 7, 9, 0))
+        monday_clock_out = timezone.make_aware(datetime(2026, 9, 7, 19, 30))
+        tuesday_clock_in = timezone.make_aware(datetime(2026, 9, 8, 10, 0))
+        tuesday_clock_out = timezone.make_aware(datetime(2026, 9, 8, 19, 30))
+        ShiftDay.objects.create(
+            employe=self.user,
+            site=self.site,
+            date=monday_clock_in.date(),
+            clock_in_time=monday_clock_in,
+            clock_out_time=monday_clock_out,
+        )
+        ShiftDay.objects.create(
+            employe=self.user,
+            site=self.site,
+            date=tuesday_clock_in.date(),
+            clock_in_time=tuesday_clock_in,
+            clock_out_time=tuesday_clock_out,
+        )
+
+        admin_client = self.client_class()
+        admin_client.login(username="report_admin", password="AdminPass123!")
+        response = admin_client.get(
+            reverse("admin_site_attendance_photos", args=[self.site.id]),
+            data={"date": target_date.strftime("%Y-%m-%d")},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "20h00 / 60h00 cette semaine")
+        self.assertContains(response, "40h00")
+        self.assertContains(response, "Perte semaine")
+        self.assertContains(response, "$23.00")
+        self.assertContains(response, "4 absence")
 
     def test_employee_water_page_reflects_admin_edit_and_delete(self):
         today = timezone.localdate()

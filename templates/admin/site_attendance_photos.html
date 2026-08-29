@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Photos de présence - {{ site.nom }}{% endblock %}
+{% block title %}Pointage - {{ site.nom }}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -356,6 +356,197 @@
         padding-top: 0.2rem;
     }
 
+    .time-dashboard {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .time-dashboard-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .time-dashboard-title {
+        display: grid;
+        gap: 0.35rem;
+    }
+
+    .time-dashboard-title h2 {
+        margin: 0;
+        color: var(--primary-dark);
+    }
+
+    .time-dashboard-meta {
+        color: var(--text-secondary);
+        line-height: 1.55;
+    }
+
+    .time-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 0.85rem;
+    }
+
+    .time-summary-card,
+    .time-employee-card {
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        background: #ffffff;
+        border-radius: 22px;
+        box-shadow: 0 18px 45px rgba(11, 31, 53, 0.08);
+    }
+
+    .time-summary-card {
+        padding: 1rem;
+    }
+
+    .time-summary-label,
+    .time-employee-label {
+        color: var(--text-secondary);
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .time-summary-value {
+        margin-top: 0.35rem;
+        color: var(--primary-dark);
+        font-size: 1.65rem;
+        font-weight: 900;
+        line-height: 1.1;
+    }
+
+    .time-summary-copy {
+        margin-top: 0.35rem;
+        color: var(--text-secondary);
+        line-height: 1.45;
+    }
+
+    .time-employee-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1rem;
+    }
+
+    .time-employee-card {
+        padding: 1rem;
+        display: grid;
+        gap: 1rem;
+        min-width: 0;
+    }
+
+    .time-employee-card--risk {
+        border-color: rgba(180, 35, 24, 0.22);
+        background: linear-gradient(180deg, rgba(180, 35, 24, 0.04), #ffffff 36%);
+    }
+
+    .time-employee-card--watch {
+        border-color: rgba(217, 119, 6, 0.22);
+        background: linear-gradient(180deg, rgba(217, 119, 6, 0.05), #ffffff 36%);
+    }
+
+    .time-employee-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.9rem;
+        flex-wrap: wrap;
+    }
+
+    .time-employee-name {
+        margin: 0;
+        color: var(--primary-dark);
+        font-size: 1.08rem;
+        overflow-wrap: anywhere;
+    }
+
+    .time-status-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        padding: 0.42rem 0.7rem;
+        font-size: 0.78rem;
+        font-weight: 900;
+        background: rgba(15, 157, 88, 0.12);
+        color: #0f7f47;
+        white-space: nowrap;
+    }
+
+    .time-status-pill--risk {
+        background: rgba(180, 35, 24, 0.12);
+        color: #b42318;
+    }
+
+    .time-status-pill--watch {
+        background: rgba(217, 119, 6, 0.12);
+        color: #b46300;
+    }
+
+    .time-progress {
+        display: grid;
+        gap: 0.45rem;
+    }
+
+    .time-progress-track {
+        height: 0.75rem;
+        border-radius: 999px;
+        overflow: hidden;
+        background: rgba(7, 26, 44, 0.08);
+    }
+
+    .time-progress-fill {
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #0a436b, #1da7ff);
+    }
+
+    .time-progress-caption {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        color: var(--text-secondary);
+        font-size: 0.86rem;
+        line-height: 1.45;
+    }
+
+    .time-metric-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.7rem;
+    }
+
+    .time-metric {
+        min-width: 0;
+        padding: 0.82rem;
+        border-radius: 16px;
+        background: rgba(7, 26, 44, 0.035);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+    }
+
+    .time-metric-value {
+        margin-top: 0.25rem;
+        color: var(--primary-dark);
+        font-size: 1.16rem;
+        font-weight: 900;
+        overflow-wrap: anywhere;
+    }
+
+    .time-employee-foot {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        padding-top: 0.8rem;
+        border-top: 1px solid rgba(10, 67, 107, 0.08);
+        color: var(--text-secondary);
+        line-height: 1.45;
+    }
+
     .attendance-action-copy {
         color: var(--text-secondary);
         font-size: 0.9rem;
@@ -373,7 +564,8 @@
 
     @media (max-width: 860px) {
         .attendance-details,
-        .attendance-proof-grid {
+        .attendance-proof-grid,
+        .time-metric-grid {
             grid-template-columns: 1fr;
         }
     }
@@ -385,16 +577,17 @@
     <section class="attendance-hero">
         <div class="attendance-hero-top">
             <div>
-                <span class="attendance-eyebrow">Admin présence</span>
-                <h1>Photos de présence</h1>
+                <span class="attendance-eyebrow">Admin pointage</span>
+                <h1>Pointage</h1>
                 <p class="attendance-copy">
-                    Centre de contrôle des preuves d'arrivée et de fin de journée pour <strong>{{ site.nom }}</strong>.
-                    Filtrez par date, ouvrez chaque photo en plein écran et corrigez ou supprimez un pointage depuis la même page.
+                    Tableau professionnel de suivi des heures, présences, retards et retenues pour <strong>{{ site.nom }}</strong>.
+                    Les calculs utilisent les heures saisies par le manager et l'objectif de paie de 60h par semaine.
                 </p>
                 <div class="attendance-chips">
                     <span class="attendance-chip">Site <strong>{{ site.nom }}</strong></span>
                     <span class="attendance-chip">Date <strong>{{ selected_date|date:"d/m/Y" }}</strong></span>
                     <span class="attendance-chip">Employés affichés <strong>{{ attendance_rows_total }}</strong></span>
+                    <span class="attendance-chip">Objectif <strong>60h / semaine</strong></span>
                 </div>
             </div>
             <div class="attendance-hero-actions">
@@ -429,6 +622,114 @@
             <div class="attendance-stat-value">{{ attendance_summary.complete_count }}</div>
             <div class="attendance-stat-copy">{{ attendance_summary.end_photo_count }} photo{{ attendance_summary.end_photo_count|pluralize }} de fin disponible{{ attendance_summary.end_photo_count|pluralize }}</div>
         </article>
+    </section>
+
+    <section class="attendance-card time-dashboard" id="dashboard-pointage">
+        <div class="time-dashboard-head">
+            <div class="time-dashboard-title">
+                <h2>Dashboard des heures du personnel</h2>
+                <div class="time-dashboard-meta">
+                    Semaine du {{ attendance_time_dashboard.weekly.start_date|date:"d/m/Y" }} au {{ attendance_time_dashboard.weekly.end_date|date:"d/m/Y" }}.
+                    Mois suivi du {{ attendance_time_dashboard.monthly.start_date|date:"d/m/Y" }} au {{ attendance_time_dashboard.monthly.end_date|date:"d/m/Y" }}.
+                </div>
+            </div>
+            <div class="attendance-badges">
+                <span class="attendance-badge">Objectif semaine: {{ attendance_time_dashboard.weekly.target_hours_display }}</span>
+                <span class="attendance-badge">Progression équipe: {{ attendance_time_dashboard.completion_percent }}%</span>
+            </div>
+        </div>
+
+        <div class="time-summary-grid">
+            <article class="time-summary-card">
+                <div class="time-summary-label">Heures équipe semaine</div>
+                <div class="time-summary-value">{{ attendance_time_dashboard.total_week_hours_display }}</div>
+                <div class="time-summary-copy">{{ attendance_time_dashboard.employee_count }} personne{{ attendance_time_dashboard.employee_count|pluralize }} suivie{{ attendance_time_dashboard.employee_count|pluralize }}.</div>
+            </article>
+            <article class="time-summary-card">
+                <div class="time-summary-label">Heures mois à date</div>
+                <div class="time-summary-value">{{ attendance_time_dashboard.total_month_hours_display }}</div>
+                <div class="time-summary-copy">{{ attendance_time_dashboard.monthly.workday_count }} jour{{ attendance_time_dashboard.monthly.workday_count|pluralize }} ouvré{{ attendance_time_dashboard.monthly.workday_count|pluralize }} comptabilisé{{ attendance_time_dashboard.monthly.workday_count|pluralize }}.</div>
+            </article>
+            <article class="time-summary-card">
+                <div class="time-summary-label">Retenues semaine</div>
+                <div class="time-summary-value">{{ attendance_time_dashboard.total_week_penalties_display }}</div>
+                <div class="time-summary-copy">{{ attendance_time_dashboard.late_count }} retard{{ attendance_time_dashboard.late_count|pluralize }}, {{ attendance_time_dashboard.absent_count }} absence{{ attendance_time_dashboard.absent_count|pluralize }}.</div>
+            </article>
+            <article class="time-summary-card">
+                <div class="time-summary-label">Alertes opérationnelles</div>
+                <div class="time-summary-value">{{ attendance_time_dashboard.at_risk_count }}</div>
+                <div class="time-summary-copy">{{ attendance_time_dashboard.watch_count }} dossier{{ attendance_time_dashboard.watch_count|pluralize }} à surveiller, {{ attendance_time_dashboard.missing_end_count }} fin{{ attendance_time_dashboard.missing_end_count|pluralize }} non clôturée{{ attendance_time_dashboard.missing_end_count|pluralize }}.</div>
+            </article>
+        </div>
+
+        {% if attendance_time_dashboard.rows %}
+        <div class="time-employee-grid">
+            {% for row in attendance_time_dashboard.rows %}
+            <article class="time-employee-card {% if row.risk_level == 'risk' %}time-employee-card--risk{% elif row.risk_level == 'watch' %}time-employee-card--watch{% endif %}">
+                <div class="time-employee-head">
+                    <div>
+                        <h3 class="time-employee-name">{{ row.employee.get_full_name|default:row.employee.username }}</h3>
+                        <div class="attendance-meta">
+                            Identifiant: {{ row.employee.username }}
+                            {% if row.profile %}<br>Rôle: {{ row.profile.get_role_display }}{% endif %}
+                        </div>
+                    </div>
+                    {% if row.risk_level == 'risk' %}
+                    <span class="time-status-pill time-status-pill--risk">Priorité admin</span>
+                    {% elif row.risk_level == 'watch' %}
+                    <span class="time-status-pill time-status-pill--watch">À surveiller</span>
+                    {% else %}
+                    <span class="time-status-pill">En ligne</span>
+                    {% endif %}
+                </div>
+
+                <div class="time-progress">
+                    <div class="time-progress-track" aria-label="Progression de la semaine">
+                        <div class="time-progress-fill" style="width: {{ row.weekly.completion_percent }}%;"></div>
+                    </div>
+                    <div class="time-progress-caption">
+                        <span>{{ row.weekly.worked_hours_display }} / {{ row.weekly.target_hours_display }} cette semaine</span>
+                        <strong>{{ row.weekly.completion_percent }}%</strong>
+                    </div>
+                </div>
+
+                <div class="time-metric-grid">
+                    <div class="time-metric">
+                        <div class="time-employee-label">Manque semaine</div>
+                        <div class="time-metric-value">{{ row.weekly.gap_hours_display }}</div>
+                    </div>
+                    <div class="time-metric">
+                        <div class="time-employee-label">Heures mois</div>
+                        <div class="time-metric-value">{{ row.monthly.worked_hours_display }}</div>
+                    </div>
+                    <div class="time-metric">
+                        <div class="time-employee-label">Retards semaine</div>
+                        <div class="time-metric-value">{{ row.weekly.late_days }}</div>
+                    </div>
+                    <div class="time-metric">
+                        <div class="time-employee-label">Absences semaine</div>
+                        <div class="time-metric-value">{{ row.weekly.absent_days }}</div>
+                    </div>
+                    <div class="time-metric">
+                        <div class="time-employee-label">Perte semaine</div>
+                        <div class="time-metric-value">{{ row.weekly.penalty_total_display }}</div>
+                    </div>
+                    <div class="time-metric">
+                        <div class="time-employee-label">Perte mois</div>
+                        <div class="time-metric-value">{{ row.monthly.penalty_total_display }}</div>
+                    </div>
+                </div>
+
+                <div class="time-employee-foot">
+                    <span>{{ row.weekly.present_days }} jour{{ row.weekly.present_days|pluralize }} pointé{{ row.weekly.present_days|pluralize }} cette semaine.</span>
+                    <span>{{ row.weekly.missing_end_days }} fin{{ row.weekly.missing_end_days|pluralize }} à clôturer.</span>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="attendance-empty">Aucun employé actif n'est rattaché à ce site.</div>
+        {% endif %}
     </section>
 
     <section class="attendance-card" id="attendance-filters">
@@ -472,7 +773,7 @@
     <section class="attendance-card">
         <div class="attendance-section-head">
             <div>
-                <h2>Galerie du {{ selected_date|date:"d/m/Y" }}</h2>
+                <h2>Preuves du {{ selected_date|date:"d/m/Y" }}</h2>
                 <p class="attendance-card-copy">
                     {{ attendance_rows_total }} employé{{ attendance_rows_total|pluralize }} dans la vue courante.
                     {{ attendance_summary.start_photo_count }} photo{{ attendance_summary.start_photo_count|pluralize }} d'arrivée et
