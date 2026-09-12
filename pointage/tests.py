@@ -870,11 +870,13 @@ class EmployeeDailyReportTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "20h00 / 60h00 cette semaine")
-        self.assertContains(response, "40h00")
-        self.assertContains(response, "Perte semaine")
-        self.assertContains(response, "$23.00")
-        self.assertContains(response, "4 absence")
+        self.assertContains(response, "Semaine: 20h00 / 60h00")
+        self.assertContains(response, "Mois: 20h00 / 260h00")
+        self.assertContains(response, "À soustraire sur la paie du mois")
+        self.assertContains(response, "Retards: <strong>$3.00</strong>", html=False)
+        self.assertContains(response, "Absences: <strong>$45.00</strong>", html=False)
+        self.assertContains(response, "08/09/2026")
+        self.assertContains(response, "arrivée à 10:00")
 
     def test_admin_can_edit_attendance_photos_and_associated_times(self):
         target_date = timezone.localdate() - timedelta(days=1)
@@ -2066,11 +2068,13 @@ class EmployeeDailyReportTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "20h00 / 60h00 cette semaine")
-        self.assertContains(response, "40h00")
-        self.assertContains(response, "Perte semaine")
-        self.assertContains(response, "$23.00")
-        self.assertContains(response, "4 absence")
+        self.assertContains(response, "Semaine: 20h00 / 60h00")
+        self.assertContains(response, "Mois: 20h00 / 260h00")
+        self.assertContains(response, "À soustraire sur la paie du mois")
+        self.assertContains(response, "Retards: <strong>$3.00</strong>", html=False)
+        self.assertContains(response, "Absences: <strong>$45.00</strong>", html=False)
+        self.assertContains(response, "08/09/2026")
+        self.assertContains(response, "arrivée à 10:00")
 
     def test_employee_water_page_reflects_admin_edit_and_delete(self):
         today = timezone.localdate()

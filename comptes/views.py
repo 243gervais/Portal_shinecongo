@@ -924,8 +924,17 @@ def _shift_worked_hours(pointage):
     return Decimal(duration_seconds) / Decimal("3600")
 
 
-def _build_attendance_period_metrics(site, start_date, end_date, employee_profiles, *, fixed_target_hours=None):
+def _build_attendance_period_metrics(
+    site,
+    start_date,
+    end_date,
+    employee_profiles,
+    *,
+    fixed_target_hours=None,
+    target_end_date=None,
+):
     workdays = _workdays_between(start_date, end_date)
+    target_workdays = _workdays_between(start_date, target_end_date or end_date)
     employee_ids = [profile.user_id for profile in employee_profiles]
     pointages = (
         ShiftDay.objects.filter(
@@ -942,7 +951,7 @@ def _build_attendance_period_metrics(site, start_date, end_date, employee_profil
     }
     target_hours = fixed_target_hours
     if target_hours is None:
-        target_hours = DAILY_ATTENDANCE_TARGET_HOURS * Decimal(len(workdays))
+        target_hours = DAILY_ATTENDANCE_TARGET_HOURS * Decimal(len(target_workdays))
 
     rows = {}
     for profile in employee_profiles:
@@ -952,12 +961,16 @@ def _build_attendance_period_metrics(site, start_date, end_date, employee_profil
         absent_days = 0
         missing_end_days = 0
         penalty_total = Decimal("0")
+        late_penalty_total = Decimal("0")
+        absent_penalty_total = Decimal("0")
+        late_entries = []
 
         for workday in workdays:
             pointage = pointage_by_employee_date.get((profile.user_id, workday))
             if pointage and pointage.clock_in_time:
                 present_days += 1
                 attendance_status = pointage.get_clock_in_attendance_status()
+                local_clock_in = timezone.localtime(pointage.clock_in_time)
                 if attendance_status["code"] == "LATE":
                     late_days += 1
                 if not pointage.clock_out_time:
@@ -968,7 +981,18 @@ def _build_attendance_period_metrics(site, start_date, end_date, employee_profil
                 if attendance_status["code"] == "ABSENT":
                     absent_days += 1
 
-            penalty_total += attendance_penalty_usd(workday, attendance_status["code"])
+            day_penalty = attendance_penalty_usd(workday, attendance_status["code"])
+            penalty_total += day_penalty
+            if attendance_status["code"] == "LATE":
+                late_penalty_total += day_penalty
+                late_entries.append({
+                    "date": workday,
+                    "clock_in_label": local_clock_in.strftime("%H:%M"),
+                    "penalty_usd": day_penalty,
+                    "penalty_display": _format_usd_penalty(day_penalty),
+                })
+            elif attendance_status["code"] == "ABSENT":
+                absent_penalty_total += day_penalty
 
         gap_hours = max(Decimal("0"), target_hours - worked_hours)
         completion_percent = 100
@@ -996,6 +1020,11 @@ def _build_attendance_period_metrics(site, start_date, end_date, employee_profil
             "missing_end_days": missing_end_days,
             "penalty_total_usd": penalty_total,
             "penalty_total_display": _format_usd_penalty(penalty_total),
+            "late_penalty_total_usd": late_penalty_total,
+            "late_penalty_total_display": _format_usd_penalty(late_penalty_total),
+            "absent_penalty_total_usd": absent_penalty_total,
+            "absent_penalty_total_display": _format_usd_penalty(absent_penalty_total),
+            "late_entries": late_entries,
             "risk_level": risk_level,
         }
 
@@ -1003,6 +1032,7 @@ def _build_attendance_period_metrics(site, start_date, end_date, employee_profil
         "start_date": start_date,
         "end_date": end_date,
         "workday_count": len(workdays),
+        "target_workday_count": len(target_workdays),
         "target_hours": target_hours,
         "target_hours_display": _format_decimal_hours(target_hours),
         "rows": rows,
@@ -1035,7 +1065,13 @@ def _build_attendance_time_dashboard(site, reference_date):
         employee_profiles,
         fixed_target_hours=WEEKLY_ATTENDANCE_TARGET_HOURS,
     )
-    monthly_metrics = _build_attendance_period_metrics(site, month_start, month_end, employee_profiles)
+    monthly_metrics = _build_attendance_period_metrics(
+        site,
+        month_start,
+        month_end,
+        employee_profiles,
+        target_end_date=reference_date.replace(day=month_last_day),
+    )
 
     rows = []
     for profile in employee_profiles:
@@ -1059,10 +1095,14 @@ def _build_attendance_time_dashboard(site, reference_date):
     total_month_hours = sum((row["monthly"]["worked_hours"] for row in rows), Decimal("0"))
     total_week_penalties = sum((row["weekly"]["penalty_total_usd"] for row in rows), Decimal("0"))
     total_month_penalties = sum((row["monthly"]["penalty_total_usd"] for row in rows), Decimal("0"))
-    total_target_hours = WEEKLY_ATTENDANCE_TARGET_HOURS * Decimal(len(rows))
+    total_week_target_hours = WEEKLY_ATTENDANCE_TARGET_HOURS * Decimal(len(rows))
+    total_month_target_hours = monthly_metrics["target_hours"] * Decimal(len(rows))
     completion_percent = 100
-    if total_target_hours > 0:
-        completion_percent = min(100, int((total_week_hours / total_target_hours) * Decimal("100")))
+    if total_week_target_hours > 0:
+        completion_percent = min(100, int((total_week_hours / total_week_target_hours) * Decimal("100")))
+    month_completion_percent = 100
+    if total_month_target_hours > 0:
+        month_completion_percent = min(100, int((total_month_hours / total_month_target_hours) * Decimal("100")))
 
     return {
         "weekly": weekly_metrics,
@@ -1071,13 +1111,18 @@ def _build_attendance_time_dashboard(site, reference_date):
         "employee_count": len(rows),
         "total_week_hours_display": _format_decimal_hours(total_week_hours),
         "total_month_hours_display": _format_decimal_hours(total_month_hours),
+        "total_week_target_hours_display": _format_decimal_hours(total_week_target_hours),
+        "total_month_target_hours_display": _format_decimal_hours(total_month_target_hours),
         "total_week_penalties_display": _format_usd_penalty(total_week_penalties),
         "total_month_penalties_display": _format_usd_penalty(total_month_penalties),
         "completion_percent": completion_percent,
+        "month_completion_percent": month_completion_percent,
         "at_risk_count": sum(1 for row in rows if row["weekly"]["risk_level"] == "risk"),
         "watch_count": sum(1 for row in rows if row["weekly"]["risk_level"] == "watch"),
         "late_count": sum(row["weekly"]["late_days"] for row in rows),
+        "month_late_count": sum(row["monthly"]["late_days"] for row in rows),
         "absent_count": sum(row["weekly"]["absent_days"] for row in rows),
+        "month_absent_count": sum(row["monthly"]["absent_days"] for row in rows),
         "missing_end_count": sum(row["weekly"]["missing_end_days"] for row in rows),
     }
 

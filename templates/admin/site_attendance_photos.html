@@ -491,6 +491,11 @@
         gap: 0.45rem;
     }
 
+    .time-progress-stack {
+        display: grid;
+        gap: 0.8rem;
+    }
+
     .time-progress-track {
         height: 0.75rem;
         border-radius: 999px;
@@ -545,6 +550,75 @@
         border-top: 1px solid rgba(10, 67, 107, 0.08);
         color: var(--text-secondary);
         line-height: 1.45;
+    }
+
+    .time-payroll-box {
+        display: grid;
+        gap: 0.5rem;
+        padding: 1rem;
+        border-radius: 18px;
+        background: rgba(180, 35, 24, 0.07);
+        border: 1px solid rgba(180, 35, 24, 0.16);
+    }
+
+    .time-payroll-value {
+        color: #b42318;
+        font-size: 1.55rem;
+        font-weight: 900;
+        line-height: 1.1;
+    }
+
+    .time-payroll-breakdown {
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+        color: #7f1d1d;
+        font-size: 0.9rem;
+        line-height: 1.45;
+    }
+
+    .time-late-list {
+        display: grid;
+        gap: 0.55rem;
+    }
+
+    .time-late-title {
+        margin: 0;
+        color: var(--primary-dark);
+        font-size: 0.98rem;
+    }
+
+    .time-late-items {
+        display: grid;
+        gap: 0.5rem;
+        max-height: 15rem;
+        overflow: auto;
+        padding: 0;
+        margin: 0;
+        list-style: none;
+    }
+
+    .time-late-item,
+    .time-late-empty {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.85rem;
+        flex-wrap: wrap;
+        padding: 0.72rem 0.8rem;
+        border-radius: 14px;
+        background: rgba(7, 26, 44, 0.035);
+        border: 1px solid rgba(10, 67, 107, 0.08);
+        color: var(--text-secondary);
+        line-height: 1.45;
+    }
+
+    .time-late-item strong {
+        color: var(--primary-dark);
+    }
+
+    .time-late-penalty {
+        color: #b42318;
+        font-weight: 900;
     }
 
     .attendance-action-copy {
@@ -635,25 +709,31 @@
             </div>
             <div class="attendance-badges">
                 <span class="attendance-badge">Objectif semaine: {{ attendance_time_dashboard.weekly.target_hours_display }}</span>
-                <span class="attendance-badge">Progression équipe: {{ attendance_time_dashboard.completion_percent }}%</span>
+                <span class="attendance-badge">Objectif mois par associé: {{ attendance_time_dashboard.monthly.target_hours_display }}</span>
+                <span class="attendance-badge">Progression mois: {{ attendance_time_dashboard.month_completion_percent }}%</span>
             </div>
         </div>
 
         <div class="time-summary-grid">
             <article class="time-summary-card">
-                <div class="time-summary-label">Heures équipe semaine</div>
-                <div class="time-summary-value">{{ attendance_time_dashboard.total_week_hours_display }}</div>
-                <div class="time-summary-copy">{{ attendance_time_dashboard.employee_count }} personne{{ attendance_time_dashboard.employee_count|pluralize }} suivie{{ attendance_time_dashboard.employee_count|pluralize }}.</div>
+                <div class="time-summary-label">Objectif équipe semaine</div>
+                <div class="time-summary-value">{{ attendance_time_dashboard.total_week_target_hours_display }}</div>
+                <div class="time-summary-copy">Chaque associé doit atteindre {{ attendance_time_dashboard.weekly.target_hours_display }} pour la semaine.</div>
             </article>
             <article class="time-summary-card">
-                <div class="time-summary-label">Heures mois à date</div>
+                <div class="time-summary-label">Objectif équipe mois</div>
+                <div class="time-summary-value">{{ attendance_time_dashboard.total_month_target_hours_display }}</div>
+                <div class="time-summary-copy">Objectif mensuel complet: {{ attendance_time_dashboard.monthly.target_hours_display }} par associé.</div>
+            </article>
+            <article class="time-summary-card">
+                <div class="time-summary-label">Heures faites ce mois</div>
                 <div class="time-summary-value">{{ attendance_time_dashboard.total_month_hours_display }}</div>
-                <div class="time-summary-copy">{{ attendance_time_dashboard.monthly.workday_count }} jour{{ attendance_time_dashboard.monthly.workday_count|pluralize }} ouvré{{ attendance_time_dashboard.monthly.workday_count|pluralize }} comptabilisé{{ attendance_time_dashboard.monthly.workday_count|pluralize }}.</div>
+                <div class="time-summary-copy">{{ attendance_time_dashboard.monthly.workday_count }} jour{{ attendance_time_dashboard.monthly.workday_count|pluralize }} déjà comptabilisé{{ attendance_time_dashboard.monthly.workday_count|pluralize }} sur {{ attendance_time_dashboard.monthly.target_workday_count }} jour{{ attendance_time_dashboard.monthly.target_workday_count|pluralize }} ouvré{{ attendance_time_dashboard.monthly.target_workday_count|pluralize }} du mois.</div>
             </article>
             <article class="time-summary-card">
-                <div class="time-summary-label">Retenues semaine</div>
-                <div class="time-summary-value">{{ attendance_time_dashboard.total_week_penalties_display }}</div>
-                <div class="time-summary-copy">{{ attendance_time_dashboard.late_count }} retard{{ attendance_time_dashboard.late_count|pluralize }}, {{ attendance_time_dashboard.absent_count }} absence{{ attendance_time_dashboard.absent_count|pluralize }}.</div>
+                <div class="time-summary-label">À soustraire ce mois</div>
+                <div class="time-summary-value">{{ attendance_time_dashboard.total_month_penalties_display }}</div>
+                <div class="time-summary-copy">{{ attendance_time_dashboard.month_late_count }} retard{{ attendance_time_dashboard.month_late_count|pluralize }} et {{ attendance_time_dashboard.month_absent_count }} absence{{ attendance_time_dashboard.month_absent_count|pluralize }} depuis le début du mois.</div>
             </article>
             <article class="time-summary-card">
                 <div class="time-summary-label">Alertes opérationnelles</div>
@@ -683,46 +763,82 @@
                     {% endif %}
                 </div>
 
-                <div class="time-progress">
-                    <div class="time-progress-track" aria-label="Progression de la semaine">
-                        <div class="time-progress-fill" style="width: {{ row.weekly.completion_percent }}%;"></div>
+                <div class="time-progress-stack">
+                    <div class="time-progress">
+                        <div class="time-progress-track" aria-label="Progression de la semaine">
+                            <div class="time-progress-fill" style="width: {{ row.weekly.completion_percent }}%;"></div>
+                        </div>
+                        <div class="time-progress-caption">
+                            <span>Semaine: {{ row.weekly.worked_hours_display }} / {{ row.weekly.target_hours_display }}</span>
+                            <strong>{{ row.weekly.completion_percent }}%</strong>
+                        </div>
                     </div>
-                    <div class="time-progress-caption">
-                        <span>{{ row.weekly.worked_hours_display }} / {{ row.weekly.target_hours_display }} cette semaine</span>
-                        <strong>{{ row.weekly.completion_percent }}%</strong>
+                    <div class="time-progress">
+                        <div class="time-progress-track" aria-label="Progression du mois">
+                            <div class="time-progress-fill" style="width: {{ row.monthly.completion_percent }}%;"></div>
+                        </div>
+                        <div class="time-progress-caption">
+                            <span>Mois: {{ row.monthly.worked_hours_display }} / {{ row.monthly.target_hours_display }}</span>
+                            <strong>{{ row.monthly.completion_percent }}%</strong>
+                        </div>
                     </div>
                 </div>
 
                 <div class="time-metric-grid">
                     <div class="time-metric">
-                        <div class="time-employee-label">Manque semaine</div>
-                        <div class="time-metric-value">{{ row.weekly.gap_hours_display }}</div>
+                        <div class="time-employee-label">Heures semaine</div>
+                        <div class="time-metric-value">{{ row.weekly.worked_hours_display }}</div>
+                    </div>
+                    <div class="time-metric">
+                        <div class="time-employee-label">Objectif semaine</div>
+                        <div class="time-metric-value">{{ row.weekly.target_hours_display }}</div>
                     </div>
                     <div class="time-metric">
                         <div class="time-employee-label">Heures mois</div>
                         <div class="time-metric-value">{{ row.monthly.worked_hours_display }}</div>
                     </div>
                     <div class="time-metric">
-                        <div class="time-employee-label">Retards semaine</div>
-                        <div class="time-metric-value">{{ row.weekly.late_days }}</div>
+                        <div class="time-employee-label">Objectif mois</div>
+                        <div class="time-metric-value">{{ row.monthly.target_hours_display }}</div>
                     </div>
                     <div class="time-metric">
-                        <div class="time-employee-label">Absences semaine</div>
-                        <div class="time-metric-value">{{ row.weekly.absent_days }}</div>
+                        <div class="time-employee-label">Retards mois</div>
+                        <div class="time-metric-value">{{ row.monthly.late_days }}</div>
                     </div>
                     <div class="time-metric">
-                        <div class="time-employee-label">Perte semaine</div>
-                        <div class="time-metric-value">{{ row.weekly.penalty_total_display }}</div>
+                        <div class="time-employee-label">Absences mois</div>
+                        <div class="time-metric-value">{{ row.monthly.absent_days }}</div>
                     </div>
-                    <div class="time-metric">
-                        <div class="time-employee-label">Perte mois</div>
-                        <div class="time-metric-value">{{ row.monthly.penalty_total_display }}</div>
+                </div>
+
+                <div class="time-payroll-box">
+                    <div class="time-employee-label">À soustraire sur la paie du mois</div>
+                    <div class="time-payroll-value">{{ row.monthly.penalty_total_display }}</div>
+                    <div class="time-payroll-breakdown">
+                        <span>Retards: <strong>{{ row.monthly.late_penalty_total_display }}</strong></span>
+                        <span>Absences: <strong>{{ row.monthly.absent_penalty_total_display }}</strong></span>
                     </div>
+                </div>
+
+                <div class="time-late-list">
+                    <h4 class="time-late-title">Jours de retard ce mois</h4>
+                    {% if row.monthly.late_entries %}
+                    <ul class="time-late-items">
+                        {% for late_entry in row.monthly.late_entries %}
+                        <li class="time-late-item">
+                            <span><strong>{{ late_entry.date|date:"d/m/Y" }}</strong> - arrivée à {{ late_entry.clock_in_label }}</span>
+                            <span class="time-late-penalty">{{ late_entry.penalty_display }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="time-late-empty">Aucun retard enregistré depuis le début du mois.</div>
+                    {% endif %}
                 </div>
 
                 <div class="time-employee-foot">
                     <span>{{ row.weekly.present_days }} jour{{ row.weekly.present_days|pluralize }} pointé{{ row.weekly.present_days|pluralize }} cette semaine.</span>
-                    <span>{{ row.weekly.missing_end_days }} fin{{ row.weekly.missing_end_days|pluralize }} à clôturer.</span>
+                    <span>Manque semaine: {{ row.weekly.gap_hours_display }}.</span>
                 </div>
             </article>
             {% endfor %}
