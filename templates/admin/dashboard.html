@@ -464,6 +464,34 @@
     </section>
     {% endif %}
 
+    {% if payroll_month_end_prompts %}
+    <section class="card" style="border: 1px solid rgba(245, 158, 11, 0.28); background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(255, 255, 255, 0.98));">
+        <div class="admin-section-head">
+            <div>
+                <h2 class="admin-section-title">Fin de mois: fiches de paie</h2>
+                <p class="admin-section-copy">
+                    Le système a déjà les salaires de base et les pénalités du pointage. Vérifiez les fiches, ajustez les montants payés, puis enregistrez les reçus.
+                </p>
+            </div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.9rem;">
+            {% for payroll_prompt in payroll_month_end_prompts %}
+            <article style="border: 1px solid rgba(15, 23, 42, 0.1); border-radius: 16px; background: #fff; padding: 1rem; box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);">
+                <div style="font-weight: 800; color: var(--text-primary);">{{ payroll_prompt.site.nom }}</div>
+                <div style="color: var(--text-secondary); margin-top: 0.25rem;">{{ payroll_prompt.month_label }}</div>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.8rem 0;">
+                    <span class="admin-chip">{{ payroll_prompt.staff_count }} employé{{ payroll_prompt.staff_count|pluralize }}</span>
+                    <span class="admin-chip {% if payroll_prompt.remaining_count %}admin-chip--warning{% endif %}">
+                        {{ payroll_prompt.remaining_count }} fiche{{ payroll_prompt.remaining_count|pluralize }} à vérifier
+                    </span>
+                </div>
+                <a href="{{ payroll_prompt.review_url }}" class="btn btn-success">Préparer les fiches</a>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
     <p class="admin-rate-note">{% fx_rate_label %}</p>
     <div class="admin-fx-tools" id="admin-fx-tools">
         <div class="admin-fx-converter" data-fx-rate="{{ usd_to_cdf_rate }}" data-default-mode="usd-to-cdf">

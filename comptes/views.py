@@ -1219,6 +1219,173 @@ def _build_attendance_time_dashboard(site, reference_date):
     }
 
 
+def _month_bounds(reference_date):
+    month_start = reference_date.replace(day=1)
+    month_end = reference_date.replace(day=calendar.monthrange(reference_date.year, reference_date.month)[1])
+    return month_start, month_end
+
+
+def _parse_payroll_month(raw_month, fallback_date):
+    if raw_month:
+        try:
+            return datetime.strptime(raw_month, "%Y-%m").date().replace(day=1)
+        except ValueError:
+            return fallback_date.replace(day=1)
+    return fallback_date.replace(day=1)
+
+
+def _money_usd(value):
+    return (value or Decimal("0")).quantize(Decimal("0.01"))
+
+
+def _employee_display_name(profile):
+    return profile.user.get_full_name() or profile.user.username
+
+
+def _build_monthly_payroll_review(site, payroll_month):
+    month_start, month_end = _month_bounds(payroll_month)
+    employee_profiles = list(
+        UserProfile.objects.filter(
+            site=site,
+            role__in=UserProfile.SITE_STAFF_ROLES,
+            actif=True,
+            user__is_active=True,
+        )
+        .select_related("user")
+        .order_by("user__first_name", "user__last_name", "user__username")
+    )
+    dashboard = _build_attendance_time_dashboard(site, month_end)
+    monthly_rows_by_profile_id = {
+        row["profile"].id: row["monthly"]
+        for row in dashboard["rows"]
+    }
+    existing_payments = (
+        EmployeePayment.objects.filter(
+            site=site,
+            period_start__lte=month_end,
+            period_end__gte=month_start,
+        )
+        .select_related("employee_profile", "employee_profile__user")
+        .order_by("employee_profile_id", "-payment_date", "-created_at")
+    )
+    existing_by_profile_id = {}
+    for payment in existing_payments:
+        existing_by_profile_id.setdefault(payment.employee_profile_id, payment)
+
+    rows = []
+    total_base = Decimal("0")
+    total_deductions = Decimal("0")
+    total_suggested = Decimal("0")
+    already_paid_count = 0
+
+    for profile in employee_profiles:
+        monthly = monthly_rows_by_profile_id.get(profile.id)
+        base_salary = _money_usd(profile.salaire_mensuel_usd)
+        deduction_total = _money_usd(monthly["penalty_total_usd"] if monthly else Decimal("0"))
+        suggested_amount = max(Decimal("0"), _money_usd(base_salary - deduction_total))
+        existing_payment = existing_by_profile_id.get(profile.id)
+        employee_name = _employee_display_name(profile)
+
+        if existing_payment:
+            already_paid_count += 1
+
+        late_entries = monthly["late_entries"] if monthly else []
+        absent_entries = monthly["absent_entries"] if monthly else []
+        late_dates = ", ".join(f"{entry['date']:%d/%m}" for entry in late_entries) or "Aucun retard"
+        absent_dates = ", ".join(f"{entry['date']:%d/%m}" for entry in absent_entries) or "Aucune absence"
+        note_lines = [
+            f"Paie de {MONTH_NAMES[month_start.month - 1]} {month_start.year} pour {employee_name}.",
+            f"Salaire de base: ${base_salary}.",
+            f"Retards: {len(late_entries)} ({late_dates}) - deduction {monthly['late_penalty_total_display'] if monthly else '$0.00'}.",
+            f"Absences: {len(absent_entries)} ({absent_dates}) - deduction {monthly['absent_penalty_total_display'] if monthly else '$0.00'}.",
+            f"Montant suggere apres deductions: ${suggested_amount}.",
+        ]
+        if monthly and monthly.get("attributed_manager_names"):
+            note_lines.append(
+                "Pointage manager attribue: "
+                + ", ".join(monthly["attributed_manager_names"])
+                + "."
+            )
+
+        total_base += base_salary
+        total_deductions += deduction_total
+        if not existing_payment:
+            total_suggested += suggested_amount
+
+        rows.append({
+            "profile": profile,
+            "employee_name": employee_name,
+            "role_label": profile.get_role_display(),
+            "base_salary": base_salary,
+            "monthly": monthly,
+            "deduction_total": deduction_total,
+            "suggested_amount": suggested_amount,
+            "late_entries": late_entries,
+            "absent_entries": absent_entries,
+            "late_dates": late_dates,
+            "absent_dates": absent_dates,
+            "notes": "\n".join(note_lines),
+            "existing_payment": existing_payment,
+        })
+
+    return {
+        "site": site,
+        "month_start": month_start,
+        "month_end": month_end,
+        "month_value": month_start.strftime("%Y-%m"),
+        "month_label": f"{MONTH_NAMES[month_start.month - 1]} {month_start.year}",
+        "rows": rows,
+        "employee_count": len(rows),
+        "already_paid_count": already_paid_count,
+        "remaining_count": max(len(rows) - already_paid_count, 0),
+        "total_base": _money_usd(total_base),
+        "total_deductions": _money_usd(total_deductions),
+        "total_suggested": _money_usd(total_suggested),
+    }
+
+
+def _build_month_end_payroll_prompts(sites, today):
+    month_start, month_end = _month_bounds(today)
+    if today.day < min(30, month_end.day):
+        return []
+
+    prompts = []
+    site_ids = [site.id for site in sites]
+    staff_counts = {
+        item["site"]: item["total"]
+        for item in UserProfile.objects.filter(
+            site_id__in=site_ids,
+            role__in=UserProfile.SITE_STAFF_ROLES,
+            actif=True,
+            user__is_active=True,
+        ).values("site").annotate(total=Count("id"))
+    }
+    paid_counts = {
+        item["site"]: item["total"]
+        for item in EmployeePayment.objects.filter(
+            site_id__in=site_ids,
+            period_start__lte=month_end,
+            period_end__gte=month_start,
+        ).values("site").annotate(total=Count("employee_profile", distinct=True))
+    }
+
+    for site in sites:
+        staff_count = staff_counts.get(site.id, 0)
+        if not staff_count:
+            continue
+        paid_count = paid_counts.get(site.id, 0)
+        remaining_count = max(staff_count - paid_count, 0)
+        prompts.append({
+            "site": site,
+            "month_label": f"{MONTH_NAMES[month_start.month - 1]} {month_start.year}",
+            "staff_count": staff_count,
+            "paid_count": paid_count,
+            "remaining_count": remaining_count,
+            "review_url": reverse("admin_monthly_payroll_review", kwargs={"site_id": site.id}) + f"?month={month_start:%Y-%m}",
+        })
+    return prompts
+
+
 def _format_optional_datetime_for_log(value):
     return timezone.localtime(value).isoformat() if value else None
 
@@ -2352,6 +2519,7 @@ def admin_dashboard(request):
         ),
     }
     password_overview = _build_admin_password_overview(user)
+    payroll_month_end_prompts = _build_month_end_payroll_prompts(sites, today)
 
     context = {
         'sites_stats': sites_stats,
@@ -2369,6 +2537,7 @@ def admin_dashboard(request):
         'fuel_purchase_summary': fuel_purchase_summary,
         'password_summary': password_overview["summary"],
         'can_view_meeting_notes': user.username == "gervaismbadu",
+        'payroll_month_end_prompts': payroll_month_end_prompts,
     }
 
     mark_admin_inbox_seen(user)
@@ -7791,6 +7960,142 @@ def admin_remove_site_employee(request, site_id, profile_id):
     return render(request, 'admin/site_employee_delete.html', {
         'site': site,
         'employee_profile': profile,
+    })
+
+
+@login_required
+@no_cache_view
+def admin_monthly_payroll_review(request, site_id):
+    """
+    Prepare les fiches de paie mensuelles a partir des salaires et du pointage.
+    """
+    user = request.user
+    ensure_superuser_admin_profile(user)
+    if not is_admin_user(user):
+        messages.error(request, "Accès refusé. Cette page est réservée aux administrateurs.")
+        return redirect('dashboard')
+
+    site = get_object_or_404(Location, id=site_id)
+    today = timezone.localdate()
+    payroll_month = _parse_payroll_month(request.GET.get("month") or request.POST.get("month"), today)
+    review = _build_monthly_payroll_review(site, payroll_month)
+    created_payment_ids = []
+    errors = []
+
+    if request.method == "POST":
+        selected_profile_ids = {
+            int(profile_id)
+            for profile_id in request.POST.getlist("selected_profiles")
+            if str(profile_id).isdigit()
+        }
+        try:
+            payment_date = datetime.strptime(request.POST.get("payment_date", ""), "%Y-%m-%d").date()
+        except ValueError:
+            payment_date = today
+            errors.append("La date de paiement est invalide.")
+
+        if not selected_profile_ids:
+            errors.append("Sélectionnez au moins un employé à payer.")
+
+        review_rows_by_profile_id = {row["profile"].id: row for row in review["rows"]}
+        admin_signature = user.get_full_name() or user.username
+
+        for profile_id in selected_profile_ids:
+            row = review_rows_by_profile_id.get(profile_id)
+            if not row:
+                errors.append("Un employé sélectionné est introuvable pour ce site.")
+                continue
+            if row["existing_payment"]:
+                continue
+
+            raw_amount = (request.POST.get(f"amount_paid_{profile_id}") or "").strip()
+            try:
+                amount_paid = _money_usd(Decimal(raw_amount))
+                if amount_paid < 0:
+                    raise InvalidOperation
+            except (InvalidOperation, ValueError):
+                errors.append(f"Montant invalide pour {row['employee_name']}.")
+                continue
+
+            payment_method = request.POST.get(f"payment_method_{profile_id}") or "ESPECES"
+            valid_methods = {choice[0] for choice in EmployeePayment.PAYMENT_METHOD_CHOICES}
+            if payment_method not in valid_methods:
+                errors.append(f"Mode de paiement invalide pour {row['employee_name']}.")
+                continue
+
+            mpesa_reference = (request.POST.get(f"mpesa_reference_{profile_id}") or "").strip()
+            if payment_method == "MPESA" and not mpesa_reference:
+                errors.append(f"La référence M-Pesa est obligatoire pour {row['employee_name']}.")
+                continue
+
+            signature_name = (request.POST.get(f"employee_signature_name_{profile_id}") or "").strip()
+            if not signature_name:
+                errors.append(f"La signature employé est obligatoire pour {row['employee_name']}.")
+                continue
+
+            notes = (request.POST.get(f"notes_{profile_id}") or "").strip()
+            payment = EmployeePayment.objects.create(
+                employee_profile=row["profile"],
+                site=site,
+                payment_date=payment_date,
+                period_start=review["month_start"],
+                period_end=review["month_end"],
+                salary_base_usd=row["base_salary"],
+                amount_paid_usd=amount_paid,
+                payment_method=payment_method,
+                mpesa_reference=mpesa_reference,
+                employee_signature_name=signature_name,
+                admin_signature_name=admin_signature,
+                notes=notes,
+                created_by=user,
+            )
+            created_payment_ids.append(payment.id)
+
+            AuditLog.log(
+                user=user,
+                action="CREER",
+                description=(
+                    f"Fiche de paie mensuelle créée sur {site.nom}: "
+                    f"{row['employee_name']} ({payment.amount_paid_usd} USD)"
+                ),
+                content_object=payment,
+                ip_address=get_client_ip(request),
+                user_agent=get_user_agent(request),
+            )
+
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+        if created_payment_ids:
+            messages.success(
+                request,
+                f"{len(created_payment_ids)} fiche(s) de paie créée(s) pour {review['month_label']}."
+            )
+            created_query = ",".join(str(payment_id) for payment_id in created_payment_ids)
+            return redirect(
+                reverse("admin_monthly_payroll_review", kwargs={"site_id": site.id})
+                + f"?month={review['month_value']}&created={created_query}"
+            )
+
+    created_ids = [
+        int(payment_id)
+        for payment_id in (request.GET.get("created") or "").split(",")
+        if payment_id.isdigit()
+    ]
+    created_payments = []
+    if created_ids:
+        created_payments = list(
+            EmployeePayment.objects.filter(id__in=created_ids, site=site)
+            .select_related("employee_profile", "employee_profile__user")
+            .order_by("employee_profile__user__first_name", "employee_profile__user__last_name")
+        )
+
+    return render(request, "admin/monthly_payroll_review.html", {
+        "site": site,
+        "review": review,
+        "payment_methods": EmployeePayment.PAYMENT_METHOD_CHOICES,
+        "payment_date": today,
+        "created_payments": created_payments,
     })
 
 
