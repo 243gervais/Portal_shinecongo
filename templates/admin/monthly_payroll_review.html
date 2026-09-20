@@ -1,0 +1,473 @@
+{% extends "base.html" %}
+
+{% block title %}Fiches de paie mensuelles - {{ site.nom }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .payroll-shell {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 1rem 0 2rem;
+    }
+
+    .payroll-hero,
+    .payroll-card {
+        background: #fff;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 18px;
+        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
+    }
+
+    .payroll-hero {
+        padding: clamp(1.2rem, 3vw, 2rem);
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .payroll-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        background: rgba(14, 116, 144, 0.1);
+        color: #0f766e;
+        font-weight: 800;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        padding: 0.35rem 0.7rem;
+    }
+
+    .payroll-title {
+        margin: 0.8rem 0 0.35rem;
+        color: #0f172a;
+        font-size: clamp(1.8rem, 4vw, 3rem);
+        line-height: 1;
+    }
+
+    .payroll-copy {
+        color: #64748b;
+        max-width: 780px;
+        margin: 0;
+        line-height: 1.65;
+    }
+
+    .payroll-actions,
+    .payroll-row-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+        align-items: center;
+    }
+
+    .payroll-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 0.85rem;
+        margin-bottom: 1rem;
+    }
+
+    .payroll-kpi {
+        background: #fff;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 16px;
+        padding: 1rem;
+    }
+
+    .payroll-kpi-label,
+    .payroll-meta-label {
+        color: #64748b;
+        font-size: 0.78rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    .payroll-kpi-value {
+        margin-top: 0.35rem;
+        color: #0f172a;
+        font-size: 1.7rem;
+        font-weight: 900;
+        line-height: 1;
+    }
+
+    .payroll-kpi-copy {
+        margin-top: 0.4rem;
+        color: #64748b;
+        font-size: 0.92rem;
+    }
+
+    .payroll-card {
+        padding: clamp(1rem, 2.4vw, 1.35rem);
+        margin-bottom: 1rem;
+    }
+
+    .payroll-card-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+    }
+
+    .payroll-card-title {
+        margin: 0;
+        color: #0f172a;
+        font-size: 1.15rem;
+        font-weight: 900;
+    }
+
+    .payroll-card-subtitle {
+        margin: 0.2rem 0 0;
+        color: #64748b;
+    }
+
+    .payroll-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        background: rgba(14, 116, 144, 0.1);
+        color: #0f766e;
+        padding: 0.35rem 0.7rem;
+        font-weight: 800;
+        font-size: 0.82rem;
+    }
+
+    .payroll-badge--paid {
+        background: rgba(22, 163, 74, 0.12);
+        color: #15803d;
+    }
+
+    .payroll-badge--warning {
+        background: rgba(245, 158, 11, 0.16);
+        color: #92400e;
+    }
+
+    .payroll-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 0.95fr) minmax(320px, 1.05fr);
+        gap: 1rem;
+        align-items: start;
+    }
+
+    .payroll-meta-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .payroll-meta-box {
+        background: #f8fafc;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 14px;
+        padding: 0.85rem;
+    }
+
+    .payroll-meta-value {
+        margin-top: 0.25rem;
+        color: #0f172a;
+        font-size: 1.2rem;
+        font-weight: 900;
+    }
+
+    .payroll-day-list {
+        margin: 0.55rem 0 0;
+        padding: 0;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+    }
+
+    .payroll-day-list li {
+        background: #fff;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 999px;
+        color: #334155;
+        padding: 0.28rem 0.55rem;
+        font-size: 0.86rem;
+        font-weight: 700;
+    }
+
+    .payroll-form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .payroll-form-grid .form-group,
+    .payroll-notes {
+        margin-bottom: 0;
+    }
+
+    .payroll-form-grid input,
+    .payroll-form-grid select,
+    .payroll-notes textarea,
+    .payroll-month-form input {
+        width: 100%;
+    }
+
+    .payroll-notes {
+        margin-top: 0.75rem;
+    }
+
+    .payroll-notes textarea {
+        min-height: 138px;
+    }
+
+    .payroll-submit-bar {
+        position: sticky;
+        bottom: 0.75rem;
+        z-index: 3;
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.96);
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        border-radius: 18px;
+        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
+        padding: 0.9rem;
+        margin-top: 1rem;
+        backdrop-filter: blur(8px);
+    }
+
+    .payroll-checkline {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    @media (max-width: 760px) {
+        .payroll-hero,
+        .payroll-card-head,
+        .payroll-submit-bar {
+            display: block;
+        }
+
+        .payroll-actions,
+        .payroll-row-actions {
+            margin-top: 1rem;
+        }
+
+        .payroll-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="payroll-shell">
+    <section class="payroll-hero">
+        <div>
+            <span class="payroll-eyebrow">Paie mensuelle</span>
+            <h1 class="payroll-title">Fiches de paie - {{ review.month_label }}</h1>
+            <p class="payroll-copy">
+                Vérifiez les salaires de base, les retards, les absences et le montant réellement payé. Quand vous validez, le système garde chaque fiche dans l'historique et empêche une double création pour le même mois.
+            </p>
+        </div>
+        <div class="payroll-actions">
+            <a href="{% url 'admin_site_employees' site.id %}?tab=payments" class="btn btn-secondary">Historique</a>
+            <a href="{% url 'admin_dashboard' %}" class="btn btn-primary">Dashboard</a>
+        </div>
+    </section>
+
+    <form method="get" class="payroll-card payroll-month-form">
+        <div class="payroll-card-head">
+            <div>
+                <h2 class="payroll-card-title">Période à préparer</h2>
+                <p class="payroll-card-subtitle">Changez le mois seulement si vous préparez une ancienne paie.</p>
+            </div>
+            <div class="payroll-row-actions">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="month">Mois</label>
+                    <input id="month" name="month" type="month" class="form-control" value="{{ review.month_value }}">
+                </div>
+                <button type="submit" class="btn btn-info">Afficher</button>
+            </div>
+        </div>
+    </form>
+
+    {% if created_payments %}
+    <section class="payroll-card">
+        <div class="payroll-card-head">
+            <div>
+                <h2 class="payroll-card-title">Fiches créées</h2>
+                <p class="payroll-card-subtitle">Ouvrez chaque fiche pour impression, PDF ou partage.</p>
+            </div>
+        </div>
+        <div class="payroll-row-actions">
+            {% for payment in created_payments %}
+            <a class="btn btn-success" href="{% url 'admin_employee_payment_receipt' site.id payment.id %}">
+                {{ payment.employee_profile.user.get_full_name|default:payment.employee_profile.user.username }}
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="payroll-summary" aria-label="Résumé de la paie">
+        <article class="payroll-kpi">
+            <div class="payroll-kpi-label">Employés</div>
+            <div class="payroll-kpi-value">{{ review.employee_count }}</div>
+            <div class="payroll-kpi-copy">{{ review.remaining_count }} fiche{{ review.remaining_count|pluralize }} à finaliser</div>
+        </article>
+        <article class="payroll-kpi">
+            <div class="payroll-kpi-label">Salaires base</div>
+            <div class="payroll-kpi-value">${{ review.total_base|floatformat:2 }}</div>
+            <div class="payroll-kpi-copy">Avant corrections retards et absences</div>
+        </article>
+        <article class="payroll-kpi">
+            <div class="payroll-kpi-label">Retenues pointage</div>
+            <div class="payroll-kpi-value">${{ review.total_deductions|floatformat:2 }}</div>
+            <div class="payroll-kpi-copy">Calculé depuis le dashboard Pointage</div>
+        </article>
+        <article class="payroll-kpi">
+            <div class="payroll-kpi-label">Total suggéré</div>
+            <div class="payroll-kpi-value">${{ review.total_suggested|floatformat:2 }}</div>
+            <div class="payroll-kpi-copy">Uniquement les fiches non enregistrées</div>
+        </article>
+    </section>
+
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="month" value="{{ review.month_value }}">
+
+        <section class="payroll-card">
+            <div class="payroll-card-head">
+                <div>
+                    <h2 class="payroll-card-title">Confirmation avant création</h2>
+                    <p class="payroll-card-subtitle">Le système vous demande de confirmer avant de garder les fiches. Les fiches déjà enregistrées sont verrouillées.</p>
+                </div>
+                <div class="form-group" style="margin-bottom: 0; min-width: 210px;">
+                    <label for="payment_date">Date de paiement</label>
+                    <input id="payment_date" name="payment_date" type="date" class="form-control" value="{{ payment_date|date:'Y-m-d' }}" required>
+                </div>
+            </div>
+        </section>
+
+        {% for row in review.rows %}
+        <article class="payroll-card">
+            <div class="payroll-card-head">
+                <div>
+                    <h2 class="payroll-card-title">{{ row.employee_name }}</h2>
+                    <p class="payroll-card-subtitle">{{ row.role_label }} - {{ site.nom }}</p>
+                </div>
+                <div class="payroll-row-actions">
+                    {% if row.existing_payment %}
+                    <span class="payroll-badge payroll-badge--paid">Déjà enregistré</span>
+                    <a href="{% url 'admin_employee_payment_receipt' site.id row.existing_payment.id %}" class="btn btn-success">Ouvrir la fiche</a>
+                    {% else %}
+                    <label class="payroll-checkline">
+                        <input type="checkbox" name="selected_profiles" value="{{ row.profile.id }}" checked>
+                        Créer cette fiche
+                    </label>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="payroll-grid">
+                <div>
+                    <div class="payroll-meta-grid">
+                        <div class="payroll-meta-box">
+                            <div class="payroll-meta-label">Salaire base</div>
+                            <div class="payroll-meta-value">${{ row.base_salary|floatformat:2 }}</div>
+                        </div>
+                        <div class="payroll-meta-box">
+                            <div class="payroll-meta-label">Retards</div>
+                            <div class="payroll-meta-value">{{ row.monthly.late_days|default:0 }}</div>
+                            <div class="payroll-card-subtitle">Retenue {{ row.monthly.late_penalty_total_display|default:"$0.00" }}</div>
+                        </div>
+                        <div class="payroll-meta-box">
+                            <div class="payroll-meta-label">Absences</div>
+                            <div class="payroll-meta-value">{{ row.monthly.absent_days|default:0 }}</div>
+                            <div class="payroll-card-subtitle">Retenue {{ row.monthly.absent_penalty_total_display|default:"$0.00" }}</div>
+                        </div>
+                        <div class="payroll-meta-box">
+                            <div class="payroll-meta-label">Montant suggéré</div>
+                            <div class="payroll-meta-value">${{ row.suggested_amount|floatformat:2 }}</div>
+                        </div>
+                    </div>
+
+                    <div class="payroll-meta-box" style="margin-top: 0.75rem;">
+                        <div class="payroll-meta-label">Jours en retard</div>
+                        {% if row.late_entries %}
+                        <ul class="payroll-day-list">
+                            {% for entry in row.late_entries %}
+                            <li>{{ entry.date|date:"d/m" }} à {{ entry.clock_in_label }} · {{ entry.penalty_display }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <p class="payroll-card-subtitle" style="margin-top: 0.5rem;">Aucun retard enregistré.</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="payroll-meta-box" style="margin-top: 0.75rem;">
+                        <div class="payroll-meta-label">Jours d'absence</div>
+                        {% if row.absent_entries %}
+                        <ul class="payroll-day-list">
+                            {% for entry in row.absent_entries %}
+                            <li>{{ entry.date|date:"d/m" }} · {{ entry.penalty_display }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <p class="payroll-card-subtitle" style="margin-top: 0.5rem;">Aucune absence enregistrée.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div>
+                    <div class="payroll-form-grid">
+                        <div class="form-group">
+                            <label for="amount_paid_{{ row.profile.id }}">Montant payé (USD)</label>
+                            <input id="amount_paid_{{ row.profile.id }}" name="amount_paid_{{ row.profile.id }}" type="number" step="0.01" min="0" class="form-control" value="{{ row.suggested_amount|floatformat:2 }}" {% if row.existing_payment %}disabled{% endif %} required>
+                        </div>
+                        <div class="form-group">
+                            <label for="payment_method_{{ row.profile.id }}">Mode de paiement</label>
+                            <select id="payment_method_{{ row.profile.id }}" name="payment_method_{{ row.profile.id }}" class="form-control" {% if row.existing_payment %}disabled{% endif %}>
+                                {% for code, label in payment_methods %}
+                                <option value="{{ code }}" {% if code == "ESPECES" %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="mpesa_reference_{{ row.profile.id }}">Référence M-Pesa</label>
+                            <input id="mpesa_reference_{{ row.profile.id }}" name="mpesa_reference_{{ row.profile.id }}" type="text" class="form-control" value="" {% if row.existing_payment %}disabled{% endif %}>
+                        </div>
+                        <div class="form-group">
+                            <label for="employee_signature_name_{{ row.profile.id }}">Signature employé</label>
+                            <input id="employee_signature_name_{{ row.profile.id }}" name="employee_signature_name_{{ row.profile.id }}" type="text" class="form-control" value="{{ row.employee_name }}" {% if row.existing_payment %}disabled{% endif %} required>
+                        </div>
+                    </div>
+                    <div class="payroll-notes">
+                        <label for="notes_{{ row.profile.id }}">Notes de la fiche</label>
+                        <textarea id="notes_{{ row.profile.id }}" name="notes_{{ row.profile.id }}" class="form-control" {% if row.existing_payment %}disabled{% endif %}>{{ row.notes }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </article>
+        {% empty %}
+        <section class="payroll-card">
+            <h2 class="payroll-card-title">Aucun employé actif</h2>
+            <p class="payroll-card-subtitle">Ajoutez les membres du site avant de préparer les fiches de paie.</p>
+        </section>
+        {% endfor %}
+
+        {% if review.rows %}
+        <div class="payroll-submit-bar">
+            <div>
+                <strong>Question de fin de mois</strong>
+                <div class="payroll-card-subtitle">Avez-vous déjà payé tout le monde? Si oui, confirmez les montants et créez les fiches sélectionnées.</div>
+            </div>
+            <button type="submit" class="btn btn-success" data-loading-label="Création des fiches...">Créer les fiches sélectionnées</button>
+        </div>
+        {% endif %}
+    </form>
+</div>
+{% endblock %}

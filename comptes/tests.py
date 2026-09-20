@@ -794,6 +794,93 @@ class EmployeePaymentShareTests(TestCase):
         self.assertContains(response, 'name="tab" value="payments"')
 
 
+class MonthlyPayrollReviewTests(TestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            username="payroll_admin",
+            email="payroll@example.com",
+            password="AdminPass123!",
+            first_name="Gervais",
+        )
+        self.site = Location.objects.create(
+            nom="Ngolomingo",
+            adresse="Adresse Ngolomingo",
+            ville="Kinshasa",
+            actif=True,
+        )
+        self.employee = User.objects.create_user(
+            username="renedy",
+            password="EmployeePass123!",
+            first_name="Renedy",
+            last_name="Matuba",
+        )
+        self.employee.userprofile.site = self.site
+        self.employee.userprofile.role = UserProfile.EMPLOYEE_ROLE
+        self.employee.userprofile.actif = True
+        self.employee.userprofile.salaire_mensuel_usd = Decimal("120.00")
+        self.employee.userprofile.save()
+        self.client.login(username="payroll_admin", password="AdminPass123!")
+
+        ShiftDay.objects.create(
+            employe=self.employee,
+            site=self.site,
+            date=date(2026, 9, 1),
+            clock_in_time=timezone.make_aware(datetime(2026, 9, 1, 9, 45)),
+            clock_out_time=timezone.make_aware(datetime(2026, 9, 1, 19, 30)),
+        )
+
+    def _freeze_month_end(self):
+        month_end_now = timezone.make_aware(datetime(2026, 9, 30, 20, 0))
+        return (
+            patch("comptes.views.timezone.localdate", return_value=date(2026, 9, 30)),
+            patch("pointage.attendance.timezone.now", return_value=month_end_now),
+            patch("pointage.attendance.timezone.localdate", return_value=date(2026, 9, 30)),
+        )
+
+    def test_monthly_payroll_review_shows_attendance_deductions(self):
+        localdate_patch, now_patch, attendance_localdate_patch = self._freeze_month_end()
+        with localdate_patch, now_patch, attendance_localdate_patch:
+            response = self.client.get(
+                reverse("admin_monthly_payroll_review", args=[self.site.id]),
+                {"month": "2026-09"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Fiches de paie - Septembre 2026")
+        self.assertContains(response, "Renedy Matuba")
+        self.assertContains(response, "Jours en retard")
+        self.assertContains(response, "Jours d'absence")
+        self.assertContains(response, "Montant suggéré")
+
+    def test_monthly_payroll_review_creates_payments_once_per_month(self):
+        url = reverse("admin_monthly_payroll_review", args=[self.site.id])
+        data = {
+            "month": "2026-09",
+            "payment_date": "2026-09-30",
+            "selected_profiles": [str(self.employee.userprofile.id)],
+            f"amount_paid_{self.employee.userprofile.id}": "95.00",
+            f"payment_method_{self.employee.userprofile.id}": "ESPECES",
+            f"mpesa_reference_{self.employee.userprofile.id}": "",
+            f"employee_signature_name_{self.employee.userprofile.id}": "Renedy Matuba",
+            f"notes_{self.employee.userprofile.id}": "Paie finale septembre.",
+        }
+
+        localdate_patch, now_patch, attendance_localdate_patch = self._freeze_month_end()
+        with localdate_patch, now_patch, attendance_localdate_patch:
+            first_response = self.client.post(url, data=data)
+            second_response = self.client.post(url, data=data)
+
+        self.assertEqual(first_response.status_code, 302)
+        self.assertEqual(second_response.status_code, 200)
+        payments = EmployeePayment.objects.filter(
+            employee_profile=self.employee.userprofile,
+            period_start=date(2026, 9, 1),
+            period_end=date(2026, 9, 30),
+        )
+        self.assertEqual(payments.count(), 1)
+        self.assertEqual(payments.first().amount_paid_usd, Decimal("95.00"))
+
+
 @override_settings(MEDIA_ROOT="/private/tmp/portal_shinecongo_test_media")
 class AdminSiteEmployeeFormTests(TestCase):
     def setUp(self):

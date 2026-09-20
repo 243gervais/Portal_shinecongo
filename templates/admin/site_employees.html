@@ -475,6 +475,7 @@
             <div class="people-hero-actions">
                 <a href="{% url 'admin_add_site_employee' site.id %}" class="btn btn-info">👤 Ajouter un membre</a>
                 <a href="{% url 'admin_add_site_employee' site.id %}?role=MANAGER" class="btn btn-success">👔 Ajouter un manager</a>
+                <a href="{% url 'admin_monthly_payroll_review' site.id %}" class="btn btn-warning">Fiches mensuelles</a>
                 <a href="{% url 'admin_site_attendance_photos' site.id %}" class="btn btn-info">📸 Photos de présence</a>
                 <a href="{% url 'admin_site_documents' site.id %}" class="btn btn-success">📁 Documents du site</a>
                 <a href="{% url 'admin_site_detail' site.id %}" class="btn btn-primary">← Retour au site</a>
@@ -659,7 +660,10 @@
                     <h2 class="people-card-title">Historique des paiements</h2>
                     <p class="people-card-copy">Relisez les périodes payées, les signatures de réception, ouvrez la fiche et partagez le PDF directement.</p>
                 </div>
-                <span class="people-card-badge">{{ payment_records_count }} ligne{{ payment_records_count|pluralize }}</span>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+                    <span class="people-card-badge">{{ payment_records_count }} ligne{{ payment_records_count|pluralize }}</span>
+                    <a href="{% url 'admin_monthly_payroll_review' site.id %}" class="btn btn-success">Préparer les fiches mensuelles</a>
+                </div>
             </div>
 
             <form method="get" class="people-filter-row">
