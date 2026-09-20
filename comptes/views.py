@@ -1,4 +1,5 @@
 import calendar
+import unicodedata
 from io import BytesIO
 from urllib.parse import quote
 from django.contrib.auth.decorators import login_required
@@ -878,6 +879,8 @@ ATTENDANCE_STATUS_FILTER_OPTIONS = [
 
 WEEKLY_ATTENDANCE_TARGET_HOURS = Decimal("60")
 DAILY_ATTENDANCE_TARGET_HOURS = WEEKLY_ATTENDANCE_TARGET_HOURS / Decimal("6")
+NGOLOMINGO_MANAGER_TIME_TARGET_TOKENS = ("norbert", "shekinah", "kabuya")
+NGOLOMINGO_SITE_TOKEN = "ngolomingo"
 
 
 def _format_pointage_duration(pointage):
@@ -901,6 +904,74 @@ def _format_decimal_hours(hours):
 def _format_usd_penalty(amount):
     amount = amount or Decimal("0")
     return f"${amount.quantize(Decimal('0.01'))}"
+
+
+def _normalize_pointage_identity(value):
+    normalized = unicodedata.normalize("NFKD", value or "")
+    ascii_value = "".join(char for char in normalized if not unicodedata.combining(char))
+    return " ".join(ascii_value.lower().split())
+
+
+def _profile_search_text(profile):
+    user = profile.user
+    return _normalize_pointage_identity(
+        " ".join(
+            part
+            for part in [
+                user.get_full_name(),
+                user.first_name,
+                user.last_name,
+                user.username,
+            ]
+            if part
+        )
+    )
+
+
+def _build_pointage_attribution_context(site, employee_profiles):
+    """
+    Temporary operating rule for Ngolomingo: admin pointage reports attribute
+    the active manager's own times to Norbert Shekinah Kabuya until a new
+    manager assignment replaces this process.
+    """
+    site_name = _normalize_pointage_identity(getattr(site, "nom", ""))
+    target_profile = None
+    alias_by_user_id = {}
+
+    if NGOLOMINGO_SITE_TOKEN in site_name:
+        for profile in employee_profiles:
+            search_text = _profile_search_text(profile)
+            if all(token in search_text for token in NGOLOMINGO_MANAGER_TIME_TARGET_TOKENS):
+                target_profile = profile
+                break
+
+        if target_profile:
+            for profile in employee_profiles:
+                if profile.role == UserProfile.MANAGER_ROLE and profile.user_id != target_profile.user_id:
+                    alias_by_user_id[profile.user_id] = target_profile.user_id
+
+    display_profiles = [
+        profile for profile in employee_profiles
+        if profile.user_id not in alias_by_user_id
+    ]
+    source_user_ids = sorted({profile.user_id for profile in display_profiles} | set(alias_by_user_id.keys()))
+    attributed_names_by_user_id = {}
+    if alias_by_user_id:
+        profiles_by_user_id = {profile.user_id: profile for profile in employee_profiles}
+        for source_user_id, target_user_id in alias_by_user_id.items():
+            source_profile = profiles_by_user_id.get(source_user_id)
+            if not source_profile:
+                continue
+            attributed_names_by_user_id.setdefault(target_user_id, []).append(
+                source_profile.user.get_full_name() or source_profile.user.username
+            )
+
+    return {
+        "display_profiles": display_profiles,
+        "source_user_ids": source_user_ids,
+        "alias_by_user_id": alias_by_user_id,
+        "attributed_names_by_user_id": attributed_names_by_user_id,
+    }
 
 
 def _workdays_between(start_date, end_date):
@@ -935,26 +1006,38 @@ def _build_attendance_period_metrics(
 ):
     workdays = _workdays_between(start_date, end_date)
     target_workdays = _workdays_between(start_date, target_end_date or end_date)
-    employee_ids = [profile.user_id for profile in employee_profiles]
+    attribution_context = _build_pointage_attribution_context(site, employee_profiles)
+    display_profiles = attribution_context["display_profiles"]
+    source_user_ids = attribution_context["source_user_ids"]
+    alias_by_user_id = attribution_context["alias_by_user_id"]
+    attributed_names_by_user_id = attribution_context["attributed_names_by_user_id"]
     pointages = (
         ShiftDay.objects.filter(
             site=site,
             date__range=(start_date, end_date),
-            employe_id__in=employee_ids,
+            employe_id__in=source_user_ids,
         )
         .select_related("employe")
         .order_by("date", "employe__first_name", "employe__last_name", "employe__username")
     )
-    pointage_by_employee_date = {
-        (pointage.employe_id, pointage.date): pointage
-        for pointage in pointages
-    }
+    pointage_by_employee_date = {}
+    for pointage in pointages:
+        canonical_employee_id = alias_by_user_id.get(pointage.employe_id, pointage.employe_id)
+        key = (canonical_employee_id, pointage.date)
+        existing = pointage_by_employee_date.get(key)
+        if not existing:
+            pointage_by_employee_date[key] = pointage
+            continue
+        existing_is_alias = existing.employe_id != canonical_employee_id
+        current_is_canonical = pointage.employe_id == canonical_employee_id
+        if existing_is_alias and current_is_canonical:
+            pointage_by_employee_date[key] = pointage
     target_hours = fixed_target_hours
     if target_hours is None:
         target_hours = DAILY_ATTENDANCE_TARGET_HOURS * Decimal(len(target_workdays))
 
     rows = {}
-    for profile in employee_profiles:
+    for profile in display_profiles:
         worked_hours = Decimal("0")
         present_days = 0
         late_days = 0
@@ -964,6 +1047,7 @@ def _build_attendance_period_metrics(
         late_penalty_total = Decimal("0")
         absent_penalty_total = Decimal("0")
         late_entries = []
+        absent_entries = []
 
         for workday in workdays:
             pointage = pointage_by_employee_date.get((profile.user_id, workday))
@@ -993,6 +1077,11 @@ def _build_attendance_period_metrics(
                 })
             elif attendance_status["code"] == "ABSENT":
                 absent_penalty_total += day_penalty
+                absent_entries.append({
+                    "date": workday,
+                    "penalty_usd": day_penalty,
+                    "penalty_display": _format_usd_penalty(day_penalty),
+                })
 
         gap_hours = max(Decimal("0"), target_hours - worked_hours)
         completion_percent = 100
@@ -1025,6 +1114,8 @@ def _build_attendance_period_metrics(
             "absent_penalty_total_usd": absent_penalty_total,
             "absent_penalty_total_display": _format_usd_penalty(absent_penalty_total),
             "late_entries": late_entries,
+            "absent_entries": absent_entries,
+            "attributed_manager_names": attributed_names_by_user_id.get(profile.user_id, []),
             "risk_level": risk_level,
         }
 
@@ -1035,6 +1126,7 @@ def _build_attendance_period_metrics(
         "target_workday_count": len(target_workdays),
         "target_hours": target_hours,
         "target_hours_display": _format_decimal_hours(target_hours),
+        "display_profiles": display_profiles,
         "rows": rows,
     }
 
@@ -1074,7 +1166,7 @@ def _build_attendance_time_dashboard(site, reference_date):
     )
 
     rows = []
-    for profile in employee_profiles:
+    for profile in weekly_metrics["display_profiles"]:
         weekly = weekly_metrics["rows"][profile.user_id]
         monthly = monthly_metrics["rows"][profile.user_id]
         rows.append({
@@ -1251,20 +1343,30 @@ def _build_site_attendance_rows(site, attendance_date, *, employee_id=None, stat
     employee_profiles = list(
         UserProfile.objects.filter(
             site=site,
-            role=UserProfile.EMPLOYEE_ROLE,
+            role__in=[UserProfile.EMPLOYEE_ROLE, UserProfile.MANAGER_ROLE],
             actif=True,
         )
         .select_related("user")
         .order_by("user__first_name", "user__last_name", "user__username")
     )
+    attribution_context = _build_pointage_attribution_context(site, employee_profiles)
+    alias_by_user_id = attribution_context["alias_by_user_id"]
+    display_profiles = attribution_context["display_profiles"]
+    source_user_ids = attribution_context["source_user_ids"]
+
+    selected_employee_id = alias_by_user_id.get(employee_id, employee_id) if employee_id else None
     if employee_id:
-        employee_profiles = [
-            profile for profile in employee_profiles
-            if profile.user_id == employee_id
+        display_profiles = [
+            profile for profile in display_profiles
+            if profile.user_id == selected_employee_id
+        ]
+        source_user_ids = [
+            source_user_id for source_user_id in source_user_ids
+            if alias_by_user_id.get(source_user_id, source_user_id) == selected_employee_id
         ]
 
     pointages = list(
-        ShiftDay.objects.filter(site=site, date=attendance_date)
+        ShiftDay.objects.filter(site=site, date=attendance_date, employe_id__in=source_user_ids)
         .select_related("employe", "employe__userprofile", "site", "corrected_by")
         .order_by(
             "employe__first_name",
@@ -1273,10 +1375,18 @@ def _build_site_attendance_rows(site, attendance_date, *, employee_id=None, stat
             "-clock_in_time",
         )
     )
-    if employee_id:
-        pointages = [pointage for pointage in pointages if pointage.employe_id == employee_id]
 
-    pointages_by_employee = {pointage.employe_id: pointage for pointage in pointages}
+    pointages_by_employee = {}
+    for pointage in pointages:
+        canonical_employee_id = alias_by_user_id.get(pointage.employe_id, pointage.employe_id)
+        existing = pointages_by_employee.get(canonical_employee_id)
+        if not existing:
+            pointages_by_employee[canonical_employee_id] = pointage
+            continue
+        existing_is_alias = existing.employe_id != canonical_employee_id
+        current_is_canonical = pointage.employe_id == canonical_employee_id
+        if existing_is_alias and current_is_canonical:
+            pointages_by_employee[canonical_employee_id] = pointage
     rows = []
     seen_employee_ids = set()
 
@@ -1315,14 +1425,15 @@ def _build_site_attendance_rows(site, attendance_date, *, employee_id=None, stat
             "has_end_photo": bool(pointage and pointage.clock_out_photo),
         }
 
-    for profile in employee_profiles:
+    for profile in display_profiles:
         seen_employee_ids.add(profile.user_id)
         rows.append(_build_row(profile.user, pointages_by_employee.get(profile.user_id), profile))
 
     for pointage in pointages:
-        if pointage.employe_id in seen_employee_ids:
+        canonical_employee_id = alias_by_user_id.get(pointage.employe_id, pointage.employe_id)
+        if canonical_employee_id in seen_employee_ids:
             continue
-        seen_employee_ids.add(pointage.employe_id)
+        seen_employee_ids.add(canonical_employee_id)
         profile = getattr(pointage.employe, "userprofile", None)
         if profile and profile.site_id != site.id:
             profile = None
@@ -1348,7 +1459,7 @@ def _build_site_attendance_rows(site, attendance_date, *, employee_id=None, stat
         "rows": filtered_rows,
         "all_rows": rows,
         "summary": summary,
-        "employee_profiles": employee_profiles,
+        "employee_profiles": display_profiles,
     }
 
 

@@ -836,6 +836,22 @@
                     {% endif %}
                 </div>
 
+                <div class="time-late-list">
+                    <h4 class="time-late-title">Jours d'absence ce mois</h4>
+                    {% if row.monthly.absent_entries %}
+                    <ul class="time-late-items">
+                        {% for absent_entry in row.monthly.absent_entries %}
+                        <li class="time-late-item">
+                            <span><strong>{{ absent_entry.date|date:"d/m/Y" }}</strong> - aucun pointage d'arrivée</span>
+                            <span class="time-late-penalty">{{ absent_entry.penalty_display }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="time-late-empty">Aucune absence enregistrée depuis le début du mois.</div>
+                    {% endif %}
+                </div>
+
                 <div class="time-employee-foot">
                     <span>{{ row.weekly.present_days }} jour{{ row.weekly.present_days|pluralize }} pointé{{ row.weekly.present_days|pluralize }} cette semaine.</span>
                     <span>Manque semaine: {{ row.weekly.gap_hours_display }}.</span>

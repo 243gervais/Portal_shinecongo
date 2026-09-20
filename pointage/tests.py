@@ -877,6 +877,59 @@ class EmployeeDailyReportTests(TestCase):
         self.assertContains(response, "Absences: <strong>$45.00</strong>", html=False)
         self.assertContains(response, "08/09/2026")
         self.assertContains(response, "arrivée à 10:00")
+        self.assertContains(response, "Jours d'absence ce mois")
+        self.assertContains(response, "09/09/2026")
+        self.assertContains(response, "$5.00")
+
+    @patch("pointage.attendance.timezone.now", return_value=timezone.make_aware(datetime(2026, 9, 13, 12, 0)))
+    @patch("pointage.attendance.timezone.localdate", return_value=datetime(2026, 9, 13).date())
+    @patch("comptes.views.timezone.localdate", return_value=datetime(2026, 9, 13).date())
+    def test_ngolomingo_manager_time_is_attributed_to_norbert(self, _view_today, _attendance_today, _attendance_now):
+        ngolomingo = Location.objects.create(
+            nom="Ngolomingo",
+            adresse="Avenue Test",
+            ville="Kinshasa",
+            actif=True,
+        )
+        norbert = User.objects.create_user(
+            username="norbert",
+            first_name="Norbert Shekinah",
+            last_name="Kabuya",
+            password="TestPass123!",
+        )
+        norbert.userprofile.role = "EMPLOYE"
+        norbert.userprofile.site = ngolomingo
+        norbert.userprofile.save()
+        manager = User.objects.create_user(
+            username="manager-ngolomingo",
+            first_name="Manager",
+            last_name="Ngolomingo",
+            password="TestPass123!",
+        )
+        manager.userprofile.role = "MANAGER"
+        manager.userprofile.site = ngolomingo
+        manager.userprofile.save()
+        clock_in_time = timezone.make_aware(datetime(2026, 9, 7, 9, 0))
+        ShiftDay.objects.create(
+            employe=manager,
+            site=ngolomingo,
+            date=clock_in_time.date(),
+            clock_in_time=clock_in_time,
+            clock_out_time=timezone.make_aware(datetime(2026, 9, 7, 19, 30)),
+        )
+
+        admin_client = self.client_class()
+        admin_client.login(username="report_admin", password="AdminPass123!")
+        response = admin_client.get(
+            reverse("admin_site_attendance_photos", args=[ngolomingo.id]),
+            data={"date": clock_in_time.date().strftime("%Y-%m-%d")},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Norbert Shekinah Kabuya")
+        self.assertContains(response, "Identifiant: norbert")
+        self.assertContains(response, "Semaine: 10h30 / 60h00")
+        self.assertNotContains(response, "Identifiant: manager-ngolomingo")
 
     def test_admin_can_edit_attendance_photos_and_associated_times(self):
         target_date = timezone.localdate() - timedelta(days=1)
@@ -2075,6 +2128,59 @@ class EmployeeDailyReportTests(TestCase):
         self.assertContains(response, "Absences: <strong>$45.00</strong>", html=False)
         self.assertContains(response, "08/09/2026")
         self.assertContains(response, "arrivée à 10:00")
+        self.assertContains(response, "Jours d'absence ce mois")
+        self.assertContains(response, "09/09/2026")
+        self.assertContains(response, "$5.00")
+
+    @patch("pointage.attendance.timezone.now", return_value=timezone.make_aware(datetime(2026, 9, 13, 12, 0)))
+    @patch("pointage.attendance.timezone.localdate", return_value=datetime(2026, 9, 13).date())
+    @patch("comptes.views.timezone.localdate", return_value=datetime(2026, 9, 13).date())
+    def test_ngolomingo_manager_time_is_attributed_to_norbert(self, _view_today, _attendance_today, _attendance_now):
+        ngolomingo = Location.objects.create(
+            nom="Ngolomingo",
+            adresse="Avenue Test",
+            ville="Kinshasa",
+            actif=True,
+        )
+        norbert = User.objects.create_user(
+            username="norbert",
+            first_name="Norbert Shekinah",
+            last_name="Kabuya",
+            password="TestPass123!",
+        )
+        norbert.userprofile.role = "EMPLOYE"
+        norbert.userprofile.site = ngolomingo
+        norbert.userprofile.save()
+        manager = User.objects.create_user(
+            username="manager-ngolomingo",
+            first_name="Manager",
+            last_name="Ngolomingo",
+            password="TestPass123!",
+        )
+        manager.userprofile.role = "MANAGER"
+        manager.userprofile.site = ngolomingo
+        manager.userprofile.save()
+        clock_in_time = timezone.make_aware(datetime(2026, 9, 7, 9, 0))
+        ShiftDay.objects.create(
+            employe=manager,
+            site=ngolomingo,
+            date=clock_in_time.date(),
+            clock_in_time=clock_in_time,
+            clock_out_time=timezone.make_aware(datetime(2026, 9, 7, 19, 30)),
+        )
+
+        admin_client = self.client_class()
+        admin_client.login(username="report_admin", password="AdminPass123!")
+        response = admin_client.get(
+            reverse("admin_site_attendance_photos", args=[ngolomingo.id]),
+            data={"date": clock_in_time.date().strftime("%Y-%m-%d")},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Norbert Shekinah Kabuya")
+        self.assertContains(response, "Identifiant: norbert")
+        self.assertContains(response, "Semaine: 10h30 / 60h00")
+        self.assertNotContains(response, "Identifiant: manager-ngolomingo")
 
     def test_employee_water_page_reflects_admin_edit_and_delete(self):
         today = timezone.localdate()
