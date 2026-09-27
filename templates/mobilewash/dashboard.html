@@ -1,0 +1,50 @@
+{% extends "mobilewash/base.html" %}
+
+{% block mobilewash_content %}
+<div class="mw-head">
+  <div>
+    <h1>Dashboard mobile corporate</h1>
+    <p class="mw-subtitle">Contrats recurrents, visites terrain, confirmations et marge de contribution operationnelle.</p>
+  </div>
+  <div class="mw-actions">
+    <a class="btn btn-primary" href="{% url 'mobilewash_company_create' %}">Nouvelle entreprise</a>
+    <a class="btn btn-secondary" href="{% url 'mobilewash_work_order_create' %}">Nouvel ordre</a>
+  </div>
+</div>
+
+<section class="mw-grid">
+  <div class="mw-stat"><strong>{{ active_contracts }}</strong><span>Contrats actifs</span></div>
+  <div class="mw-stat"><strong>{{ today_visits }}</strong><span>Visites aujourd'hui</span></div>
+  <div class="mw-stat"><strong>{{ week_visits }}</strong><span>Visites cette semaine</span></div>
+  <div class="mw-stat"><strong>{{ completed_washes_month }}</strong><span>Lavages termines ce mois</span></div>
+  <div class="mw-stat"><strong>{{ unconfirmed_orders }}</strong><span>Ordres non confirmes</span></div>
+  {% if can_view_financials %}
+    <div class="mw-stat"><strong>${{ contracted_monthly_revenue|floatformat:2 }}</strong><span>Revenu mensuel contracte</span></div>
+    <div class="mw-stat"><strong>${{ direct_expenses_month|floatformat:2 }}</strong><span>Depenses directes ce mois</span></div>
+    <div class="mw-stat"><strong>${{ estimated_margin|floatformat:2 }}</strong><span>Marge contribution estimee</span></div>
+  {% endif %}
+</section>
+
+<div class="card">
+  <h2>Ordres recents</h2>
+  <div class="table-container">
+    <table>
+      <thead><tr><th>Numero</th><th>Entreprise</th><th>Date</th><th>Statut</th><th></th></tr></thead>
+      <tbody>
+        {% for order in recent_work_orders %}
+          <tr>
+            <td>{{ order.work_order_number|default:"-" }}</td>
+            <td>{{ order.company }}</td>
+            <td>{{ order.scheduled_start|date:"d/m/Y H:i" }}</td>
+            <td><span class="mw-badge">{{ order.get_status_display }}</span></td>
+            <td><a href="{% url 'mobilewash_work_order_detail' order.id %}">Ouvrir</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">Aucun ordre de travail.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+

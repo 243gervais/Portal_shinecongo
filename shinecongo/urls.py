@@ -181,6 +181,7 @@ urlpatterns = [
     
     # PORTAIL ADMIN
     path("admin-dashboard/", admin_dashboard, name="admin_dashboard"),
+    path("admin-dashboard/mobile/", include("mobilewash.urls")),
     path("admin-dashboard/messages/", admin_messages, name="admin_messages"),
     path("admin-dashboard/reminders/<int:reminder_id>/resolve/", admin_resolve_reminder, name="admin_resolve_reminder"),
     path("admin-dashboard/reminders/<int:reminder_id>/delete/", admin_delete_reminder, name="admin_delete_reminder"),

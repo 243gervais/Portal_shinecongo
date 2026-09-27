@@ -1,0 +1,16 @@
+<div class="table-container">
+  <table>
+    <thead><tr><th>Numero</th><th>Entreprise</th><th>Date</th><th>Equipe</th><th>Statut</th><th></th></tr></thead>
+    <tbody>
+      {% for order in orders %}
+        <tr>
+          <td>{{ order.work_order_number|default:"-" }}</td><td>{{ order.company }}</td><td>{{ order.scheduled_start|date:"d/m/Y H:i" }}</td>
+          <td>{% for employee in order.assigned_employees.all %}{{ employee.get_full_name|default:employee.username }}{% if not forloop.last %}, {% endif %}{% empty %}-{% endfor %}</td>
+          <td><span class="mw-badge {% if order.status == 'COMPLETED' %}done{% elif order.status == 'CANCELLED' %}danger{% endif %}">{{ order.get_status_display }}</span></td>
+          <td><a href="{% url 'mobilewash_work_order_detail' order.id %}">Ouvrir</a></td>
+        </tr>
+      {% empty %}<tr><td colspan="6">Aucun ordre de travail.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+

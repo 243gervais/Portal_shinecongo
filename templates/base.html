@@ -1111,6 +1111,7 @@
                         <span class="nav-badge">{{ admin_messages_unread_total }}</span>
                         {% endif %}
                     </a>
+                    <a href="{% url 'mobilewash_dashboard' %}">Lavage mobile</a>
                     {% if show_admin_site_nav %}
                     <div class="nav-dropdown" data-nav-dropdown>
                         <button type="button" class="nav-menu-button" data-nav-dropdown-toggle aria-expanded="false" aria-haspopup="true">
@@ -1167,6 +1168,7 @@
                     <a href="{% url 'manager_pointages' %}">Pointages</a>
                     <a href="{% url 'manager_lavages' %}">Lavages</a>
                     <a href="{% url 'manager_problemes' %}">Problèmes</a>
+                    <a href="{% url 'mobilewash_dashboard' %}">Lavage mobile</a>
                 {% elif user.userprofile.is_admin %}
                     <a href="{% url 'admin_dashboard' %}">
                         Boite Admin
@@ -1180,6 +1182,7 @@
                         <span class="nav-badge">{{ admin_messages_unread_total }}</span>
                         {% endif %}
                     </a>
+                    <a href="{% url 'mobilewash_dashboard' %}">Lavage mobile</a>
                     {% if show_admin_site_nav %}
                     <div class="nav-dropdown" data-nav-dropdown>
                         <button type="button" class="nav-menu-button" data-nav-dropdown-toggle aria-expanded="false" aria-haspopup="true">

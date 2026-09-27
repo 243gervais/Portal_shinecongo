@@ -1,0 +1,24 @@
+{% extends "mobilewash/base.html" %}
+
+{% block mobilewash_content %}
+<div class="mw-head">
+  <div><h1>Entreprises</h1><p class="mw-subtitle">Clients corporate, contacts, flotte et activite mobile.</p></div>
+  <a class="btn btn-primary" href="{% url 'mobilewash_company_create' %}">Ajouter</a>
+</div>
+<form method="get" class="card"><input class="form-control" name="q" value="{{ query }}" placeholder="Rechercher une entreprise, telephone..."></form>
+<div class="table-container">
+  <table>
+    <thead><tr><th>Entreprise</th><th>Telephone</th><th>Contrats actifs</th><th>Vehicules</th><th>Statut</th><th></th></tr></thead>
+    <tbody>
+      {% for company in page_obj %}
+        <tr>
+          <td>{{ company }}</td><td>{{ company.telephone|default:"-" }}</td><td>{{ company.active_contract_count }}</td><td>{{ company.vehicle_count }}</td>
+          <td><span class="mw-badge {% if not company.is_active %}danger{% endif %}">{{ company.is_active|yesno:"Active,Inactive" }}</span></td>
+          <td><a href="{% url 'mobilewash_company_detail' company.id %}">Details</a></td>
+        </tr>
+      {% empty %}<tr><td colspan="6">Aucune entreprise.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+

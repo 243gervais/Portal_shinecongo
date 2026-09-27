@@ -1,0 +1,17 @@
+{% extends "mobilewash/base.html" %}
+
+{% block mobilewash_content %}
+<div class="mw-head">
+  <div><h1>{{ contract.contract_number }}</h1><p class="mw-subtitle">{{ contract.company }} - {{ contract.title }}</p></div>
+  <a class="btn btn-secondary" href="{% url 'mobilewash_contract_edit' contract.id %}">Modifier</a>
+</div>
+{% if usage.allowance_exceeded %}<div class="card"><span class="mw-badge warning">Alerte allowance depassee</span></div>{% endif %}
+<section class="mw-grid">
+  <div class="mw-stat"><strong>{{ usage.included_washes }}</strong><span>Lavages inclus</span></div>
+  <div class="mw-stat"><strong>{{ usage.used_washes }}</strong><span>Lavages utilises</span></div>
+  <div class="mw-stat"><strong>{{ usage.remaining_washes }}</strong><span>Lavages restants</span></div>
+  <div class="mw-stat"><strong>{{ usage.billable_additional_washes }}</strong><span>Lavages additionnels</span></div>
+</section>
+<div class="card"><h2>Ordres de travail</h2>{% include "mobilewash/partials/work_orders_table.html" with orders=work_orders %}</div>
+{% endblock %}
+
