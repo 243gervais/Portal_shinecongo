@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "problemes",
     "audit",
     "portal_api",
+    "mobilewash",
 ]
 
 # Check if S3 should be used and if storages module is available

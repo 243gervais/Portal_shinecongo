@@ -1,0 +1,12 @@
+{% extends "mobilewash/base.html" %}
+
+{% block mobilewash_content %}
+<div class="mw-head"><div><h1>Planning recurrent</h1><p class="mw-subtitle">Generation idempotente des ordres de travail.</p></div><a class="btn btn-primary" href="{% url 'mobilewash_schedule_create' %}">Ajouter</a></div>
+<form class="card" method="post" action="{% url 'mobilewash_generate_schedule' %}">
+  {% csrf_token %}<div class="mw-form-grid">{{ generate_form.as_p }}</div><button class="btn btn-primary" type="submit">Generer les ordres</button>
+</form>
+<div class="table-container"><table><thead><tr><th>Entreprise</th><th>Contrat</th><th>Jour</th><th>Heure</th><th>Vehicules prevus</th><th></th></tr></thead><tbody>
+{% for schedule in page_obj %}<tr><td>{{ schedule.company }}</td><td>{{ schedule.contract.contract_number }}</td><td>{{ schedule.get_weekday_display }}</td><td>{{ schedule.planned_start_time }}</td><td>{{ schedule.planned_vehicles }}</td><td><a href="{% url 'mobilewash_schedule_edit' schedule.id %}">Modifier</a></td></tr>{% empty %}<tr><td colspan="6">Aucun planning.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}
+

@@ -1,0 +1,22 @@
+{% extends "mobilewash/base.html" %}
+
+{% block mobilewash_content %}
+<div class="mw-head"><div><h1>Ecran terrain</h1><p class="mw-subtitle">{{ work_order.company }} - {{ work_order.scheduled_start|date:"d/m/Y H:i" }}</p></div></div>
+<form method="post" enctype="multipart/form-data" class="card">
+  {% csrf_token %}
+  {{ form.non_field_errors }}{{ formset.management_form }}
+  <h2>Confirmation</h2>
+  <div class="mw-form-grid">{% for field in form %}<div class="mw-form-row">{{ field.errors }}<label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>{% endfor %}</div>
+  <h2>Vehicules laves</h2>
+  {% for vehicle_form in formset %}
+    <div class="card">
+      {{ vehicle_form.id }}{{ vehicle_form.DELETE }}
+      <div class="mw-form-grid">{% for field in vehicle_form.visible_fields %}<div class="mw-form-row">{{ field.errors }}<label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>{% endfor %}</div>
+    </div>
+  {% endfor %}
+  <h2>Photo generale</h2>
+  <div class="mw-form-grid">{{ photo_form.as_p }}</div>
+  <button class="btn btn-primary" type="submit">Soumettre pour revue</button>
+</form>
+{% endblock %}
+

@@ -1,0 +1,10 @@
+{% extends "mobilewash/base.html" %}
+
+{% block mobilewash_content %}
+<div class="mw-head">
+  <div><h1>Ordres de travail</h1><p class="mw-subtitle">Suivi terrain, confirmations client et revue manager.</p></div>
+  {% if is_manager %}<a class="btn btn-primary" href="{% url 'mobilewash_work_order_create' %}">Ajouter</a>{% endif %}
+</div>
+{% include "mobilewash/partials/work_orders_table.html" with orders=page_obj %}
+{% endblock %}
+

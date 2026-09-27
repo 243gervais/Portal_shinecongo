@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Lavage mobile corporate - Shine Congo{% endblock %}
+
+{% block content %}
+<style>
+  .mw-head { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap; margin-bottom:1.25rem; }
+  .mw-head h1 { color:var(--primary-color); margin:0; font-size:clamp(1.55rem, 4vw, 2.35rem); }
+  .mw-subtitle { color:var(--text-secondary); margin-top:.25rem; }
+  .mw-nav { display:flex; gap:.5rem; flex-wrap:wrap; margin:0 0 1.25rem; }
+  .mw-nav a { padding:.55rem .8rem; border-radius:999px; background:white; border:1px solid var(--border-color); color:var(--primary-color); text-decoration:none; font-weight:700; font-size:.86rem; }
+  .mw-actions { display:flex; gap:.65rem; flex-wrap:wrap; align-items:center; }
+  .mw-badge { display:inline-flex; align-items:center; padding:.24rem .55rem; border-radius:999px; font-size:.76rem; font-weight:800; background:var(--primary-light); color:var(--primary-dark); }
+  .mw-badge.warning { background:#fff4df; color:#9a5a00; }
+  .mw-badge.done { background:#e8f6ef; color:#176b3b; }
+  .mw-badge.danger { background:#fdecea; color:#9f2f21; }
+  .mw-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:1rem; margin:1rem 0 1.5rem; }
+  .mw-stat { background:white; border:1px solid var(--border-color); border-radius:12px; padding:1rem; box-shadow:var(--shadow); }
+  .mw-stat strong { display:block; color:var(--primary-color); font-size:1.8rem; line-height:1.1; }
+  .mw-stat span { color:var(--text-secondary); font-weight:700; font-size:.84rem; }
+  .mw-form-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:1rem; }
+  .mw-form-row { margin-bottom:1rem; }
+  .mw-form-row label { display:block; color:var(--text-secondary); font-weight:700; margin-bottom:.35rem; }
+  .errorlist { color:var(--error-color); font-weight:700; margin:.25rem 0 .5rem 1rem; }
+  @media (max-width: 720px) { table th, table td { padding:.65rem; } .mw-actions .btn { width:100%; } }
+</style>
+<nav class="mw-nav" aria-label="Navigation lavage mobile">
+  <a href="{% url 'mobilewash_dashboard' %}">Dashboard</a>
+  <a href="{% url 'mobilewash_companies' %}">Entreprises</a>
+  <a href="{% url 'mobilewash_contracts' %}">Contrats</a>
+  <a href="{% url 'mobilewash_vehicles' %}">Flotte</a>
+  <a href="{% url 'mobilewash_schedules' %}">Planning</a>
+  <a href="{% url 'mobilewash_work_orders' %}">Ordres de travail</a>
+</nav>
+{% block mobilewash_content %}{% endblock %}
+{% endblock %}
+

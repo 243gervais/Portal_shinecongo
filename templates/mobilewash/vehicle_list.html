@@ -1,0 +1,9 @@
+{% extends "mobilewash/base.html" %}
+
+{% block mobilewash_content %}
+<div class="mw-head"><div><h1>Flotte</h1><p class="mw-subtitle">Vehicules actifs des entreprises clientes.</p></div><a class="btn btn-primary" href="{% url 'mobilewash_vehicle_create' %}">Ajouter</a></div>
+<div class="table-container"><table><thead><tr><th>Entreprise</th><th>Plaque</th><th>Flotte</th><th>Type</th><th>Modele</th><th></th></tr></thead><tbody>
+{% for vehicle in page_obj %}<tr><td>{{ vehicle.company }}</td><td>{{ vehicle.license_plate|default:"-" }}</td><td>{{ vehicle.internal_fleet_number|default:"-" }}</td><td>{{ vehicle.vehicle_type|default:"-" }}</td><td>{{ vehicle.make }} {{ vehicle.model }}</td><td><a href="{% url 'mobilewash_vehicle_edit' vehicle.id %}">Modifier</a></td></tr>{% empty %}<tr><td colspan="6">Aucun vehicule.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}
+

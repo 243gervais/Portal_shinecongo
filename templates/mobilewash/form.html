@@ -1,0 +1,26 @@
+{% extends "mobilewash/base.html" %}
+
+{% block mobilewash_content %}
+<div class="mw-head">
+  <div><h1>{{ title }}</h1><p class="mw-subtitle">Les champs obligatoires sont controles cote serveur.</p></div>
+</div>
+<form method="post" enctype="multipart/form-data" class="card">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  <div class="mw-form-grid">
+    {% for field in form %}
+      <div class="mw-form-row">
+        {{ field.errors }}
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+  <div class="mw-actions">
+    <button class="btn btn-primary" type="submit">Enregistrer</button>
+    <a class="btn btn-secondary" href="{% url 'mobilewash_dashboard' %}">Annuler</a>
+  </div>
+</form>
+{% endblock %}
+

@@ -1,0 +1,15 @@
+<div class="table-container">
+  <table>
+    <thead><tr><th>Numero</th><th>Entreprise</th><th>Statut</th><th>Mensuel</th><th>Inclus</th><th></th></tr></thead>
+    <tbody>
+      {% for contract in contracts %}
+        <tr>
+          <td>{{ contract.contract_number }}</td><td>{{ contract.company }}</td><td><span class="mw-badge">{{ contract.get_status_display }}</span></td>
+          <td>{{ contract.currency }} {{ contract.monthly_package_price|floatformat:2 }}</td><td>{{ contract.included_washes_per_month }} lavages</td>
+          <td><a href="{% url 'mobilewash_contract_detail' contract.id %}">Details</a></td>
+        </tr>
+      {% empty %}<tr><td colspan="6">Aucun contrat.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+

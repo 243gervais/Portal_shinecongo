@@ -1,0 +1,34 @@
+{% extends "mobilewash/base.html" %}
+
+{% block mobilewash_content %}
+<div class="mw-head">
+  <div><h1>{{ work_order.work_order_number|default:"Ordre mobile" }}</h1><p class="mw-subtitle">{{ work_order.company }} - {{ work_order.scheduled_start|date:"d/m/Y H:i" }}</p></div>
+  <div class="mw-actions">
+    <a class="btn btn-secondary" href="{% url 'mobilewash_field_work_order' work_order.id %}">Ecran terrain</a>
+    <a class="btn btn-secondary" href="{% url 'mobilewash_service_receipt_pdf' work_order.id %}">Recu PDF</a>
+    {% if is_manager %}<a class="btn btn-secondary" href="{% url 'mobilewash_work_order_edit' work_order.id %}">Modifier</a>{% endif %}
+  </div>
+</div>
+<section class="mw-grid">
+  <div class="mw-stat"><strong>{{ work_order.get_status_display }}</strong><span>Statut</span></div>
+  <div class="mw-stat"><strong>{{ work_order.vehicles_completed_count }}</strong><span>Vehicules termines</span></div>
+  <div class="mw-stat"><strong>${{ work_order.revenue_amount|floatformat:2 }}</strong><span>Revenu ordre</span></div>
+  <div class="mw-stat"><strong>${{ work_order.contribution_margin|floatformat:2 }}</strong><span>Marge contribution</span></div>
+</section>
+<div class="card">
+  <h2>Vehicules</h2>
+  <div class="table-container"><table><thead><tr><th>Plaque</th><th>Service</th><th>Statut</th><th>Montant</th></tr></thead><tbody>
+  {% for line in work_order.vehicle_lines.all %}<tr><td>{{ line.license_plate_snapshot|default:line.vehicle }}</td><td>{{ line.service_type }}</td><td>{{ line.get_status_display }}</td><td>${{ line.billable_amount|floatformat:2 }}</td></tr>{% empty %}<tr><td colspan="4">Aucun vehicule saisi.</td></tr>{% endfor %}
+  </tbody></table></div>
+</div>
+{% if is_manager %}
+<form method="post" action="{% url 'mobilewash_review_work_order' work_order.id %}" class="card">
+  {% csrf_token %}
+  <div class="mw-actions">
+    <button class="btn btn-primary" name="action" value="complete" type="submit">Valider et terminer</button>
+    <button class="btn btn-secondary" name="action" value="reopen" type="submit">Rouvrir</button>
+  </div>
+</form>
+{% endif %}
+{% endblock %}
+

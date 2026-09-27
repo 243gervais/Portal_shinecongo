@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Helvetica, Arial, sans-serif; color:#1F2933; font-size:12px; }
+    .header { background:#0A436B; color:white; padding:18px; }
+    .brand { font-size:22px; font-weight:bold; color:white; }
+    .accent { color:#F4A340; }
+    table { width:100%; border-collapse:collapse; margin-top:14px; }
+    th, td { border:1px solid #D6DEE6; padding:7px; text-align:left; }
+    th { background:#E8F1F7; color:#0A436B; }
+    .meta { margin-top:10px; line-height:1.5; }
+    .sign { margin-top:20px; display:block; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="brand">SHINE CONGO <span class="accent">SARLU</span></div>
+    <div>RCCM: CD/KNG/RCCM/26-B-01825 | Numero d'impot: A1923719D | ID NAT: 01-F4200-N00001E</div>
+    <div>AV/Kinshasa N 101, Q/Bumba, C/Ngaliema | +243 803 911 784 | +243 816 745 778 | +1 678-865-6568</div>
+  </div>
+  <h1>Recu de service mobile</h1>
+  <div class="meta">
+    <strong>Ordre:</strong> {{ work_order.work_order_number }}<br>
+    <strong>Date:</strong> {{ work_order.scheduled_start|date:"d/m/Y H:i" }}<br>
+    <strong>Entreprise:</strong> {{ work_order.company }}<br>
+    <strong>Lieu:</strong> {{ work_order.service_location }}<br>
+    <strong>Contrat:</strong> {{ work_order.contract.contract_number }}
+  </div>
+  <table>
+    <thead><tr><th>Vehicule</th><th>Service</th><th>Statut</th><th>Montant</th></tr></thead>
+    <tbody>
+      {% for line in work_order.vehicle_lines.all %}
+        <tr><td>{{ line.license_plate_snapshot|default:line.vehicle }}</td><td>{{ line.service_type }}</td><td>{{ line.get_status_display }}</td><td>{{ line.currency }} {{ line.billable_amount|floatformat:2 }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="sign">
+    <p><strong>Associe Shine Congo:</strong> {{ work_order.associate_name|default:"-" }} {% if work_order.associate_confirmed_at %}({{ work_order.associate_confirmed_at|date:"d/m/Y H:i" }}){% endif %}</p>
+    <p><strong>Representant client:</strong> {{ work_order.client_representative_name|default:"-" }} {% if work_order.client_confirmed_at %}({{ work_order.client_confirmed_at|date:"d/m/Y H:i" }}){% endif %}</p>
+  </div>
+  <p><strong>Observations:</strong> {{ work_order.observations|default:"-" }}</p>
+</body>
+</html>
+

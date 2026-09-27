@@ -1,0 +1,7 @@
+{% extends "mobilewash/base.html" %}
+
+{% block mobilewash_content %}
+<div class="mw-head"><div><h1>Contrats</h1><p class="mw-subtitle">Prix, allowances mensuels et sites de service.</p></div><a class="btn btn-primary" href="{% url 'mobilewash_contract_create' %}">Ajouter</a></div>
+{% include "mobilewash/partials/contracts_table.html" with contracts=page_obj %}
+{% endblock %}
+

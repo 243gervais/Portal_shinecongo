@@ -1,0 +1,20 @@
+{% extends "mobilewash/base.html" %}
+
+{% block mobilewash_content %}
+<div class="mw-head">
+  <div><h1>{{ company }}</h1><p class="mw-subtitle">{{ company.address|default:"Adresse non renseignee" }}</p></div>
+  <div class="mw-actions">
+    <a class="btn btn-primary" href="{% url 'mobilewash_contract_create' %}?company={{ company.id }}">Nouveau contrat</a>
+    <a class="btn btn-secondary" href="{% url 'mobilewash_vehicle_create' %}?company={{ company.id }}">Ajouter vehicule</a>
+  </div>
+</div>
+<section class="mw-grid">
+  <div class="mw-stat"><strong>{{ contracts|length }}</strong><span>Contrats</span></div>
+  <div class="mw-stat"><strong>{{ vehicles|length }}</strong><span>Vehicules visibles</span></div>
+  <div class="mw-stat"><strong>${{ revenue|floatformat:2 }}</strong><span>Revenu operations terminees</span></div>
+  <div class="mw-stat"><strong>${{ margin|floatformat:2 }}</strong><span>Marge contribution</span></div>
+</section>
+<div class="card"><h2>Contrats</h2>{% include "mobilewash/partials/contracts_table.html" with contracts=contracts %}</div>
+<div class="card"><h2>Ordres recents</h2>{% include "mobilewash/partials/work_orders_table.html" with orders=work_orders %}</div>
+{% endblock %}
+
