@@ -74,7 +74,9 @@ def portal_frontend_asset(request, asset_path):
         requested_path.open("rb"),
         content_type=content_type or "application/octet-stream",
     )
-    if asset_path.startswith("assets/"):
+    if asset_path == "portal-app.js":
+        response["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+    elif asset_path.startswith("assets/"):
         response["Cache-Control"] = "public, max-age=31536000, immutable"
     else:
         response["Cache-Control"] = "public, max-age=300"

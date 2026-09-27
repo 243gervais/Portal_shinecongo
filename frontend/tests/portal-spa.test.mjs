@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 const appSource = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
 const layoutSource = readFileSync(new URL("../src/components/PortalLayout.jsx", import.meta.url), "utf8");
 const apiSource = readFileSync(new URL("../src/lib/api.js", import.meta.url), "utf8");
+const spaTemplate = readFileSync(new URL("../../templates/portal/spa.html", import.meta.url), "utf8");
 
 test("portal layout renders nested route content through Outlet", () => {
   assert.match(layoutSource, /import\s+\{[^}]*Outlet[^}]*\}\s+from "react-router-dom"/);
@@ -34,6 +35,8 @@ test("portal pages are route-level lazy loaded", () => {
   assert.match(appSource, /apiBase="\/manager\/presence"/);
   assert.match(appSource, /path="\/manager\/manuel\/"/);
   assert.match(appSource, /<Route element=\{<PortalLayout/);
+  assert.doesNotMatch(appSource, /<ManagerRouteSet\s/);
+  assert.doesNotMatch(appSource, /<EmployeeRouteSet\s/);
 });
 
 test("portal route sets are inserted as Route children, not custom components", () => {
@@ -68,4 +71,9 @@ test("portal navigation prefetches page data before likely clicks", () => {
   assert.match(layoutSource, /onTouchStart=\{\(\)\s*=>\s*prefetchApi\(link\.prefetch\)\}/);
   assert.match(layoutSource, /prefetch:\s*"\/manager\/dashboard\/"/);
   assert.match(layoutSource, /prefetch:\s*"\/employee\/lavages\/"/);
+});
+
+test("portal module script is not query-versioned so lazy chunks share one React module", () => {
+  assert.match(spaTemplate, /src="\{\{ portal_assets_base_url \}\}portal-app\.js"/);
+  assert.doesNotMatch(spaTemplate, /portal-app\.js\?v=/);
 });
