@@ -1779,32 +1779,61 @@ class ManagerPointageListApi(APIView):
         if site_id:
             queryset = queryset.filter(site_id=site_id)
 
+        include_team = str(request.query_params.get("include_team", "1")).lower() not in {"0", "false", "no"}
+        extra = {
+            "filters": {
+                "sites": _site_options(accessible_sites),
+                "employees": _employee_options_for_sites(site_ids, request.user),
+            },
+            "today": timezone.localdate().isoformat(),
+            "can_correct_time": _can_view_manager_money(request.user),
+        }
+        if include_team:
+            extra.update(
+                {
+                    "team_date": team_date.isoformat(),
+                    "schedule": attendance_schedule_context(),
+                    "selected_team_site": SiteSummarySerializer(selected_site).data if selected_site else None,
+                    "team_attendance": (
+                        _manager_team_attendance_rows(selected_site, team_date, request)
+                        if selected_site else []
+                    ),
+                }
+            )
+
         return _paginate(
             self,
             queryset,
             ShiftDaySerializer,
             request,
             page_size=20,
-            extra={
-                "filters": {
-                    "sites": _site_options(accessible_sites),
-                    "employees": _employee_options_for_sites(site_ids, request.user),
-                },
-                "today": timezone.localdate().isoformat(),
-                "team_date": team_date.isoformat(),
-                "schedule": attendance_schedule_context(),
-                "selected_team_site": SiteSummarySerializer(selected_site).data if selected_site else None,
-                "team_attendance": (
-                    _manager_team_attendance_rows(selected_site, team_date, request)
-                    if selected_site else []
-                ),
-                "can_correct_time": _can_view_manager_money(request.user),
-            },
+            extra=extra,
         )
 
 
 class ManagerTeamAttendanceApi(APIView):
     permission_classes = [IsAuthenticated, IsManagerOrAdmin]
+
+    def get(self, request):
+        site, _accessible_sites = _manager_selected_site(request.user, request)
+        if not site:
+            return Response({"message": "Aucun site manager accessible."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            target_date = _parse_portal_date(request.query_params.get("date"))
+        except ValueError as exc:
+            return Response({"message": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(
+            {
+                "today": timezone.localdate().isoformat(),
+                "team_date": target_date.isoformat(),
+                "schedule": attendance_schedule_context(),
+                "selected_team_site": SiteSummarySerializer(site).data,
+                "team_attendance": _manager_team_attendance_rows(site, target_date, request),
+                "can_correct_time": _can_view_manager_money(request.user),
+            }
+        )
 
     def post(self, request):
         site, _accessible_sites = _manager_selected_site(request.user, request)

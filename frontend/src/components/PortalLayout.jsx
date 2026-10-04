@@ -23,7 +23,13 @@ function managerLinks() {
   return [
     { to: "/manager/", label: "Dashboard", prefetch: "/manager/dashboard/" },
     { to: "/manager/presence/", label: "Ma présence", prefetch: "/manager/presence/" },
-    { to: "/manager/pointages/", label: "Pointages", prefetch: "/manager/pointages/" },
+    {
+      to: "/manager/pointages/",
+      label: "Pointages",
+      prefetch: "/manager/pointages/",
+      prefetchQuery: { include_team: "0" },
+      cacheTtlMs: 300_000,
+    },
     { to: "/manager/lavage/ajouter/", label: "Ajouter lavage" },
     { to: "/manager/lavages/", label: "Lavages", prefetch: "/manager/lavages/" },
     { to: "/manager/problemes/", label: "Problèmes", prefetch: "/manager/problemes/" },
@@ -69,9 +75,9 @@ export function PortalLayout({ bootstrap, session }) {
             key={link.to}
             to={link.to}
             className={({ isActive }) => `portal-nav-link ${isActive ? "is-active" : ""}`}
-            onFocus={() => prefetchApi(link.prefetch)}
-            onMouseEnter={() => prefetchApi(link.prefetch)}
-            onTouchStart={() => prefetchApi(link.prefetch)}
+            onFocus={() => prefetchApi(link.prefetch, { query: link.prefetchQuery, cacheTtlMs: link.cacheTtlMs })}
+            onMouseEnter={() => prefetchApi(link.prefetch, { query: link.prefetchQuery, cacheTtlMs: link.cacheTtlMs })}
+            onTouchStart={() => prefetchApi(link.prefetch, { query: link.prefetchQuery, cacheTtlMs: link.cacheTtlMs })}
           >
             {link.label}
           </NavLink>

@@ -431,6 +431,46 @@ class PortalApiSecurityAndPaginationTests(TestCase):
         self.assertNotIn("attendance_penalty_usd", employee_row)
         self.assertNotIn("attendance_penalty_label", employee_row)
 
+    def test_pointage_list_can_skip_team_attendance_for_fast_navigation(self):
+        today = timezone.localdate()
+        ShiftDay.objects.create(
+            employe=self.employee,
+            site=self.site,
+            date=today,
+            clock_in_time=timezone.now(),
+        )
+        self.client.login(username="manager", password="pass1234")
+
+        response = self.client.get(reverse("portal_api_manager_pointages"), {"include_team": "0"})
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("results", payload)
+        self.assertIn("filters", payload)
+        self.assertNotIn("team_attendance", payload)
+        self.assertNotIn("schedule", payload)
+
+    def test_manager_can_fetch_team_attendance_separately(self):
+        today = timezone.localdate()
+        ShiftDay.objects.create(
+            employe=self.employee,
+            site=self.site,
+            date=today,
+            clock_in_time=timezone.now(),
+        )
+        self.client.login(username="manager", password="pass1234")
+
+        response = self.client.get(
+            reverse("portal_api_manager_team_attendance"),
+            {"date": today.isoformat()},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["team_date"], today.isoformat())
+        employee_row = next(item for item in payload["team_attendance"] if item["employee_id"] == self.employee.id)
+        self.assertIsNotNone(employee_row["shift"])
+
     def test_location_manager_cannot_overwrite_employee_attendance_times(self):
         today = timezone.localdate()
         base_time = timezone.make_aware(datetime.combine(today, datetime.min.time().replace(hour=9, minute=0)))

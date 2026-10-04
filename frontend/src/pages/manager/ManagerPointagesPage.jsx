@@ -4,10 +4,15 @@ import { Link, useSearchParams } from "react-router-dom";
 import { apiFetch } from "../../lib/api";
 import { ErrorState, ImageThumb, LoadingState, Notice, Pagination } from "../../components/Ui";
 
+const POINTAGE_LIST_CACHE_TTL_MS = 300_000;
+const TEAM_ATTENDANCE_CACHE_TTL_MS = 60_000;
+
 export default function ManagerPointagesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [data, setData] = useState(null);
+  const [teamData, setTeamData] = useState(null);
   const [error, setError] = useState("");
+  const [teamError, setTeamError] = useState("");
   const [attendanceDrafts, setAttendanceDrafts] = useState({});
   const [attendanceNotice, setAttendanceNotice] = useState("");
   const [attendanceBusyKey, setAttendanceBusyKey] = useState("");
@@ -25,7 +30,8 @@ export default function ManagerPointagesPage() {
     try {
       setError("");
       const payload = await apiFetch("/manager/pointages/", {
-        query: currentFilters,
+        query: { ...currentFilters, include_team: "0" },
+        cacheTtlMs: POINTAGE_LIST_CACHE_TTL_MS,
       });
       setData(payload);
     } catch (requestError) {
@@ -33,8 +39,26 @@ export default function ManagerPointagesPage() {
     }
   }
 
+  async function loadTeamAttendance() {
+    try {
+      setTeamError("");
+      setTeamData(null);
+      const payload = await apiFetch("/manager/pointages/team-attendance/", {
+        query: {
+          site: currentFilters.site,
+          date: currentFilters.team_date,
+        },
+        cacheTtlMs: TEAM_ATTENDANCE_CACHE_TTL_MS,
+      });
+      setTeamData(payload);
+    } catch (requestError) {
+      setTeamError(requestError.message);
+    }
+  }
+
   useEffect(() => {
     load();
+    loadTeamAttendance();
   }, [searchParams]);
 
   function updateAttendanceDraft(employeeId, patch) {
@@ -69,7 +93,7 @@ export default function ManagerPointagesPage() {
           employee_id: employeeId,
           action,
           time,
-          date: data.team_date,
+          date: teamData?.team_date || currentFilters.team_date || data?.team_date,
           site: currentFilters.site,
         },
       });
@@ -78,7 +102,7 @@ export default function ManagerPointagesPage() {
         ...drafts,
         [employeeId]: { ...(drafts[employeeId] || {}), time: "" },
       }));
-      await load();
+      await Promise.all([load(), loadTeamAttendance()]);
     } catch (requestError) {
       setAttendanceNotice(requestError.message);
     } finally {
@@ -94,6 +118,12 @@ export default function ManagerPointagesPage() {
     return <LoadingState label="Chargement des pointages..." />;
   }
 
+  const teamRows = teamData?.team_attendance || data.team_attendance || [];
+  const teamSchedule = teamData?.schedule || data.schedule;
+  const selectedTeamSite = teamData?.selected_team_site || data.selected_team_site;
+  const teamDate = teamData?.team_date || currentFilters.team_date || data.team_date || data.today;
+  const today = teamData?.today || data.today;
+
   return (
     <div className="page-stack">
       <section className="section-card">
@@ -106,26 +136,31 @@ export default function ManagerPointagesPage() {
               <p className="eyebrow">Pointage équipe</p>
               <h2>Arrivées et fins de journée des employés</h2>
               <p>
-                Horaire: {data.schedule.start_label} - {data.schedule.end_label}, grâce jusqu'à {data.schedule.grace_label}.
+                {teamSchedule
+                  ? `Horaire: ${teamSchedule.start_label} - ${teamSchedule.end_label}, grâce jusqu'à ${teamSchedule.grace_label}.`
+                  : "Chargement des horaires..."}
               </p>
             </div>
-            {data.selected_team_site ? <span className="pill">{data.selected_team_site.nom}</span> : null}
+            {selectedTeamSite ? <span className="pill">{selectedTeamSite.nom}</span> : null}
           </div>
           {attendanceNotice ? <Notice type="info">{attendanceNotice}</Notice> : null}
+          {teamError ? <Notice type="error">{teamError}</Notice> : null}
           <div className="filter-grid">
             <label className="field">
               <span>Date du pointage</span>
               <input
                 type="date"
-                value={data.team_date}
-                max={data.today}
+                value={teamDate}
+                max={today}
                 onChange={(event) => setSearchParams({ ...currentFilters, team_date: event.target.value, page: "1" })}
               />
             </label>
           </div>
-          {data.team_attendance.length ? (
+          {!teamData && !data.team_attendance ? (
+            <LoadingState label="Chargement du pointage équipe..." />
+          ) : teamRows.length ? (
             <div className="team-attendance-grid">
-              {data.team_attendance.map((row) => {
+              {teamRows.map((row) => {
                 const draft = attendanceDrafts[row.employee_id] || {};
                 const action = draft.action || "clock_in";
                 const busyKey = `${row.employee_id}:${action}`;
@@ -185,7 +220,7 @@ export default function ManagerPointagesPage() {
             <span>Site</span>
             <select
               value={currentFilters.site}
-              onChange={(event) => setSearchParams({ ...currentFilters, site: event.target.value, page: "1" })}
+              onChange={(event) => setSearchParams({ ...currentFilters, site: event.target.value, page: "1", team_date: teamDate })}
             >
               <option value="">Tous</option>
               {data.filters.sites.map((site) => (

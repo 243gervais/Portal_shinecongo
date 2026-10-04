@@ -66,11 +66,20 @@ test("api client caches short-lived get responses and clears cache after writes"
 
 test("portal navigation prefetches page data before likely clicks", () => {
   assert.match(layoutSource, /prefetchApi/);
-  assert.match(layoutSource, /onMouseEnter=\{\(\)\s*=>\s*prefetchApi\(link\.prefetch\)\}/);
-  assert.match(layoutSource, /onFocus=\{\(\)\s*=>\s*prefetchApi\(link\.prefetch\)\}/);
-  assert.match(layoutSource, /onTouchStart=\{\(\)\s*=>\s*prefetchApi\(link\.prefetch\)\}/);
+  assert.match(layoutSource, /onMouseEnter=\{\(\)\s*=>\s*prefetchApi\(link\.prefetch,/);
+  assert.match(layoutSource, /onFocus=\{\(\)\s*=>\s*prefetchApi\(link\.prefetch,/);
+  assert.match(layoutSource, /onTouchStart=\{\(\)\s*=>\s*prefetchApi\(link\.prefetch,/);
   assert.match(layoutSource, /prefetch:\s*"\/manager\/dashboard\/"/);
+  assert.match(layoutSource, /prefetchQuery:\s*\{\s*include_team:\s*"0"\s*\}/);
   assert.match(layoutSource, /prefetch:\s*"\/employee\/lavages\/"/);
+});
+
+test("manager pointage page loads list and team attendance separately", () => {
+  const pointagesSource = readFileSync(new URL("../src/pages/manager/ManagerPointagesPage.jsx", import.meta.url), "utf8");
+  assert.match(pointagesSource, /include_team:\s*"0"/);
+  assert.match(pointagesSource, /POINTAGE_LIST_CACHE_TTL_MS\s*=\s*300_000/);
+  assert.match(pointagesSource, /\/manager\/pointages\/team-attendance\//);
+  assert.match(pointagesSource, /TEAM_ATTENDANCE_CACHE_TTL_MS\s*=\s*60_000/);
 });
 
 test("portal module script is not query-versioned so lazy chunks share one React module", () => {
