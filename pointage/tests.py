@@ -14,6 +14,8 @@ from django.utils import timezone
 from PIL import Image
 
 from comptes.forms import get_water_purchase_default_amount
+from comptes.models import UserProfile
+from comptes.views import _build_site_attendance_rows
 from lavages.models import CarWash
 from pointage.models import ShiftDay
 from pointage.report_sync import ADMIN_CORRECTION_SOURCE, sync_site_finance_from_daily_reports
@@ -2088,6 +2090,57 @@ class EmployeeDailyReportTests(TestCase):
             response,
             reverse("admin_site_employee_portal", args=[self.site.id, self.user.userprofile.id]),
         )
+
+    def test_inactive_employee_history_stays_visible_without_future_absence_counts(self):
+        target_date = timezone.localdate() - timedelta(days=1)
+        while target_date.weekday() == 6:
+            target_date -= timedelta(days=1)
+
+        mike = User.objects.create_user(
+            username="mike",
+            first_name="Mike",
+            last_name="Mwana-Ntambwe",
+            password="TestPass123!",
+            is_active=False,
+        )
+        mike.userprofile.role = UserProfile.EMPLOYEE_ROLE
+        mike.userprofile.site = self.site
+        mike.userprofile.actif = False
+        mike.userprofile.save()
+
+        jules_left_without_shift = User.objects.create_user(
+            username="jules_left",
+            first_name="Jules",
+            last_name="Mbadu",
+            password="TestPass123!",
+            is_active=False,
+        )
+        jules_left_without_shift.userprofile.role = UserProfile.EMPLOYEE_ROLE
+        jules_left_without_shift.userprofile.site = self.site
+        jules_left_without_shift.userprofile.actif = False
+        jules_left_without_shift.userprofile.save()
+
+        clock_in_time = timezone.make_aware(
+            datetime.combine(target_date, datetime.min.time().replace(hour=9, minute=55))
+        )
+        ShiftDay.objects.create(
+            employe=mike,
+            site=self.site,
+            date=target_date,
+            clock_in_time=clock_in_time,
+            clock_in_photo=self._build_attendance_photo(clock_in_time),
+            clock_in_photo_taken_at=clock_in_time,
+            clock_in_gps_status="OK",
+        )
+
+        attendance = _build_site_attendance_rows(self.site, target_date)
+        row_usernames = {row["employee"].username for row in attendance["all_rows"]}
+
+        self.assertIn("mike", row_usernames)
+        self.assertNotIn("jules_left", row_usernames)
+        self.assertEqual(attendance["summary"]["employee_count"], 2)
+        self.assertEqual(attendance["summary"]["present_or_late_count"], 1)
+        self.assertEqual(attendance["summary"]["absent_count"], 1)
 
     @patch("pointage.attendance.timezone.now", return_value=timezone.make_aware(datetime(2026, 9, 13, 12, 0)))
     @patch("pointage.attendance.timezone.localdate", return_value=datetime(2026, 9, 13).date())

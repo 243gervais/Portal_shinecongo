@@ -1532,8 +1532,14 @@ def _build_site_attendance_rows(site, attendance_date, *, employee_id=None, stat
             if alias_by_user_id.get(source_user_id, source_user_id) == selected_employee_id
         ]
 
+    pointages_qs = ShiftDay.objects.filter(site=site, date=attendance_date)
+    if employee_id:
+        pointages_qs = pointages_qs.filter(
+            Q(employe_id__in=source_user_ids) | Q(employe_id=employee_id)
+        )
+
     pointages = list(
-        ShiftDay.objects.filter(site=site, date=attendance_date, employe_id__in=source_user_ids)
+        pointages_qs
         .select_related("employe", "employe__userprofile", "site", "corrected_by")
         .order_by(
             "employe__first_name",
