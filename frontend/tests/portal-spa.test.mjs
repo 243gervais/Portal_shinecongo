@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 const appSource = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
 const layoutSource = readFileSync(new URL("../src/components/PortalLayout.jsx", import.meta.url), "utf8");
 const apiSource = readFileSync(new URL("../src/lib/api.js", import.meta.url), "utf8");
+const routePrefetchSource = readFileSync(new URL("../src/lib/routePrefetch.js", import.meta.url), "utf8");
 const spaTemplate = readFileSync(new URL("../../templates/portal/spa.html", import.meta.url), "utf8");
 
 test("portal layout renders nested route content through Outlet", () => {
@@ -65,13 +66,14 @@ test("api client caches short-lived get responses and clears cache after writes"
 });
 
 test("portal navigation prefetches page data before likely clicks", () => {
-  assert.match(layoutSource, /prefetchApi/);
-  assert.match(layoutSource, /onMouseEnter=\{\(\)\s*=>\s*prefetchApi\(link\.prefetch,/);
-  assert.match(layoutSource, /onFocus=\{\(\)\s*=>\s*prefetchApi\(link\.prefetch,/);
-  assert.match(layoutSource, /onTouchStart=\{\(\)\s*=>\s*prefetchApi\(link\.prefetch,/);
-  assert.match(layoutSource, /prefetch:\s*"\/manager\/dashboard\/"/);
-  assert.match(layoutSource, /prefetchQuery:\s*\{\s*include_team:\s*"0"\s*\}/);
-  assert.match(layoutSource, /prefetch:\s*"\/employee\/lavages\/"/);
+  assert.match(layoutSource, /prefetchPortalHref/);
+  assert.match(layoutSource, /onMouseOver=\{warmLink\}/);
+  assert.match(layoutSource, /onFocusCapture=\{warmLink\}/);
+  assert.match(layoutSource, /onTouchStartCapture=\{warmLink\}/);
+  assert.match(routePrefetchSource, /\/manager\/dashboard\/"/);
+  assert.match(routePrefetchSource, /include_team:\s*"0"/);
+  assert.match(routePrefetchSource, /\/employee\/lavages\/"/);
+  assert.match(routePrefetchSource, /import\("\.\.\/pages\/manager\/ManagerPointagesPage"\)/);
 });
 
 test("manager pointage page loads list and team attendance separately", () => {

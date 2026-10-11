@@ -2,42 +2,39 @@ import React, { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 
 import { Notice } from "./Ui";
-import { prefetchApi } from "../lib/api";
+import { prefetchPortalHref } from "../lib/routePrefetch";
 
 function employeeLinks() {
   return [
-    { to: "/employe/", label: "Accueil", prefetch: "/employee/dashboard/" },
-    { to: "/employe/pointage/", label: "Présence", prefetch: "/employee/pointage/" },
+    { to: "/employe/", label: "Accueil" },
+    { to: "/employe/pointage/", label: "Présence" },
     { to: "/employe/lavage/ajouter/", label: "Ajouter un lavage" },
-    { to: "/employe/lavage/mes-lavages/", label: "Mes lavages", prefetch: "/employee/lavages/" },
+    { to: "/employe/lavage/mes-lavages/", label: "Mes lavages" },
     { to: "/employe/probleme/signaler/", label: "Signaler un problème" },
-    { to: "/employe/probleme/mes-problemes/", label: "Mes problèmes", prefetch: "/employee/problemes/" },
-    { to: "/employe/rapport-journee/", label: "Rapport du jour", prefetch: "/employee/rapport-journalier/" },
-    { to: "/employe/eau/", label: "Eau", prefetch: "/employee/water/" },
-    { to: "/employe/carburant/", label: "Carburant", prefetch: "/employee/fuel/" },
-    { to: "/employe/historique/", label: "Historique", prefetch: "/employee/history/summary/" },
+    { to: "/employe/probleme/mes-problemes/", label: "Mes problèmes" },
+    { to: "/employe/rapport-journee/", label: "Rapport du jour" },
+    { to: "/employe/eau/", label: "Eau" },
+    { to: "/employe/carburant/", label: "Carburant" },
+    { to: "/employe/historique/", label: "Historique" },
   ];
 }
 
 function managerLinks() {
   return [
-    { to: "/manager/", label: "Dashboard", prefetch: "/manager/dashboard/" },
-    { to: "/manager/presence/", label: "Ma présence", prefetch: "/manager/presence/" },
+    { to: "/manager/", label: "Dashboard" },
+    { to: "/manager/presence/", label: "Ma présence" },
     {
       to: "/manager/pointages/",
       label: "Pointages",
-      prefetch: "/manager/pointages/",
-      prefetchQuery: { include_team: "0" },
-      cacheTtlMs: 300_000,
     },
     { to: "/manager/lavage/ajouter/", label: "Ajouter lavage" },
-    { to: "/manager/lavages/", label: "Lavages", prefetch: "/manager/lavages/" },
-    { to: "/manager/problemes/", label: "Problèmes", prefetch: "/manager/problemes/" },
+    { to: "/manager/lavages/", label: "Lavages" },
+    { to: "/manager/problemes/", label: "Problèmes" },
     { to: "/manager/probleme/signaler/", label: "Signaler" },
-    { to: "/manager/eau/", label: "Eau", prefetch: "/manager/eau/" },
-    { to: "/manager/carburant/", label: "Carburant", prefetch: "/manager/carburant/" },
-    { to: "/manager/rapport-journee/", label: "Rapport", prefetch: "/manager/rapport-journalier/" },
-    { to: "/manager/manuel/", label: "Manuel du Manager", prefetch: "/manager/manuel/" },
+    { to: "/manager/eau/", label: "Eau" },
+    { to: "/manager/carburant/", label: "Carburant" },
+    { to: "/manager/rapport-journee/", label: "Rapport" },
+    { to: "/manager/manuel/", label: "Manuel du Manager" },
   ];
 }
 
@@ -45,9 +42,20 @@ export function PortalLayout({ bootstrap, session }) {
   const [messages, setMessages] = useState(bootstrap.messages || []);
   const links = bootstrap.mode === "manager" ? managerLinks() : employeeLinks();
   const footerYear = new Date().getFullYear();
+  const warmLink = (event) => {
+    const anchor = event.target.closest?.("a[href]");
+    if (anchor) {
+      prefetchPortalHref(anchor.href);
+    }
+  };
 
   return (
-    <div className="portal-shell">
+    <div
+      className="portal-shell"
+      onFocusCapture={warmLink}
+      onMouseOver={warmLink}
+      onTouchStartCapture={warmLink}
+    >
       <header className="portal-header">
         <div className="portal-branding">
           <div className="portal-logo">Shine Congo</div>
@@ -75,9 +83,6 @@ export function PortalLayout({ bootstrap, session }) {
             key={link.to}
             to={link.to}
             className={({ isActive }) => `portal-nav-link ${isActive ? "is-active" : ""}`}
-            onFocus={() => prefetchApi(link.prefetch, { query: link.prefetchQuery, cacheTtlMs: link.cacheTtlMs })}
-            onMouseEnter={() => prefetchApi(link.prefetch, { query: link.prefetchQuery, cacheTtlMs: link.cacheTtlMs })}
-            onTouchStart={() => prefetchApi(link.prefetch, { query: link.prefetchQuery, cacheTtlMs: link.cacheTtlMs })}
           >
             {link.label}
           </NavLink>
