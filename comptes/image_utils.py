@@ -1,8 +1,11 @@
 import os
+import hashlib
 from datetime import datetime
 from io import BytesIO
 
 from django.core.files.base import ContentFile
+from django.core.files.storage import FileSystemStorage
+from django.core.cache import caches
 from django.utils import timezone
 from PIL import Image, ImageOps, UnidentifiedImageError
 from PIL.ExifTags import TAGS
@@ -32,6 +35,19 @@ def _seek_file(file_obj):
 def _build_thumbnail_name(source_name):
     root, _ext = os.path.splitext(source_name)
     return f"{root}__thumb.webp"
+
+
+def _thumbnail_cache_key(field_file):
+    storage = field_file.storage
+    identity = f"{storage.__class__.__module__}.{storage.__class__.__name__}:{getattr(storage, 'bucket_name', '')}:{getattr(storage, 'location', '')}:{field_file.name}"
+    return hashlib.sha256(identity.encode()).hexdigest()
+
+
+def remember_thumbnail(field_file, thumbnail_name):
+    try:
+        caches['image_metadata'].set(_thumbnail_cache_key(field_file), thumbnail_name)
+    except OSError:
+        pass
 
 
 def _save_image_to_buffer(image, image_format, *, quality=82):
@@ -102,6 +118,7 @@ def ensure_image_thumbnail(field_file, *, max_size=THUMBNAIL_MAX_SIZE, force=Fal
     thumbnail_name = _build_thumbnail_name(source_name)
 
     if storage.exists(thumbnail_name) and not force:
+        remember_thumbnail(field_file, thumbnail_name)
         return thumbnail_name
 
     try:
@@ -118,6 +135,7 @@ def ensure_image_thumbnail(field_file, *, max_size=THUMBNAIL_MAX_SIZE, force=Fal
                 if storage.exists(thumbnail_name):
                     storage.delete(thumbnail_name)
                 storage.save(thumbnail_name, ContentFile(buffer.getvalue()))
+                remember_thumbnail(field_file, thumbnail_name)
                 return thumbnail_name
     except (OSError, UnidentifiedImageError, ValueError):
         return ""
@@ -127,7 +145,17 @@ def get_thumbnail_url(field_file):
     if not field_file or not getattr(field_file, "name", ""):
         return ""
 
-    thumbnail_name = ensure_image_thumbnail(field_file)
+    # Rendering must never perform S3 HEAD/download requests or image processing.
+    # Uploads and the maintenance command populate this shared, persistent metadata.
+    try:
+        thumbnail_name = caches['image_metadata'].get(_thumbnail_cache_key(field_file))
+    except OSError:
+        thumbnail_name = None
+    if not thumbnail_name and isinstance(field_file.storage, FileSystemStorage):
+        candidate = _build_thumbnail_name(field_file.name)
+        if field_file.storage.exists(candidate):
+            thumbnail_name = candidate
+            remember_thumbnail(field_file, candidate)
     if not thumbnail_name:
         return getattr(field_file, "url", "")
     return field_file.storage.url(thumbnail_name)

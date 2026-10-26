@@ -121,6 +121,7 @@ export function prefetchPortalHref(href) {
   if (warmedHrefs.has(cacheKey)) {
     return;
   }
+  if (warmedHrefs.size >= 2 || navigator.connection?.saveData) return;
   warmedHrefs.add(cacheKey);
 
   warmRouteModule(pathname);
@@ -129,6 +130,8 @@ export function prefetchPortalHref(href) {
     prefetchApi(apiTarget.path, {
       query: apiTarget.query,
       cacheTtlMs: apiTarget.cacheTtlMs,
-    });
+    }).finally(() => warmedHrefs.delete(cacheKey));
+  } else {
+    warmedHrefs.delete(cacheKey);
   }
 }

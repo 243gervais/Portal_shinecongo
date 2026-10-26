@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 
-import { Notice } from "./Ui";
+import { LoadingState, Notice } from "./Ui";
 import { prefetchPortalHref } from "../lib/routePrefetch";
 
 function employeeLinks() {
@@ -105,7 +105,9 @@ export function PortalLayout({ bootstrap, session }) {
             ))}
           </div>
         ) : null}
-        <Outlet />
+        <Suspense fallback={<LoadingState label="Chargement de la section..." />}>
+          <Outlet />
+        </Suspense>
       </main>
 
       <footer className="portal-footer">

@@ -511,8 +511,7 @@ class EmployeeDailyReportTests(TestCase):
         asset_content = b"".join(response.streaming_content)
         self.assertIn(b'"/session/"', asset_content)
         self.assertNotIn(b"/static/frontend/", asset_content)
-        self.assertIn("public", response["Cache-Control"])
-        self.assertNotIn("no-store", response["Cache-Control"])
+        self.assertIn("no-store", response["Cache-Control"])
 
         from django.conf import settings
 
@@ -1770,8 +1769,7 @@ class EmployeeDailyReportTests(TestCase):
         asset_content = b"".join(response.streaming_content)
         self.assertIn(b'"/session/"', asset_content)
         self.assertNotIn(b"/static/frontend/", asset_content)
-        self.assertIn("public", response["Cache-Control"])
-        self.assertNotIn("no-store", response["Cache-Control"])
+        self.assertIn("no-store", response["Cache-Control"])
 
         from django.conf import settings
 

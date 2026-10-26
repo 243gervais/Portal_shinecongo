@@ -74,6 +74,7 @@ if USE_S3_ENV:
         warnings.warn("⚠️  django-storages not installed. S3 storage disabled. Install with: pip install django-storages boto3")
 
 MIDDLEWARE = [
+    "shinecongo.middleware.RequestTimingMiddleware",
     # "corsheaders.middleware.CorsMiddleware",  # Commented out - not installed
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.gzip.GZipMiddleware",
@@ -118,6 +119,17 @@ DATABASES = {
     }
 }
 
+
+# Shared thumbnail metadata; no authenticated HTML or financial payloads.
+CACHES = {
+    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    "image_metadata": {
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": BASE_DIR / ".cache" / "thumbnails",
+        "TIMEOUT": None,
+        "OPTIONS": {"MAX_ENTRIES": 100000},
+    },
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators

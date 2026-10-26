@@ -3,6 +3,27 @@ Middleware personnalisé pour gérer le cache et la sécurité
 """
 from django.utils.deprecation import MiddlewareMixin
 from django.conf import settings
+import logging
+from time import perf_counter
+
+
+class RequestTimingMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        started = perf_counter()
+        response = self.get_response(request)
+        elapsed_ms = (perf_counter() - started) * 1000
+        response['Server-Timing'] = f'app;dur={elapsed_ms:.1f}'
+        if elapsed_ms >= 2000 and not request.path.startswith(('/media/', '/static/', '/portal-assets/')):
+            logging.getLogger('shinecongo.performance').warning(
+                'Slow request method=%s route=%s status=%s duration_ms=%.0f',
+                request.method,
+                getattr(getattr(request, 'resolver_match', None), 'view_name', 'unknown'),
+                response.status_code, elapsed_ms,
+            )
+        return response
 
 
 class NoCacheMiddleware(MiddlewareMixin):
