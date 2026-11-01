@@ -40,7 +40,8 @@ nginx must overwrite X-Forwarded-Proto (the production proxy_params already does
 Django trusts that header for secure generated links and CSRF origin checking.
 Keep Gunicorn on its existing private Unix socket.
 
-Every Fabric deployment now runs three fresh certificate-validating HTTPS checks.
+Every Fabric deployment allows up to 30 seconds for application startup, then
+runs three fresh certificate-validating HTTPS checks.
 For a manual check from a client network or the production VM:
 
 ```sh

@@ -4,16 +4,35 @@ import http.client
 import ssl
 import sys
 from datetime import datetime, timezone
-from time import monotonic
+from time import monotonic, sleep
+
+
+def wait_until_ready(host, seconds, context):
+    deadline = monotonic() + seconds
+    while monotonic() < deadline:
+        connection = http.client.HTTPSConnection(host, timeout=2, context=context)
+        try:
+            connection.request('HEAD', '/login/')
+            if connection.getresponse().status == 200:
+                return
+        except (OSError, ValueError, http.client.HTTPException):
+            pass
+        finally:
+            connection.close()
+        sleep(0.5)
+    raise SystemExit('Application did not become HTTPS-ready before the startup deadline')
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--host', default='portal.shinecongo.org')
     parser.add_argument('--attempts', type=int, default=5)
+    parser.add_argument('--wait-ready', type=int, default=0, help='Allow application startup before strict checks')
     args = parser.parse_args()
     failures = 0
     context = ssl.create_default_context()
+    if args.wait_ready > 0:
+        wait_until_ready(args.host, args.wait_ready, context)
     for attempt in range(max(1, args.attempts)):
         connection = http.client.HTTPSConnection(args.host, timeout=10, context=context)
         started = monotonic()

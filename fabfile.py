@@ -89,7 +89,7 @@ def deploy(_c) -> None:
     )
 
     conn.sudo(f"systemctl restart {service}")
-    _run_in_venv(conn, app_dir, "python scripts/check_https.py --attempts 3")
+    _run_in_venv(conn, app_dir, "python scripts/check_https.py --wait-ready 30 --attempts 3")
 
 
 @task
@@ -106,4 +106,4 @@ def configure_https(_c) -> None:
     conn.run("openssl s_client -connect 127.0.0.1:443 -servername portal.shinecongo.org -verify_hostname portal.shinecongo.org -verify_return_error -brief < /dev/null")
     _run_in_venv(conn, app_dir, "python scripts/set_portal_host.py")
     conn.sudo(f"systemctl restart {_env('FAB_SERVICE', 'portal-shinecongo')}")
-    _run_in_venv(conn, app_dir, "python scripts/check_https.py")
+    _run_in_venv(conn, app_dir, "python scripts/check_https.py --wait-ready 30")
