@@ -89,3 +89,21 @@ def deploy(_c) -> None:
     )
 
     conn.sudo(f"systemctl restart {service}")
+    _run_in_venv(conn, app_dir, "python scripts/check_https.py --attempts 3")
+
+
+@task
+def configure_https(_c) -> None:
+    """Enable the dedicated portal domain after its DNS A record is configured."""
+    app_dir = _env("FAB_PATH", "/home/gervaismbadu/portal_shinecongo")
+    conn = Connection(
+        host=_env("FAB_HOST", "8.229.62.95"),
+        user=_env("FAB_USER", "gervaismbadu"),
+        connect_kwargs={"key_filename": _env("FAB_KEY", str(Path.home() / ".ssh" / "google_compute_engine"))},
+    )
+    conn.sudo(f"bash {shlex.quote(app_dir + '/scripts/configure_portal_https.sh')}")
+    # Check nginx/certificate before changing application routing.
+    conn.run("openssl s_client -connect 127.0.0.1:443 -servername portal.shinecongo.org -verify_hostname portal.shinecongo.org -verify_return_error -brief < /dev/null")
+    _run_in_venv(conn, app_dir, "python scripts/set_portal_host.py")
+    conn.sudo(f"systemctl restart {_env('FAB_SERVICE', 'portal-shinecongo')}")
+    _run_in_venv(conn, app_dir, "python scripts/check_https.py")

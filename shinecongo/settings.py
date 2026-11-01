@@ -31,6 +31,15 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-q+obmrtt7uw1k!r2(y^+5iz#-&
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+PORTAL_CANONICAL_HOST = os.getenv('PORTAL_CANONICAL_HOST', '').strip().lower()
+PORTAL_LEGACY_HOSTS = (
+    'shinecongo-portal.8.229.62.95.sslip.io',
+    '8-229-62-95.nip.io',
+)
+# nginx overwrites this header, so generated links retain the public HTTPS scheme.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'False') == 'True'
+CSRF_COOKIE_SECURE = os.getenv('CSRF_COOKIE_SECURE', 'False') == 'True'
 
 
 # Application definition
@@ -77,6 +86,7 @@ MIDDLEWARE = [
     "shinecongo.middleware.RequestTimingMiddleware",
     # "corsheaders.middleware.CorsMiddleware",  # Commented out - not installed
     "django.middleware.security.SecurityMiddleware",
+    "shinecongo.middleware.CanonicalPortalHostMiddleware",
     "django.middleware.gzip.GZipMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",

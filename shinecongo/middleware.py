@@ -5,6 +5,22 @@ from django.utils.deprecation import MiddlewareMixin
 from django.conf import settings
 import logging
 from time import perf_counter
+from django.http import HttpResponseRedirect
+
+
+class CanonicalPortalHostMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        canonical = settings.PORTAL_CANONICAL_HOST
+        host = request.get_host().split(':')[0].lower()
+        if (canonical and host != canonical and host in settings.PORTAL_LEGACY_HOSTS
+                and request.method in ('GET', 'HEAD')):
+            response = HttpResponseRedirect(f'https://{canonical}{request.get_full_path()}')
+            response['Cache-Control'] = 'no-store'
+            return response
+        return self.get_response(request)
 
 
 class RequestTimingMiddleware:
