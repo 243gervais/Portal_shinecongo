@@ -2,6 +2,7 @@ from datetime import date, datetime, time
 from unittest.mock import Mock, patch
 
 from django.contrib.auth.models import User
+from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -9,7 +10,7 @@ from django.utils import timezone
 from comptes.attendance_register import month_register
 from comptes.models import UserProfile
 from pointage.models import ShiftDay
-from sites.models import Location
+from sites.models import Camera, DailyCameraReport, Location, VideoEvidence
 
 
 class AttendanceRegisterTests(TestCase):
@@ -109,3 +110,19 @@ class AttendanceRegisterTests(TestCase):
         storage.exists.assert_not_called()
         storage.open.assert_not_called()
         storage.save.assert_not_called()
+
+    def test_background_job_includes_camera_images_but_not_video_clips(self):
+        report = DailyCameraReport.objects.create(site=self.site, date=date(2026, 9, 1))
+        camera = Camera.objects.create(site=self.site, name='Entree', camera_number=1)
+        VideoEvidence.objects.bulk_create([
+            VideoEvidence(daily_report=report, camera=camera, title='Photo', evidence_type='OTHER', clip_date=report.date,
+                          uploaded_file='camera_test_capture.jpg'),
+            VideoEvidence(daily_report=report, camera=camera, title='Video', evidence_type='OTHER', clip_date=report.date,
+                          uploaded_file='camera_test_clip.mp4'),
+        ])
+        with patch('comptes.management.commands.warm_photo_thumbnails.ensure_image_thumbnail', return_value='test__thumb.webp') as prepare:
+            call_command('warm_photo_thumbnails', limit=100)
+        prepared_names = [call.args[0].name for call in prepare.call_args_list]
+        self.assertIn('camera_test_capture.jpg', prepared_names)
+        self.assertNotIn('camera_test_clip.mp4', prepared_names)
+        self.assertTrue(all(call.kwargs.get('allow_remote') for call in prepare.call_args_list))

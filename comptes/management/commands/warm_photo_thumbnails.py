@@ -19,12 +19,15 @@ class Command(BaseCommand):
             if model._meta.app_label not in {'comptes', 'pointage', 'lavages', 'problemes', 'sites'}:
                 continue
             for field in model._meta.fields:
-                if not isinstance(field, ImageField):
+                camera_capture = model._meta.label_lower == 'sites.videoevidence' and field.name == 'uploaded_file'
+                if not isinstance(field, ImageField) and not camera_capture:
                     continue
                 rows = model.objects.exclude(**{field.name: ''}).exclude(
                     **{f'{field.name}__isnull': True}
                 ).only('pk', field.name).iterator(chunk_size=100)
                 for row in rows:
+                    if camera_capture and not row.is_image():
+                        continue
                     photo = getattr(row, field.name)
                     metadata_key = _thumbnail_cache_key(photo)
                     if caches['image_metadata'].get(metadata_key) is not None:
