@@ -644,6 +644,7 @@
         }
     }
 </style>
+{% include "admin/attendance_styles.html" %}
 {% endblock %}
 
 {% block content %}
@@ -654,8 +655,7 @@
                 <span class="attendance-eyebrow">Admin pointage</span>
                 <h1>Pointage</h1>
                 <p class="attendance-copy">
-                    Tableau professionnel de suivi des heures, présences, retards et retenues pour <strong>{{ site.nom }}</strong>.
-                    Les calculs utilisent les heures saisies par le manager et l'objectif de paie de 60h par semaine.
+                    <strong>{{ site.nom }}</strong> &middot; {{ register.first|date:"F Y" }} &middot; Présences et suivi des horaires.
                 </p>
                 <div class="attendance-chips">
                     <span class="attendance-chip">Site <strong>{{ site.nom }}</strong></span>
@@ -675,7 +675,9 @@
         </div>
     </section>
 
-    <section class="attendance-stats">
+    {% include "admin/attendance_register.html" %}
+
+    <section class="attendance-stats" aria-label="Bilan du {{ selected_date|date:'d/m/Y' }}">
         <article class="attendance-stat">
             <div class="attendance-stat-label">Présents</div>
             <div class="attendance-stat-value">{{ attendance_summary.present_count }}</div>
@@ -698,6 +700,8 @@
         </article>
     </section>
 
+    <details class="attendance-legacy">
+    <summary>Objectifs horaires et retenues &middot; {{ register.first|date:"F Y" }}</summary>
     <section class="attendance-card time-dashboard" id="dashboard-pointage">
         <div class="time-dashboard-head">
             <div class="time-dashboard-title">
@@ -748,7 +752,7 @@
             <article class="time-employee-card {% if row.risk_level == 'risk' %}time-employee-card--risk{% elif row.risk_level == 'watch' %}time-employee-card--watch{% endif %}">
                 <div class="time-employee-head">
                     <div>
-                        <h3 class="time-employee-name">{{ row.employee.get_full_name|default:row.employee.username }}</h3>
+                        <h3 class="time-employee-name"><a href="{% url 'admin_employee_attendance' site.id row.employee.id %}?month={{ register.month_value }}">{{ row.employee.get_full_name|default:row.employee.username }}</a></h3>
                         <div class="attendance-meta">
                             Identifiant: {{ row.employee.username }}
                             {% if row.profile %}<br>Rôle: {{ row.profile.get_role_display }}{% endif %}
@@ -864,6 +868,7 @@
         {% endif %}
     </section>
 
+    </details>
     <section class="attendance-card" id="attendance-filters">
         <div class="attendance-section-head">
             <div>
@@ -931,7 +936,7 @@
                         <div class="attendance-avatar">{{ row.employee.username|slice:":1"|upper }}</div>
                         {% endif %}
                         <div>
-                            <h3 class="attendance-name">{{ row.employee.get_full_name|default:row.employee.username }}</h3>
+                            <h3 class="attendance-name"><a href="{% url 'admin_employee_attendance' site.id row.employee.id %}?month={{ register.month_value }}">{{ row.employee.get_full_name|default:row.employee.username }}</a></h3>
                             <div class="attendance-meta">
                                 Identifiant: {{ row.employee.username }}
                                 {% if row.profile %}

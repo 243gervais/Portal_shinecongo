@@ -33,7 +33,7 @@ class Command(BaseCommand):
                         self.stdout.write(f'{prepared} prepared; {failed} unavailable.')
                         return
                     try:
-                        thumbnail = ensure_image_thumbnail(photo)
+                        thumbnail = ensure_image_thumbnail(photo, allow_remote=True)
                     except Exception:
                         # A storage outage must not prevent later photos from being prepared.
                         thumbnail = ''

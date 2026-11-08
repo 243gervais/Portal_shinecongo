@@ -5,7 +5,7 @@ from django.core.cache import caches
 from django.http import HttpResponse
 from django.test import SimpleTestCase, override_settings
 
-from comptes.image_utils import get_thumbnail_url, remember_thumbnail
+from comptes.image_utils import ensure_image_thumbnail, get_thumbnail_url, remember_thumbnail
 from shinecongo.middleware import RequestTimingMiddleware
 
 
@@ -37,6 +37,17 @@ class ThumbnailRenderingTests(SimpleTestCase):
         caches['image_metadata'].clear()
         self.assertEqual(get_thumbnail_url(self.photo), '/media/proof.jpg')
         self.storage.exists.assert_not_called()
+
+    def test_remote_thumbnail_is_deferred_during_uploads(self):
+        self.assertEqual(ensure_image_thumbnail(self.photo), '')
+        self.storage.exists.assert_not_called()
+        self.storage.open.assert_not_called()
+
+    def test_maintenance_explicitly_prepares_remote_metadata(self):
+        self.storage.exists.return_value = True
+        self.assertEqual(ensure_image_thumbnail(self.photo, allow_remote=True), 'proof__thumb.webp')
+        self.storage.exists.assert_called_once_with('proof__thumb.webp')
+        self.assertEqual(get_thumbnail_url(self.photo), '/media/proof__thumb.webp')
 
 
 class RequestTimingTests(SimpleTestCase):

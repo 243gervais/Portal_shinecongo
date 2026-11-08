@@ -19,6 +19,7 @@ from django.urls import path, include
 from django.contrib.auth import views as auth_views
 from django.conf import settings
 from django.conf.urls.static import static
+from comptes.attendance_views import employee_attendance
 from comptes.views import (
     dashboard,
     logout_view,
@@ -247,6 +248,7 @@ urlpatterns = [
     path("admin-dashboard/site/<uuid:site_id>/pointages/<int:pointage_id>/items/<slug:target>/delete/", admin_delete_pointage_item, name="admin_delete_pointage_item"),
     path("admin-dashboard/site/<uuid:site_id>/pointages/<int:pointage_id>/delete-report/", admin_delete_daily_report, name="admin_delete_daily_report"),
     path("admin-dashboard/site/<uuid:site_id>/attendance-photos/", admin_site_attendance_photos, name="admin_site_attendance_photos"),
+    path("admin-dashboard/site/<uuid:site_id>/attendance/<int:employee_id>/", employee_attendance, name="admin_employee_attendance"),
     path("admin-dashboard/site/<uuid:site_id>/documents/", admin_site_documents, name="admin_site_documents"),
     path("admin-dashboard/site/<uuid:site_id>/camera-monitoring/", admin_site_camera_monitoring, name="admin_site_camera_monitoring"),
     path("admin-dashboard/site/<uuid:site_id>/cameras/<int:camera_id>/edit/", admin_edit_site_camera, name="admin_edit_site_camera"),

@@ -79,16 +79,19 @@ def deploy(_c) -> None:
 
     # Keep thumbnail preparation out of web workers; flock prevents overlap.
     thumbnail_cron = (
-        f"*/10 * * * * cd {shlex.quote(app_dir)} && "
+        f"*/2 * * * * cd {shlex.quote(app_dir)} && "
         f"flock -n logs/photo_thumbnails.lock venv/bin/python manage.py "
-        f"warm_photo_thumbnails --limit 50 >> logs/photo_thumbnails.log 2>&1"
+        f"warm_photo_thumbnails --limit 25 >> logs/photo_thumbnails.log 2>&1"
     )
     conn.run(
         "(crontab -l 2>/dev/null | grep -v 'warm_photo_thumbnails' || true; "
         f"echo {shlex.quote(thumbnail_cron)}) | crontab -"
     )
 
-    conn.sudo(f"systemctl restart {service}")
+    if conn.sudo(f"systemctl is-active --quiet {service}", warn=True).ok:
+        conn.sudo(f"systemctl kill --kill-who=main --signal=HUP {service}")
+    else:
+        conn.sudo(f"systemctl start {service}")
     _run_in_venv(conn, app_dir, "python scripts/check_https.py --wait-ready 30 --attempts 3")
 
 

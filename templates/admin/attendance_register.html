@@ -1,0 +1,21 @@
+<section class="register-section" aria-labelledby="register-heading">
+    <div class="register-head">
+        <div><h2 id="register-heading">Registre du personnel</h2><span class="register-muted">{{ site.nom }} &middot; {{ register.first|date:"F Y" }}</span></div>
+        <form method="get" class="register-tools">
+            <label>Mois<input type="month" name="month" value="{{ register.month_value }}" max="{{ today|date:'Y-m' }}" required></label>
+            <label>Rechercher<input type="search" name="q" value="{{ register_search }}" placeholder="Nom ou identifiant"></label>
+            <button class="btn btn-primary" type="submit">Afficher</button>
+        </form>
+    </div>
+    <div class="register-table-wrap">
+        <table class="register-table">
+            <thead><tr><th scope="col">Collaborateur</th><th scope="col">Jours pointés</th><th scope="col">À l'heure</th><th scope="col">Retards</th><th scope="col">Absences</th><th scope="col">Heures clôturées</th><th scope="col">Ponctualité</th><th scope="col"><span class="register-muted">Dossier</span></th></tr></thead>
+            <tbody>{% for row in register_page %}<tr>
+                <td><div class="register-employee">{% if row.profile.profile_photo %}<img class="register-avatar" src="{{ row.profile.profile_photo_thumbnail_url }}" alt="" width="36" height="36" loading="lazy" decoding="async">{% else %}<span class="register-avatar" aria-hidden="true">{{ row.employee.first_name|default:row.employee.username|slice:':1'|upper }}</span>{% endif %}<div><a href="{% url 'admin_employee_attendance' site.id row.employee.id %}?month={{ register.month_value }}">{{ row.employee.get_full_name|default:row.employee.username }}</a><small>{{ row.profile.get_role_display }}{% if row.archived %} &middot; Archives{% endif %}</small></div></div></td>
+                <td>{{ row.present }}</td><td class="register-positive">{{ row.on_time }}</td><td>{% if row.late %}<span class="register-badge LATE">{{ row.late }} retard{{ row.late|pluralize }}</span>{% else %}&mdash;{% endif %}</td><td>{% if row.absent %}<span class="register-badge ABSENT">{{ row.absent }}</span>{% else %}&mdash;{% endif %}</td><td>{{ row.hours }}{% if row.missing_end %}<small>{{ row.missing_end }} sortie{{ row.missing_end|pluralize }} non clôturée{{ row.missing_end|pluralize }}</small>{% endif %}</td><td>{% if row.punctuality != None %}{{ row.punctuality }}%{% else %}&mdash;{% endif %}</td><td><a class="register-icon" title="Historique de {{ row.employee.get_full_name|default:row.employee.username }}" aria-label="Historique de {{ row.employee.get_full_name|default:row.employee.username }}" href="{% url 'admin_employee_attendance' site.id row.employee.id %}?month={{ register.month_value }}">&#8250;</a></td>
+            </tr>{% empty %}<tr><td colspan="8">Aucun collaborateur pour cette période.</td></tr>{% endfor %}</tbody>
+        </table>
+    </div>
+    <div class="register-footer">Arrivée {{ register.schedule.start_label }} &middot; Tolérance {{ register.schedule.grace_label }} &middot; {{ register.schedule.workdays_label }}</div>
+    {% include "partials/pagination.html" with page_obj=register_page page_param="register_page" anchor="register-heading" %}
+</section>

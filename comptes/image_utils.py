@@ -109,11 +109,13 @@ def optimize_image_upload(field_file, *, max_size=IMAGE_MAX_SIZE):
         return field_file
 
 
-def ensure_image_thumbnail(field_file, *, max_size=THUMBNAIL_MAX_SIZE, force=False):
+def ensure_image_thumbnail(field_file, *, max_size=THUMBNAIL_MAX_SIZE, force=False, allow_remote=False):
     if not field_file or not getattr(field_file, "name", ""):
         return ""
 
     storage = field_file.storage
+    if not allow_remote and not isinstance(storage, FileSystemStorage):
+        return ''
     source_name = field_file.name
     thumbnail_name = _build_thumbnail_name(source_name)
 

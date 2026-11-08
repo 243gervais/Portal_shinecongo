@@ -2,14 +2,16 @@
 
 Photo URL rendering across admin, manager, employee, camera and corporate pages
 never downloads images, creates thumbnails or queries remote storage for existence.
-Uploads prepare thumbnails and remember their names in a shared filesystem cache.
+Remote uploads save the original optimized image and defer all thumbnail work to
+the maintenance command; local filesystem uploads still prepare thumbnails inline.
+Prepared thumbnail names are remembered in a shared filesystem cache.
 Unknown or evicted metadata safely falls back to the existing original image.
 URLs (including signed URLs) are generated per request, not stored in that cache.
 No records or original photos are deleted.
 
 `python manage.py warm_photo_thumbnails --limit 500` prepares older operational
 photos outside requests. Repeat until no work remains. The deployment installs a
-ten-minute cron job, with a lock and a 50-photo batch limit. Failed photos are
+two-minute cron job, with a lock and a 25-photo batch limit. Failed photos are
 deferred for an hour so they do not block the queue. The cache directory
 `.cache/thumbnails` must be writable only by the application account and must
 never be served by nginx. Removing it is safe; original images remain available.

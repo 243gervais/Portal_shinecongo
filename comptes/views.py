@@ -4400,6 +4400,10 @@ def admin_site_attendance_photos(request, site_id):
     if selected_date > today:
         selected_date = today
 
+    if request.GET.get('month') and not selected_date_param:
+        month = min(_parse_payroll_month(request.GET.get('month'), today), today.replace(day=1))
+        selected_date = min(_month_bounds(month)[1], today)
+
     selected_employee_raw = (request.GET.get("employee") or "").strip()
     selected_employee_id = None
     if selected_employee_raw:
@@ -4446,10 +4450,21 @@ def admin_site_attendance_photos(request, site_id):
     previous_date = selected_date - timedelta(days=1)
     next_date = selected_date + timedelta(days=1)
 
+    from comptes.attendance_register import month_register
+    register = month_register(site, selected_date)
+    register_search = (request.GET.get('q') or '').strip()
+    register_rows = register['rows']
+    if register_search:
+        register_rows = [row for row in register_rows if register_search.casefold() in
+                         f"{row['employee'].get_full_name()} {row['employee'].username}".casefold()]
+
     context = {
         "site": site,
         "today": today,
         "selected_date": selected_date,
+        "register": register,
+        "register_search": register_search,
+        "register_page": paginate_queryset(request, register_rows, per_page=12, page_param='register_page'),
         "selected_date_iso": selected_date.strftime("%Y-%m-%d"),
         "selected_employee_id": str(selected_employee_id) if selected_employee_id else "",
         "selected_status_filter": selected_status_filter,
