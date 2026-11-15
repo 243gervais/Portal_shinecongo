@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% load currency_tags %}
+{% block title %}{{ site.nom }} · Tableau de bord{% endblock %}
+{% block external_fonts %}{% endblock %}
+{% block extra_css %}{% include "admin/site_dashboard_styles.html" %}{% endblock %}
+{% block content %}
+<div class="sd">
+    <header class="sd-head">
+<div>
+<p class="sd-breadcrumb">
+<a href="{% url 'admin_dashboard' %}">Sites</a> / Tableau de bord</p>
+<h1>{{ site.nom }}</h1>
+<p class="sd-subtitle">{{ site.adresse }}{% if site.adresse %} &middot; {% endif %}{{ site.ville }} &nbsp; <span class="sd-pill {% if site.actif %}green{% endif %}">{% if site.actif %}Site actif{% else %}Site inactif{% endif %}</span>
+</p>
+</div>
+<div class="sd-head-actions">
+<a class="sd-button" href="{% url 'admin_add_bank_deposit' site.id %}?date={{ detail_date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}">Dépôt bancaire</a>
+<a class="sd-button primary" href="{% url 'admin_add_wash' site.id %}?date={{ detail_date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}">&#43; Nouveau lavage</a>
+</div>
+</header>
+    <div class="sd-toolbar">
+<div class="sd-presets" aria-label="Périodes rapides">{% for preset in presets %}<a href="{{ preset.url }}">{{ preset.label }}</a>{% endfor %}</div>
+<form class="sd-period" method="get">
+<input type="hidden" name="tab" value="{{ tab }}">
+<label>Du<input type="date" name="date_debut" value="{{ date_debut }}" max="{{ today|date:'Y-m-d' }}" required>
+</label>
+<label>Au<input type="date" name="date_fin" value="{{ date_fin }}" max="{{ today|date:'Y-m-d' }}" required>
+</label>
+<button class="sd-button" type="submit">Afficher</button>
+</form>
+</div>
+    <nav class="sd-tabs" aria-label="Navigation du site">{% for item in tabs %}<a href="{{ item.url }}" {% if tab == item.key %}aria-current="page"{% endif %}>{{ item.label }}</a>{% if item.key == 'washes' %}<a href="{% url 'admin_site_attendance_photos' site.id %}?date={{ detail_date|date:'Y-m-d' }}">Pointage</a>{% endif %}{% endfor %}
+<a href="{% url 'admin_site_documents' site.id %}">Documents</a>
+<a href="{% url 'admin_site_journal' site.id %}">Journal</a>
+</nav>
+    <section aria-label="Synthèse financière" id="journal-jour-detail">
+<p class="sd-period-label">{% if start == end %}Journée du {{ start|date:'d F Y' }}{% else %}Période du {{ start|date:'d/m/Y' }} au {{ end|date:'d/m/Y' }}{% endif %} &middot; Montants en FC</p>
+<div class="sd-kpis">
+<a class="sd-kpi" href="{{ washes_url }}">
+<div class="sd-kpi-label">Recettes lavages</div>
+<div class="sd-kpi-value">{{ chiffre_periode|fc_amount }} <small>FC</small>
+</div>
+<div class="sd-kpi-note">{{ total_lavages }} lavage{{ total_lavages|pluralize }} enregistré{{ total_lavages|pluralize }}</div>
+</a>
+<a class="sd-kpi" href="{{ finance_url }}#bank-ledger">
+<div class="sd-kpi-label">Dépôts bancaires</div>
+<div class="sd-kpi-value">{{ deposits_total|fc_amount }} <small>FC</small>
+</div>
+<div class="sd-kpi-note">{{ deposit_count }} dépôt{{ deposit_count|pluralize }} enregistré{{ deposit_count|pluralize }}</div>
+</a>
+<a class="sd-kpi" href="{{ finance_url }}#expense-ledger">
+<div class="sd-kpi-label">Dépenses sur caisse</div>
+<div class="sd-kpi-value">{{ cash_expenses|fc_amount }} <small>FC</small>
+</div>
+<div class="sd-kpi-note">Charges financées par la caisse</div>
+</a>
+<a class="sd-kpi" href="{{ finance_url }}">
+<div class="sd-kpi-label">Écart de caisse</div>
+<div class="sd-kpi-value {% if cash_balance < 0 %}negative{% endif %}">{{ cash_balance|fc_amount }} <small>FC</small>
+</div>
+<div class="sd-kpi-note">{% if cash_balance == 0 %}Caisse équilibrée{% else %}À rapprocher{% endif %}</div>
+</a>
+</div>
+</section>
+
+    {% if tab == 'overview' %}
+    <div class="sd-layout">
+<div class="sd-column">
+        <section class="sd-section" id="historique-lavages">
+<div class="sd-section-head">
+<h2>Derniers lavages</h2>
+<a href="{{ washes_url }}">Tous les lavages &#8594;</a>
+</div>{% include "admin/site_dashboard_washes.html" %}</section>
+        <section class="sd-section" id="pointages-site">
+<div class="sd-section-head">
+<h2>Présences du {{ end|date:'d/m/Y' }}</h2>
+<a href="{% url 'admin_site_attendance_photos' site.id %}?date={{ detail_date|date:'Y-m-d' }}">Ouvrir le dashboard pointage &#8594;</a>
+</div>
+<div class="sd-table-wrap">
+<table class="sd-table">
+<thead>
+<tr>
+<th>Collaborateur</th>
+<th>Arrivée</th>
+<th>Départ</th>
+<th>Statut</th>
+</tr>
+</thead>
+<tbody>{% for row in attendance.rows %}<tr>
+<td class="sd-wrap">
+<a href="{% url 'admin_employee_attendance' site.id row.employee.id %}?month={{ detail_date|date:'Y-m' }}">{{ row.employee.get_full_name|default:row.employee.username }}</a>
+</td>
+<td>{{ row.pointage.clock_in_time|date:'H:i'|default:'—' }}</td>
+<td>{{ row.pointage.clock_out_time|date:'H:i'|default:'—' }}</td>
+<td>
+<span class="sd-pill {% if row.attendance_status.code == 'PRESENT' %}green{% elif row.attendance_status.code == 'LATE' %}orange{% elif row.attendance_status.code == 'ABSENT' %}red{% endif %}">{{ row.attendance_status.label }}</span>{% if not row.pointage %}<small>Aucun pointage</small>{% endif %}</td>
+</tr>{% empty %}<tr>
+<td colspan="4" class="sd-empty">Aucun collaborateur pour cette journée.</td>
+</tr>{% endfor %}</tbody>
+</table>
+</div>
+</section>
+        <section class="sd-section">
+<div class="sd-section-head">
+<h2>Rapports de fin de journée</h2>
+<a href="{% url 'admin_daily_report_history' %}?site={{ site.id }}">Historique des rapports &#8594;</a>
+</div>{% for report in recent_reports %}<div class="sd-report">
+<div>{{ report.employe.get_full_name|default:report.employe.username }}<small>{{ report.date|date:'d/m/Y' }} &middot; {{ report.total_lavages_reported }} lavage{{ report.total_lavages_reported|pluralize }} déclaré{{ report.total_lavages_reported|pluralize }}</small>
+</div>
+<strong>{{ report.total_amount_reported_fc|fc_amount }} FC</strong>
+</div>{% empty %}<p class="sd-empty">Aucun rapport confirmé pour cette période.</p>{% endfor %}</section>
+    </div>
+<aside class="sd-column" aria-label="Suivi du site">
+        <section class="sd-section" id="pilotage-hebdomadaire">
+<div class="sd-section-head">
+<h2>Cette semaine</h2>
+<a href="{% url 'admin_site_history_comparison' site.id %}?date={{ detail_date|date:'Y-m-d' }}">Comparer &#8594;</a>
+</div>
+<p class="sd-kpi-value" style="margin:0 0 6px">{{ chiffre_week|fc_amount }} <small>FC</small>
+</p>
+<p class="sd-note-copy">Recettes du {{ week_start|date:'d/m' }} au {{ week_end|date:'d/m/Y' }}</p>
+</section>
+        <section class="sd-section sd-attention" id="problemes-ouverts">
+<h2>À suivre</h2>
+<div class="sd-attention-list">
+<a class="sd-attention-row" href="{{ issues_url }}">
+<span>Problèmes ouverts</span>
+<strong>{{ open_issue_count }} &#8250;</strong>
+</a>
+<a class="sd-attention-row" href="{% url 'admin_site_attendance_photos' site.id %}?date={{ detail_date|date:'Y-m-d' }}">
+<span>Absences du {{ end|date:'d/m' }}</span>
+<strong>{{ attendance.summary.absent_count }} &#8250;</strong>
+</a>
+<a class="sd-attention-row" href="{{ finance_url }}">
+<span>Écart rapports / lavages</span>
+<strong>{{ report_variance|fc_amount }} <small>FC</small>
+</strong>
+</a>
+</div>
+</section>
+        <section class="sd-section">
+<div class="sd-section-head">
+<h2>Accès rapides</h2>
+</div>
+<nav class="sd-shortcuts" aria-label="Gestion du site">
+<a href="{% url 'admin_site_employees' site.id %}">Gestion des employés <span>&#8250;</span>
+</a>
+<a href="{% url 'admin_site_camera_monitoring' site.id %}?date={{ detail_date|date:'Y-m-d' }}">Caméras &amp; comptage <span>&#8250;</span>
+</a>
+<a href="{% url 'admin_site_documents' site.id %}">Documents du site <span>{{ documents_count }} &#8250;</span>
+</a>
+<a href="{{ photos_url }}" id="photos-lavages">Photos des lavages <span>&#8250;</span>
+</a>
+<a href="{% url 'admin_add_daily_total' site.id %}?date={{ detail_date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}">Total quotidien <span>&#8250;</span>
+</a>
+<a href="{% url 'admin_site_history_comparison' site.id %}?date={{ detail_date|date:'Y-m-d' }}">Comparatif historique <span>&#8250;</span>
+</a>
+<a href="{% url 'admin_add_site_loss' site.id %}?date={{ detail_date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}">Ajouter une dépense <span>&#8250;</span>
+</a>
+<a href="{% url 'admin_site_losses' site.id %}?date={{ detail_date|date:'Y-m-d' }}">Corrections &amp; finance <span>&#8250;</span>
+</a>
+</nav>
+</section>
+        <section class="sd-section" id="journal-site">
+<div class="sd-section-head">
+<h2>Journal du site</h2>
+<a href="{% url 'admin_site_journal' site.id %}">Tout voir &#8594;</a>
+</div>
+<ul class="sd-note-list">{% for entry in recent_journal_entries %}<li>
+<div class="sd-note-meta">
+<span>{{ entry.entry_date|date:'d/m/Y' }}</span>
+<span>{{ entry.get_category_display }}</span>
+</div>
+<p class="sd-note-title">{{ entry.title }}</p>
+<p class="sd-note-copy">{{ entry.description|truncatechars:110 }}</p>
+</li>{% empty %}<li class="sd-note-copy">Aucune note enregistrée.</li>{% endfor %}</ul>
+</section>
+    </aside>
+</div>
+    {% elif tab == 'washes' %}<section class="sd-section" id="historique-lavages">
+<div class="sd-section-head">
+<h2>Lavages <span class="sd-pill">{{ wash_page.paginator.count }}</span>
+</h2>
+<a href="{{ photos_url }}">Galerie des photos &#8594;</a>
+</div><form class="sd-period" method="get" style="margin-bottom:14px"><input type="hidden" name="tab" value="washes"><input type="hidden" name="date_debut" value="{{ date_debut }}"><input type="hidden" name="date_fin" value="{{ date_fin }}"><label>Rechercher un lavage<input type="search" name="q" value="{{ wash_search }}" maxlength="120" placeholder="Plaque ou collaborateur"></label><button class="sd-button" type="submit">Rechercher</button>{% if wash_search %}<a href="{{ washes_url }}" class="sd-button">Réinitialiser</a>{% endif %}</form>{% include "admin/site_dashboard_washes.html" %}{% include "partials/pagination.html" with page_obj=wash_page page_param="washes_page" %}</section>
+    {% elif tab == 'finance' %}{% include "admin/site_dashboard_finance.html" %}
+    {% elif tab == 'issues' %}<section class="sd-section" id="problemes-ouverts">
+<div class="sd-section-head">
+<h2>Problèmes <span class="sd-pill">{{ issues_page.paginator.count }}</span>
+</h2>
+<form class="sd-period" method="get">
+<input type="hidden" name="tab" value="issues">
+<input type="hidden" name="date_debut" value="{{ date_debut }}">
+<input type="hidden" name="date_fin" value="{{ date_fin }}">
+<label for="sd-status">Afficher</label>
+<select id="sd-status" name="status" class="sd-button">
+<option value="open" {% if issue_status == 'open' %}selected{% endif %}>Ouverts · toutes dates</option>
+<option value="period" {% if issue_status == 'period' %}selected{% endif %}>Tous les statuts · période</option>
+</select>
+<button class="sd-button" type="submit">Afficher</button>
+</form>
+</div>
+<div class="sd-table-wrap">
+<table class="sd-table">
+<thead>
+<tr>
+<th>Date</th>
+<th>Catégorie</th>
+<th>Observation</th>
+<th>Signalé par</th>
+<th>Statut</th>
+</tr>
+</thead>
+<tbody>{% for issue in issues_page %}<tr>
+<td>{{ issue.created_at|date:'d/m/Y' }}</td>
+<td>{{ issue.get_categorie_display }}</td>
+<td class="sd-wrap">{{ issue.description }}</td>
+<td>{{ issue.employe.get_full_name|default:issue.employe.username }}</td>
+<td>
+<span class="sd-pill {% if issue.statut == 'RESOLU' %}green{% else %}orange{% endif %}">{{ issue.get_statut_display }}</span>
+<small>{% if issue.traite_par %}{{ issue.traite_par.get_full_name|default:issue.traite_par.username }}{% endif %}</small>
+</td>
+</tr>{% empty %}<tr>
+<td colspan="5" class="sd-empty">Aucun problème pour cette sélection.</td>
+</tr>{% endfor %}</tbody>
+</table>
+</div>{% include "partials/pagination.html" with page_obj=issues_page page_param="issues_page" %}<p class="sd-period-label" style="margin-top:12px">
+<a href="{{ records_url }}#problemes-signales">Vue détaillée des signalements &#8594;</a>
+</p>
+</section>
+    {% elif tab == 'photos' %}<section class="sd-section" id="photos-lavages">
+<div class="sd-section-head">
+<h2>Photos des lavages <span class="sd-pill">{{ photos_page.paginator.count }}</span>
+</h2>
+</div>
+<div class="sd-gallery">{% for photo in photos_page %}<figure class="sd-photo">
+<a href="{{ photo.photo.url }}" target="_blank" rel="noopener">
+<img src="{{ photo.thumbnail_url|default:photo.photo.url }}" alt="{{ photo.get_type_photo_display }} · {{ photo.lavage.plaque|default:photo.lavage.get_type_service_display }}" loading="lazy" decoding="async" width="320" height="240">
+</a>
+<figcaption>{{ photo.lavage.plaque|default:photo.lavage.get_type_service_display }} · {{ photo.get_type_photo_display }}<small>{{ photo.lavage.date|date:'d/m/Y' }} &middot; {{ photo.lavage.employe.get_full_name|default:photo.lavage.employe.username }}</small>
+</figcaption>
+</figure>{% empty %}<p class="sd-empty">Aucune photo pour cette période.</p>{% endfor %}</div>{% include "partials/pagination.html" with page_obj=photos_page page_param="photos_page" %}</section>{% endif %}
+    <footer class="sd-foot">
+<span>{{ site.nom }} &middot; {{ start|date:'d/m/Y' }}{% if start != end %} – {{ end|date:'d/m/Y' }}{% endif %}</span>
+<div>
+<a href="{% url 'admin_site_history_comparison' site.id %}?date={{ detail_date|date:'Y-m-d' }}">Ouvrir la page complète des comparatifs</a> &nbsp;&middot;&nbsp; <a href="{{ records_url }}">Vue détaillée et corrections</a>
+</div>
+</footer>
+</div>
+{% endblock %}

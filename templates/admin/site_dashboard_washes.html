@@ -1,0 +1,32 @@
+{% load currency_tags %}
+<div class="sd-table-wrap">
+<table class="sd-table">
+<thead>
+<tr>
+<th scope="col">Lavage / collaborateur</th>
+<th scope="col">Service</th>
+<th scope="col">Plaque</th>
+<th scope="col">Montant</th>
+<th scope="col">Dossier</th>
+</tr>
+</thead>
+<tbody>
+{% for wash in recent_washes %}<tr>
+<td>
+<div class="sd-wash-person">{% for photo in wash.dashboard_photos %}{% if forloop.first %}<a href="{{ photo.photo.url }}" target="_blank" rel="noopener">
+<img class="sd-thumb admin-lavage-photo-thumb" src="{{ photo.thumbnail_url|default:photo.photo.url }}" alt="Photo du lavage {{ wash.plaque|default:photo.get_type_photo_display }}" width="48" height="38" loading="lazy" decoding="async">
+</a>{% endif %}{% endfor %}<div>{{ wash.employe.get_full_name|default:wash.employe.username }}<small>{{ wash.date|date:'d/m/Y' }} &middot; {{ wash.created_at|date:'H:i' }}{% if wash.is_system_generated %} &middot; Ajustement automatique{% endif %}</small>
+</div>
+</div>
+</td>
+<td>{{ wash.get_type_service_display }}</td>
+<td>{{ wash.plaque|default:'—' }}</td>
+<td class="sd-money">{{ wash.montant|fc_amount }} FC</td>
+<td>
+<a href="{% url 'admin_edit_wash' site.id wash.id %}?next={{ request.get_full_path|urlencode }}">Consulter</a>{% if wash.photo_count_value %}<small>{{ wash.photo_count_value }} photo{{ wash.photo_count_value|pluralize }}</small>{% endif %}</td>
+</tr>{% empty %}<tr>
+<td colspan="5" class="sd-empty">Aucun lavage enregistré pour cette période.</td>
+</tr>{% endfor %}
+</tbody>
+</table>
+</div>

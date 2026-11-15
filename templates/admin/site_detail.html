@@ -26,6 +26,7 @@
             </div>
         </div>
         <div class="site-actions">
+            <a href="{% url 'admin_site_detail' site.id %}?date_debut={{ date_debut|default:'' }}&date_fin={{ date_fin|default:'' }}" class="btn btn-secondary">Tableau de bord</a>
             <a href="{% url 'admin_site_employees' site.id %}" class="btn btn-info">Gestion des employés</a>
             <a href="{% url 'admin_site_attendance_photos' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-info">Pointage</a>
             <a href="{% url 'admin_site_camera_monitoring' site.id %}?date={{ detail_date|date:'Y-m-d' }}" class="btn btn-info">Caméras & comptage</a>
@@ -1305,6 +1306,7 @@
     </summary>
     <div class="site-section-body">
     <form method="get" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; align-items: end;">
+        <input type="hidden" name="view" value="records">
         <div class="form-group" style="margin-bottom: 0;">
             <label for="date_debut">Date début</label>
             <input type="date" class="form-control" id="date_debut" name="date_debut" value="{{ date_debut }}">

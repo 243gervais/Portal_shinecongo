@@ -64,7 +64,7 @@ def _build_admin_site_navigation(request):
     can_view_meeting_notes = user.username == "gervaismbadu"
     cache_key = ":".join(
         [
-            "admin-site-nav-v2",
+            "admin-site-nav-v3",
             str(current_site_id or "none"),
             today.isoformat(),
             str(can_view_company_secrets),
@@ -195,7 +195,7 @@ def _build_admin_site_navigation(request):
             },
             {
                 "label": "Pilotage hebdomadaire",
-                "url": f"{site_detail_url}#pilotage-hebdomadaire",
+                "url": f"{site_detail_url}?tab=finance",
                 "description": "Cash flow, banque et pertes",
                 "keywords": "pilotage hebdomadaire cash flow banque pertes",
             },
@@ -272,31 +272,31 @@ def _build_admin_site_navigation(request):
             },
             {
                 "label": "Historique des lavages",
-                "url": f"{site_detail_url}#historique-lavages",
+                "url": f"{site_detail_url}?tab=washes",
                 "description": "Liste complète des lavages",
                 "keywords": "historique lavages liste voitures",
             },
             {
                 "label": "Pointages",
-                "url": f"{site_detail_url}#pointages-site",
+                "url": f"{reverse('admin_site_attendance_photos', kwargs={'site_id': site.id})}?date={today:%Y-%m-%d}",
                 "description": "Présences et horaires",
                 "keywords": "pointages presence horaires",
             },
             {
                 "label": "Problèmes signalés",
-                "url": f"{site_detail_url}#problemes-signales",
+                "url": f"{site_detail_url}?tab=issues&status=period",
                 "description": "Incidents déclarés",
                 "keywords": "problemes signales incidents",
             },
             {
                 "label": "Problèmes ouverts",
-                "url": f"{site_detail_url}#problemes-ouverts",
+                "url": f"{site_detail_url}?tab=issues&status=open",
                 "description": "Incidents actifs",
                 "keywords": "problemes ouverts incidents actifs",
             },
             {
                 "label": "Photos des lavages",
-                "url": f"{site_detail_url}#photos-lavages",
+                "url": f"{site_detail_url}?tab=photos",
                 "description": "Galerie des preuves photo",
                 "keywords": "photos lavage galerie images",
             },

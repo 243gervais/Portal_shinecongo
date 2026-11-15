@@ -1815,7 +1815,7 @@ class SiteJournalEntryTests(TestCase):
 
         response = self.client.get(
             reverse("admin_site_detail", args=[self.site.id]),
-            data={"date_debut": "2026-04-11", "date_fin": "2026-04-11"},
+            data={"date_debut": "2026-04-11", "date_fin": "2026-04-11", "view": "records"},
         )
 
         self.assertEqual(response.status_code, 200)
@@ -1925,7 +1925,7 @@ class SiteJournalEntryTests(TestCase):
 
         response = self.client.get(
             reverse("admin_site_detail", args=[self.site.id]),
-            data={"date_debut": "2026-04-01", "date_fin": "2026-04-30"},
+            data={"date_debut": "2026-04-01", "date_fin": "2026-04-30", "view": "records"},
         )
 
         self.assertEqual(response.status_code, 200)
@@ -4329,7 +4329,7 @@ class SiteCameraMonitoringTests(TestCase):
         response = self.client.get(reverse("admin_site_detail", args=[self.site.id]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Caméras & comptage")
+        self.assertContains(response, "Caméras &amp; comptage")
         self.assertContains(response, reverse("admin_site_camera_monitoring", args=[self.site.id]))
 
     def test_admin_can_create_camera_from_monitoring_page(self):
@@ -4959,7 +4959,7 @@ class SiteJournalEntryTests(TestCase):
 
         response = self.client.get(
             reverse("admin_site_detail", args=[self.site.id]),
-            data={"date_debut": "2026-04-11", "date_fin": "2026-04-11"},
+            data={"date_debut": "2026-04-11", "date_fin": "2026-04-11", "view": "records"},
         )
 
         self.assertEqual(response.status_code, 200)
@@ -5069,7 +5069,7 @@ class SiteJournalEntryTests(TestCase):
 
         response = self.client.get(
             reverse("admin_site_detail", args=[self.site.id]),
-            data={"date_debut": "2026-04-01", "date_fin": "2026-04-30"},
+            data={"date_debut": "2026-04-01", "date_fin": "2026-04-30", "view": "records"},
         )
 
         self.assertEqual(response.status_code, 200)
@@ -7105,7 +7105,7 @@ class SiteCameraMonitoringTests(TestCase):
         response = self.client.get(reverse("admin_site_detail", args=[self.site.id]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Caméras & comptage")
+        self.assertContains(response, "Caméras &amp; comptage")
         self.assertContains(response, reverse("admin_site_camera_monitoring", args=[self.site.id]))
 
     def test_admin_can_create_camera_from_monitoring_page(self):
@@ -7735,7 +7735,7 @@ class SiteJournalEntryTests(TestCase):
 
         response = self.client.get(
             reverse("admin_site_detail", args=[self.site.id]),
-            data={"date_debut": "2026-04-11", "date_fin": "2026-04-11"},
+            data={"date_debut": "2026-04-11", "date_fin": "2026-04-11", "view": "records"},
         )
 
         self.assertEqual(response.status_code, 200)
@@ -7845,7 +7845,7 @@ class SiteJournalEntryTests(TestCase):
 
         response = self.client.get(
             reverse("admin_site_detail", args=[self.site.id]),
-            data={"date_debut": "2026-04-01", "date_fin": "2026-04-30"},
+            data={"date_debut": "2026-04-01", "date_fin": "2026-04-30", "view": "records"},
         )
 
         self.assertEqual(response.status_code, 200)

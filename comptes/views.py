@@ -3586,6 +3586,9 @@ def admin_site_detail(request, site_id):
         return redirect('dashboard')
     
     site = get_object_or_404(Location, id=site_id)
+    if request.GET.get('view') != 'records':
+        from comptes.site_dashboard import render_site_dashboard
+        return render_site_dashboard(request, site)
     today = timezone.localdate()
     
     # Récupérer les paramètres de filtre de date

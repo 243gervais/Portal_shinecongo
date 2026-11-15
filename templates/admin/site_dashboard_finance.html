@@ -1,0 +1,85 @@
+{% load currency_tags %}
+<section class="sd-section" id="pilotage-hebdomadaire">
+<div class="sd-section-head">
+<h2>Rapprochement de la période</h2>
+<a href="{% url 'admin_site_history_comparison' site.id %}?date={{ detail_date|date:'Y-m-d' }}">Comparatif historique &#8594;</a>
+</div>
+<div class="sd-summary">
+<dl>
+<dt>Banque nette</dt>
+<dd>{{ bank_net|fc_amount }} FC</dd>
+</dl>
+<dl>
+<dt>Dépenses sur banque</dt>
+<dd>{{ bank_expenses|fc_amount }} FC</dd>
+</dl>
+<dl>
+<dt>Montant déclaré</dt>
+<dd>{{ report_total|fc_amount }} FC</dd>
+</dl>
+</div>
+<p class="sd-period-label" style="margin-top:10px">Écart de caisse = recettes lavages − dépôts bancaires − dépenses sur caisse. Banque nette = dépôts − dépenses sur banque.</p>
+</section>
+<section class="sd-section" id="bank-ledger">
+<div class="sd-section-head">
+<h2>Dépôts bancaires</h2>
+<a class="sd-button" href="{% url 'admin_add_bank_deposit' site.id %}?date={{ detail_date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}">Ajouter un dépôt</a>
+</div>
+<div class="sd-table-wrap">
+<table class="sd-table">
+<thead>
+<tr>
+<th>Date</th>
+<th>Montant</th>
+<th>Enregistré par</th>
+<th>Note</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>{% for deposit in deposits_page %}<tr>
+<td>{{ deposit.date|date:'d/m/Y' }}</td>
+<td class="sd-money">{{ deposit.amount|fc_amount }} FC</td>
+<td>{% if deposit.created_by %}{{ deposit.created_by.get_full_name|default:deposit.created_by.username }}{% else %}—{% endif %}</td>
+<td class="sd-wrap">{{ deposit.notes|default:'—' }}</td>
+<td>
+<a href="{% url 'admin_add_bank_deposit' site.id %}?date={{ deposit.date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}">Modifier</a>
+</td>
+</tr>{% empty %}<tr>
+<td colspan="5" class="sd-empty">Aucun dépôt pour cette période.</td>
+</tr>{% endfor %}</tbody>
+</table>
+</div>{% include "partials/pagination.html" with page_obj=deposits_page page_param="deposits_page" anchor="bank-ledger" %}</section>
+<section class="sd-section" id="expense-ledger">
+<div class="sd-section-head">
+<h2>Dépenses enregistrées</h2>
+<a class="sd-button" href="{% url 'admin_add_site_loss' site.id %}?date={{ detail_date|date:'Y-m-d' }}&next={{ request.get_full_path|urlencode }}">Ajouter une dépense</a>
+</div>
+<div class="sd-table-wrap">
+<table class="sd-table">
+<thead>
+<tr>
+<th>Date</th>
+<th>Objet</th>
+<th>Source</th>
+<th>Montant</th>
+<th>Enregistré par</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>{% for expense in losses_page %}<tr>
+<td>{{ expense.date|date:'d/m/Y' }}</td>
+<td class="sd-wrap">{{ expense.title }}<small>{{ expense.get_category_display }}</small>
+</td>
+<td>
+<span class="sd-pill">{{ expense.get_funding_source_display }}</span>
+</td>
+<td class="sd-money">{{ expense.amount|fc_amount }} FC</td>
+<td>{% if expense.created_by %}{{ expense.created_by.get_full_name|default:expense.created_by.username }}{% else %}—{% endif %}</td>
+<td>
+<a href="{% url 'admin_edit_site_loss' site.id expense.id %}?next={{ request.get_full_path|urlencode }}">Modifier</a>
+</td>
+</tr>{% empty %}<tr>
+<td colspan="6" class="sd-empty">Aucune dépense pour cette période.</td>
+</tr>{% endfor %}</tbody>
+</table>
+</div>{% include "partials/pagination.html" with page_obj=losses_page page_param="losses_page" anchor="expense-ledger" %}</section>
