@@ -1,0 +1,45 @@
+/* Native Django admin behavior in the portal's visual identity. */
+html[data-theme], :root {
+    --primary: #0a436b; --secondary: #163345; --accent: #e99b36;
+    --primary-fg: #fff; --body-fg: #163345; --body-bg: #f7f8fa;
+    --body-quiet-color: #697985; --body-loud-color: #163345;
+    --header-color: #163345; --header-branding-color: #163345;
+    --header-bg: #fff; --header-link-color: #0a436b;
+    --breadcrumbs-fg: #697985; --breadcrumbs-link-fg: #0a436b; --breadcrumbs-bg: #f1f4f6;
+    --link-fg: #0a436b; --link-hover-color: #08324f; --link-selected-fg: #08324f;
+    --hairline-color: #e7ecef; --border-color: #dce4e9;
+    --darkened-bg: #f3f6f8; --selected-bg: #e8f1f7; --selected-row: #fff5e7;
+    --button-fg: #fff; --button-bg: #0a436b; --button-hover-bg: #08324f;
+    --default-button-bg: #0a436b; --default-button-hover-bg: #08324f;
+    --close-button-bg: #526574; --delete-button-bg: #b43e38;
+    --message-success-bg: #e8f4ee; --message-warning-bg: #fff1df; --message-error-bg: #fbecea;
+    --error-fg: #b43e38; --font-family-primary: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+body { font-size: 14px; }
+#header { border-bottom: 1px solid #dce4e9; padding: 18px 24px; box-shadow: none; }
+#header #site-name a:link, #header #site-name a:visited { color: #163345; font-size: 22px; font-weight: 700; }
+#site-name span { color: #697985; font-size: 13px; font-weight: 400; margin-left: 10px; }
+#user-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; font-size: 12px; letter-spacing: 0; text-transform: none; }
+#user-tools a { border: 0; }
+.admin-identifiant-badge { background: #edf2f5; padding: 6px 9px; border-radius: 4px; }
+#logout-form { margin: 0; }
+#user-tools #logout-form button { color: #0a436b; border: 0; font-size: 12px; }
+div.breadcrumbs { padding: 12px 24px; }
+#content { padding: 24px; }
+#content h1 { font-size: 28px; font-weight: 700; }
+.module { border: 1px solid #dce4e9; border-radius: 6px; overflow: hidden; background: #fff; }
+.module h2, .module caption, .inline-group h2 { background: #f3f6f8; color: #163345; font-size: 13px; font-weight: 600; padding: 13px 16px; }
+.module caption a, .module caption a:link, .module caption a:visited { color: #163345; }
+table thead th { background: #f3f6f8; color: #697985; font-size: 11px; }
+td, th { padding: 12px 14px; font-variant-numeric: tabular-nums; }
+.row1, .row2 { background: #fff; }
+input, textarea, select, .button, input[type=submit], input[type=button], .submit-row input, a.button { border-radius: 4px; font-family: inherit; }
+input, textarea, select { background: #fff; color: #163345; border-color: #cad5dd; }
+.submit-row { border-radius: 6px; background: #fff; border-color: #dce4e9; }
+.object-tools a:link, .object-tools a:visited { background: #0a436b; border-radius: 4px; text-transform: none; }
+#changelist-filter { background: #fff; border-left: 1px solid #dce4e9; }
+#changelist-filter h2 { background: #f3f6f8; color: #163345; }
+#nav-sidebar { background: #fff; }
+#nav-sidebar .module { border-radius: 0; border: 0; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #e99b36; outline-offset: 2px; }
+@media (max-width: 767px) { #header { padding: 16px; } #content { padding: 16px; } #content h1 { font-size: 24px; } #user-tools { justify-content: flex-start; gap: 10px; } #site-name span { display: block; margin: 4px 0; } }

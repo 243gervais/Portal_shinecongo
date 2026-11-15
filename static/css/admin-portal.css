@@ -1,0 +1,97 @@
+/* Shared administration presentation. No JavaScript, fonts or image downloads. */
+body.admin-portal {
+    --text-primary: #163345;
+    --text-secondary: #697985;
+    --border-color: #dce4e9;
+    --shadow: none;
+    --shadow-hover: none;
+    --success-color: #17734e;
+    background: #f7f8fa;
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+}
+.admin-portal main.container { max-width: 1200px; padding-top: 20px; min-width: 0; }
+.admin-portal .header { box-shadow: none; border-color: var(--border-color); padding: 12px 0; }
+.admin-portal .logo { font-size: 21px; }
+.admin-portal .nav-menu a, .admin-portal .nav-menu-button { font-size: 13px; border-radius: 4px; padding: 9px 10px; transform: none; transition: background-color .12s; }
+.admin-portal .nav-dropdown-panel { border-radius: 6px; box-shadow: 0 8px 24px #16334514; backdrop-filter: none; }
+.admin-portal .nav-user-identifier { font-size: 12px; border-radius: 4px; }
+.workspace-nav, .workspace-site-nav { display: flex; gap: 22px; overflow-x: auto; max-width: 100%; white-space: nowrap; scrollbar-width: thin; border-bottom: 1px solid var(--border-color); margin-bottom: 22px; }
+.workspace-nav a, .workspace-site-nav a { flex: 0 0 auto; padding: 11px 0; font-size: 13px; text-decoration: none; color: var(--text-secondary); border-bottom: 3px solid transparent; }
+.workspace-nav a:hover, .workspace-site-nav a:hover { color: var(--text-primary); }
+.workspace-nav a[aria-current], .workspace-site-nav a[aria-current] { border-color: #e99b36; color: var(--text-primary); font-weight: 600; }
+.workspace-site-nav { margin-top: -10px; gap: 18px; }
+.workspace-site-nav a { font-size: 12px; padding: 8px 0; }
+.workspace-site-nav a:first-child { font-weight: 600; color: #0a436b; }
+.workspace-skip { position: fixed; left: 16px; top: -100px; z-index: 1000; padding: 10px 16px; color: #fff; background: #0a436b; }
+.workspace-skip:focus { top: 10px; }
+#workspace-content { display: block; scroll-margin-top: 100px; }
+.admin-portal main :is(h1, h2, h3) { color: var(--text-primary); letter-spacing: 0; overflow-wrap: anywhere; }
+.admin-portal main h1 { font-size: 28px !important; line-height: 1.25; font-weight: 700; }
+.admin-portal main h2 { font-size: 18px; line-height: 1.4; }
+.admin-portal main h3 { font-size: 16px; }
+.admin-portal main :is(.admin-shell, .attendance-shell, .camera-shell, .camera-admin-day-shell, .compare-shell, .docs-shell, .doc-rename-shell, .evidence-shell, .fuel-shell, .meeting-shell, .meeting-form-shell, .messages-shell, .password-shell, .payroll-shell, .people-shell, .report-history-shell, .secret-shell, .site-shell, .water-shell) { gap: 24px; min-width: 0; }
+.admin-portal main :is(section, article, form, fieldset, .card, [class$='-grid']) { min-width: 0; }
+/* Normalize the older decorative headers to the approved site dashboard header. */
+.admin-portal main :is(.admin-hero, .attendance-hero, .camera-hero, .camera-admin-day-hero, .compare-hero, .docs-hero, .doc-rename-hero, .evidence-hero, .finance-hero, .fuel-hero, .meeting-hero, .meeting-form-hero, .messages-hero, .money-analytics-hero, .password-hero, .payroll-hero, .people-hero, .report-history-hero, .secret-hero, .site-hero, .water-hero) {
+    background: transparent !important; color: var(--text-primary) !important;
+    border: 0 !important; border-bottom: 1px solid var(--border-color) !important;
+    border-radius: 0 !important; padding: 5px 0 20px !important; box-shadow: none !important;
+    backdrop-filter: none; overflow: visible;
+}
+.admin-portal main :is(.admin-hero, .attendance-hero, .camera-hero, .camera-admin-day-hero, .compare-hero, .docs-hero, .doc-rename-hero, .evidence-hero, .finance-hero, .fuel-hero, .meeting-hero, .meeting-form-hero, .messages-hero, .money-analytics-hero, .password-hero, .payroll-hero, .people-hero, .report-history-hero, .secret-hero, .site-hero, .water-hero)::after { display: none; }
+.admin-portal main :is(.water-hero, .fuel-hero, .meeting-hero, .meeting-form-hero, .doc-rename-hero, .evidence-hero, .secret-hero, .camera-hero, .camera-admin-day-hero) :is(h1, h2, h3) { color: #163345 !important; }
+.admin-portal main :is(.water-hero-copy, .meeting-hero p, .meeting-form-hero p, .doc-rename-hero p, .evidence-hero p, .evidence-hero span, .camera-hero p, .camera-admin-day-hero p, .finance-hero-note, .finance-hero-usd, .finance-hero-label, .compare-hero-label, .compare-hero-subcopy, .report-history-hero-copy) { color: #697985 !important; }
+.admin-portal main :is(.finance-hero-value, .compare-hero-amount, .compare-hero-card-title, .report-history-hero-card, .compare-hero-card) { color: #163345 !important; }
+.admin-portal main :is(.compare-hero-card, .report-history-hero-card) { background: #fff; border: 1px solid #dce4e9; border-radius: 6px; box-shadow: none; }
+.admin-portal main :is(.admin-title, .attendance-hero h1, .camera-title, .camera-admin-day-title, .compare-title, .docs-hero h1, .evidence-title, .finance-title, .fuel-hero h1, .messages-title, .password-hero h1, .payroll-title, .people-hero h1, .report-history-title, .secret-title, .site-title) { color: var(--text-primary) !important; margin: 8px 0; }
+.admin-portal main :is(.admin-copy, .attendance-copy, .camera-subtitle, .camera-admin-day-copy, .compare-copy, .compare-hero-subcopy, .docs-hero-copy, .finance-copy, .fuel-copy, .messages-copy, .password-hero-copy, .payroll-copy, .people-hero-copy, .report-history-copy, .report-history-hero-copy, .secret-hero-copy, .site-copy) { color: var(--text-secondary) !important; font-size: 13px; max-width: 760px; }
+.admin-portal main :is(.admin-kicker, .attendance-eyebrow, .docs-hero-eyebrow, .messages-kicker, .password-hero-eyebrow, .water-hero-eyebrow) { background: transparent; color: var(--text-secondary); padding: 0; font-size: 12px; letter-spacing: 0; text-transform: none; }
+.admin-portal main :is(.card, .stat-card, .admin-site-card, .admin-queue-card, .attendance-card, .camera-card, .camera-camera-card, .camera-mini-card, .compare-card, .compare-chart-card, .compare-detail-card, .compare-insight-card, .compare-rank-card, .compare-snapshot-card, .docs-card, .docs-document-card, .docs-secret-panel, .docs-type-card, .evidence-card, .finance-panel, .fuel-panel, .journal-category-card, .meeting-card, .meeting-note-card, .meeting-form-card, .messages-panel, .password-card, .password-account-card, .password-creation-card, .password-current-card, .password-current-panel, .password-notebook-card, .payroll-card, .people-card, .people-employee-card, .people-payment-card, .people-tab-panel, .report-history-card, .report-history-chart-card, .report-history-list-card, .secret-card, .secret-doc-card, .site-section-card, .site-summary-card, .water-panel, .water-rate-card, .water-supplier-card, .weekly-graph-card) {
+    border: 1px solid var(--border-color) !important; border-radius: 6px !important;
+    background: #fff !important; box-shadow: none !important; padding: 20px;
+    transform: none !important; backdrop-filter: none; transition: border-color .12s;
+}
+.admin-portal main :is(.admin-site-card, .admin-queue-card, .card)::before { display: none; }
+.admin-portal main :is(.stat-card, .attendance-stat, .camera-kpi, .docs-kpi, .evidence-kpi, .finance-kpi, .fuel-kpi, .messages-stat, .password-kpi, .password-current-stat, .payroll-kpi, .people-kpi, .people-payment-stat, .site-metric-card, .water-kpi) { background: #fff !important; color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px !important; box-shadow: none !important; padding: 18px; transform: none !important; }
+.admin-portal main :is(.water-kpi-value, .fuel-kpi-value, .password-kpi-value, .people-kpi-value, .payroll-kpi-value, .messages-stat-value, .attendance-stat-value, .docs-kpi-value, .camera-kpi-value, .evidence-kpi-value, .stat-number) { color: #163345; font-size: 23px; font-weight: 600; line-height: 1.3; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.admin-portal main :is(.water-kpi-label, .fuel-kpi-label, .password-kpi-label, .people-kpi-label, .payroll-kpi-label, .messages-stat-label, .attendance-stat-label, .docs-kpi-label, .camera-kpi-label, .evidence-kpi-label) { font-size: 12px; font-weight: 400; letter-spacing: 0; text-transform: none; color: #697985; }
+.admin-portal main :is(.admin-chip, .attendance-chip, .docs-chip, .password-chip, .water-chip) { background: #edf2f5; color: #365164; border-color: var(--border-color); border-radius: 4px; font-size: 12px; }
+.admin-portal main :is(.btn, .sd-button) { min-height: 38px; padding: 9px 12px !important; border-radius: 4px !important; font-size: 13px !important; font-weight: 500; box-shadow: none !important; transform: none !important; transition: background-color .12s; }
+.admin-portal main .btn-primary { background: #0a436b !important; color: #fff !important; border: 1px solid #0a436b; }
+.admin-portal main .btn-secondary { background: #fff !important; color: #163345 !important; border: 1px solid var(--border-color) !important; }
+.admin-portal main .btn-success { background: #17734e !important; color: #fff !important; border: 1px solid #17734e; }
+.admin-portal main .btn-danger { background: #b43e38 !important; color: #fff !important; border: 1px solid #b43e38; }
+.admin-portal main .btn-warning { background: #fff1df !important; color: #92520d !important; border: 1px solid #efd4b0; }
+.admin-portal main .btn-info { background: #e8f1f7 !important; color: #0a436b !important; border: 1px solid #c6dce9; }
+.admin-portal main :is(input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=submit]):not([type=button]), select, textarea) { font-family: inherit; font-size: 14px; min-height: 38px; border-radius: 4px !important; border: 1px solid #cad5dd; background: #fff; color: #163345; max-width: 100%; box-shadow: none; }
+.admin-portal main :is(input[type=checkbox], input[type=radio]) { accent-color: #0a436b; }
+.admin-portal main :is(.form-group label, .mw-form-row label) { color: #526574; font-size: 13px; font-weight: 600; }
+.admin-portal :is(a, button, input, select, textarea, summary):focus-visible { outline: 3px solid #e99b36; outline-offset: 3px; }
+.admin-portal main :is(.table-container, [class$='-table-wrap'], .table-responsive) { overflow-x: auto; max-width: 100%; border-radius: 4px; box-shadow: none; }
+.admin-portal main table { font-size: 13px; font-variant-numeric: tabular-nums; }
+.admin-portal main table th { background: #f3f6f8; color: #697985; font-size: 11px; letter-spacing: 0; padding: 12px 14px; border-bottom: 1px solid #dce4e9; }
+.admin-portal main table td { padding: 13px 14px; border-bottom: 1px solid #ecf0f3; }
+.admin-portal main .mw-nav { gap: 22px; flex-wrap: nowrap; overflow-x: auto; border-bottom: 1px solid var(--border-color); }
+.admin-portal main .mw-nav a { border: 0; border-radius: 0; padding: 11px 0; font-size: 13px; background: transparent; color: #526574; white-space: nowrap; }
+.admin-portal main .mw-stat { border-radius: 6px; box-shadow: none; }
+.admin-portal main .mw-stat strong { font-size: 25px; color: #163345; }
+.admin-portal main .mw-form-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); }
+.admin-portal .site-footer { font-style: normal; font-weight: 400; font-size: 12px; margin-top: 24px; }
+@media (max-width: 850px) {
+    .admin-portal main :is(.messages-panels, .password-lane-grid, .docs-grid, .water-grid, .fuel-grid, .people-grid, .camera-grid, .compare-detail-grid) { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+    .admin-portal main.container { padding: 16px 12px; }
+    .admin-portal main h1 { font-size: 24px !important; }
+    .workspace-nav { gap: 20px; margin-bottom: 20px; }
+    .admin-portal main :is(.card-grid, .admin-sites-grid, .docs-documents-grid, .password-accounts-grid, .password-creation-grid, .password-notebook-grid, .people-employee-grid, .people-payment-grid, .meeting-grid, .secret-doc-grid, .evidence-grid) { grid-template-columns: minmax(0, 1fr); }
+    .admin-portal main :is(.messages-form-grid, .water-form-grid, .fuel-form-grid, .camera-form-grid, .meeting-form-grid, .people-performance-grid) { grid-template-columns: minmax(0, 1fr); }
+    .admin-portal main :is(.card, .messages-panel, .docs-card, .password-card, .water-panel, .fuel-panel, .payroll-card) { padding: 16px; }
+    .admin-portal main :is(.messages-stats, .password-kpis, .water-kpis, .fuel-kpis, .people-kpis, .docs-kpis, .attendance-stats) { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .admin-portal main table th, .admin-portal main table td { padding: 11px 10px; }
+}
+@media (prefers-reduced-motion: reduce) { .admin-portal *, .admin-portal *::before, .admin-portal *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }
+@media print { .workspace-nav, .workspace-site-nav, .workspace-skip { display: none; } }
