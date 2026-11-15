@@ -371,5 +371,7 @@ def _build_employee_portal_revision(user):
 def admin_inbox_badge(request):
     context = get_admin_inbox_counts(request.user)
     context.update(_build_admin_site_navigation(request))
+    # Presentation only: existing view permissions remain authoritative.
+    context['admin_portal_layout'] = bool(context.get('show_admin_box') and request.path.startswith('/admin-dashboard/'))
     context["portal_activity_revision"] = _build_employee_portal_revision(request.user)
     return context

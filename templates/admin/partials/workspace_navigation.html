@@ -1,0 +1,20 @@
+<a class="workspace-skip" href="#workspace-content">Aller au contenu</a>
+<nav class="workspace-nav" aria-label="Navigation administration">
+    <a href="{% url 'admin_dashboard' %}"{% if request.resolver_match.url_name == 'admin_dashboard' %} aria-current="page"{% endif %}>Vue d’ensemble</a>
+    <a href="{% url 'admin_messages' %}"{% if request.resolver_match.url_name == 'admin_messages' %} aria-current="page"{% endif %}>Messages</a>
+    <a href="{% url 'admin_daily_report_history' %}"{% if request.resolver_match.url_name == 'admin_daily_report_history' %} aria-current="page"{% endif %}>Rapports</a>
+    <a href="{% url 'admin_water_purchases' %}"{% if request.resolver_match.url_name == 'admin_water_purchases' %} aria-current="page"{% endif %}>Eau</a>
+    <a href="{% url 'admin_fuel_purchases' %}"{% if request.resolver_match.url_name == 'admin_fuel_purchases' %} aria-current="page"{% endif %}>Carburant</a>
+    <a href="{% url 'mobilewash_dashboard' %}"{% if request.resolver_match.url_name|slice:':11' == 'mobilewash_' %} aria-current="page"{% endif %}>Lavage mobile</a>
+    <a href="{% url 'admin_password_management' %}"{% if request.resolver_match.url_name == 'admin_password_management' %} aria-current="page"{% endif %}>Comptes</a>
+</nav>
+{% if site and request.resolver_match.kwargs.site_id and request.resolver_match.url_name != 'admin_site_detail' %}
+<nav class="workspace-site-nav" aria-label="Navigation du site">
+    <a href="{% url 'admin_site_detail' site.id %}">{{ site.nom }}</a>
+    <a href="{% url 'admin_site_attendance_photos' site.id %}"{% if request.resolver_match.url_name == 'admin_site_attendance_photos' or request.resolver_match.url_name == 'admin_employee_attendance' %} aria-current="page"{% endif %}>Pointage</a>
+    <a href="{% url 'admin_site_employees' site.id %}"{% if request.resolver_match.url_name == 'admin_site_employees' or request.resolver_match.url_name == 'admin_site_employee_portal' %} aria-current="page"{% endif %}>Équipe</a>
+    <a href="{% url 'admin_site_documents' site.id %}"{% if request.resolver_match.url_name == 'admin_site_documents' %} aria-current="page"{% endif %}>Documents</a>
+    <a href="{% url 'admin_site_journal' site.id %}"{% if request.resolver_match.url_name == 'admin_site_journal' %} aria-current="page"{% endif %}>Journal</a>
+</nav>
+{% endif %}
+<span id="workspace-content" tabindex="-1"></span>

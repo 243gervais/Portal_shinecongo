@@ -14,7 +14,7 @@
     
     <style>
         /* Import Google Fonts */
-        {% block external_fonts %}@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');{% endblock %}
+        {% block external_fonts %}{% if not admin_portal_layout %}@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');{% endif %}{% endblock %}
 
         /* Reset & Variables */
         :root {
@@ -1117,8 +1117,9 @@
             }
         }
     </style>
+    {% if admin_portal_layout %}<link rel="stylesheet" href="{% static 'css/admin-portal.css' %}?v=20261115-1">{% endif %}
 </head>
-<body>
+<body{% if admin_portal_layout %} class="admin-portal"{% endif %}>
     <div class="page-loading-indicator" aria-hidden="true"></div>
     <!-- Header -->
     {% if not request.resolver_match.url_name == 'login' and not request.resolver_match.url_name == 'register' %}
@@ -1287,6 +1288,7 @@
 
     <!-- Main Content -->
     <main class="container">
+        {% if admin_portal_layout %}{% include 'admin/partials/workspace_navigation.html' %}{% endif %}
         {% block content %}
         {% endblock %}
     </main>
