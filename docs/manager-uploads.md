@@ -12,6 +12,8 @@ Each new manager wash form sends a stable UUID. Retrying that form returns its a
 
 Run the full Django and frontend tests, frontend lint and production build. Commit the generated frontend assets along with source. Before production migration, create a consistent database backup. Migration `lavages.0005_carwash_submission_id` adds a nullable unique UUID; existing washes and financial records keep their values. Deploy with the existing Fabric workflow, which migrates, uploads the bundle, collects static assets and gracefully reloads workers. There are no new dependencies.
 
+Builds retain already published lazy chunks so an open manager tab can continue navigating during a release. New sessions download only the chunks referenced by the current entry. Do not delete old published chunks as part of routine builds.
+
 ## Verification
 
 In an isolated test database, log in as a site manager. Select a large phone photo, confirm that preparation finishes and the resized preview appears, then save a wash. Save another car immediately using the same service and blank plate. Both must be saved. Retry the same submission UUID and verify that only one record exists. Simulate storage failure and verify no incomplete wash/report is committed. Send equipment proof for every active machine with the final report, and verify confirmation and unchanged financial synchronization. Confirm corrupt files show clear errors, files without MIME metadata work, and a manager cannot replay another manager's UUID. Check mobile layouts and keep an actual production record out of these tests.

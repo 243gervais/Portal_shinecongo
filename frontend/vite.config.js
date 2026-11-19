@@ -9,7 +9,9 @@ export default defineConfig({
     modulePreload: false,
     target: "es2018",
     outDir: path.resolve(__dirname, "../frontend_dist/frontend"),
-    emptyOutDir: true,
+    // Keep previously published lazy chunks available to managers with an open tab.
+    // Only chunks referenced by the current entry are downloaded by new sessions.
+    emptyOutDir: false,
     rollupOptions: {
       input: path.resolve(__dirname, "index.html"),
       output: {
