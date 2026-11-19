@@ -35,7 +35,7 @@
 </nav>
     <section aria-label="Synthèse financière" id="journal-jour-detail">
 <p class="sd-period-label">{% if start == end %}Journée du {{ start|date:'d F Y' }}{% else %}Période du {{ start|date:'d/m/Y' }} au {{ end|date:'d/m/Y' }}{% endif %} &middot; Montants en FC</p>
-<div class="sd-kpis">
+<div class="sd-kpis sd-kpis--five">
 <a class="sd-kpi" href="{{ washes_url }}">
 <div class="sd-kpi-label">Recettes lavages</div>
 <div class="sd-kpi-value">{{ chiffre_periode|fc_amount }} <small>FC</small>
@@ -47,6 +47,12 @@
 <div class="sd-kpi-value">{{ deposits_total|fc_amount }} <small>FC</small>
 </div>
 <div class="sd-kpi-note">{{ deposit_count }} dépôt{{ deposit_count|pluralize }} enregistré{{ deposit_count|pluralize }}</div>
+</a>
+<a class="sd-kpi" href="{{ finance_url }}#pilotage-hebdomadaire">
+<div class="sd-kpi-label">Banque nette</div>
+<div class="sd-kpi-value {% if bank_net < 0 %}negative{% endif %}">{{ bank_net|fc_amount }} <small>FC</small>
+</div>
+<div class="sd-kpi-note">Dépôts − dépenses sur banque</div>
 </a>
 <a class="sd-kpi" href="{{ finance_url }}#expense-ledger">
 <div class="sd-kpi-label">Dépenses sur caisse</div>
