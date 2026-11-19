@@ -1,3 +1,5 @@
+import { sendUpload } from "./upload.js";
+
 const bootstrapElement = document.getElementById("portal-bootstrap");
 const DEFAULT_GET_CACHE_TTL_MS = 60_000;
 const MAX_GET_CACHE_ENTRIES = 80;
@@ -69,7 +71,11 @@ async function parseResponse(response) {
   try {
     return JSON.parse(text);
   } catch (_error) {
-    return { message: text };
+    return { message: response.status === 413
+      ? "Les photos sont trop volumineuses. Retirez quelques images puis réessayez."
+      : response.status === 403 || response.status === 401
+        ? "Votre session a expiré. Reconnectez-vous dans un autre onglet puis réessayez; vos photos restent sélectionnées."
+        : "Le serveur n'a pas pu terminer l'envoi. Vos données restent dans le formulaire; réessayez." };
   }
 }
 
@@ -164,6 +170,8 @@ export async function apiFetch(path, options = {}) {
     query,
     signal,
     cacheTtlMs = DEFAULT_GET_CACHE_TTL_MS,
+    onUploadProgress,
+    redirectOnAuthError = true,
   } = options;
 
   const normalizedMethod = method.toUpperCase();
@@ -210,14 +218,16 @@ export async function apiFetch(path, options = {}) {
     const { response, payload } = normalizedMethod === "GET"
       ? await fetchRead(url, requestOptions, cacheKey)
       : await (async () => {
-        const response = await fetch(url, requestOptions);
+        const response = data instanceof FormData && onUploadProgress
+          ? await sendUpload(url, requestOptions, onUploadProgress)
+          : await fetch(url, requestOptions);
         return { response, payload: await parseResponse(response) };
       })();
 
     if (!response.ok) {
       const detail = String(payload?.detail || payload?.message || "").toLowerCase();
       const looksUnauthenticated = detail.includes("authentication") || detail.includes("credentials") || detail.includes("connexion");
-      if (response.status === 401 || (response.status === 403 && looksUnauthenticated)) {
+      if (redirectOnAuthError && !(data instanceof FormData) && (response.status === 401 || (response.status === 403 && looksUnauthenticated))) {
         clearApiCache();
         redirectToLogin();
       }

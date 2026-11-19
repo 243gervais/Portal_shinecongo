@@ -4,20 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Notice } from "../../components/Ui";
 import { SERVICE_TYPES } from "../../lib/constants";
 import { apiFetch } from "../../lib/api";
-
-function buildPreviewItem(file) {
-  return {
-    id: `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2)}`,
-    file,
-    previewUrl: URL.createObjectURL(file),
-  };
-}
-
-function normalizeImageFiles(fileList) {
-  return Array.from(fileList || [])
-    .filter((file) => file && file.type && file.type.startsWith("image/"))
-    .map(buildPreviewItem);
-}
+import { preparePhotoSelection } from "../../lib/images";
 
 export default function ManagerWashFormPage() {
   const navigate = useNavigate();
@@ -26,9 +13,13 @@ export default function ManagerWashFormPage() {
   const plaquePhotoInputRef = useRef(null);
   const plaquePhotoRef = useRef(null);
   const washPhotosRef = useRef([]);
+  const submissionId = useRef(crypto.randomUUID());
+  const submitting = useRef(false);
 
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [preparing, setPreparing] = useState(0);
+  const [progress, setProgress] = useState(0);
   const [plaquePhoto, setPlaquePhoto] = useState(null);
   const [washPhotos, setWashPhotos] = useState([]);
 
@@ -51,19 +42,32 @@ export default function ManagerWashFormPage() {
     }
   ), []);
 
-  function handlePlaquePhotoChange(event) {
-    const nextPhoto = normalizeImageFiles(event.target.files)[0] || null;
+  async function handlePlaquePhotoChange(event) {
+    const files = Array.from(event.target.files || []).slice(0, 1);
+    event.target.value = "";
+    setPreparing(count => count + 1);
+    const { items, errors } = await preparePhotoSelection(files);
+    setPreparing(count => count - 1);
+    setError(errors.join(" "));
+    const nextPhoto = items[0];
+    if (!nextPhoto) return;
     setPlaquePhoto((currentPhoto) => {
       if (currentPhoto?.previewUrl) {
         URL.revokeObjectURL(currentPhoto.previewUrl);
       }
       return nextPhoto;
     });
-    event.target.value = "";
   }
 
-  function addWashPhotos(fileList) {
-    const nextPhotos = normalizeImageFiles(fileList);
+  async function addWashPhotos(fileList) {
+    if (washPhotosRef.current.length + fileList.length > 19) {
+      setError("Ajoutez au maximum 19 photos de lavage et une photo de plaque.");
+      return;
+    }
+    setPreparing(count => count + 1);
+    const { items: nextPhotos, errors } = await preparePhotoSelection(fileList);
+    setPreparing(count => count - 1);
+    setError(errors.join(" "));
     if (nextPhotos.length) {
       setWashPhotos((currentPhotos) => [...currentPhotos, ...nextPhotos]);
     }
@@ -90,11 +94,15 @@ export default function ManagerWashFormPage() {
 
   async function handleSubmit(event) {
     event.preventDefault();
+    if (submitting.current || preparing) return;
+    submitting.current = true;
     setBusy(true);
+    setProgress(0);
     setError("");
 
     if (!washPhotos.length) {
       setBusy(false);
+      submitting.current = false;
       setError("Veuillez prendre ou choisir au moins une photo du lavage.");
       return;
     }
@@ -102,6 +110,7 @@ export default function ManagerWashFormPage() {
     try {
       const form = event.currentTarget;
       const formData = new FormData();
+      formData.append("submission_id", submissionId.current);
       formData.append("type_service", form.type_service.value);
       formData.append("plaque", (form.plaque.value || "").trim().toUpperCase());
       formData.append("notes", form.notes.value || "");
@@ -116,12 +125,14 @@ export default function ManagerWashFormPage() {
       await apiFetch("/manager/lavages/", {
         method: "POST",
         data: formData,
+        onUploadProgress: setProgress,
       });
       navigate("/manager/lavages/");
     } catch (requestError) {
       setError(requestError.message);
     } finally {
       setBusy(false);
+      submitting.current = false;
     }
   }
 
@@ -132,8 +143,10 @@ export default function ManagerWashFormPage() {
         <h1>Ajouter un lavage</h1>
         <p>Ajoutez les photos du lavage. Aucun montant n'est demandé dans le portail manager.</p>
         {error ? <Notice type="error">{error}</Notice> : null}
+        <p role="status" aria-live="polite">{preparing ? "Préparation et réduction des photos…" : busy ? progress < 100 ? `Envoi des photos : ${progress} %` : "Photos transmises. Enregistrement en cours…" : "Les photos sont réduites automatiquement avant l'envoi."}</p>
 
         <form className="form-grid" onSubmit={handleSubmit}>
+          <fieldset disabled={busy || preparing > 0} style={{ display: "contents" }}>
           <label className="field">
             <span>Type de service</span>
             <select name="type_service" defaultValue="COMPLET" required>
@@ -241,10 +254,11 @@ export default function ManagerWashFormPage() {
           </div>
 
           <div className="field-full form-actions">
-            <button type="submit" className="button button-primary" disabled={busy}>
+            <button type="submit" className="button button-primary" disabled={busy || preparing > 0}>
               {busy ? "Enregistrement..." : "Enregistrer le lavage"}
             </button>
           </div>
+          </fieldset>
         </form>
       </section>
     </div>

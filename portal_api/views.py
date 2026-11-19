@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone as dt_timezone
 from decimal import Decimal, InvalidOperation
+from uuid import UUID
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
@@ -50,6 +51,7 @@ from sites.models import (
 
 from .pagination import PortalPagination
 from .permissions import IsManagerOrAdmin, IsPortalEmployee, IsPortalSelfAttendanceUser
+from .uploads import validate_photos, handle_upload_errors
 from .serializers import (
     EmployeeCarWashDetailSerializer,
     EmployeeCarWashSerializer,
@@ -2097,6 +2099,7 @@ class ManagerDailyReportApi(APIView):
             }
         )
 
+    @handle_upload_errors
     def post(self, request):
         site, _accessible_sites = _manager_selected_site(request.user, request)
         if not site:
@@ -2115,7 +2118,7 @@ class ManagerDailyReportApi(APIView):
         expense_form = _parse_daily_expenses_form(request.data)
         try:
             total_amount_reported = Decimal(total_amount_value or "0")
-            if total_amount_reported < 0:
+            if not total_amount_reported.is_finite() or total_amount_reported < 0 or total_amount_reported > Decimal('99999999.99'):
                 raise ValueError
         except (ArithmeticError, ValueError):
             return Response(
@@ -2130,7 +2133,8 @@ class ManagerDailyReportApi(APIView):
 
         equipment_machines = list(ManagerManualMachine.objects.filter(is_active=True).order_by("display_order", "name"))
         equipment_photo_files = request.FILES.getlist("equipment_photo")
-        equipment_machine_ids = request.data.getlist("equipment_photo_machine_id")
+        equipment_machine_ids = request.data.getlist("equipment_photo_machine_id") if hasattr(request.data, 'getlist') else request.data.get('equipment_photo_machine_id', [])
+        validate_photos(equipment_photo_files)
         equipment_machine_map = {str(machine.pk): machine for machine in equipment_machines}
         equipment_errors = []
         uploaded_equipment_machine_ids = set()
@@ -2142,10 +2146,6 @@ class ManagerDailyReportApi(APIView):
             machine_id = str(machine_id).strip()
             if machine_id not in equipment_machine_map:
                 equipment_errors.append("Machine invalide dans les photos d'équipement.")
-                continue
-            content_type = getattr(photo, "content_type", "")
-            if content_type and not content_type.startswith("image/"):
-                equipment_errors.append("Les fichiers des équipements doivent être des images.")
                 continue
             uploaded_equipment_machine_ids.add(machine_id)
 
@@ -2211,8 +2211,7 @@ class ManagerDailyReportApi(APIView):
                         uploaded_by=request.user,
                         captured_at=extract_image_capture_datetime(photo),
                     )
-
-        sync_site_finance_from_daily_reports(site, report_date, actor=request.user)
+            sync_site_finance_from_daily_reports(site, report_date, actor=request.user)
         _send_final_report_notification(
             shift=report,
             computed_total_amount=total_amount_reported,
@@ -2237,6 +2236,12 @@ class ManagerDailyReportApi(APIView):
 
 class ManagerCarWashListApi(APIView):
     permission_classes = [IsAuthenticated, IsManagerOrAdmin]
+
+    def saved_response(self, lavage, *, replay=False):
+        return Response({
+            'message': "Lavage déjà enregistré avec succès." if replay else "Lavage enregistré avec succès.",
+            'lavage': ManagerCarWashSerializer(lavage, context={"request": self.request, "can_view_money": False}).data,
+        }, status=status.HTTP_200_OK if replay else status.HTTP_201_CREATED)
 
     def get(self, request):
         accessible_sites = list(_manager_accessible_sites(request.user))
@@ -2311,6 +2316,7 @@ class ManagerCarWashListApi(APIView):
             },
         )
 
+    @handle_upload_errors
     def post(self, request):
         site, _accessible_sites = _manager_selected_site(request.user, request)
         if not site:
@@ -2322,13 +2328,31 @@ class ManagerCarWashListApi(APIView):
         plaque_photo = request.FILES.get("plaque_photo")
         photos = request.FILES.getlist("photos")
 
+        submission_id = request.data.get('submission_id')
+        try:
+            submission_id = UUID(str(submission_id)) if submission_id else None
+        except ValueError:
+            return Response({'message': "Identifiant d'envoi invalide. Rechargez le formulaire."}, status=400)
+        if submission_id:
+            existing = CarWash.objects.filter(submission_id=submission_id).first()
+            if existing:
+                if existing.employe_id != request.user.pk or existing.site_id != site.pk:
+                    return Response({'message': "Cet identifiant d'envoi est déjà utilisé."}, status=409)
+                return self.saved_response(existing, replay=True)
+
         valid_service_types = {choice[0] for choice in CarWash.TYPE_SERVICE_CHOICES}
         if type_service not in valid_service_types:
             return Response({"message": "Type de service invalide."}, status=status.HTTP_400_BAD_REQUEST)
         if not photos:
             return Response({"message": "Au moins une photo est requise."}, status=status.HTTP_400_BAD_REQUEST)
+        validate_photos(photos + ([plaque_photo] if plaque_photo else []))
 
         with transaction.atomic():
+            Location.objects.select_for_update().get(pk=site.pk)
+            if submission_id:
+                existing = CarWash.objects.filter(submission_id=submission_id, employe=request.user, site=site).first()
+                if existing:
+                    return self.saved_response(existing, replay=True)
             duplicate_window_start = timezone.now() - timedelta(seconds=45)
             duplicate_qs = CarWash.objects.filter(
                 employe=request.user,
@@ -2341,7 +2365,7 @@ class ManagerCarWashListApi(APIView):
                 created_at__gte=duplicate_window_start,
             ).order_by("-created_at")
 
-            for existing in duplicate_qs:
+            for existing in duplicate_qs if not submission_id else []:
                 if existing.photos.count() == len(photos):
                     return Response(
                         {"message": "Ce lavage vient déjà d'être enregistré. Le doublon a été bloqué."},
@@ -2357,9 +2381,11 @@ class ManagerCarWashListApi(APIView):
                 plaque_photo=plaque_photo,
                 montant=Decimal("0"),
                 notes=notes,
+                submission_id=submission_id,
             )
             for photo in photos:
                 CarWashPhoto.objects.create(lavage=lavage, photo=photo, type_photo="APRES")
+            sync_site_finance_from_daily_reports(site, lavage.date, actor=request.user)
 
         AuditLog.log(
             user=request.user,
@@ -2369,24 +2395,13 @@ class ManagerCarWashListApi(APIView):
             ip_address=get_client_ip(request),
             user_agent=get_user_agent(request),
         )
-        sync_site_finance_from_daily_reports(site, lavage.date, actor=request.user)
-
         lavage = (
             CarWash.objects.select_related("site", "employe")
             .annotate(photo_count_value=Count("photos", distinct=True))
             .prefetch_related(PHOTO_PREFETCH)
             .get(pk=lavage.pk)
         )
-        return Response(
-            {
-                "message": "Lavage enregistré avec succès.",
-                "lavage": ManagerCarWashSerializer(
-                    lavage,
-                    context={"request": request, "can_view_money": False},
-                ).data,
-            },
-            status=status.HTTP_201_CREATED,
-        )
+        return self.saved_response(lavage)
 
 
 class ManagerWaterPurchaseApi(APIView):
@@ -2605,6 +2620,7 @@ class ManagerIssueListApi(APIView):
             },
         )
 
+    @handle_upload_errors
     def post(self, request):
         site, _accessible_sites = _manager_selected_site(request.user, request)
         if not site:
@@ -2613,6 +2629,8 @@ class ManagerIssueListApi(APIView):
         categorie = str(request.data.get("categorie", "")).strip()
         description = str(request.data.get("description", "")).strip()
         photo = request.FILES.get("photo")
+        if photo:
+            validate_photos([photo])
 
         if categorie not in {choice[0] for choice in IssueReport.CATEGORIE_CHOICES}:
             return Response({"message": "Catégorie invalide."}, status=status.HTTP_400_BAD_REQUEST)

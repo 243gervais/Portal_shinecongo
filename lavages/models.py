@@ -56,6 +56,7 @@ class CarWash(models.Model):
         verbose_name="Montant payé (FC)"
     )
     notes = models.TextField(blank=True, verbose_name="Notes")
+    submission_id = models.UUIDField(null=True, blank=True, unique=True, editable=False)
     is_system_generated = models.BooleanField(
         default=False,
         verbose_name="Généré automatiquement",

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { apiFetch } from "../../lib/api";
+import { preparePhotoSelection } from "../../lib/images";
 import { EmptyState, ErrorState, LoadingState, Notice } from "../../components/Ui";
 
 function CustomExpenseRow({ value, index, onChange, onRemove, disabled = false }) {
@@ -38,25 +39,14 @@ function normalizeCustomExpense(expense, clientId) {
   };
 }
 
-function buildPreviewItem(file) {
-  return {
-    id: `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2)}`,
-    file,
-    previewUrl: URL.createObjectURL(file),
-  };
-}
-
-function normalizeImageFiles(fileList) {
-  return Array.from(fileList || [])
-    .filter((file) => file && file.type && file.type.startsWith("image/"))
-    .map(buildPreviewItem);
-}
-
 export default function ManagerDailyReportPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [preparing, setPreparing] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const submitting = useRef(false);
   const [notes, setNotes] = useState("");
   const [knownExpenses, setKnownExpenses] = useState([]);
   const [customExpenses, setCustomExpenses] = useState([]);
@@ -72,17 +62,19 @@ export default function ManagerDailyReportPage() {
     return normalizeCustomExpense(expense, clientId);
   }
 
-  async function load() {
+  async function load({ preserveOnError = false } = {}) {
     try {
       setError("");
-      const payload = await apiFetch("/manager/rapport-journalier/");
+      const payload = await apiFetch("/manager/rapport-journalier/", { cacheTtlMs: 0, redirectOnAuthError: !preserveOnError });
       setData(payload);
       setNotes(payload.report_notes || "");
       setKnownExpenses(payload.expense_form?.known || []);
       setCustomExpenses((payload.expense_form?.custom || []).map((expense) => createCustomExpense(expense)));
       setDeclaredAmount(payload.submitted_total_amount || "");
+      Object.values(equipmentPhotosRef.current).flat().forEach(photo => URL.revokeObjectURL(photo.previewUrl));
       setEquipmentPhotos({});
     } catch (requestError) {
+      if (preserveOnError) throw requestError;
       setError(requestError.message);
     }
   }
@@ -129,8 +121,15 @@ export default function ManagerDailyReportPage() {
     setCustomExpenses((currentExpenses) => currentExpenses.filter((_, expenseIndex) => expenseIndex !== index));
   }
 
-  function addEquipmentPhotos(machineId, fileList) {
-    const nextPhotos = normalizeImageFiles(fileList);
+  async function addEquipmentPhotos(machineId, fileList) {
+    if (Object.values(equipmentPhotosRef.current).flat().length + fileList.length > 20) {
+      setNotice("Ajoutez au maximum 20 photos d'équipements par rapport.");
+      return;
+    }
+    setPreparing(count => count + 1);
+    const { items: nextPhotos, errors } = await preparePhotoSelection(fileList);
+    setPreparing(count => count - 1);
+    setNotice(errors.join(" "));
     if (!nextPhotos.length) {
       return;
     }
@@ -204,6 +203,7 @@ export default function ManagerDailyReportPage() {
 
   function handleSubmit(event) {
     event.preventDefault();
+    if (busy || preparing) return;
     if (data.report_submitted) {
       setNotice("Le rapport final du jour a déjà été envoyé. Contactez l'administrateur pour une correction.");
       return;
@@ -218,20 +218,37 @@ export default function ManagerDailyReportPage() {
   }
 
   async function confirmSubmit() {
+    if (submitting.current || preparing) return;
+    submitting.current = true;
     setBusy(true);
+    setProgress(0);
     setNotice("");
     try {
       const payload = await apiFetch("/manager/rapport-journalier/", {
         method: "POST",
         data: buildFormData(),
+        onUploadProgress: setProgress,
       });
       setNotice(payload.message);
       setPreviewOpen(false);
-      await load();
+      // A refresh failure must not turn a successful save into a failed report.
+      setData(current => ({ ...current, report_submitted: true }));
+      try { await load({ preserveOnError: true }); } catch (_) { /* Saved state remains visible. */ }
     } catch (requestError) {
       setNotice(requestError.message);
+      if (!requestError.status || [409, 502, 503, 504].includes(requestError.status)) {
+        try {
+          const saved = await apiFetch("/manager/rapport-journalier/", { cacheTtlMs: 0, redirectOnAuthError: false, query: { date: data.date, site: data.site.id } });
+          if (saved.report_submitted) {
+            setData(saved);
+            setPreviewOpen(false);
+            setNotice("Votre rapport a bien été enregistré. Aucun nouvel envoi n'est nécessaire.");
+          }
+        } catch (_) { /* Keep the entire draft and photos available for retry. */ }
+      }
     } finally {
       setBusy(false);
+      submitting.current = false;
     }
   }
 
@@ -301,6 +318,7 @@ export default function ManagerDailyReportPage() {
         </div>
 
         <form className="form-grid" onSubmit={handleSubmit}>
+          <fieldset disabled={busy || preparing > 0} style={{ display: "contents" }}>
           <label className="field">
             <span>Montant total déclaré (FC)</span>
             <input
@@ -392,7 +410,20 @@ export default function ManagerDailyReportPage() {
                           event.target.value = "";
                         }}
                       />
+                      <input
+                        id={`equipment-gallery-${machine.id}`}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        hidden
+                        disabled={data.report_submitted || busy}
+                        onChange={(event) => {
+                          addEquipmentPhotos(machine.id, event.target.files);
+                          event.target.value = "";
+                        }}
+                      />
                       {!data.report_submitted ? (
+                        <div className="capture-button-row">
                         <button
                           type="button"
                           className="button button-muted"
@@ -401,6 +432,10 @@ export default function ManagerDailyReportPage() {
                         >
                           Prendre photo
                         </button>
+                        <button type="button" className="button button-muted" disabled={busy} onClick={() => document.getElementById(`equipment-gallery-${machine.id}`)?.click()}>
+                          Choisir une photo
+                        </button>
+                        </div>
                       ) : null}
                       {pendingPhotos.length ? (
                         <div className="capture-preview-grid">
@@ -489,7 +524,7 @@ export default function ManagerDailyReportPage() {
               </div>
               {notes ? <p className="inline-muted">Notes: {notes}</p> : null}
               <div className="button-row">
-                <button type="button" className="button button-primary" onClick={confirmSubmit} disabled={busy}>
+                <button type="button" className="button button-primary" onClick={confirmSubmit} disabled={busy || preparing > 0}>
                   {busy ? "Envoi..." : "Confirmer et envoyer une seule fois"}
                 </button>
                 <button type="button" className="button button-muted" onClick={() => setPreviewOpen(false)} disabled={busy}>
@@ -499,10 +534,12 @@ export default function ManagerDailyReportPage() {
             </div>
           ) : null}
           <div className="field-full form-actions">
-            <button type="submit" className="button button-primary" disabled={busy || data.report_submitted}>
+            <p role="status" aria-live="polite">{preparing ? "Préparation et réduction des photos…" : busy ? progress < 100 ? `Envoi des photos : ${progress} %` : "Photos transmises. Enregistrement du rapport…" : "Les photos sont réduites automatiquement avant l'envoi."}</p>
+            <button type="submit" className="button button-primary" disabled={busy || preparing > 0 || data.report_submitted}>
               {data.report_submitted ? "Rapport déjà envoyé" : busy ? "Envoi..." : "Voir l'aperçu avant envoi"}
             </button>
           </div>
+          </fieldset>
         </form>
       </section>
 
